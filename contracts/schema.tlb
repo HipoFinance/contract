@@ -1,0 +1,115 @@
+//
+// Storage
+//
+
+root_storage#_
+    total_active:Coins
+    total_next:Coins
+    total_later:Coins
+    round:uint32
+    content:^Cell
+    wallet_code:^Cell
+        = RootStorage;
+
+wallet_storage#_
+    active_balance:Coins
+    next_balance:Coins
+    later_balance:Coins
+    round:uint32
+    owner:MsgAddressInt
+    root:MsgAddressInt
+    wallet_code:^Cell
+        = WalletStorage;
+
+//
+// Ops
+//
+
+//
+// TEP-74 Jettons
+//
+
+send#0f8a7ea5 // originally named 'transfer'
+    query_id:uint64
+    stake_amount:Coins
+    recipient_owner:MsgAddress
+    return_excess:MsgAddress
+    _:(Maybe ^Cell) // custom_payload ignored
+    notification_ton_amount:Coins
+    notification_payload:(Either Cell ^Cell)
+        = InternalMsgBody;
+
+receive#178d4519 // originally named 'internal_transfer'
+    query_id:uint64
+    stake_amount:Coins
+    sender_owner:MsgAddress
+    return_excess:MsgAddress
+    notification_ton_amount:Coins
+    notification_payload:(Either Cell ^Cell)
+        = InternalMsgBody;
+
+notify#7362d09c // originally named 'transfer_notification'
+    query_id:uint64
+    stake_amount:Coins
+    sender_owner:MsgAddress
+    notification_payload:(Either Cell ^Cell)
+        = InternalMsgBody;
+
+excess#d53276db // originally named 'excesses'
+    query_id:uint64
+        = InternalMsgBody;
+
+//
+// TEP-89 Discoverable Jettons
+//
+
+provide_wallet_address#2c76b973
+    query_id:uint64
+    owner:MsgAddress
+    include_address:Bool
+        = InternalMsgBody;
+
+take_wallet_address#d1735400
+    query_id:uint64
+    wallet_address:MsgAddress
+    owner:(Maybe ^MsgAddress)
+        = InternalMsgBody;
+
+//
+// Custom
+//
+
+deposit#696aace0
+    query_id:uint64
+    stake_amount:Coins
+    recipient_owner:MsgAddress
+    return_excess:MsgAddress
+    notification_ton_amount:Coins
+    notification_payload:(Either Cell ^Cell)
+        = InternalMsgBody;
+
+withdraw#334da837
+    query_id:uint64
+    stake_amount:Coins
+    recipient:MsgAddress
+    return_excess:MsgAddress
+    payload:(Maybe ^Cell)
+        = InternalMsgBody;
+
+release#73d523e4
+    query_id:uint64
+    stake_amount:Coins
+    sender_owner:MsgAddress
+    recipient:MsgAddress
+    return_excess:MsgAddress
+    payload:(Maybe ^Cell)
+        = InternalMsgBody;
+
+report#2e0aea83
+    query_id:uint64
+    sender_owner:MsgAddress
+    payload:(Maybe ^Cell)
+        = InternalMsgBody;
+
+top_up#34e5d45a
+        = InternalMsgBody;

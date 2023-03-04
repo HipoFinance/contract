@@ -1,0 +1,68 @@
+() send_msg(int flags, builder dst, int coins, cell body, int mode) impure {
+    ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
+    ;;   src:MsgAddress dest:MsgAddressInt
+    ;;   value:CurrencyCollection ihr_fee:Grams fwd_fee:Grams
+    ;;   created_lt:uint64 created_at:uint32 = CommonMsgInfoRelaxed;
+    ;; message$_ {X:Type} info:CommonMsgInfoRelaxed
+    ;;   init:(Maybe (Either StateInit ^StateInit))
+    ;;   body:(Either X ^X) = MessageRelaxed X;
+    cell msg = begin_cell()
+        .store_uint(flags, 6)
+        .store_builder(dst)
+        .store_coins(coins)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1)
+        .store_maybe_ref(body)
+        .end_cell();
+    send_raw_message(msg, mode);
+}
+
+() send_si_msg(int flags, builder dst, int coins, cell state_init, cell body, int mode) impure {
+    ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
+    ;;   src:MsgAddress dest:MsgAddressInt
+    ;;   value:CurrencyCollection ihr_fee:Grams fwd_fee:Grams
+    ;;   created_lt:uint64 created_at:uint32 = CommonMsgInfoRelaxed;
+    ;; message$_ {X:Type} info:CommonMsgInfoRelaxed
+    ;;   init:(Maybe (Either StateInit ^StateInit))
+    ;;   body:(Either X ^X) = MessageRelaxed X;
+    cell msg = begin_cell()
+        .store_uint(flags, 6)
+        .store_builder(dst)
+        .store_coins(coins)
+        .store_uint(2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_ref(state_init)
+        .store_maybe_ref(body)
+        .end_cell();
+    send_raw_message(msg, mode);
+}
+
+cell create_wallet_data(slice owner, slice root, cell wallet_code) {
+    return begin_cell()
+        .store_coins(0) ;; active balance
+        .store_coins(0) ;; next balance
+        .store_coins(0) ;; later balance
+        .store_uint(0, 32) ;; round
+        .store_slice(owner)
+        .store_slice(root)
+        .store_ref(wallet_code)
+        .end_cell();
+}
+
+cell create_state_init(cell code, cell data) {
+    ;; _ split_depth:(Maybe (## 5)) special:(Maybe TickTock)
+    ;;  code:(Maybe ^Cell) data:(Maybe ^Cell)
+    ;;  library:(HashmapE 256 SimpleLib) = StateInit;
+    return begin_cell()
+        .store_uint(6, 5) ;; 00110
+        .store_ref(code)
+        .store_ref(data)
+        .end_cell();
+}
+
+builder create_address(int wc, int address) {
+    ;; addr_std$10 anycast:(Maybe Anycast)
+    ;;   workchain_id:int8 address:bits256  = MsgAddressInt;
+    return begin_cell()
+        .store_uint(4, 3) ;; 100
+        .store_uint(wc, 8)
+        .store_uint(address, 256);
+}

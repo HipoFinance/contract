@@ -1,0 +1,38 @@
+const int err::insufficient_fee = 101;
+const int err::insufficient_funds = 102;
+const int err::access_denied = 103;
+const int err::only_basechain_allowed = 104;
+const int err::receiver_is_sender = 105;
+const int err::unknown_op = 999;
+
+const int fee::root_storage = 10000000000; ;; 10 TON
+const int fee::wallet_storage = 10000000; ;; 0.01 TON
+const int fee::gas_consumption = 15000000; ;; 0.015 TON
+const int fee::provide_address_gas_consumption = 10000000; ;; 0.01 TON
+
+const int op::send = 0x0f8a7ea5;
+const int op::receive = 0x178d4519;
+const int op::notify = 0x7362d09c;
+const int op::excess = 0xd53276db;
+const int op::provide_wallet_address = 0x2c76b973;
+const int op::take_wallet_address = 0xd1735400;
+const int op::deposit = 0x696aace0;
+const int op::withdraw = 0x334da837;
+const int op::release = 0x73d523e4;
+const int op::report = 0x2e0aea83;
+const int op::top_up = 0x34e5d45a;
+
+const int chain::master = -1;
+const int chain::base = 0;
+
+const int flag::non_bounceable = 0x10; ;; 010000
+const int flag::bounceable = 0x18;     ;; 011000
+
+const int mode::none = 0;
+const int mode::pay_fees_separately = 1;
+const int mode::ignore_errors = 2;
+const int mode::destroy_account_if_zero = 32;
+const int mode::carry_remaining_gas = 64;
+const int mode::carry_all_remaining_balance = 128;
+
+const slice address::empty = "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"a;
