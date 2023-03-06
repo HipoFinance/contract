@@ -78,7 +78,7 @@ export class Wallet implements Contract {
             queryId?: bigint,
             stakeAmount: bigint,
             recipientOwner: Address,
-            returnExcess: Address,
+            returnExcess?: Address,
             notificationTonAmount?: bigint,
             notificationPayload?: Slice,
         }

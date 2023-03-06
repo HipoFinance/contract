@@ -54,7 +54,7 @@ describe('Wallet', () => {
         expect(r.transactions).toHaveLength(3)
     })
 
-    it.only('should return balances', async () => {
+    it('should return balances', async () => {
         const b = await Blockchain.create()
         const wallet = b.openContract(Wallet.createFromConfig({
             activeBalance: toNano('3'),
@@ -108,8 +108,6 @@ describe('Wallet', () => {
             value: toNano('0.1'),
             stakeAmount: toNano('60'),
             recipientOwner: receiver.address,
-            returnExcess: sender.address,
-            notificationTonAmount: 0n,
         })
         expect(r.transactions).toHaveTransaction({
             from: sender.address,

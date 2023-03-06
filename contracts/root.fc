@@ -3,26 +3,6 @@
 #include "imports/utils.fc";
 #pragma version >=0.4.1;
 
-(int, int, int, int, cell, cell) load_data() impure {
-    slice ds = get_data().begin_parse();
-    ( int total_active
-    , int total_next
-    , int total_later
-    , int round
-    , cell content
-    , cell wallet_code
-    ) = var result =
-        ( ds~load_coins()
-        , ds~load_coins()
-        , ds~load_coins()
-        , ds~load_uint(32)
-        , ds~load_ref()
-        , ds~load_ref()
-        );
-    ds.end_parse();
-    return result;
-}
-
 () save_data
     ( int total_active
     , int total_next
@@ -41,6 +21,18 @@
             .store_ref(wallet_code)
             .end_cell()
     );
+}
+
+(int, int, int, int, cell, cell) load_data() impure {
+    slice ds = get_data().begin_parse();
+    int total_active = ds~load_coins();
+    int total_next = ds~load_coins();
+    int total_later = ds~load_coins();
+    int round = ds~load_uint(32);
+    cell content = ds~load_ref();
+    cell wallet_code = ds~load_ref();
+    ds.end_parse();
+    return (total_active, total_next, total_later, round, content, wallet_code);
 }
 
 int deposit(int msg_ton, int fwd_fee, slice s, cell wallet_code) impure {
@@ -193,6 +185,13 @@ int release(int ton_balance, int msg_ton, slice src, slice s, int total_active, 
     , cell wallet_code
     ) = load_data();
 
+    ( total_active
+    , total_next
+    , total_later
+    , round
+    , int utime_until
+    ) = update_round(total_active, total_next, total_later, round);
+
     int op = 0;
     if (in_msg_body.slice_bits() >= 32) {
         op = in_msg_body~load_uint(32);
@@ -202,9 +201,9 @@ int release(int ton_balance, int msg_ton, slice src, slice s, int total_active, 
         int failed_op = in_msg_body~load_uint(32); ;; read original op
 
         if (failed_op == op::receive) { ;; failed receive
-            in_msg_body~skip_bits(64); ;; skip query_id
-            int stake_amount = in_msg_body~load_coins();
-            total_later -= stake_amount;
+            ;; this must not happen, and since round may have changed before receiving bounced message,
+            ;; it's not easy to determine total_next must be reduced or total_later.
+            ;; ignored, but always check that there's no possible way for `receive` op to wallet to fail.
         }
 
         else { ;; ignore other bounced messages
@@ -214,12 +213,12 @@ int release(int ton_balance, int msg_ton, slice src, slice s, int total_active, 
 
     elseif (op == 0) { ;; simple transfer with comment, convert to deposit request
         int amount = simple_deposit(msg_ton, src, fwd_fee, wallet_code);
-        total_later += amount;
+        (total_next, total_later) = update_next_or_later(total_next, total_later, amount, utime_until);
     }
 
     elseif (op == op::deposit) { ;; deposit TON
         int amount = deposit(msg_ton, fwd_fee, in_msg_body, wallet_code);
-        total_later += amount;
+        (total_next, total_later) = update_next_or_later(total_next, total_later, amount, utime_until);
     }
 
     elseif (op == op::release) { ;; release TON
@@ -287,10 +286,17 @@ slice get_wallet_address(slice owner) method_id {
     ( int total_active
     , int total_next
     , int total_later
-    , _
+    , int round
     , _
     , _
     ) = load_data();
+
+    ( total_active
+    , total_next
+    , total_later
+    , _
+    , _
+    ) = update_round(total_active, total_next, total_later, round);
 
     return (total_active, total_next, total_later);
 }

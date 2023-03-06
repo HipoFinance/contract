@@ -3,10 +3,11 @@ const int err::insufficient_funds = 102;
 const int err::access_denied = 103;
 const int err::only_basechain_allowed = 104;
 const int err::receiver_is_sender = 105;
+const int err::unexpected_validator_set_format = 106;
 const int err::unknown_op = 999;
 
 const int fee::root_storage = 10000000000; ;; 10 TON
-const int fee::wallet_storage = 10000000; ;; 0.01 TON
+const int fee::wallet_storage = 20000000; ;; 0.02 TON
 const int fee::gas_consumption = 15000000; ;; 0.015 TON
 const int fee::provide_address_gas_consumption = 10000000; ;; 0.01 TON
 

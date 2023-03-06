@@ -49,8 +49,8 @@ cell create_wallet_data(slice owner, slice root, cell wallet_code) {
 
 cell create_state_init(cell code, cell data) {
     ;; _ split_depth:(Maybe (## 5)) special:(Maybe TickTock)
-    ;;  code:(Maybe ^Cell) data:(Maybe ^Cell)
-    ;;  library:(HashmapE 256 SimpleLib) = StateInit;
+    ;;   code:(Maybe ^Cell) data:(Maybe ^Cell)
+    ;;   library:(HashmapE 256 SimpleLib) = StateInit;
     return begin_cell()
         .store_uint(6, 5) ;; 00110
         .store_ref(code)
@@ -65,4 +65,46 @@ builder create_address(int wc, int address) {
         .store_uint(4, 3) ;; 100
         .store_uint(wc, 8)
         .store_uint(address, 256);
+}
+
+(int, int, int, int) get_election_config(cell c) impure {
+    ;; _ validators_elected_for:uint32 elections_start_before:uint32
+    ;;   elections_end_before:uint32 stake_held_for:uint32
+    ;;   = ConfigParam 15;
+    slice cs = c.begin_parse();
+    return (cs~load_uint(32), cs~load_uint(32), cs~load_uint(32), cs~load_uint(32));
+}
+
+(int, int) get_vset_times(cell c) impure {
+    ;; validators_ext#12 utime_since:uint32 utime_until:uint32
+    ;;   total:(## 16) main:(## 16) { main <= total } { main >= 1 }
+    ;;   total_weight:uint64 list:(HashmapE 16 ValidatorDescr) = ValidatorSet;
+    slice cs = c.begin_parse();
+    throw_unless(err::unexpected_validator_set_format, cs~load_uint(8) == 0x12);
+    return (cs~load_uint(32), cs~load_uint(32));
+}
+
+(int, int, int, int, int) update_round(int active, int next, int later, int round) impure {
+    (int utime_since, int utime_until) = get_vset_times(config_param(34));
+    if (round & (round != utime_since)) { ;; at least one round has passed
+        (int prev_utime_since, _) = get_vset_times(config_param(32));
+        if (round != prev_utime_since) { ;; more than one round has passed
+            active += next + later;
+            next = later = 0;
+        } else { ;; only one round has passed
+            active += next;
+            next = later;
+            later = 0;
+        }
+    }
+    return (active, next, later, utime_since, utime_until);
+}
+
+(int, int) update_next_or_later(int next, int later, int amount, int utime_until) impure {
+    (_, int elections_start_before, _, _) = get_election_config(config_param(15));
+    if (now() < utime_until - elections_start_before) {
+        return (next + amount, later);
+    } else {
+        return (next, later + amount);
+    }
 }

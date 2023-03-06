@@ -3,28 +3,6 @@
 #include "imports/utils.fc";
 #pragma version >=0.4.1;
 
-(int, int, int, int, slice, slice, cell) load_data() impure {
-    slice ds = get_data().begin_parse();
-    ( int active_balance
-    , int next_balance
-    , int later_balance
-    , int round
-    , slice owner
-    , slice root
-    , cell wallet_code
-    ) = var result =
-        ( ds~load_coins()
-        , ds~load_coins()
-        , ds~load_coins()
-        , ds~load_uint(32)
-        , ds~load_msg_addr()
-        , ds~load_msg_addr()
-        , ds~load_ref()
-        );
-    ds.end_parse();
-    return result;
-}
-
 () save_data
     ( int active_balance
     , int next_balance
@@ -45,6 +23,19 @@
             .store_ref(wallet_code)
             .end_cell()
     );
+}
+
+(int, int, int, int, slice, slice, cell) load_data() impure {
+    slice ds = get_data().begin_parse();
+    int active_balance = ds~load_coins();
+    int next_balance = ds~load_coins();
+    int later_balance = ds~load_coins();
+    int round = ds~load_uint(32);
+    slice owner = ds~load_msg_addr();
+    slice root = ds~load_msg_addr();
+    cell wallet_code = ds~load_ref();
+    ds.end_parse();
+    return (active_balance, next_balance, later_balance, round, owner, root, wallet_code);
 }
 
 int send(int msg_ton, slice src, int fwd_fee, slice s,
@@ -196,6 +187,13 @@ int withdraw(int msg_ton, slice src, int fwd_fee, slice s, int active_balance, s
     , cell wallet_code
     ) = load_data();
 
+    ( active_balance
+    , next_balance
+    , later_balance
+    , round
+    , int utime_until
+    ) = update_round(active_balance, next_balance, later_balance, round);
+
     int op = 0;
     if (in_msg_body.slice_bits() >= 32) {
         op = in_msg_body~load_uint(32);
@@ -215,22 +213,22 @@ int withdraw(int msg_ton, slice src, int fwd_fee, slice s, int active_balance, s
         }
     }
 
-    elseif (op == op::send) { ;; send stTON
+    elseif (op == op::send) { ;; send hTON
         int amount = send(msg_ton, src, fwd_fee, in_msg_body, active_balance, owner, root, wallet_code);
         active_balance -= amount;
     }
 
-    elseif (op == op::receive) { ;; receive stTON
+    elseif (op == op::receive) { ;; receive hTON
         (int amount, int from_root?) =
             receive(my_balance, msg_ton, src, fwd_fee, in_msg_body, owner, root, wallet_code);
         if (from_root?) {
-            later_balance += amount;
+            (next_balance, later_balance) = update_next_or_later(next_balance, later_balance, amount, utime_until);
         } else {
             active_balance += amount;
         }
     }
 
-    elseif (op == op::withdraw) { ;; withdraw stTON
+    elseif (op == op::withdraw) { ;; withdraw hTON
         int amount = withdraw(msg_ton, src, fwd_fee, in_msg_body, active_balance, owner, root);
         active_balance -= amount;
     }
@@ -263,7 +261,7 @@ int withdraw(int msg_ton, slice src, int fwd_fee, slice s, int active_balance, s
     ( int active_balance
     , int next_balance
     , int later_balance
-    , int round
+    , _
     , slice owner
     , slice root
     , cell wallet_code
@@ -278,11 +276,18 @@ int withdraw(int msg_ton, slice src, int fwd_fee, slice s, int active_balance, s
     ( int active_balance
     , int next_balance
     , int later_balance
-    , _
+    , int round
     , _
     , _
     , _
     ) = load_data();
+
+    ( active_balance
+    , next_balance
+    , later_balance
+    , _
+    , _
+    ) = update_round(active_balance, next_balance, later_balance, round);
 
     return (active_balance, next_balance, later_balance);
 }
