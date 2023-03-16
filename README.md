@@ -2,7 +2,14 @@
 
 Stake Hipo is a liquidity staking protocol on the TON blockchain.
 
-## How This Protocol Works
+## Highlights
+
+- Automatic activation of hTON balance in wallets with zero messages or transactions.
+- Protocol is driven by only 2 external messages, and gas fee is paid by Root itself.
+- Participate external message can only be accepted after at least one loan request.
+- Recover external message can only happen after round changes, and it can correct itself for prolonged rounds.
+- Validators stake their hTON to receive a loan.
+- Very little gas usage and storage on masterchain.
 
 ### What Is Staking
 
@@ -64,6 +71,8 @@ Since the new TON entering the system is not available for current validators, a
 
 This mechanism helps prevent freeloaders from constantly staking and unstaking and receive the reward of the round and then quickly exit the protocol. So hTON is at least one round locked, but maybe two.
 
+The process of activation is automatic with no messages or transactions required. When users check their balance using get methods, current round is compared to last saved round, and if it has changed, inactive balance becomes active, so there is no need for any messages or transactions. When users want to send some hTON, the same process happens again and inactive balance becomes active and usable.
+
 At `recover stakes`, an external message is sent to `Root`. This message can be sent by anyone, but we also send it automatically at the correct time. If the time is right, `Root` asks old `Pool`s to recover their stake from `Elector` and return it to `Root`. This is a quick action and all `Pool`s participating in the previous round will retrieve their funds.
 
 When the last `Pool` returns funds, total earned rewards are calculated, and then `Root` is ready to distribute rewards to users' `Wallet`s.
@@ -80,13 +89,15 @@ There can be many winning `Pool`s, and the protocol supports even more than 255.
 
 ## Status
 
-We wanted to participate in the DoraHacks Hack-a-TONx competition. We have to release this first version described above. But there are some steps needed for a production ready version. These include:
+We wanted to participate in the [DoraHacks Hack-a-TONx](https://dorahacks.io/hackathon/hack-a-tonx/) competition. We had to release this first version described above, but there are some steps needed for a production ready version. These include:
 
 - security audit
 - bug bounty program
 - an upgrade mechanism
 - a governance token to decide on the upgrade activation
 - a mechanism to distribute rewards at later times to minimize network fees for wallets
+- optimize gas usage
+- update pre-calculated fee prices
 
 ## Development
 
