@@ -1,4 +1,4 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode, TupleBuilder } from 'ton-core'
+import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode, Slice, TupleBuilder } from 'ton-core'
 
 const opTopUp = 0x34e5d45a
 
@@ -9,6 +9,11 @@ export type RootConfig = {
     round: bigint
     content: Cell
     walletCode: Cell
+}
+
+export type RecipientPayload = {
+    recipient: Address
+    payload?: Cell
 }
 
 export function rootConfigToCell(config: RootConfig): Cell {
@@ -40,6 +45,58 @@ export class Root implements Contract {
             value,
             sendMode: SendMode.PAY_GAS_SEPARATLY,
             body: beginCell().storeUint(opTopUp, 32).endCell(),
+        })
+    }
+
+    async sendDeposit(provider: ContractProvider, via: Sender, opts: {
+        value: bigint
+        queryId?: bigint
+        stakeAmount: bigint
+        recipientOwner: Address
+        returnExcess?: Address
+        notificationTonAmount?: bigint
+        notificationPayload?: Slice
+    }) {
+        await provider.internal(via, {
+            value: opts.value,
+            bounce: true,
+            sendMode: SendMode.NONE,
+            body: beginCell()
+                .storeUint(0x696aace0, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .storeCoins(opts.stakeAmount)
+                .storeAddress(opts.recipientOwner)
+                .storeAddress(opts.returnExcess)
+                .storeCoins(opts.notificationTonAmount || 0)
+                .storeSlice(opts.notificationPayload || beginCell().storeUint(0, 1).endCell().beginParse())
+                .endCell()
+        })
+    }
+
+    async sendWithdraw(provider: ContractProvider, via: Sender, opts: {
+        value: bigint
+        queryId?: bigint
+        stakeAmount: bigint
+        returnExcess?: Address
+        recipientPayload?: RecipientPayload
+    }) {
+        let recipientPayload
+        if (opts.recipientPayload != null) {
+            recipientPayload = beginCell()
+                .storeAddress(opts.recipientPayload.recipient)
+                .storeMaybeRef(opts.recipientPayload.payload)
+        }
+        await provider.internal(via, {
+            value: opts.value,
+            bounce: true,
+            sendMode: SendMode.NONE,
+            body: beginCell()
+                .storeUint(0x595f07bc, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .storeCoins(opts.stakeAmount)
+                .storeAddress(opts.returnExcess)
+                .storeMaybeBuilder(recipientPayload)
+                .endCell()
         })
     }
 

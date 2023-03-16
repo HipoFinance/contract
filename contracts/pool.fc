@@ -1,0 +1,188 @@
+#pragma version >=0.4.1;
+
+#include "imports/stdlib.fc";
+#include "imports/constants.fc";
+#include "imports/utils.fc";
+
+() send_new_stake(slice src, slice s) impure {
+    slice ds = get_data().begin_parse();
+    ds~load_msg_addr(); ;; skip elector
+    slice root = ds~load_msg_addr();
+
+    int query_id = s~load_uint(64); ;; must be non-zero to receive success response
+    int total_loan_amount = s~load_coins();
+    cell new_stake_msg = s~load_ref();
+    s.end_parse();
+
+    int amount+1ton = total_loan_amount + fee::one_ton;
+    int min_balance = amount+1ton + fee::pool_storage + fee::new_stake_gas_consumption;
+    int ton_balance = get_balance().pair_first();
+
+    throw_unless(err::access_denied, equal_slices(src, root));
+    throw_unless(err::insufficient_funds, ton_balance >= min_balance);
+
+    builder elector = create_address(get_elector());
+    builder body = begin_cell()
+        .store_uint(op::new_stake, 32)
+        .store_uint(query_id, 64)
+        .store_slice(new_stake_msg.begin_parse());
+    send_msg(flag::bounceable, elector, amount+1ton, null(), body, mode::add_transfer_fee);
+
+    begin_cell()
+        .store_builder(elector)
+        .store_slice(root)
+        .store_slice(ds)
+        .end_cell()
+        .set_data();
+}
+
+() new_stake_error(slice src, slice s) impure {
+    slice ds = get_data().begin_parse();
+    slice elector = ds~load_msg_addr();
+    slice root = ds~load_msg_addr();
+    slice validator_owner = ds~load_msg_addr();
+    ds.end_parse();
+
+    int query_id = 0;
+    int reason = 0;
+    if (s.slice_bits() >= 64 + 32) { ;; in case the elector's behavior changed, don't throw
+        query_id = s~load_uint(64);
+        reason = s~load_uint(32);
+    }
+
+    throw_unless(err::access_denied, equal_slices(src, elector));
+
+    accept_message();
+
+    builder body = begin_cell()
+        .store_uint(op::new_stake_rejected, 32)
+        .store_uint(query_id, 64)
+        .store_uint(reason, 32)
+        .store_slice(validator_owner);
+    send_msg(flag::non_bounceable, root.to_builder(), 0, null(), body,
+        mode::carry_everything + mode::destroy_account_if_zero);
+}
+
+() send_recover_stake(slice src, slice s) impure {
+    slice ds = get_data().begin_parse();
+    slice elector = ds~load_msg_addr();
+    slice root = ds~load_msg_addr();
+
+    int query_id = s~load_uint(64);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slices(src, root));
+
+    builder body = begin_cell()
+        .store_uint(op::recover_stake, 32)
+        .store_uint(query_id, 64);
+    send_msg(flag::bounceable, elector.to_builder(), 0, null(), body, mode::carry_inbound);
+}
+
+() recover_stake_result(slice src, int op, slice s) impure {
+    slice ds = get_data().begin_parse();
+    slice elector = ds~load_msg_addr();
+    slice root = ds~load_msg_addr();
+    slice validator_owner = ds~load_msg_addr();
+    ds.end_parse();
+
+    int query_id = 0;
+    if (s.slice_bits() >= 64) { ;; in case the elector's behavior changed, don't throw
+        query_id = s~load_uint(64);
+    }
+
+    int ok? = op == op::recover_stake_ok;
+
+    throw_unless(err::access_denied, equal_slices(src, elector));
+
+    accept_message();
+
+    builder body = begin_cell()
+        .store_uint(op::recover_stake_result, 32)
+        .store_uint(query_id, 64)
+        .store_uint(ok?, 1)
+        .store_slice(validator_owner);
+    send_msg(flag::non_bounceable, root.to_builder(), 0, null(), body,
+        mode::carry_everything + mode::destroy_account_if_zero);
+}
+
+int src_is_elector?(slice src) {
+    slice ds = get_data().begin_parse();
+    slice elector = ds~load_msg_addr();
+
+    return equal_slices(src, elector);
+}
+
+() handle_bounced_message(slice src, slice s) impure {
+    int op = s~load_uint(32);
+
+    if (op == op::new_stake) {
+        ;; the elector does not throw because format of new_stake_msg is already checked,
+        ;; however, its code might change in the future, so let's handle a potential throw
+        new_stake_error(src, s);
+        return ();
+    }
+
+    if (op == op::recover_stake) {
+        ;; the elector does not throw, but we'll handle it in case the elector's code has changed
+        recover_stake_result(src, op::recover_stake_error, s);
+        return ();
+    }
+}
+
+() recv_internal(cell in_msg_full, slice in_msg_body) impure {
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    slice src = cs~load_msg_addr();
+
+    int op = 0;
+    if (in_msg_body.slice_bits() >= 32) {
+        op = in_msg_body~load_uint(32);
+    }
+
+    if (flags & 1) {
+        handle_bounced_message(src, in_msg_body);
+        throw(1); ;; to pass test case for this important step
+    }
+
+    if (op == op::send_new_stake) { ;; send a new stake request to the elector
+        send_new_stake(src, in_msg_body);
+        return ();
+    }
+
+    if (op == op::new_stake_error) { ;; stake rejected by the elector
+        new_stake_error(src, in_msg_body);
+        return ();
+    }
+
+    if (op == op::new_stake_ok) { ;; stake accepted before the election
+        ;; elector returns 1 TON when query_id > 0, do nothing
+        return ();
+    }
+
+    if (op == op::send_recover_stake) { ;; recover stake from the elector
+        send_recover_stake(src, in_msg_body);
+        return ();
+    }
+
+    if (op == op::recover_stake_error) { ;; nothing to recover
+        recover_stake_result(src, op, in_msg_body);
+        return ();
+    }
+
+    if (op == op::recover_stake_ok) { ;; recover returns some TON
+        recover_stake_result(src, op, in_msg_body);
+        return ();
+    }
+
+    if (op == op::top_up) { ;; top up pool's TON balance
+        ;; do nothing
+        return ();
+    }
+
+    if (src_is_elector?(src)) { ;; accept coins from the elector
+        return ();
+    }
+
+    throw(err::unknown_op);
+}

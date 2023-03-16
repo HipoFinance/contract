@@ -1,15 +1,24 @@
+#pragma version >=0.4.1;
+
 const int err::insufficient_fee = 101;
 const int err::insufficient_funds = 102;
 const int err::access_denied = 103;
 const int err::only_basechain_allowed = 104;
 const int err::receiver_is_sender = 105;
-const int err::unexpected_validator_set_format = 106;
+const int err::not_ready_to_distribute_reward = 106;
+const int err::unable_to_release_while_participating = 107;
+const int err::unexpected_validator_set_format = 108;
+const int err::invalid_loan_request = 109;
+const int err::no_active_election = 110;
+const int err::already_staked = 111;
+const int err::not_accepting_loan_requests = 112;
+const int err::not_ready_to_participate = 113;
+const int err::too_soon_to_participate = 114;
+const int err::not_participating = 115;
+const int err::not_ready_to_recover = 116;
+const int err::not_recovering = 117;
+const int err::too_soon_to_recover = 118;
 const int err::unknown_op = 999;
-
-const int fee::root_storage = 10000000000; ;; 10 TON
-const int fee::wallet_storage = 20000000; ;; 0.02 TON
-const int fee::gas_consumption = 15000000; ;; 0.015 TON
-const int fee::provide_address_gas_consumption = 10000000; ;; 0.01 TON
 
 const int op::send = 0x0f8a7ea5;
 const int op::receive = 0x178d4519;
@@ -18,22 +27,64 @@ const int op::excess = 0xd53276db;
 const int op::provide_wallet_address = 0x2c76b973;
 const int op::take_wallet_address = 0xd1735400;
 const int op::deposit = 0x696aace0;
-const int op::withdraw = 0x334da837;
+const int op::withdraw = 0x595f07bc;
 const int op::release = 0x73d523e4;
 const int op::report = 0x2e0aea83;
 const int op::top_up = 0x34e5d45a;
+const int op::new_stake = 0x4e73744b;
+const int op::new_stake_error = 0xee6f454c;
+const int op::new_stake_ok = 0xf374484c;
+const int op::recover_stake = 0x47657424;
+const int op::recover_stake_error = 0xfffffffe;
+const int op::recover_stake_ok = 0xf96f7324;
+const int op::send_loan_request = 1;
+const int op::save_loan_request = 2;
+const int op::participate = 3;
+const int op::process_loan_requests = 4;
+const int op::send_new_stake = 5;
+const int op::new_stake_rejected = 6;
+const int op::recover = 7;
+const int op::process_stakes = 8;
+const int op::send_recover_stake = 9;
+const int op::recover_stake_result = 10;
+const int op::send_claim_reward = 11;
+const int op::claim_reward = 12;
 
-const int chain::master = -1;
+const int state::stake_held = 0;
+const int state::recovering = 1;
+const int state::waiting = 2;
+const int state::reward_distribution = 3;
+const int state::participating = 4;
+const int state::participated = 5;
+
+const int fee::one_ton = 1000000000; ;; 1 TON
+const int fee::notification_ton_for_simple_deposit = 1;
+const int fee::notification_ton_for_stake_rejected = 2;
+const int fee::notification_ton_for_stake_recovered = 3;
+const int fee::root_storage = 10000000000; ;; 10 TON
+const int fee::wallet_storage = 20000000; ;; 0.02 TON
+const int fee::pool_storage = 100000000; ;; 0.1 TON
+const int fee::loan_request_storage = 2000000000; ;; 2 TON
+const int fee::root_gas_consumption = 100000000; ;; 0.1 TON
+const int fee::wallet_gas_consumption = 15000000; ;; 0.015 TON
+const int fee::provide_address_gas_consumption = 10000000; ;; 0.01 TON
+const int fee::loan_request_gas_consumption = 20000000; ;; 0.02 TON
+const int fee::save_loan_gas_consumption = 10000000; ;; 0.01 TON
+const int fee::recover_stake_gas_consumption = 10000000; ;; 0.01 TON
+const int fee::new_stake_gas_consumption = 10000000; ;; 0.01 TON
+const int fee::recover_response_gas_consumption = 10000000; ;; 0.01 TON
+
+const int chain::main = -1;
 const int chain::base = 0;
 
 const int flag::non_bounceable = 0x10; ;; 010000
 const int flag::bounceable = 0x18;     ;; 011000
 
-const int mode::none = 0;
-const int mode::pay_fees_separately = 1;
+const int mode::carry_none = 0;
+const int mode::carry_inbound = 64;
+const int mode::carry_everything = 128;
+const int mode::add_transfer_fee = 1;
 const int mode::ignore_errors = 2;
 const int mode::destroy_account_if_zero = 32;
-const int mode::carry_remaining_gas = 64;
-const int mode::carry_all_remaining_balance = 128;
 
 const slice address::empty = "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"a;

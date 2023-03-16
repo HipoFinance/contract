@@ -1,4 +1,20 @@
-() send_msg(int flags, builder dst, int coins, cell body, int mode) impure {
+#pragma version >=0.4.1;
+
+#include "constants.fc";
+
+builder store_state_init(builder b, cell state_init) {
+    return state_init.null?()
+        ? b.store_uint(0, 1)
+        : b.store_uint(2 + 1, 1 + 1).store_ref(state_init);
+}
+
+builder store_body(builder b, builder body) {
+    return body.builder_bits() <= 518
+        ? b.store_uint(0, 1).store_builder(body)
+        : b.store_maybe_ref(body.end_cell());
+}
+
+() send_msg(int flags, builder dst, int coins, cell state_init, builder body, int mode) impure {
     ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
     ;;   src:MsgAddress dest:MsgAddressInt
     ;;   value:CurrencyCollection ihr_fee:Grams fwd_fee:Grams
@@ -10,41 +26,39 @@
         .store_uint(flags, 6)
         .store_builder(dst)
         .store_coins(coins)
-        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1)
-        .store_maybe_ref(body)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32)
+        .store_state_init(state_init)
+        .store_body(body)
         .end_cell();
     send_raw_message(msg, mode);
 }
 
-() send_si_msg(int flags, builder dst, int coins, cell state_init, cell body, int mode) impure {
-    ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
-    ;;   src:MsgAddress dest:MsgAddressInt
-    ;;   value:CurrencyCollection ihr_fee:Grams fwd_fee:Grams
-    ;;   created_lt:uint64 created_at:uint32 = CommonMsgInfoRelaxed;
-    ;; message$_ {X:Type} info:CommonMsgInfoRelaxed
-    ;;   init:(Maybe (Either StateInit ^StateInit))
-    ;;   body:(Either X ^X) = MessageRelaxed X;
-    cell msg = begin_cell()
-        .store_uint(flags, 6)
-        .store_builder(dst)
-        .store_coins(coins)
-        .store_uint(2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-        .store_ref(state_init)
-        .store_maybe_ref(body)
-        .end_cell();
-    send_raw_message(msg, mode);
+(int, int) get_elector() {
+    ;; _ elector_addr:bits256 = ConfigParam 1;
+    return (chain::main, config_param(1).begin_parse().preload_uint(256));
 }
 
-cell create_wallet_data(slice owner, slice root, cell wallet_code) {
-    return begin_cell()
-        .store_coins(0) ;; active balance
-        .store_coins(0) ;; next balance
-        .store_coins(0) ;; later balance
-        .store_uint(0, 32) ;; round
-        .store_slice(owner)
-        .store_slice(root)
-        .store_ref(wallet_code)
-        .end_cell();
+(int, int, int, int) get_election_config() impure {
+    ;; _ validators_elected_for:uint32 elections_start_before:uint32
+    ;;   elections_end_before:uint32 stake_held_for:uint32
+    ;;   = ConfigParam 15;
+    slice cs = config_param(15).begin_parse();
+    return (cs~load_uint(32), cs~load_uint(32), cs~load_uint(32), cs~load_uint(32));
+}
+
+(int, int, int, int) get_stake_config() impure {
+    ;; _ min_stake:Grams max_stake:Grams min_total_stake:Grams max_stake_factor:uint32 = ConfigParam 17;
+    slice cs = config_param(17).begin_parse();
+    return (cs~load_coins(), cs~load_coins(), cs~load_coins(), cs~load_uint(32));
+}
+
+(int, int) get_vset_times(cell c) impure {
+    ;; validators_ext#12 utime_since:uint32 utime_until:uint32
+    ;;   total:(## 16) main:(## 16) { main <= total } { main >= 1 }
+    ;;   total_weight:uint64 list:(HashmapE 16 ValidatorDescr) = ValidatorSet;
+    slice cs = c.begin_parse();
+    throw_unless(err::unexpected_validator_set_format, cs~load_uint(8) == 0x12);
+    return (cs~load_uint(32), cs~load_uint(32));
 }
 
 cell create_state_init(cell code, cell data) {
@@ -58,37 +72,58 @@ cell create_state_init(cell code, cell data) {
         .end_cell();
 }
 
-builder create_address(int wc, int address) {
+builder create_address(int wc, int addr) {
     ;; addr_std$10 anycast:(Maybe Anycast)
     ;;   workchain_id:int8 address:bits256  = MsgAddressInt;
     return begin_cell()
         .store_uint(4, 3) ;; 100
         .store_uint(wc, 8)
-        .store_uint(address, 256);
+        .store_uint(addr, 256);
 }
 
-(int, int, int, int) get_election_config(cell c) impure {
-    ;; _ validators_elected_for:uint32 elections_start_before:uint32
-    ;;   elections_end_before:uint32 stake_held_for:uint32
-    ;;   = ConfigParam 15;
-    slice cs = c.begin_parse();
-    return (cs~load_uint(32), cs~load_uint(32), cs~load_uint(32), cs~load_uint(32));
+builder to_builder(slice s) {
+    return begin_cell().store_slice(s);
 }
 
-(int, int) get_vset_times(cell c) impure {
-    ;; validators_ext#12 utime_since:uint32 utime_until:uint32
-    ;;   total:(## 16) main:(## 16) { main <= total } { main >= 1 }
-    ;;   total_weight:uint64 list:(HashmapE 16 ValidatorDescr) = ValidatorSet;
-    slice cs = c.begin_parse();
-    throw_unless(err::unexpected_validator_set_format, cs~load_uint(8) == 0x12);
-    return (cs~load_uint(32), cs~load_uint(32));
+cell create_wallet_data(builder owner, slice root, cell wallet_code) {
+    return begin_cell()
+        .store_builder(owner)
+        .store_slice(root)
+        .store_uint(0, 32) ;; round_since
+        .store_coins(0) ;; balance_active
+        .store_coins(0) ;; balance_next
+        .store_coins(0) ;; balance_later
+        .store_ref(wallet_code)
+        .end_cell();
 }
 
-(int, int, int, int, int) update_round(int active, int next, int later, int round) impure {
-    (int utime_since, int utime_until) = get_vset_times(config_param(34));
-    if (round & (round != utime_since)) { ;; at least one round has passed
-        (int prev_utime_since, _) = get_vset_times(config_param(32));
-        if (round != prev_utime_since) { ;; more than one round has passed
+cell create_pool_data(slice root, builder validator_owner) {
+    return begin_cell()
+        .store_uint(0, 2) ;; addr_none for elector
+        .store_slice(root)
+        .store_builder(validator_owner)
+        .end_cell();
+}
+
+(builder, cell) create_wallet_address(builder owner, slice root, cell wallet_code) {
+    cell wallet_data = create_wallet_data(owner, root, wallet_code);
+    cell state_init = create_state_init(wallet_code, wallet_data);
+    builder wallet = create_address(chain::base, state_init.cell_hash());
+    return (wallet, state_init);
+}
+
+(builder, cell) create_pool_address(builder validator_owner, slice root, cell pool_code) {
+    cell pool_data = create_pool_data(root, validator_owner);
+    cell state_init = create_state_init(pool_code, pool_data);
+    builder pool = create_address(chain::main, state_init.cell_hash());
+    return (pool, state_init);
+}
+
+(int, int, int, int, int) update_round(int active, int next, int later, int round_since) impure {
+    ( int utime_since, int utime_until ) = get_vset_times(config_param(34));
+    if (round_since & (round_since != utime_since)) { ;; at least one round has passed
+        ( int prev_utime_since, _ ) = get_vset_times(config_param(32));
+        if (round_since != prev_utime_since) { ;; more than one round has passed
             active += next + later;
             next = later = 0;
         } else { ;; only one round has passed
@@ -100,11 +135,53 @@ builder create_address(int wc, int address) {
     return (active, next, later, utime_since, utime_until);
 }
 
-(int, int) update_next_or_later(int next, int later, int amount, int utime_until) impure {
-    (_, int elections_start_before, _, _) = get_election_config(config_param(15));
-    if (now() < utime_until - elections_start_before) {
+(int, int) update_next_or_later(int next, int later, int amount, int round_until) impure {
+    ( _, int elections_start_before, int elections_end_before, _ ) = get_election_config();
+    int election_span = elections_start_before - elections_end_before;
+    int participate_before = muldiv(election_span, 10, 100);
+    if (now() < round_until - elections_end_before - participate_before) {
         return (next + amount, later);
     } else {
         return (next, later + amount);
     }
+}
+
+() check_new_stake_msg(slice cs) impure {
+    cs~skip_bits(256 + 32 + 32 + 256);
+    cs~load_ref().begin_parse().skip_bits(512);
+    cs.end_parse();
+}
+
+;; https://github.com/ton-blockchain/ton/blob/ae5c0720143e231c32c3d2034cfe4e533a16d969/crypto/block/block.tlb#L721
+int max_recommended_punishment_for_validator_misbehaviour(int stake) inline_ref {
+    cell cp = config_param(40);
+    if (cell_null?(cp)) {
+        return 101000000000; ;; 101 TON - https://github.com/ton-blockchain/ton/blob/b38d227a469666d83ac535ad2eea80cb49d911b8/lite-client/lite-client.cpp#L3678
+    }
+
+    slice cs = cp.begin_parse();
+
+    ( int prefix
+    , int default_flat_fine, int default_proportional_fine
+    , int severity_flat_mult, int severity_proportional_mult
+    , int unpunishable_interval
+    , int long_interval, int long_flat_mult, int long_proportional_mult
+    ) = ( cs~load_uint(8)
+        , cs~load_coins(), cs~load_uint(32)
+        , cs~load_uint(16), cs~load_uint(16)
+        , cs~load_uint(16)
+        , cs~load_uint(16), cs~load_uint(16), cs~load_uint(16)
+        );
+
+     ;; https://github.com/ton-blockchain/ton/blob/master/lite-client/lite-client.cpp#L3721
+     int fine = default_flat_fine;
+     int fine_part = default_proportional_fine;
+
+     fine *= severity_flat_mult; fine >>= 8;
+     fine_part *= severity_proportional_mult; fine_part >>= 8;
+
+     fine *= long_flat_mult; fine >>= 8;
+     fine_part *= long_proportional_mult; fine_part >>= 8;
+
+     return min(stake, fine + muldiv(stake, fine_part, 1 << 32)); ;; https://github.com/ton-blockchain/ton/blob/b38d227a469666d83ac535ad2eea80cb49d911b8/crypto/smartcont/elector-code.fc#L529
 }

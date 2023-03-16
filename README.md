@@ -1,82 +1,100 @@
-# TON project template (RFC)
+# Stake Hipo: hTON
 
-Starter template for a new TON project - FunC contracts, unit tests, compilation and deployment scripts.
+Stake Hipo is a liquidity staking protocol on the TON blockchain.
 
-> This repo is a work in progress and is subject to change
+## How This Protocol Works
 
-## Layout
+### What Is Staking
 
--   `contracts` - contains the source code of all the smart contracts of the project and their dependencies.
--   `wrappers` - contains the wrapper classes (implementing `Contract` from ton-core) for the contracts, including any [de]serialization primitives and compilation functions.
--   `tests` - tests for the contracts. Would typically use the wrappers.
--   `scripts` - contains scripts used by the project, mainly the deployment scripts.   
+BitCoin uses proof-of-work consensus. Miners should try to find a hash for the next block, and they have to use a lot of energy and spend a lot of money on mining hardware. For their hard work, they'll receive a block reward when they've found the hash.
 
-We ask the community to provide any comments on this layout, the wanted/required changes, or even suggestions for entirely different project structures and/or tool concepts.
+TON uses a proof-of-stake consensus. Instead of spending a lot of money on energy and hardware equipment, validators (called miners in Bitcoin) just stake a big amount of TON, start producing blocks, and after a staking round, they'll receive their initial staked amount plus block rewards and collected fees. This has the advantage of not spending money on hardware and energy, and be honest or they'll get punished.
 
-PRs are welcome!
+### What Is Liquid Staking
 
-## Repo contents / tech stack
-1. Compiling FunC - [https://github.com/ton-community/func-js](https://github.com/ton-community/func-js)
-2. Testing TON smart contracts - [https://github.com/ton-community/sandbox/](https://github.com/ton-community/sandbox/)
-3. Deployment of contracts is supported with [TON Connect 2](https://github.com/ton-connect/), [Tonhub wallet](https://tonhub.com/) or via a direct `ton://` deeplink
+To be able to stake in the TON blockchain, you have to have a powerful server, a lot of TON (currently at least 300,000 TON), and lock access to your TON while staking.
 
-## How to use
-* Clone this repo
-* Run `yarn install`
+Liquid staking helps here:
 
-### Building a contract
-1. Interactively
-   1. Run `yarn blueprint build`
-   2. Choose the contract you'd like to build
-1. Non-interactively
-   1. Run `yarn blueprint build <CONTRACT>`
-   2. example: `yarn blueprint build pingpong`
+- Users who don't have a big amount of TON, can join their forces and share the result.
 
-### Deploying a contract
-1. Interactively
-   1. Run `yarn blueprint run`
-   2. Choose the contract you'd like to deploy
-   3. Choose whether you're deploying on mainnet or testnet
-   4. Choose how to deploy:
-      1. With a TON Connect compatible wallet
-      2. A `ton://` deep link / QR code
-      3. Tonhub wallet
-   5. Deploy the contract
-2. Non-interactively
-   1. Run `yarn blueprint run <CONTRACT> --<NETWORK> --<DEPLOY_METHOD>`
-   2. example: `yarn blueprint run pingpong --mainnet --tonconnect`
+- System administrators can use cloud servers to validate blocks and earn an income, using TON that is staked by many users. They can't steal users' money and run. Users' TON is controlled by the protocol.
 
-### Testing
-1. Run `yarn test`
+- Users who have staked their TON will receive a Jetton (token) called **hTON** which is 1-1 equal for their staked TON. They can send it to anyone, anytime they want, without having to wait for the lock period to end.
 
-## Adding your own contract
-1. Run `yarn blueprint create <CONTRACT>`
-2. example: `yarn blueprint create MyContract`
+### How Much Is the Reward in TON
 
-* Write code
-  * FunC contracts are located in `contracts/*.fc`
-    * Standalone root contracts are located in `contracts/*.fc`
-    * Shared imports (when breaking code to multiple files) are in `contracts/imports/*.fc`
-  * Tests in TypeScript are located in `test/*.spec.ts`
-  * Wrapper classes for interacting with the contract are located in `wrappers/*.ts`
-  * Any scripts (including deployers) are located in `scripts/*.ts`
+The TON blockchain has an inflation of %0.6 per year. This inflation, plus fees paid in each transaction is distributed between validators for their service of maintaining the network.
 
-* Build
-  * Builder configs are located in `wrappers/*.compile.ts`
-  * In the root repo dir, run in terminal `yarn blueprint build`
-  * Compilation errors will appear on screen, if applicable
-  * Resulting build artifacts include:
-    * `build/*.compiled.json` - the binary code cell of the compiled contract (for deployment). Saved in a hex format within a json file to support webapp imports
+### High Level Overview
 
-* Test
-  * In the root repo dir, run in terminal `yarn test`
-  * Don't forget to build (or rebuild) before running tests
-  * Tests are running inside Node.js by running TVM in web-assembly using [sandbox](https://github.com/ton-community/sandbox)
+![Smart Contracts](smart-contracts.excalidraw.png)
 
-* Deploy
-  * Run `yarn blueprint run <deployscript>`
-  * Contracts will be rebuilt on each execution
-  * Follow the on-screen instructions of the deploy script
-  
-# License
+Users stake their TON using one of these options:
+
+1- They can transfer any amount of TON to the `Root` smart contract of the protocol. This way, `Root` calculates the fees required for processing their request, subtracts it from the input amount, and then generates (mints) hTON and sends it to a special hTON `Wallet` for each user. Only the user has access to this wallet and only they can withdraw from it.
+
+2- They can use the Stake tab of the protocols dApp (decentralized application) available at [https://stakehipo.com/app](https://stakehipo.com/app). This has the benefit that the user can enter the exact amount of hTON they want.
+
+After this step, users have hTON and the protocol has TON. Now validators can come and ask for a TON loan. Loan requests are stored and at a specific time, all requests are checked, and the best ones that can return the most income will win. Winners will receive the requested TON in another smart contract called `Pool`.
+
+This `Pool` automatically enters the election round that is ongoing on the blockchain by the `Elector` smart contract. If they win the election, then their related validator should validate blocks for the next round. After the round of validation ends, and after the punishment voting time has passed, `Pool` receives the staked amount plus its reward. Then `Pool` returns everything back to `Root`.
+
+`Root` calculates validator's share and sends the equivalent hTON to validators `Wallet`. The rest of the amount is distributed between users.
+
+From each user's wallet, a claim reward request must be sent to `Root`, which will then calculate the user's share and return the equivalent hTON.
+
+This process continues for the next validation rounds. At some point, a user wants to transfer they're hTON to another user. They can simply do a Jetton transfer from their wallet application.
+
+At another point in time, users may want to redeem their hTON and receive TON. They can use the Unstake tab of the protocol's dApp. Now hTON is transferred from the user's `Wallet` to `Root`, which then releases TON to the user.
+
+### Technical Details
+
+In TON, protocols should avoid keeping a big table of data, and they have to be sharded. hTON is hence a sharded smart contract. There is one `Root` smart contract that receives TON and mints hTON and sends it to each user's `Wallet`. So there will be a lot of `Wallet` smart contracts, and each user's balance is kept in their `Wallet`. Validators send their loan request to `Root` too, and for each winner, a `Pool` smart contract will be created, which will participate in elections instead of validators.
+
+`Elector` is a smart contract on the master chain which conducts elections. Here is how it works:
+
+![Election Rounds](election-rounds.excalidraw.png)
+
+This image is drawn in [Excalidraw](https://excalidraw.com) and is editable over there.
+
+Currently, each round of validation is around 18.2 hours, stake of validators is held for an additional 9.1 hours, elections start 9.1 hours before the end of round, elections end 2.2 hours before the end of round. Stakes are at least locked for 29.5 hours, and at worst 36.3 hours.
+
+Since the new TON entering the system is not available for current validators, any newly staked amount is activated at a later time. When the stake time (when users stakes their TON and receive hTON) is before election start, it will be activated beginning the next round. By activation we mean that hTON becomes transferrable and unstakeable. If it arrives after the election start, it will be activated not at the next round, but at the later round, which is the round after next.
+
+This mechanism helps prevent freeloaders from constantly staking and unstaking and receive the reward of the round and then quickly exit the protocol. So hTON is at least one round locked, but maybe two.
+
+At `recover stakes`, an external message is sent to `Root`. This message can be sent by anyone, but we also send it automatically at the correct time. If the time is right, `Root` asks old `Pool`s to recover their stake from `Elector` and return it to `Root`. This is a quick action and all `Pool`s participating in the previous round will retrieve their funds.
+
+When the last `Pool` returns funds, total earned rewards are calculated, and then `Root` is ready to distribute rewards to users' `Wallet`s.
+
+`Wallet`s have a `reward distribution` timespan to claim their reward share. An external message is sent to each `Wallet`. This message can be sent by anyone, but we also send it automatically at the correct time. If the time is right, `Wallet` sends a claim reward message to `Root`. Inside the message, `Wallet` includes all its active balance which is eligible for sharing the reward. `Root` receives this message, calculates the user's share, and adds it to the incoming active balance of the `Wallet` and returns it to the user. After this step, all users' `Wallet`s have received their reward share.
+
+Validators can send a loan request in the `loan request` timespan. This timespan is around 90% of the election time. At `participate` time, `Root` will receive an external message which can be sent by anyone, but we also send it automatically.
+
+`Root` will then decide on loan requests. Requests that are going to return the most reward will win. Any remaining TON amount in protocol is accrued between winners to increase the reward.
+
+To prevent validators from draining the resources, a minimum payment can be set. This way validators who pay more will have more chances to win. If they waste the resources, they'll have to pay for it. For example, currently having less than 300,000 TON or more than 900,000 TON is rejected by `Elector`. Also there is a reward share parameter, which determines how the reward is shared between validators and protocol. Validators with lower shares have better chances.
+
+There can be many winning `Pool`s, and the protocol supports even more than 255.
+
+## Status
+
+We wanted to participate in the DoraHacks Hack-a-TONx competition. We have to release this first version described above. But there are some steps needed for a production ready version. These include:
+
+- security audit
+- bug bounty program
+- an upgrade mechanism
+- a governance token to decide on the upgrade activation
+- a mechanism to distribute rewards at later times to minimize network fees for wallets
+
+## Development
+
+- Install dependencies: `yarn install`
+- Build contracts: `yarn blueprint build`
+- Deploy: `yarn blueprint run`
+- Test: `yarn test --watch-all`
+
+## License
+
 MIT

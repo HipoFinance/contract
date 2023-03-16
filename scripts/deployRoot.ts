@@ -6,10 +6,10 @@ import { sha256 } from 'ton-crypto'
 export async function run(provider: NetworkProvider) {
     const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
         .set(await toSha256("decimals"), toTextCell("9"))
-        .set(await toSha256("symbol"), toTextCell("TST"))
-        .set(await toSha256("name"), toTextCell("Test Token"))
-        .set(await toSha256("description"), toTextCell("Description for Test Token"))
-        .set(await toSha256("image"), toTextCell("https://"))
+        .set(await toSha256("symbol"), toTextCell("hTON"))
+        .set(await toSha256("name"), toTextCell("Hipo TON"))
+        .set(await toSha256("description"), toTextCell("Liquidity for staked tokens on StakeHipo protocol"))
+        .set(await toSha256("image"), toTextCell("https://stakehipo.com/logo.png"))
     const content = beginCell().storeUint(0, 8).storeDict(contentDict).endCell()
 
     const root = Root.createFromConfig({

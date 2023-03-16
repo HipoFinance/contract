@@ -1,29 +1,38 @@
 //
-// Storage
+// Elector
 //
 
-root_storage#_
-    total_active:Coins
-    total_next:Coins
-    total_later:Coins
-    round:uint32
-    content:^Cell
-    wallet_code:^Cell
-        = RootStorage;
+new_stake#4e73744b
+    query_id:uint64
+    validator_pubkey:bits256
+    stake_at:uint32
+    max_factor:uint32
+    adnl_addr:bits256
+    signature:^bits512
+        = InternalMsgBody;
 
-wallet_storage#_
-    active_balance:Coins
-    next_balance:Coins
-    later_balance:Coins
-    round:uint32
-    owner:MsgAddressInt
-    root:MsgAddressInt
-    wallet_code:^Cell
-        = WalletStorage;
+new_stake_error#ee6f454c
+    query_id:uint64
+    reason:uint32
+        = InternalMsgBody;
 
-//
-// Ops
-//
+new_stake_ok#f374484c
+    query_id:uint64
+    comment:uint32
+        = InternalMsgBody;
+
+recover_stake#47657424
+    query_id:uint64
+        = InternalMsgBody;
+
+recover_stake_error#fffffffe
+    query_id:uint64
+    reason:uint32
+        = InternalMsgBody;
+
+recover_stake_ok#f96f7324
+    query_id:uint64
+        = InternalMsgBody;
 
 //
 // TEP-74 Jettons
@@ -59,6 +68,13 @@ excess#d53276db // originally named 'excesses'
     query_id:uint64
         = InternalMsgBody;
 
+withdraw#595f07bc // originall named 'burn'
+    query_id:uint64
+    stake_amount:Coins
+    return_excess:MsgAddress
+    recipient_payload:(Maybe ^RecipientPayload)
+        = InternalMsgBody;
+
 //
 // TEP-89 Discoverable Jettons
 //
@@ -76,7 +92,7 @@ take_wallet_address#d1735400
         = InternalMsgBody;
 
 //
-// Custom
+// Ops
 //
 
 deposit#696aace0
@@ -86,14 +102,6 @@ deposit#696aace0
     return_excess:MsgAddress
     notification_ton_amount:Coins
     notification_payload:(Either Cell ^Cell)
-        = InternalMsgBody;
-
-withdraw#334da837
-    query_id:uint64
-    stake_amount:Coins
-    recipient:MsgAddress
-    return_excess:MsgAddress
-    payload:(Maybe ^Cell)
         = InternalMsgBody;
 
 release#73d523e4
@@ -113,3 +121,140 @@ report#2e0aea83
 
 top_up#34e5d45a
         = InternalMsgBody;
+
+send_loan_request#1
+    query_id:uint64
+    stake_amount:Coins
+    return_excess:MsgAddress
+    loan_amount:Coins
+    min_payment:Coins
+    validator_reward_share:uint16
+    new_stake_msg:^NewStakeMsg
+        = InternalMsgBody;
+
+save_loan_request#2
+    query_id:uint64
+    stake_amount:Coins
+    validator_owner:MsgAddressInt
+    return_excess:MsgAddress
+    loan_amount:Coins
+    min_payment:Coins
+    validator_reward_share:uint16
+    new_stake_msg:^NewStakeMsg
+        = InternalMsgBody;
+
+participate#3
+    query_id:uint64
+        = InternalMsgBody;
+
+process_loan_requests#4
+    query_id:uint64
+        = InternalMsgBody;
+
+send_new_stake#5
+    query_id:uint64
+    total_loan_amount:Coins
+    new_stake_msg:^NewStakeMsg
+        = InternalMsgBody;
+
+new_stake_rejected#6
+    query_id:uint64
+    reason:uint32
+    validator_owner:MsgAddressInt
+        = InternalMsgBody;
+
+recover#7
+    query_id:uint32
+        = InternalMsgBody;
+
+process_stakes#8
+    query_id:uint64
+        = InternalMsgBody;
+
+send_recover_stake#9
+    query_id:uint64
+        = InternalMsgBody;
+
+recover_stake_result#10
+    query_id:uint64
+    ok:Bool
+    validator_owner:MsgAddressInt
+        = InternalMsgBody;
+
+send_claim_reward#11
+    query_id:uint64
+        = InternalMsgBody;
+
+claim_reward#12
+    query_id:uint64
+    stake_amount:Coins
+    sender_owner:MsgAddress
+        = InternalMsgBody;
+
+//
+// Storage
+//
+
+new_stake_msg#_
+    validator_pubkey:bits256
+    stake_at:uint32
+    max_factor:uint32
+    adnl_addr:bits256
+    signature:^bits512
+        = NewStakeMsg;
+
+recipient_payload#_
+    recipient:MsgAddress
+    payload:(Maybe ^Cell)
+        = RecipientPayload;
+
+loan_request#_
+    min_payment:Coins
+    validator_reward_share:uint16
+    loan_amount:Coins
+    accrued_amount:Coins
+    stake_amount:Coins
+    new_stake_msg:^NewStakeMsg
+        = LoanRequest;
+
+loan_data#_
+    requests:(HashmapE 256 LoanRequest)
+    accepted:(HashmapE 256 LoanRequest)
+    staked:(HashmapE 256 LoanRequest)
+    held:(HashmapE 256 LoanRequest)
+        = LoanData;
+
+root_storage#_
+    state:(## 4)
+    round_since:uint32
+    total_active:Coins
+    total_next:Coins
+    total_later:Coins
+    wallet_code:^Cell
+    pool_code:^Cell
+    loan_data:^LoanData
+    round_next:uint32
+    duration_next:uint32
+    held_next:uint32
+    participation_start:uint32
+    round_later:uint32
+    duration_later:uint32
+    held_later:uint32
+    content:^Cell
+        = RootStorage;
+
+wallet_storage#_
+    owner:MsgAddressInt
+    root:MsgAddressInt
+    round_since:uint32
+    balance_active:Coins
+    balance_next:Coins
+    balance_later:Coins
+    wallet_code:^Cell
+        = WalletStorage;
+
+pool_storage#_
+    elector:MsgAddress
+    root:MsgAddressInt
+    validator_owner:MsgAddressInt
+        = PoolStorage;
