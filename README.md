@@ -39,9 +39,9 @@ The TON blockchain has an inflation of %0.6 per year. This inflation, plus fees 
 
 Users stake their TON using one of these options:
 
-1- They can transfer any amount of TON to the `Root` smart contract of the protocol. This way, `Root` calculates the fees required for processing their request, subtracts it from the input amount, and then generates (mints) hTON and sends it to a special hTON `Wallet` for each user. Only the user has access to this wallet and only they can withdraw from it.
+1. They can transfer any amount of TON to the `Root` smart contract of the protocol. This way, `Root` calculates the fees required for processing their request, subtracts it from the input amount, and then generates (mints) hTON and sends it to a special hTON `Wallet` for each user. Only the user has access to this wallet and only they can withdraw from it.
 
-2- They can use the Stake tab of the protocols dApp (decentralized application) available at [https://stakehipo.com/app](https://stakehipo.com/app). This has the benefit that the user can enter the exact amount of hTON they want.
+2. They can use the Stake tab of the protocols dApp (decentralized application) available at [https://stakehipo.com/app](https://stakehipo.com/app). This has the benefit that the user can enter the exact amount of hTON they want.
 
 After this step, users have hTON and the protocol has TON. Now validators can come and ask for a TON loan. Loan requests are stored and at a specific time, all requests are checked, and the best ones that can return the most income will win. Winners will receive the requested TON in another smart contract called `Pool`.
 
