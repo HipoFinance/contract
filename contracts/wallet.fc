@@ -72,7 +72,7 @@
     throw_unless(err::insufficient_funds, (stake_amount > 0) & (stake_amount <= balance_active));
 
     balance_active -= stake_amount;
-    ( builder wallet, cell state_init ) = create_wallet_address(recipient_owner.to_builder(), root, wallet_code);
+    ( builder wallet, cell state_init, _ ) = create_wallet_address(recipient_owner.to_builder(), root, wallet_code);
     builder body = begin_cell()
         .store_uint(op::receive, 32)
         .store_uint(query_id, 64)
@@ -111,8 +111,9 @@
     ) = update_round(balance_active, balance_next, balance_later, round_since);
     int allowed? = int src_is_root? = equal_slices(src, root);
     ifnot (allowed?) {
-        ( builder wallet, _ ) = create_wallet_address(sender_owner.to_builder(), root, wallet_code);
-        allowed? = equal_slices(src, wallet.end_cell().begin_parse());
+        ( _, _, int wallet_addr ) = create_wallet_address(sender_owner.to_builder(), root, wallet_code);
+        ( int src_wc, int src_addr ) = parse_std_addr(src);
+        allowed? = (src_wc == chain::base) & (src_addr == wallet_addr);
     }
     ( int sender_owner_wc, _ ) = parse_std_addr(sender_owner);
 

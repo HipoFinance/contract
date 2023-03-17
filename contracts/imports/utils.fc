@@ -105,18 +105,20 @@ cell create_pool_data(slice root, builder validator_owner) {
         .end_cell();
 }
 
-(builder, cell) create_wallet_address(builder owner, slice root, cell wallet_code) {
+(builder, cell, int) create_wallet_address(builder owner, slice root, cell wallet_code) {
     cell wallet_data = create_wallet_data(owner, root, wallet_code);
     cell state_init = create_state_init(wallet_code, wallet_data);
-    builder wallet = create_address(chain::base, state_init.cell_hash());
-    return (wallet, state_init);
+    int addr = state_init.cell_hash();
+    builder wallet = create_address(chain::base, addr);
+    return (wallet, state_init, addr);
 }
 
-(builder, cell) create_pool_address(builder validator_owner, slice root, cell pool_code) {
+(builder, cell, int) create_pool_address(builder validator_owner, slice root, cell pool_code) {
     cell pool_data = create_pool_data(root, validator_owner);
     cell state_init = create_state_init(pool_code, pool_data);
-    builder pool = create_address(chain::main, state_init.cell_hash());
-    return (pool, state_init);
+    int addr = state_init.cell_hash();
+    builder pool = create_address(chain::main, addr);
+    return (pool, state_init, addr);
 }
 
 (int, int, int, int, int) update_round(int active, int next, int later, int round_since) impure {

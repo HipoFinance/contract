@@ -46,7 +46,17 @@ cell pack_loan_data
         );
 }
 
-() deposit(int msg_ton, int fwd_fee, slice src, slice s) impure {
+() deposit
+    ( int msg_ton
+    , int fwd_fee
+    , slice src
+    , int query_id
+    , int stake_amount
+    , slice recipient_owner
+    , slice return_excess
+    , int notification_ton_amount
+    , slice notification_payload
+    ) impure {
     slice ds = get_data().begin_parse();
     int state = ds~load_uint(4);
     int round_since = ds~load_uint(32);
@@ -54,14 +64,6 @@ cell pack_loan_data
     int total_next = ds~load_coins();
     int total_later = ds~load_coins();
     cell wallet_code = ds~load_ref();
-
-    int query_id = s~load_uint(64);
-    int stake_amount = s~load_coins();
-    slice recipient_owner = s~load_msg_addr();
-    slice return_excess = s~load_msg_addr();
-    int notification_ton_amount = s~load_coins();
-    slice notification_payload = s;
-    s~skip_bits(1); ;; check if notification_payload is provided
 
     ( total_active
     , total_next
@@ -87,6 +89,7 @@ cell pack_loan_data
     ( total_next, total_later ) = update_next_or_later(total_next, total_later, stake_amount, round_until);
     ( builder wallet
     , cell state_init
+    , _
     ) = create_wallet_address(recipient_owner.to_builder(), my_address(), wallet_code);
     builder body = begin_cell()
         .store_uint(op::receive, 32)
@@ -110,6 +113,28 @@ cell pack_loan_data
         .set_data();
 }
 
+() advanced_deposit(int msg_ton, int fwd_fee, slice src, slice s) impure {
+    int query_id = s~load_uint(64);
+    int stake_amount = s~load_coins();
+    slice recipient_owner = s~load_msg_addr();
+    slice return_excess = s~load_msg_addr();
+    int notification_ton_amount = s~load_coins();
+    slice notification_payload = s;
+    s~skip_bits(1); ;; check if notification_payload is provided
+
+    deposit
+        ( msg_ton
+        , fwd_fee
+        , src
+        , query_id
+        , stake_amount
+        , recipient_owner
+        , return_excess
+        , notification_ton_amount
+        , notification_payload
+        );
+}
+
 () simple_deposit(int msg_ton, int fwd_fee, slice src) impure {
     int simple_deposit_fee =
             fee::notification_ton_for_simple_deposit +
@@ -117,17 +142,19 @@ cell pack_loan_data
             2 * fee::wallet_gas_consumption +
             fee::wallet_storage;
 
-    throw_unless(err::insufficient_fee, msg_ton >= simple_deposit_fee);
+    throw_unless(err::insufficient_fee, msg_ton > simple_deposit_fee);
 
-    cell c = begin_cell()
-        .store_uint(cur_lt(), 64)
-        .store_coins(msg_ton - simple_deposit_fee)
-        .store_slice(src)
-        .store_uint(0, 2) ;; no return_excess: addr_none
-        .store_coins(fee::notification_ton_for_simple_deposit)
-        .store_uint(0, 1)
-        .end_cell();
-    deposit(msg_ton, fwd_fee, src, c.begin_parse());
+    deposit
+        ( msg_ton
+        , fwd_fee
+        , src
+        , cur_lt()
+        , msg_ton - simple_deposit_fee
+        , src
+        , "0"s.skip_bits(2) ;; no return_excess: addr_none
+        , fee::notification_ton_for_simple_deposit
+        , "0"s.skip_bits(3) ;; empty payload
+        );
 }
 
 () release(int msg_ton, slice src, slice s) impure {
@@ -154,10 +181,11 @@ cell pack_loan_data
     , _
     ) = update_round(total_active, total_next, total_later, round_since);
     int ton_balance = get_balance().pair_first();
-    ( builder wallet, _ ) = create_wallet_address(sender_owner.to_builder(), my_address(), wallet_code);
+    ( _, _, int wallet_addr ) = create_wallet_address(sender_owner.to_builder(), my_address(), wallet_code);
+    ( int src_wc, int src_addr ) = parse_std_addr(src);
     ( int recipient_wc, _ ) = parse_std_addr(recipient);
 
-    throw_unless(err::access_denied, equal_slices(src, wallet.end_cell().begin_parse()));
+    throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == wallet_addr));
     throw_unless(err::only_basechain_allowed, recipient_wc == chain::base);
     throw_unless(err::insufficient_funds, stake_amount <= ton_balance - msg_ton - fee::root_storage);
     throw_unless(err::insufficient_funds, stake_amount <= total_active);
@@ -208,7 +236,7 @@ cell pack_loan_data
 
     builder wallet = null();
     if (owner_wc == chain::base) {
-        ( wallet, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
+        ( wallet, _, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
     } else {
         wallet = begin_cell().store_uint(0, 2); ;; addr_none
     }
@@ -270,7 +298,8 @@ cell pack_loan_data
         stake_amount += old_request~load_coins();
     }
     int max_punishment = max_recommended_punishment_for_validator_misbehaviour(loan_amount);
-    ( builder wallet, _ ) = create_wallet_address(validator_owner.to_builder(), my_address(), wallet_code);
+    ( _, _, int wallet_addr ) = create_wallet_address(validator_owner.to_builder(), my_address(), wallet_code);
+    ( int src_wc, int src_addr ) = parse_std_addr(src);
     int min_ton =
             fee::save_loan_gas_consumption +
             fee::one_ton +
@@ -278,7 +307,7 @@ cell pack_loan_data
             fee::new_stake_gas_consumption +
             3 * fee::recover_stake_gas_consumption;
 
-    throw_unless(err::access_denied, equal_slices(src, wallet.end_cell().begin_parse()));
+    throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == wallet_addr));
     throw_unless(err::already_staked, ~ already_staked?);
     throw_unless(err::not_accepting_loan_requests, state < state::participated);
     throw_unless(err::insufficient_fee, msg_ton >= min_ton);
@@ -538,7 +567,7 @@ cell sort_loan_requests(cell requests) {
         if (f?) {
             staked~udict_set(256, validator_owner_addr, request);
             builder validator_owner = create_address(chain::base, validator_owner_addr);
-            ( builder pool, cell state_init ) = create_pool_address(validator_owner, my_address(), pool_code);
+            ( builder pool, cell state_init, _ ) = create_pool_address(validator_owner, my_address(), pool_code);
             request~load_coins(); ;; skip min_payment
             request~skip_bits(16); ;; skip validator_reward_share
             int loan_amount = request~load_coins();
@@ -561,6 +590,7 @@ cell sort_loan_requests(cell requests) {
             builder validator_owner = create_address(chain::base, validator_owner_addr);
             ( builder wallet
             , cell state_init
+            , _
             ) = create_wallet_address(validator_owner, my_address(), wallet_code);
             request~load_coins(); ;; skip min_payment
             request~load_uint(16); ;; skip validator_reward_share
@@ -642,13 +672,14 @@ cell sort_loan_requests(cell requests) {
     int query_id = s~load_uint(64);
     int reason = s~load_uint(32);
     slice validator_owner = s~load_msg_addr();
-    ( builder pool, _ ) = create_pool_address(validator_owner.to_builder(), my_address(), pool_code);
+    ( _, _, int pool_addr ) = create_pool_address(validator_owner.to_builder(), my_address(), pool_code);
+    ( int src_wc, int src_addr ) = parse_std_addr(src);
 
-    throw_unless(err::access_denied, equal_slices(src, pool.end_cell().begin_parse()));
+    throw_unless(err::access_denied, (src_wc == chain::main) & (src_addr == pool_addr));
 
     accept_message();
 
-    ( builder wallet, _ ) = create_wallet_address(validator_owner.to_builder(), my_address(), wallet_code);
+    ( builder wallet, _, _ ) = create_wallet_address(validator_owner.to_builder(), my_address(), wallet_code);
     ( int validator_owner_addr, _ ) = parse_std_addr(validator_owner);
     ( slice request, int f?) = staked~udict_delete_get?(256, validator_owner_addr);
     if (f?) {
@@ -807,7 +838,7 @@ cell sort_loan_requests(cell requests) {
         (validator_owner_addr, _, int f?) = held.udict_get_next?(256, validator_owner_addr);
         if (f?) {
             builder validator_owner = create_address(chain::base, validator_owner_addr);
-            ( builder pool, _ ) = create_pool_address(validator_owner, my_address(), pool_code);
+            ( builder pool, _, _ ) = create_pool_address(validator_owner, my_address(), pool_code);
             builder body = begin_cell()
                 .store_uint(op::send_recover_stake, 32)
                 .store_uint(cur_lt(), 64);
@@ -867,13 +898,14 @@ cell sort_loan_requests(cell requests) {
     int query_id = s~load_uint(64);
     int ok? = s~load_uint(1);
     slice validator_owner = s~load_msg_addr();
-    ( builder pool, _ ) = create_pool_address(validator_owner.to_builder(), my_address(), pool_code);
+    ( _, _, int pool_addr ) = create_pool_address(validator_owner.to_builder(), my_address(), pool_code);
+    ( int src_wc, int src_addr ) = parse_std_addr(src);
 
-    throw_unless(err::access_denied, equal_slices(src, pool.end_cell().begin_parse()));
+    throw_unless(err::access_denied, (src_wc == chain::main) & (src_addr == pool_addr));
 
     accept_message();
 
-    ( builder wallet, _ ) = create_wallet_address(validator_owner.to_builder(), my_address(), wallet_code);
+    ( builder wallet, _, _ ) = create_wallet_address(validator_owner.to_builder(), my_address(), wallet_code);
     ( int validator_owner_addr, _ ) = parse_std_addr(validator_owner);
     ( slice request, int f?) = held~udict_delete_get?(256, validator_owner_addr);
     if (f?) {
@@ -976,9 +1008,13 @@ cell sort_loan_requests(cell requests) {
     slice sender_owner = s~load_msg_addr();
     s.end_parse();
 
-    ( builder wallet, _ ) = create_wallet_address(sender_owner.to_builder(), my_address(), wallet_code);
+    ( builder wallet
+    , _
+    , int wallet_addr
+    ) = create_wallet_address(sender_owner.to_builder(), my_address(), wallet_code);
+    ( int src_wc, int src_addr ) = parse_std_addr(src);
 
-    throw_unless(err::access_denied, equal_slices(src, wallet.end_cell().begin_parse()));
+    throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == wallet_addr));
     throw_unless(err::not_ready_to_distribute_reward, state >= state::reward_distribution);
 
     stake_amount += muldiv(stake_amount, current_reward, current_total);
@@ -1043,7 +1079,7 @@ cell sort_loan_requests(cell requests) {
     }
 
     if (op == op::deposit) { ;; deposit TON
-        deposit(msg_ton, fwd_fee, src, in_msg_body);
+        advanced_deposit(msg_ton, fwd_fee, src, in_msg_body);
         return ();
     }
 
@@ -1155,7 +1191,7 @@ slice get_wallet_address(slice owner) method_id {
 
     throw_unless(err::only_basechain_allowed, owner_wc == chain::base);
 
-    ( builder wallet, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
+    ( builder wallet, _, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
 
     return wallet.end_cell().begin_parse();
 }
@@ -1169,7 +1205,7 @@ slice get_pool_address(slice validator) method_id {
 
     throw_unless(err::only_basechain_allowed, validator_wc == chain::base);
 
-    ( builder pool, _ ) = create_pool_address(validator.to_builder(), my_address(), pool_code);
+    ( builder pool, _, _ ) = create_pool_address(validator.to_builder(), my_address(), pool_code);
 
     return pool.end_cell().begin_parse();
 }
