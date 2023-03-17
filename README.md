@@ -1,15 +1,16 @@
 # Stake Hipo: hTON
 
-Stake Hipo is a liquidity staking protocol on the TON blockchain.
+Stake Hipo is a liquidity staking protocol on the TON blockchain. hTON is the jetton that users receive for staking their Toncoin.
 
 ## Highlights
 
 - Automatic activation of hTON balance in wallets with zero messages or transactions.
 - Protocol is driven by only 2 external messages, and gas fee is paid by Root itself.
-- Participate external message can only be accepted after at least one loan request.
-- Recover external message can only happen after round changes, and it can correct itself for prolonged rounds.
+- Participate external messages can only be accepted after at least one loan request.
+- Recover external messages can only happen after round changes, and it can correct itself for prolonged rounds.
 - Validators stake their hTON to receive a loan.
 - Very little gas usage and storage on masterchain.
+- Node operators can ask for loans with around 100 hTON.
 
 ### What Is Staking
 
@@ -67,11 +68,11 @@ This image is drawn in [Excalidraw](https://excalidraw.com) and is editable over
 
 Currently, each round of validation is around 18.2 hours, stake of validators is held for an additional 9.1 hours, elections start 9.1 hours before the end of round, elections end 2.2 hours before the end of round. Stakes are at least locked for 29.5 hours, and at worst 36.3 hours.
 
-Since the new TON entering the system is not available for current validators, any newly staked amount is activated at a later time. When the stake time (when users stakes their TON and receive hTON) is before election start, it will be activated beginning the next round. By activation we mean that hTON becomes transferrable and unstakeable. If it arrives after the election start, it will be activated not at the next round, but at the later round, which is the round after next.
+Since the new TON entering the system is not available for current validators, any newly staked amount is activated at a later time. When the stake time (when users stake their TON and receive hTON) is before the election begins, it will be activated beginning the next round. By activation we mean that hTON becomes transferrable and unstakeable. If it arrives after the election starts, it will be activated not at the next round, but at the later round, which is the round after next.
 
 This mechanism helps prevent freeloaders from constantly staking and unstaking and receive the reward of the round and then quickly exit the protocol. So hTON is at least one round locked, but maybe two.
 
-The process of activation is automatic with no messages or transactions required. When users check their balance using get methods, current round is compared to last saved round, and if it has changed, inactive balance becomes active, so there is no need for any messages or transactions. When users want to send some hTON, the same process happens again and inactive balance becomes active and usable.
+The process of activation is automatic with no messages or transactions required. When users check their balance using get methods, the current round is compared to the last saved round, and if it has changed, inactive balance becomes active, so there is no need for any messages or transactions. When users want to send some hTON, the same process happens again and inactive balance becomes active and usable.
 
 At `recover stakes`, an external message is sent to `Root`. This message can be sent by anyone, but we also send it automatically at the correct time. If the time is right, `Root` asks old `Pool`s to recover their stake from `Elector` and return it to `Root`. This is a quick action and all `Pool`s participating in the previous round will retrieve their funds.
 
@@ -91,13 +92,17 @@ There can be many winning `Pool`s, and the protocol supports even more than 255.
 
 We wanted to participate in the [DoraHacks Hack-a-TONx](https://dorahacks.io/hackathon/hack-a-tonx/) competition. We had to release this first version described above, but there are some steps needed for a production ready version. These include:
 
-- security audit
-- bug bounty program
 - an upgrade mechanism
 - a governance token to decide on the upgrade activation
 - a mechanism to distribute rewards at later times to minimize network fees for wallets
 - optimize gas usage
 - update pre-calculated fee prices
+- fork/update `mytonctrl` to be able to easily use hTON for validation
+- add alternate pool functionality, so that validators can use the same wallet for two pools
+- complete test suites to test different scenarios
+- add an auto-unstake mechanism
+- security audit
+- bug bounty program
 
 ## Development
 
