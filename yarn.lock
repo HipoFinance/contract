@@ -593,16 +593,17 @@
   dependencies:
     "@sinonjs/commons" "^2.0.0"
 
-"@ton-community/blueprint@^0.2.0":
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/@ton-community/blueprint/-/blueprint-0.2.0.tgz#086fd2ba3fd2b0021867399737dccffb70197ef5"
-  integrity sha512-mnuqGZEDokTUzCI+Sqq4msnrbXO/PlxUjCUd1buXr4pb+WK5c70rQ0m+x7TpXIBlTbge0+NQHhKnWoy8Z8fnUw==
+"@ton-community/blueprint@^0.4.1":
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/@ton-community/blueprint/-/blueprint-0.4.1.tgz#f837761b983300214d684ecd5f42bd3bab43298b"
+  integrity sha512-RCg93eFYY21+Pqz19w6MnxJI5FewGe6EA7TYl8rU24eezCZuaoBa3biPpkViDMwORWCm5qGnF7b4gAIpTFRtPA==
   dependencies:
     "@orbs-network/ton-access" "^2.2.2"
     "@ton-community/func-js" "^0.4.0"
     "@tonconnect/sdk" "^2.0.7"
     arg "^5.0.2"
     chalk "^4.1.0"
+    dotenv "^16.0.3"
     inquirer "^8.2.5"
     qrcode-terminal "^0.12.0"
     ton-x "^2.1.0"
@@ -621,10 +622,10 @@
     "@ton-community/func-js-bin" "0.4.1"
     arg "^5.0.2"
 
-"@ton-community/sandbox@^0.5.0":
-  version "0.5.0"
-  resolved "https://registry.yarnpkg.com/@ton-community/sandbox/-/sandbox-0.5.0.tgz#6740a7d082c5d548868f601b302dcc176019f7e9"
-  integrity sha512-+ljvlK/IgR++mi3bUzhu1B/Ix2kmZH1K51QrdMJVnsYgzYpjfbPPw9s8EtkmuCxHlbu7PhznL65YXsia+UzJgA==
+"@ton-community/sandbox@^0.5.1":
+  version "0.5.1"
+  resolved "https://registry.yarnpkg.com/@ton-community/sandbox/-/sandbox-0.5.1.tgz#bfd731ff3e21a2eb207b21f20d1a8261a758734d"
+  integrity sha512-l5Ac0kn7uUSLxQAOzvnP+7gfnGv6vFtp45/j8LWv5pCgQ7cRqAAq1LX0xXSgL0E0ksmXrUxKHcgonIgSI3wCSA==
 
 "@ton-community/test-utils@^0.0.2":
   version "0.0.2"
@@ -1210,6 +1211,11 @@ diff@^4.0.1:
   version "4.0.2"
   resolved "https://registry.yarnpkg.com/diff/-/diff-4.0.2.tgz#60f3aecb89d5fae520c11aa19efc2bb982aade7d"
   integrity sha512-58lmxKSA4BNyLz+HHMUzlOEpg09FV+ev6ZMe3vJihgdxzgcwZ8VoEEPmALCZG9LmqfVoNMMKpttIYTVG6uDY7A==
+
+dotenv@^16.0.3:
+  version "16.0.3"
+  resolved "https://registry.yarnpkg.com/dotenv/-/dotenv-16.0.3.tgz#115aec42bac5053db3c456db30cc243a5a836a07"
+  integrity sha512-7GO6HghkA5fYG9TYnNxi14/7K9f5occMlp3zXAuSxn7CKCxt9xbNWG7yF8hTCSUchlfWSe3uLmlPfigevRItzQ==
 
 electron-to-chromium@^1.4.284:
   version "1.4.310"
@@ -2582,10 +2588,10 @@ to-regex-range@^5.0.1:
   dependencies:
     is-number "^7.0.0"
 
-ton-core@^0.47.1:
-  version "0.47.1"
-  resolved "https://registry.yarnpkg.com/ton-core/-/ton-core-0.47.1.tgz#22298d79e345ea1a34825b4044dda5a7c5995474"
-  integrity sha512-XxcgLYH+Ngo3uh7O7jkzA0/O8nfG3WC3fgUmdvY9/IkGKpkO3Y/KHtrZgAOHYAkxJCmaXpi4aPf4JEnZEiPrWQ==
+ton-core@^0.48.0:
+  version "0.48.0"
+  resolved "https://registry.yarnpkg.com/ton-core/-/ton-core-0.48.0.tgz#df744c9b13b3193cb7eb8a9cbb715bcf0437e467"
+  integrity sha512-v3QL0CC8iQQ0cjUN0lI9hK7wEpLW2Wnm+N5Ukm+NSbtQ0vq36LGQR/BRywoOQZJm59XzmW4ATbtCWeas9ePrRA==
   dependencies:
     symbol.inspect "1.0.1"
 
@@ -2645,10 +2651,10 @@ ton@9.8.0:
     ton-crypto "2.1.0"
     tweetnacl "1.0.3"
 
-ton@^13.3.0:
-  version "13.3.0"
-  resolved "https://registry.yarnpkg.com/ton/-/ton-13.3.0.tgz#855425fe368d12cea6c784c156ede70d28639cf7"
-  integrity sha512-ygNZ3a8xgDcftudgmq2lNzFNrQtNhUdmBneLJI8C2iBuD9RAfpnjae4eIpjPLfCsLKH8Nmvh2JOESfM7lvsCSw==
+ton@^13.4.1:
+  version "13.4.1"
+  resolved "https://registry.yarnpkg.com/ton/-/ton-13.4.1.tgz#8808370785498a8762848d4cdd8a781964df6a74"
+  integrity sha512-VCHmGE8o1EJBp5JdKNiqjHW5hmUqSfSYYIsMfCje8/GA6sLzhhtMmznuGsrAQhM+MeEAUSt72SeI41z/wnu9MQ==
   dependencies:
     axios "^0.25.0"
     dataloader "^2.0.0"

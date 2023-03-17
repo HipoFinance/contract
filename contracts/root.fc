@@ -251,6 +251,7 @@ cell pack_loan_data
     send_msg(flag::bounceable, src.to_builder(), 0, null(), body, mode::carry_inbound);
 }
 
+;; todo: add a ceiling for number of saved requests
 () save_loan_request(int msg_ton, slice src, slice s) impure {
     slice ds = get_data().begin_parse();
     int state = ds~load_uint(4);

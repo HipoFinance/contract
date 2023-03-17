@@ -1,7 +1,7 @@
 import { Blockchain, createShardAccount } from '@ton-community/sandbox'
 import { Address, Cell, toNano } from 'ton-core'
 import { Wallet, walletConfigToCell } from '../wrappers/Wallet'
-import { Root } from '../wrappers/Root'
+import { Root, loanDataToCell } from '../wrappers/Root'
 import '@ton-community/test-utils'
 import { compile } from '@ton-community/blueprint'
 
@@ -10,19 +10,47 @@ const emptyAddress = Address.parse("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 describe('Wallet', () => {
     let rootCode: Cell
     let walletCode: Cell
+    let poolCode: Cell
     let emptyRoot: Root
+    let emptyLoanData: Cell
 
     beforeAll(async () => {
-        rootCode = await compile('Root')
-        walletCode = await compile('Wallet')
+        [ rootCode
+        , walletCode
+        , poolCode
+        ] = await Promise.all(
+            [ compile('Root')
+            , compile('Wallet')
+            , compile('Pool')
+            ]
+        )
+
+        emptyLoanData = loanDataToCell({
+            currentReward: 0n,
+            currentTotal: 0n,
+            activeNext: 0n,
+            rewardNext: 0n,
+            activeLater: 0n,
+            rewardLater: 0n,
+        })
 
         emptyRoot = Root.createFromConfig({
+            state: Root.state.stakeHeld,
+            roundSince: 0,
             totalActive: 0n,
             totalNext: 0n,
             totalLater: 0n,
-            round: 0n,
-            content: new Cell(),
             walletCode,
+            poolCode,
+            loanData: emptyLoanData,
+            roundNext: 0,
+            durationNext: 0,
+            heldNext: 0,
+            participationStart: 0,
+            roundLater: 0,
+            durationLater: 0,
+            heldLater: 0,
+            content: new Cell(),
         }, rootCode)
     })
 

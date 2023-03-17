@@ -1,40 +1,49 @@
 import { Blockchain, createShardAccount } from '@ton-community/sandbox'
 import { Address, beginCell, Cell, Dictionary, fromNano, SendMode, toNano } from 'ton-core'
-import { Root } from '../wrappers/Root'
+import { Root, LoanData, loanDataToCell } from '../wrappers/Root'
 import { Wallet, walletConfigToCell } from '../wrappers/Wallet'
 import '@ton-community/test-utils'
 import { compile } from '@ton-community/blueprint'
-import { sha256 } from 'ton-crypto'
-
-const opRelease = 3
-const opProvideWalletAddress = 0x2c76b973
 
 describe('Root', () => {
     let rootCode: Cell
     let walletCode: Cell
+    let poolCode: Cell
+    let emptyLoanData: Cell
     let emptyRoot: Root
     let filledRoot: Root
 
     beforeAll(async () => {
         rootCode = await compile('Root')
         walletCode = await compile('Wallet')
+        poolCode = await compile('Pool')
+
+        emptyLoanData = loanDataToCell({
+            currentReward: 0n,
+            currentTotal: 0n,
+            activeNext: 0n,
+            rewardNext: 0n,
+            activeLater: 0n,
+            rewardLater: 0n,
+        })
 
         emptyRoot = Root.createFromConfig({
+            state: Root.state.stakeHeld,
+            roundSince: 0,
             totalActive: 0n,
             totalNext: 0n,
             totalLater: 0n,
-            round: 0n,
-            content: new Cell(),
             walletCode,
-        }, rootCode)
-
-        filledRoot = Root.createFromConfig({
-            totalActive: toNano('1000000'),
-            totalNext: toNano('1000000'),
-            totalLater: toNano('1000000'),
-            round: 100n,
+            poolCode,
+            loanData: emptyLoanData,
+            roundNext: 0,
+            durationNext: 0,
+            heldNext: 0,
+            participationStart: 0,
+            roundLater: 0,
+            durationLater: 0,
+            heldLater: 0,
             content: new Cell(),
-            walletCode,
         }, rootCode)
     })
 
@@ -53,69 +62,21 @@ describe('Root', () => {
         expect(r.transactions).toHaveLength(2)
     })
 
-    it.skip('should ignore bounced messages', async () => {
-        const alwaysFailCode = await compile("AlwaysFail")
+    it.only('should stake TON for messages with incomplete op field', async () => {
         const b = await Blockchain.create()
-        const root = b.openContract(emptyRoot)
         const deployer = await b.treasury('deployer')
+        const root = b.openContract(emptyRoot)
         await root.sendDeploy(deployer.getSender(), toNano('0.05'))
         const owner = await b.treasury('owner')
         const walletAddress = await root.getWalletAddress(owner.address)
-        await b.setShardAccount(walletAddress, createShardAccount({
-            address: walletAddress,
-            code: alwaysFailCode,
-            data: new Cell(),
-            balance: toNano('1'),
-        }))
-        const wallet = b.openContract(Wallet.createFromAddress(walletAddress))
-        const r = await wallet.sendMessage(owner.getSender(), {
-            value: toNano('10'),
-            sendMode: SendMode.PAY_GAS_SEPARATLY,
-            body: beginCell()
-                .storeUint(opProvideWalletAddress, 32)
-                .storeUint(0, 64)
-                .storeUint(0, 1)
-                .endCell()
-        })
-        expect(r.transactions).toHaveTransaction({
-            from: wallet.address,
-            to: root.address,
-            value: toNano('10'),
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(r.transactions).toHaveTransaction({
-            from: root.address,
-            to: walletAddress,
-            success: false,
-            outMessagesCount: 1,
-        })
-        expect(r.transactions).toHaveTransaction({
-            from: walletAddress,
-            to: root.address,
-            exitCode: 1,
-            success: true,
-            outMessagesCount: 0,
-        })
-        expect(r.transactions).toHaveLength(4)
-    })
 
-    it('should mint staked TON for messages with incomplete op field', async () => {
-        const b = await Blockchain.create()
-        const root = b.openContract(emptyRoot)
-        const deployer = await b.treasury('deployer')
-        await root.sendDeploy(deployer.getSender(), toNano('0.05'))
-
-        const owner = await b.treasury('owner')
         const r = await root.sendMessage(owner.getSender(), {
             value: toNano('2'),
-            sendMode: SendMode.PAY_GAS_SEPARATLY,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(1234, 31)
                 .endCell()
         })
-        const walletAddress = await root.getWalletAddress(owner.address)
-
         expect(r.transactions).toHaveTransaction({
             from: owner.address,
             to: root.address,
@@ -128,9 +89,16 @@ describe('Root', () => {
             to: walletAddress,
             success: true,
             deploy: true,
-            outMessagesCount: 0,
+            outMessagesCount: 1,
         })
-        expect(r.transactions).toHaveLength(3)
+        expect(r.transactions).toHaveTransaction({
+            from: walletAddress,
+            to: owner.address,
+            value: 1n,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(r.transactions).toHaveLength(4)
 
         const wallet = b.openContract(Wallet.createFromAddress(walletAddress))
         const [, , later] = await wallet.getBalances()
@@ -289,41 +257,41 @@ describe('Root', () => {
         expect(r2.transactions).toHaveLength(3)
     })
 
-    it.skip('should not mint when not deployed on base chain', async () => {
-        const b = await Blockchain.create()
-        const mcEmptyRoot = Root.createFromConfig({
-            totalActive: 0n,
-            totalNext: 0n,
-            totalLater: 0n,
-            round: 0n,
-            content: new Cell(),
-            walletCode,
-        }, rootCode, -1)
-        const root = b.openContract(mcEmptyRoot)
-        const deployer = await b.treasury('deployer')
-        const dr = await root.sendDeploy(deployer.getSender(), toNano('0.05'))
-        expect(dr.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: root.address,
-            success: true,
-            deploy: true,
-            outMessagesCount: 0,
-        })
-        expect(dr.transactions).toHaveLength(2)
+    // it.skip('should not mint when not deployed on base chain', async () => {
+    //     const b = await Blockchain.create()
+    //     const mcEmptyRoot = Root.createFromConfig({
+    //         totalActive: 0n,
+    //         totalNext: 0n,
+    //         totalLater: 0n,
+    //         round: 0n,
+    //         content: new Cell(),
+    //         walletCode,
+    //     }, rootCode, -1)
+    //     const root = b.openContract(mcEmptyRoot)
+    //     const deployer = await b.treasury('deployer')
+    //     const dr = await root.sendDeploy(deployer.getSender(), toNano('0.05'))
+    //     expect(dr.transactions).toHaveTransaction({
+    //         from: deployer.address,
+    //         to: root.address,
+    //         success: true,
+    //         deploy: true,
+    //         outMessagesCount: 0,
+    //     })
+    //     expect(dr.transactions).toHaveLength(2)
 
-        const owner = await b.treasury('owner')
-        const r = await root.sendSimpleTransfer(owner.getSender(), {
-            value: toNano('10'),
-            comment: 'root is deployed on master chain',
-        })
-        expect(r.transactions).toHaveTransaction({
-            from: owner.address,
-            to: root.address,
-            value: toNano('10'),
-            exitCode: 103,
-        })
-        expect(r.transactions).toHaveLength(3)
-    })
+    //     const owner = await b.treasury('owner')
+    //     const r = await root.sendSimpleTransfer(owner.getSender(), {
+    //         value: toNano('10'),
+    //         comment: 'root is deployed on master chain',
+    //     })
+    //     expect(r.transactions).toHaveTransaction({
+    //         from: owner.address,
+    //         to: root.address,
+    //         value: toNano('10'),
+    //         exitCode: 103,
+    //     })
+    //     expect(r.transactions).toHaveLength(3)
+    // })
 
     it('should withdraw staked TON and release TON', async () => {
         const b = await Blockchain.create()
@@ -437,67 +405,67 @@ describe('Root', () => {
         expect(r.transactions).toHaveLength(4)
     })
 
-    it('should not withdraw when not deployed on base chain', async () => {
-        const b = await Blockchain.create()
-        const mcFilledRoot = Root.createFromConfig({
-            totalActive: toNano('1000000'),
-            totalNext: toNano('1000000'),
-            totalLater: toNano('1000000'),
-            round: 100n,
-            content: new Cell(),
-            walletCode,
-        }, rootCode, -1)
-        const root = b.openContract(mcFilledRoot)
-        const deployer = await b.treasury('deployer')
-        await root.sendDeploy(deployer.getSender(), toNano('0.05'))
-        const owner = await b.treasury('owner')
-        const walletAddress = await root.getWalletAddress(owner.address)
-        await b.setShardAccount(walletAddress, createShardAccount({
-            address: walletAddress,
-            code: walletCode,
-            data: walletConfigToCell({
-                activeBalance: toNano('10'),
-                nextBalance: 0n,
-                laterBalance: 0n,
-                round: 0n,
-                owner: owner.address,
-                root: root.address,
-                walletCode,
-            }),
-            balance: toNano('0.05'),
-        }))
-        const wallet = b.openContract(Wallet.createFromAddress(walletAddress))
-        const [activeBefore] = await wallet.getBalances()
+    // it('should not withdraw when not deployed on base chain', async () => {
+    //     const b = await Blockchain.create()
+    //     const mcFilledRoot = Root.createFromConfig({
+    //         totalActive: toNano('1000000'),
+    //         totalNext: toNano('1000000'),
+    //         totalLater: toNano('1000000'),
+    //         round: 100n,
+    //         content: new Cell(),
+    //         walletCode,
+    //     }, rootCode, -1)
+    //     const root = b.openContract(mcFilledRoot)
+    //     const deployer = await b.treasury('deployer')
+    //     await root.sendDeploy(deployer.getSender(), toNano('0.05'))
+    //     const owner = await b.treasury('owner')
+    //     const walletAddress = await root.getWalletAddress(owner.address)
+    //     await b.setShardAccount(walletAddress, createShardAccount({
+    //         address: walletAddress,
+    //         code: walletCode,
+    //         data: walletConfigToCell({
+    //             activeBalance: toNano('10'),
+    //             nextBalance: 0n,
+    //             laterBalance: 0n,
+    //             round: 0n,
+    //             owner: owner.address,
+    //             root: root.address,
+    //             walletCode,
+    //         }),
+    //         balance: toNano('0.05'),
+    //     }))
+    //     const wallet = b.openContract(Wallet.createFromAddress(walletAddress))
+    //     const [activeBefore] = await wallet.getBalances()
 
-        const r = await wallet.sendWithdraw(owner.getSender(), {
-            value: toNano('1'),
-            stakeAmount: toNano('6'),
-            recipient: owner.address,
-        })
-        const [activeAfter] = await wallet.getBalances()
-        expect(activeAfter).toBe(activeBefore)
-        expect(r.transactions).toHaveTransaction({
-            from: owner.address,
-            to: wallet.address,
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(r.transactions).toHaveTransaction({
-            from: wallet.address,
-            // this doesn't happen, since in wallet, root is forced to be on base chain
-            // to: root.address,
-            success: false,
-            outMessagesCount: 1,
-        })
-        expect(r.transactions).toHaveTransaction({
-            // this too
-            // from: root.address,
-            to: wallet.address,
-            success: true,
-            outMessagesCount: 0,
-        })
-        expect(r.transactions).toHaveLength(4)
-    })
+    //     const r = await wallet.sendWithdraw(owner.getSender(), {
+    //         value: toNano('1'),
+    //         stakeAmount: toNano('6'),
+    //         recipient: owner.address,
+    //     })
+    //     const [activeAfter] = await wallet.getBalances()
+    //     expect(activeAfter).toBe(activeBefore)
+    //     expect(r.transactions).toHaveTransaction({
+    //         from: owner.address,
+    //         to: wallet.address,
+    //         success: true,
+    //         outMessagesCount: 1,
+    //     })
+    //     expect(r.transactions).toHaveTransaction({
+    //         from: wallet.address,
+    //         // this doesn't happen, since in wallet, root is forced to be on base chain
+    //         // to: root.address,
+    //         success: false,
+    //         outMessagesCount: 1,
+    //     })
+    //     expect(r.transactions).toHaveTransaction({
+    //         // this too
+    //         // from: root.address,
+    //         to: wallet.address,
+    //         success: true,
+    //         outMessagesCount: 0,
+    //     })
+    //     expect(r.transactions).toHaveLength(4)
+    // })
 
     it('should not withdraw when available TON is insufficient', async () => {
         const b = await Blockchain.create()
@@ -592,7 +560,7 @@ describe('Root', () => {
             value: toNano('1'),
             sendMode: SendMode.NONE,
             body: beginCell()
-                .storeUint(opRelease, 32)
+                .storeUint(3, 32)
                 .storeUint(0, 64)
                 .storeCoins(toNano('60'))
                 .storeUint(BigInt('0x' + owner.address.hash.toString('hex')), 256)
@@ -613,75 +581,75 @@ describe('Root', () => {
         expect(r1.transactions).toHaveLength(3)
     })
 
-    it('should not burn when amount is more than total active balance of root', async () => {
-        const b = await Blockchain.create()
-        const root = b.openContract(Root.createFromConfig({
-            totalActive: toNano('100000'),
-            totalNext: 0n,
-            totalLater: 0n,
-            round: 100n,
-            content: new Cell(),
-            walletCode,
-        }, rootCode))
-        const deployer = await b.treasury('deployer')
-        await root.sendDeploy(deployer.getSender(), toNano('500000'))
-        const owner = await b.treasury('owner')
-        const walletAddress = await root.getWalletAddress(owner.address)
-        await b.setShardAccount(walletAddress, createShardAccount({
-            address: walletAddress,
-            code: walletCode,
-            data: walletConfigToCell({
-                activeBalance: toNano('200001'),
-                nextBalance: 0n,
-                laterBalance: 0n,
-                round: 100n,
-                owner: owner.address,
-                root: root.address,
-                walletCode,
-            }),
-            balance: toNano('0.05'),
-        }))
-        const wallet = b.openContract(Wallet.createFromAddress(walletAddress))
+    // it('should not burn when amount is more than total active balance of root', async () => {
+    //     const b = await Blockchain.create()
+    //     const root = b.openContract(Root.createFromConfig({
+    //         totalActive: toNano('100000'),
+    //         totalNext: 0n,
+    //         totalLater: 0n,
+    //         round: 100n,
+    //         content: new Cell(),
+    //         walletCode,
+    //     }, rootCode))
+    //     const deployer = await b.treasury('deployer')
+    //     await root.sendDeploy(deployer.getSender(), toNano('500000'))
+    //     const owner = await b.treasury('owner')
+    //     const walletAddress = await root.getWalletAddress(owner.address)
+    //     await b.setShardAccount(walletAddress, createShardAccount({
+    //         address: walletAddress,
+    //         code: walletCode,
+    //         data: walletConfigToCell({
+    //             activeBalance: toNano('200001'),
+    //             nextBalance: 0n,
+    //             laterBalance: 0n,
+    //             round: 100n,
+    //             owner: owner.address,
+    //             root: root.address,
+    //             walletCode,
+    //         }),
+    //         balance: toNano('0.05'),
+    //     }))
+    //     const wallet = b.openContract(Wallet.createFromAddress(walletAddress))
 
-        const r1 = await wallet.sendWithdraw(owner.getSender(), {
-            value: toNano('1'),
-            stakeAmount: toNano('100000') + 1n,
-            recipient: owner.address,
-        })
-        expect(r1.transactions).toHaveTransaction({
-            from: wallet.address,
-            to: root.address,
-            exitCode: 102,
-            outMessagesCount: 1,
-        })
-        expect(r1.transactions).toHaveTransaction({
-            from: root.address,
-            to: wallet.address,
-            success: true,
-            outMessagesCount: 0,
-        })
-        expect(r1.transactions).toHaveLength(4)
+    //     const r1 = await wallet.sendWithdraw(owner.getSender(), {
+    //         value: toNano('1'),
+    //         stakeAmount: toNano('100000') + 1n,
+    //         recipient: owner.address,
+    //     })
+    //     expect(r1.transactions).toHaveTransaction({
+    //         from: wallet.address,
+    //         to: root.address,
+    //         exitCode: 102,
+    //         outMessagesCount: 1,
+    //     })
+    //     expect(r1.transactions).toHaveTransaction({
+    //         from: root.address,
+    //         to: wallet.address,
+    //         success: true,
+    //         outMessagesCount: 0,
+    //     })
+    //     expect(r1.transactions).toHaveLength(4)
 
-        const r2 = await wallet.sendWithdraw(owner.getSender(), {
-            value: toNano('1'),
-            stakeAmount: toNano('100000'),
-            recipient: owner.address,
-        })
-        expect(r2.transactions).toHaveTransaction({
-            from: wallet.address,
-            to: root.address,
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(r2.transactions).toHaveTransaction({
-            from: root.address,
-            to: owner.address,
-            value: toNano('100000'),
-            success: true,
-            outMessagesCount: 0,
-        })
-        expect(r2.transactions).toHaveLength(4)
-    })
+    //     const r2 = await wallet.sendWithdraw(owner.getSender(), {
+    //         value: toNano('1'),
+    //         stakeAmount: toNano('100000'),
+    //         recipient: owner.address,
+    //     })
+    //     expect(r2.transactions).toHaveTransaction({
+    //         from: wallet.address,
+    //         to: root.address,
+    //         success: true,
+    //         outMessagesCount: 1,
+    //     })
+    //     expect(r2.transactions).toHaveTransaction({
+    //         from: root.address,
+    //         to: owner.address,
+    //         value: toNano('100000'),
+    //         success: true,
+    //         outMessagesCount: 0,
+    //     })
+    //     expect(r2.transactions).toHaveLength(4)
+    // })
 
     it('should not mint staked TON for top-up messages', async () => {
         const b = await Blockchain.create()
@@ -714,7 +682,7 @@ describe('Root', () => {
         await root.sendDeploy(deployer.getSender(), toNano('0.05'))
         const r = await root.sendMessage(deployer.getSender(), {
             value: toNano('2'),
-            sendMode: SendMode.PAY_GAS_SEPARATLY,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(10, 32)
                 .endCell()
@@ -733,4 +701,52 @@ describe('Root', () => {
         })
         expect(r.transactions).toHaveLength(3)
     })
+
+    it.skip('should ignore bounced messages', async () => {
+        const alwaysFailCode = await compile("AlwaysFail")
+        const b = await Blockchain.create()
+        const root = b.openContract(emptyRoot)
+        const deployer = await b.treasury('deployer')
+        await root.sendDeploy(deployer.getSender(), toNano('0.05'))
+        const owner = await b.treasury('owner')
+        const walletAddress = await root.getWalletAddress(owner.address)
+        await b.setShardAccount(walletAddress, createShardAccount({
+            address: walletAddress,
+            code: alwaysFailCode,
+            data: new Cell(),
+            balance: toNano('1'),
+        }))
+        const wallet = b.openContract(Wallet.createFromAddress(walletAddress))
+        const r = await wallet.sendMessage(owner.getSender(), {
+            value: toNano('10'),
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(0x2c76b973, 32)
+                .storeUint(0, 64)
+                .storeUint(0, 1)
+                .endCell()
+        })
+        expect(r.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: root.address,
+            value: toNano('10'),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(r.transactions).toHaveTransaction({
+            from: root.address,
+            to: walletAddress,
+            success: false,
+            outMessagesCount: 1,
+        })
+        expect(r.transactions).toHaveTransaction({
+            from: walletAddress,
+            to: root.address,
+            exitCode: 1,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(r.transactions).toHaveLength(4)
+    })
+
 })

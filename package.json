@@ -1,20 +1,20 @@
 {
-    "name": "pool",
+    "name": "StakeHipo",
     "version": "0.0.1",
     "license": "MIT",
     "scripts": {
         "test": "jest"
     },
     "devDependencies": {
-        "@ton-community/blueprint": "^0.2.0",
-        "@ton-community/sandbox": "^0.5.0",
+        "@ton-community/blueprint": "^0.4.1",
+        "@ton-community/sandbox": "^0.5.1",
         "@ton-community/test-utils": "^0.0.2",
         "@types/jest": "^29.2.6",
         "@types/node": "^18.11.18",
         "jest": "^29.3.1",
         "prettier": "^2.8.3",
-        "ton": "^13.3.0",
-        "ton-core": "^0.47.1",
+        "ton": "^13.4.1",
+        "ton-core": "^0.48.0",
         "ton-crypto": "^3.2.0",
         "ts-jest": "^29.0.5",
         "ts-node": "^10.9.1",

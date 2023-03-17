@@ -2,6 +2,14 @@
 // Elector
 //
 
+new_stake_msg#_
+    validator_pubkey:bits256
+    stake_at:uint32
+    max_factor:uint32
+    adnl_addr:bits256
+    signature:^bits512
+        = NewStakeMsg;
+
 new_stake#4e73744b
     query_id:uint64
     validator_pubkey:bits256
@@ -195,14 +203,6 @@ claim_reward#12
 // Storage
 //
 
-new_stake_msg#_
-    validator_pubkey:bits256
-    stake_at:uint32
-    max_factor:uint32
-    adnl_addr:bits256
-    signature:^bits512
-        = NewStakeMsg;
-
 recipient_payload#_
     recipient:MsgAddress
     payload:(Maybe ^Cell)
@@ -222,6 +222,12 @@ loan_data#_
     accepted:(HashmapE 256 LoanRequest)
     staked:(HashmapE 256 LoanRequest)
     held:(HashmapE 256 LoanRequest)
+    current_reward:Coins
+    current_total:Coins
+    active_next:Coins
+    reward_next:Coins
+    active_later:Coins
+    reward_later:Coins
         = LoanData;
 
 root_storage#_

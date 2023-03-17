@@ -1,41 +1,63 @@
 import { beginCell, Cell, Dictionary, toNano } from 'ton-core'
-import { Root } from '../wrappers/Root'
+import { Root, loanDataToCell } from '../wrappers/Root'
 import { compile, NetworkProvider } from '@ton-community/blueprint'
-import { sha256 } from 'ton-crypto'
+import { sha256_sync } from 'ton-crypto'
 
 export async function run(provider: NetworkProvider) {
     const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
-        .set(await toSha256("decimals"), toTextCell("9"))
-        .set(await toSha256("symbol"), toTextCell("hTON"))
-        .set(await toSha256("name"), toTextCell("Hipo TON"))
-        .set(await toSha256("description"), toTextCell("Liquidity for staked tokens on StakeHipo protocol"))
-        .set(await toSha256("image"), toTextCell("https://stakehipo.com/logo.png"))
+        .set(toSha256("decimals"), toTextCell("9"))
+        .set(toSha256("symbol"), toTextCell("hTON"))
+        .set(toSha256("name"), toTextCell("Hipo TON"))
+        .set(toSha256("description"), toTextCell("Liquidity for staked tokens on StakeHipo protocol"))
+        .set(toSha256("image"), toTextCell("https://stakehipo.com/logo.png"))
     const content = beginCell().storeUint(0, 8).storeDict(contentDict).endCell()
 
-    const root = Root.createFromConfig({
-        totalActive: 0n,
-        totalNext: 0n,
-        totalLater: 0n,
-        round: 0n,
-        content,
-        walletCode: await compile('Wallet'),
-    }, await compile('Root'))
+    const emptyLoanData = loanDataToCell({
+        currentReward: 0n,
+        currentTotal: 0n,
+        activeNext: 0n,
+        rewardNext: 0n,
+        activeLater: 0n,
+        rewardLater: 0n,
+    })
 
-    const opTopUp = 0x34e5d45a
-    const body = beginCell().storeUint(opTopUp, 32).endCell()
-    await provider.deploy(root, toNano('0.05'), body)
+    const root = provider.open(
+        Root.createFromConfig(
+            {
+                state: Root.state.stakeHeld,
+                roundSince: 0,
+                totalActive: 0n,
+                totalNext: 0n,
+                totalLater: 0n,
+                walletCode: await compile('Wallet'),
+                poolCode: await compile('Pool'),
+                loanData: emptyLoanData,
+                roundNext: 0,
+                durationNext: 0,
+                heldNext: 0,
+                participationStart: 0,
+                roundLater: 0,
+                durationLater: 0,
+                heldLater: 0,
+                content,
+            },
+            await compile('Root')
+        )
+    )
 
-    const openedContract = provider.open(root)
+    await root.sendDeploy(provider.sender(), toNano('0.05'))
+
+    await provider.waitForDeploy(root.address)
 
     console.log(
         'root address: %s\nroot balances: %o',
-        openedContract.address,
-        await openedContract.getTotalBalances(),
+        root.address,
+        await root.getTotalBalances(),
     )
 }
 
-async function toSha256(s: string): Promise<bigint> {
-    return BigInt('0x' + (await sha256(s)).toString('hex'))
+function toSha256(s: string): bigint {
+    return BigInt('0x' + sha256_sync(s).toString('hex'))
 }
 
 function toTextCell(s: string): Cell {

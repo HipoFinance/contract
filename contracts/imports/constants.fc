@@ -1,4 +1,4 @@
-#pragma version >=0.4.1;
+#pragma version >=0.4.0;
 
 const int err::insufficient_fee = 101;
 const int err::insufficient_funds = 102;

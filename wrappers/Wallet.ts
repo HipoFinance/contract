@@ -41,7 +41,7 @@ export class Wallet implements Contract {
     async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {
         await provider.internal(via, {
             value,
-            sendMode: SendMode.PAY_GAS_SEPARATLY,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell().storeUint(opTopUp, 32).endCell(),
         })
     }
@@ -65,7 +65,7 @@ export class Wallet implements Contract {
     ) {
         await provider.internal(via, {
             value: opts.value,
-            sendMode: SendMode.PAY_GAS_SEPARATLY,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: opts.comment,
         })
     }
@@ -85,7 +85,7 @@ export class Wallet implements Contract {
     ) {
         await provider.internal(via, {
             value: opts.value,
-            sendMode: SendMode.PAY_GAS_SEPARATLY,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(0x0f8a7ea5, 32)
                 .storeUint(opts.queryId || 0n, 64)
@@ -113,7 +113,7 @@ export class Wallet implements Contract {
     ) {
         await provider.internal(via, {
             value: opts.value,
-            sendMode: SendMode.PAY_GAS_SEPARATLY,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(opWithdraw, 32)
                 .storeUint(opts.queryId || 0n, 64)
