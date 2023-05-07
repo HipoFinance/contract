@@ -36,7 +36,7 @@ The TON blockchain has an inflation of %0.6 per year. This inflation, plus fees 
 
 ### High Level Overview
 
-![Smart Contracts](smart-contracts.excalidraw.png)
+![Smart Contracts](docs/smart-contracts.excalidraw.png)
 
 Users stake their TON using one of these options:
 
@@ -52,7 +52,7 @@ This `Pool` automatically enters the election round that is ongoing on the block
 
 From each user's wallet, a claim reward request must be sent to `Root`, which will then calculate the user's share and return the equivalent hTON.
 
-This process continues for the next validation rounds. At some point, a user wants to transfer they're hTON to another user. They can simply do a Jetton transfer from their wallet application.
+This process continues for the next validation rounds. At some point, a user wants to transfer their hTON to another user. They can simply do a Jetton transfer from their wallet application.
 
 At another point in time, users may want to redeem their hTON and receive TON. They can use the Unstake tab of the protocol's dApp. Now hTON is transferred from the user's `Wallet` to `Root`, which then releases TON to the user.
 
@@ -62,7 +62,7 @@ In TON, protocols should avoid keeping a big table of data, and they have to be 
 
 `Elector` is a smart contract on the master chain which conducts elections. Here is how it works:
 
-![Election Rounds](election-rounds.excalidraw.png)
+![Election Rounds](docs/election-rounds.excalidraw.png)
 
 This image is drawn in [Excalidraw](https://excalidraw.com) and is editable over there.
 
