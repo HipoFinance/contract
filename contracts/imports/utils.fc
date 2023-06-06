@@ -1,6 +1,8 @@
-#pragma version >=0.4.1;
-
+#include "stdlib.fc";
 #include "constants.fc";
+
+(slice, int) load_varint16(slice s) asm( -> 1 0) "LDVARINT16";
+builder store_varint16(builder b, int x) asm "STVARINT16";
 
 builder store_state_init(builder b, cell state_init) {
     return state_init.null?()
@@ -14,7 +16,7 @@ builder store_body(builder b, builder body) {
         : b.store_maybe_ref(body.end_cell());
 }
 
-() send_msg(int flags, builder dst, int coins, cell state_init, builder body, int mode) impure {
+() send_msg(int bounceable?, builder dst, cell state_init, builder body, int coins, int mode) impure {
     ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
     ;;   src:MsgAddress dest:MsgAddressInt
     ;;   value:CurrencyCollection ihr_fee:Grams fwd_fee:Grams
@@ -23,7 +25,7 @@ builder store_body(builder b, builder body) {
     ;;   init:(Maybe (Either StateInit ^StateInit))
     ;;   body:(Either X ^X) = MessageRelaxed X;
     cell msg = begin_cell()
-        .store_uint(flags, 6)
+        .store_uint(bounceable? ? 0x18 : 0x10, 6) ;; 011000 or 010000
         .store_builder(dst)
         .store_coins(coins)
         .store_uint(0, 1 + 4 + 4 + 64 + 32)
@@ -35,20 +37,20 @@ builder store_body(builder b, builder body) {
 
 (int, int) get_elector() {
     ;; _ elector_addr:bits256 = ConfigParam 1;
-    return (chain::main, config_param(1).begin_parse().preload_uint(256));
+    return (chain::main, config_param(config::elector_address).begin_parse().preload_uint(256));
 }
 
 (int, int, int, int) get_election_config() impure {
     ;; _ validators_elected_for:uint32 elections_start_before:uint32
     ;;   elections_end_before:uint32 stake_held_for:uint32
     ;;   = ConfigParam 15;
-    slice cs = config_param(15).begin_parse();
+    slice cs = config_param(config::election).begin_parse();
     return (cs~load_uint(32), cs~load_uint(32), cs~load_uint(32), cs~load_uint(32));
 }
 
 (int, int, int, int) get_stake_config() impure {
     ;; _ min_stake:Grams max_stake:Grams min_total_stake:Grams max_stake_factor:uint32 = ConfigParam 17;
-    slice cs = config_param(17).begin_parse();
+    slice cs = config_param(config::stake).begin_parse();
     return (cs~load_coins(), cs~load_coins(), cs~load_coins(), cs~load_uint(32));
 }
 
@@ -89,19 +91,18 @@ cell create_wallet_data(builder owner, slice root, cell wallet_code) {
     return begin_cell()
         .store_builder(owner)
         .store_slice(root)
-        .store_uint(0, 32) ;; round_since
-        .store_coins(0) ;; balance_active
-        .store_coins(0) ;; balance_next
-        .store_coins(0) ;; balance_later
+        .store_coins(0) ;; unstaked_tokens
+        .store_uint(0, 1) ;; tokens_dict
         .store_ref(wallet_code)
         .end_cell();
 }
 
-cell create_pool_data(slice root, builder validator_owner) {
+cell create_pool_data(slice root, builder validator, int round_since) {
     return begin_cell()
         .store_uint(0, 2) ;; addr_none for elector
         .store_slice(root)
-        .store_builder(validator_owner)
+        .store_builder(validator)
+        .store_uint(round_since, 32)
         .end_cell();
 }
 
@@ -113,39 +114,36 @@ cell create_pool_data(slice root, builder validator_owner) {
     return (wallet, state_init, addr);
 }
 
-(builder, cell, int) create_pool_address(builder validator_owner, slice root, cell pool_code) {
-    cell pool_data = create_pool_data(root, validator_owner);
+(builder, cell, int) create_pool_address(slice root, builder validator, int round_since, cell pool_code) {
+    cell pool_data = create_pool_data(root, validator, round_since);
     cell state_init = create_state_init(pool_code, pool_data);
     int addr = state_init.cell_hash();
     builder pool = create_address(chain::main, addr);
     return (pool, state_init, addr);
 }
 
-(int, int, int, int, int) update_round(int active, int next, int later, int round_since) impure {
-    ( int utime_since, int utime_until ) = get_vset_times(config_param(34));
-    if (round_since & (round_since != utime_since)) { ;; at least one round has passed
-        ( int prev_utime_since, _ ) = get_vset_times(config_param(32));
-        if (round_since != prev_utime_since) { ;; more than one round has passed
-            active += next + later;
-            next = later = 0;
-        } else { ;; only one round has passed
-            active += next;
-            next = later;
-            later = 0;
+(cell, cell) extract_send_amounts(cell staked_amounts, int send_amount) {
+    cell send_amounts = new_dict();
+    int stake_time = 1 << 32;
+    do {
+        ( stake_time, slice v, int f? ) = staked_amounts.udict_get_prev?(32, stake_time);
+        if (f?) {
+            int stake_amount = v~load_coins();
+            v.end_parse();
+            if (send_amount >= stake_amount) {
+                send_amount -= stake_amount;
+                send_amounts~udict_set_builder(32, stake_time, begin_cell().store_coins(stake_amount));
+            } else {
+                send_amounts~udict_set_builder(32, stake_time, begin_cell().store_coins(send_amount));
+                stake_amount -= send_amount;
+                send_amount = 0;
+                staked_amounts~udict_set_builder(32, stake_time, begin_cell().store_coins(stake_amount));
+            }
         }
-    }
-    return (active, next, later, utime_since, utime_until);
-}
-
-(int, int) update_next_or_later(int next, int later, int amount, int round_until) impure {
-    ( _, int elections_start_before, int elections_end_before, _ ) = get_election_config();
-    int election_span = elections_start_before - elections_end_before;
-    int participate_before = muldiv(election_span, 10, 100);
-    if (now() < round_until - elections_end_before - participate_before) {
-        return (next + amount, later);
-    } else {
-        return (next, later + amount);
-    }
+        f? &= send_amount > 0;
+    } until (~ f?);
+    throw_unless(err::insufficient_funds, send_amount == 0);
+    return ( send_amounts, staked_amounts );
 }
 
 () check_new_stake_msg(slice cs) impure {

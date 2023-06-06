@@ -14,23 +14,34 @@ export async function run(provider: NetworkProvider, args: string[]) {
 
     const root = provider.open(Root.createFromAddress(address));
 
-    const balanceBefore = await root.getStateBalance();
+    const balanceBefore = await root.getTonBalance();
 
-    await root.sendSimpleTransfer(provider.sender(), {
-        value: toNano('1'),
-    });
+    const amountTon = await ui.input('TON amount to stake')
+    const amountNano = toNano(amountTon)
+    const recipient = provider.sender().address
+    if (recipient == null) {
+        ui.write(`Error: recipient address is undefined`)
+        return
+    }
 
-    ui.write('Waiting for balances to change...');
+    await root.sendStakeTon(provider.sender(), {
+        value: amountNano + toNano('0.1'),
+        tokens: amountNano,
+        recipient: recipient,
+        returnExcess: recipient,
+    })
 
-    let balanceAfter = await root.getStateBalance();
+    ui.write('Waiting for balance to change...');
+
+    let balanceAfter = await root.getTonBalance();
     let attempt = 1;
     while (balanceAfter === balanceBefore) {
         ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
-        balanceAfter = await root.getStateBalance();
+        balanceAfter = await root.getTonBalance();
         attempt++;
     }
 
     ui.clearActionPrompt();
-    ui.write('Counter increased successfully!');
+    ui.write('Staked successfully!');
 }

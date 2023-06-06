@@ -1,9 +1,11 @@
-import { beginCell, Cell, Dictionary, toNano } from 'ton-core'
-import { Root, loanDataToCell } from '../wrappers/Root'
-import { compile, NetworkProvider } from '@ton-community/blueprint'
+import { beginCell, Cell, Dictionary, fromNano, toNano } from 'ton-core'
+import { Root } from '../wrappers/Root'
+import { compile, NetworkProvider, sleep } from '@ton-community/blueprint'
 import { sha256_sync } from 'ton-crypto'
 
 export async function run(provider: NetworkProvider) {
+    const ui = provider.ui();
+
     const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
         .set(toSha256("decimals"), toTextCell("9"))
         .set(toSha256("symbol"), toTextCell("hTON"))
@@ -12,48 +14,45 @@ export async function run(provider: NetworkProvider) {
         .set(toSha256("image"), toTextCell("https://stakehipo.com/logo.png"))
     const content = beginCell().storeUint(0, 8).storeDict(contentDict).endCell()
 
-    const emptyLoanData = loanDataToCell({
-        currentReward: 0n,
-        currentTotal: 0n,
-        activeNext: 0n,
-        rewardNext: 0n,
-        activeLater: 0n,
-        rewardLater: 0n,
-    })
-
     const root = provider.open(
-        Root.createFromConfig(
-            {
-                state: Root.state.stakeHeld,
-                roundSince: 0,
-                totalActive: 0n,
-                totalNext: 0n,
-                totalLater: 0n,
-                walletCode: await compile('Wallet'),
-                poolCode: await compile('Pool'),
-                loanData: emptyLoanData,
-                roundNext: 0,
-                durationNext: 0,
-                heldNext: 0,
-                participationStart: 0,
-                roundLater: 0,
-                durationLater: 0,
-                heldLater: 0,
-                content,
-            },
-            await compile('Root')
-        )
+        Root.createFromConfig({
+            walletCode: await compile('Wallet'),
+            poolCode: await compile('Pool'),
+            content,
+        }, await compile('Root'))
     )
 
-    await root.sendDeploy(provider.sender(), toNano('0.05'))
+    await root.sendDeploy(provider.sender(), toNano('0.01'))
 
     await provider.waitForDeploy(root.address)
 
-    console.log(
-        'root address: %s\nroot balances: %o',
-        root.address,
-        await root.getTotalBalances(),
+    ui.write(`root address: ${root.address}\nroot ton balance: ${await root.getTonBalance()}\n`)
+
+    const fees = await root.getFees()
+
+    const choice = await ui.choose(
+        `Top up root's balance to ${fromNano(fees.rootStorage)} TON?`,
+        [false, true], v => v ? 'Yes' : 'No'
     )
+
+    if (choice) {
+        const balanceBefore = await root.getTonBalance();
+
+        await root.sendTopUp(provider.sender(), fees.rootStorage)
+
+        ui.write('Waiting for balance to change...');
+
+        let balanceAfter = await root.getTonBalance();
+        let attempt = 1;
+        while (balanceAfter === balanceBefore) {
+            ui.setActionPrompt(`Attempt ${attempt}`);
+            await sleep(2000);
+            balanceAfter = await root.getTonBalance();
+            attempt++;
+        }
+        ui.clearActionPrompt();
+        ui.write('Topped up successfully!');
+    }
 }
 
 function toSha256(s: string): bigint {

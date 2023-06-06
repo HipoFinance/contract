@@ -1,249 +1,244 @@
-#pragma version >=0.4.1;
-
-#include "imports/stdlib.fc";
-#include "imports/constants.fc";
 #include "imports/utils.fc";
 
-() save_data(slice owner, slice root, int round_since,
-        int balance_active, int balance_next, int balance_later, cell wallet_code) impure {
+() save_data(slice owner, slice root, int unstaked_tokens, cell tokens_dict, cell wallet_code) impure {
     begin_cell()
         .store_slice(owner)
         .store_slice(root)
-        .store_uint(round_since, 32)
-        .store_coins(balance_active)
-        .store_coins(balance_next)
-        .store_coins(balance_later)
+        .store_coins(unstaked_tokens)
+        .store_dict(tokens_dict)
         .store_ref(wallet_code)
         .end_cell()
         .set_data();
 }
 
-(slice, slice, int, int, int, int, cell) load_data() impure {
+(slice, slice, int, cell, cell) load_data() impure {
     slice ds = get_data().begin_parse();
     slice owner = ds~load_msg_addr();
     slice root = ds~load_msg_addr();
-    int round_since = ds~load_uint(32);
-    int balance_active = ds~load_coins();
-    int balance_next = ds~load_coins();
-    int balance_later = ds~load_coins();
+    int unstaked_tokens = ds~load_coins();
+    cell tokens_dict = ds~load_dict();
     cell wallet_code = ds~load_ref();
     ds.end_parse();
-    return (owner, root, round_since, balance_active, balance_next, balance_later, wallet_code);
+    return ( owner, root, unstaked_tokens, tokens_dict, wallet_code );
 }
 
-() send(int msg_ton, int fwd_fee, slice src, slice s) impure {
+int sum_tokens(cell tokens_dict) {
+    int k = -1;
+    int f? = 0;
+    int total = 0;
+    do {
+        (k, slice v, f?) = tokens_dict.udict_get_next?(32, k);
+        if (f?) {
+            total += v~load_coins();
+            v.end_parse();
+        }
+    } until (~ f?);
+    return total;
+}
+
+() send_tokens(int msg_ton, int fwd_fee, slice src, slice s) impure {
     ( slice owner
     , slice root
-    , int round_since
-    , int balance_active
-    , int balance_next
-    , int balance_later
+    , int unstaked_tokens
+    , cell tokens_dict
     , cell wallet_code
     ) = load_data();
 
     int query_id = s~load_uint(64);
-    int stake_amount = s~load_coins();
-    slice recipient_owner = s~load_msg_addr();
+    int tokens = s~load_coins();
+    slice recipient = s~load_msg_addr();
     slice return_excess = s~load_msg_addr();
     s~load_maybe_ref(); ;; skip custom_payload
-    int notification_ton_amount = s~load_coins();
-    slice notification_payload = s;
+    int forward_ton_amount = s~load_coins();
+    slice forward_payload = s;
     s~skip_bits(1); ;; check either field
 
-    ( balance_active
-    , balance_next
-    , balance_later
-    , round_since
-    , _
-    ) = update_round(balance_active, balance_next, balance_later, round_since);
-    ( int recipient_owner_wc, _ ) = parse_std_addr(recipient_owner);
-    int fwd_count = notification_ton_amount ? 2 : 1;
+    int staked_tokens = sum_tokens(tokens_dict);
+    ( int recipient_wc, _ ) = parse_std_addr(recipient);
+    int fwd_count = forward_ton_amount ? 4 : 3;
     int min_ton =
-            notification_ton_amount +
-            ;; 3 messages: wallet1->wallet2, wallet2->owner (when notifying), wallet2->return (optional)
+            forward_ton_amount +
+            ;; 5 messages: wallet1->root, root->wallet1, wallet1->wallet2, wallet2->owner, wallet2->return (optional)
             fwd_count * fwd_fee +
-            2 * fee::wallet_gas_consumption +
+            4 * fee::wallet_gas_consumption +
             fee::wallet_storage;
 
     throw_unless(err::access_denied, equal_slices(src, owner));
-    throw_unless(err::only_basechain_allowed, recipient_owner_wc == chain::base);
-    throw_unless(err::receiver_is_sender, ~ equal_slices(recipient_owner, owner));
+    throw_unless(err::only_basechain_allowed, recipient_wc == chain::base);
+    throw_unless(err::receiver_is_sender, ~ equal_slices(recipient, owner));
     throw_unless(err::insufficient_fee, msg_ton >= min_ton);
-    throw_unless(err::insufficient_funds, (stake_amount > 0) & (stake_amount <= balance_active));
+    throw_unless(err::insufficient_funds, (tokens > 0) & (tokens <= staked_tokens));
 
-    balance_active -= stake_amount;
-    ( builder wallet, cell state_init, _ ) = create_wallet_address(recipient_owner.to_builder(), root, wallet_code);
+    ;; first consolidate, then send
+    cell then_send = begin_cell()
+        .store_coins(tokens)
+        .store_slice(recipient)
+        .store_coins(forward_ton_amount)
+        .store_slice(forward_payload)
+        .end_cell();
     builder body = begin_cell()
-        .store_uint(op::receive, 32)
+        .store_uint(op::consolidate, 32)
         .store_uint(query_id, 64)
-        .store_coins(stake_amount)
         .store_slice(owner)
-        .store_slice(return_excess)
-        .store_coins(notification_ton_amount)
-        .store_slice(notification_payload);
-    send_msg(flag::bounceable, wallet, 0, state_init, body, mode::carry_inbound);
+        .store_dict(tokens_dict)
+        .store_maybe_ref(then_send)
+        .store_slice(return_excess);
+    send_msg(true, root.to_builder(), null(), body, 0, mode::carry_inbound);
 
-    save_data(owner, root, round_since, balance_active, balance_next, balance_later, wallet_code);
+    save_data(owner, root, unstaked_tokens, new_dict(), wallet_code);
 }
 
-() receive(int msg_ton, int fwd_fee, slice src, slice s) impure {
+() receive_tokens(int msg_ton, int fwd_fee, slice src, slice s) impure {
     ( slice owner
     , slice root
-    , int round_since
-    , int balance_active
-    , int balance_next
-    , int balance_later
+    , int unstaked_tokens
+    , cell tokens_dict
     , cell wallet_code
     ) = load_data();
 
     int query_id = s~load_uint(64);
-    int stake_amount = s~load_coins();
-    slice sender_owner = s~load_msg_addr();
+    int unstaked = s~load_coins();
+    cell staked_dict = s~load_dict();
+    cell then_send = s~load_maybe_ref();
+    slice sender = s~load_msg_addr();
     slice return_excess = s~load_msg_addr();
-    int notification_ton_amount = s~load_coins();
-    slice notification_payload = s;
+    int forward_ton_amount = s~load_coins();
+    slice forward_payload = s;
 
-    ( balance_active
-    , balance_next
-    , balance_later
-    , round_since
-    , int round_until
-    ) = update_round(balance_active, balance_next, balance_later, round_since);
-    int allowed? = int src_is_root? = equal_slices(src, root);
+    int allowed? = equal_slices(src, root);
     ifnot (allowed?) {
-        ( _, _, int wallet_addr ) = create_wallet_address(sender_owner.to_builder(), root, wallet_code);
+        ( _, _, int wallet_addr ) = create_wallet_address(sender.to_builder(), root, wallet_code);
         ( int src_wc, int src_addr ) = parse_std_addr(src);
         allowed? = (src_wc == chain::base) & (src_addr == wallet_addr);
     }
-    ( int sender_owner_wc, _ ) = parse_std_addr(sender_owner);
 
     throw_unless(err::access_denied, allowed?);
-    throw_unless(err::only_basechain_allowed, sender_owner_wc == chain::base);
 
-    if (src_is_root?) {
-        ( balance_next
-        , balance_later
-        ) = update_next_or_later(balance_next, balance_later, stake_amount, round_until);
-    } else {
-        balance_active += stake_amount;
-    }
+    ;; merge
+    unstaked_tokens += unstaked;
+    int stake_time = -1;
+    do {
+        (stake_time, slice v, int f?) = staked_dict.udict_get_next?(32, stake_time);
+        if (f?) {
+            int staked = v~load_coins();
+            v.end_parse();
+            ( slice o, int e? ) = tokens_dict.udict_get?(32, stake_time);
+            if (e?) {
+                staked += o~load_coins();
+                o.end_parse();
+            }
+            tokens_dict~udict_set_builder(32, stake_time, begin_cell().store_coins(staked));
+        }
+    } until (~ f?);
+
+    int total_tokens = sum_tokens(staked_dict);
     int ton_balance = get_balance().pair_first();
     int ton_balance_before_msg = ton_balance - msg_ton;
     int storage_fee = fee::wallet_storage - min(ton_balance_before_msg, fee::wallet_storage);
     msg_ton -= storage_fee + fee::wallet_gas_consumption;
 
-    if (notification_ton_amount) {
-        msg_ton -= notification_ton_amount + fwd_fee;
+    if (forward_ton_amount) {
+        msg_ton -= forward_ton_amount + fwd_fee;
         builder body = begin_cell()
-            .store_uint(op::notify, 32)
+            .store_uint(op::transfer_notification, 32)
             .store_uint(query_id, 64)
-            .store_coins(stake_amount)
-            .store_slice(sender_owner)
-            .store_slice(notification_payload);
-        send_msg(flag::non_bounceable, owner.to_builder(), notification_ton_amount, null(), body,
-            mode::add_transfer_fee
-        );
+            .store_coins(total_tokens)
+            .store_slice(sender)
+            .store_slice(forward_payload);
+        send_msg(false, owner.to_builder(), null(), body, forward_ton_amount, mode::add_transfer_fee);
     }
 
-    if ((return_excess.preload_uint(2) != 0) & (msg_ton > 0)) {
-        builder excess = begin_cell()
-            .store_uint(op::excess, 32)
-            .store_uint(query_id, 64);
-        send_msg(flag::non_bounceable, return_excess.to_builder(), msg_ton, null(), excess,
-            mode::ignore_errors
-        );
+    if (then_send.null?()) {
+        if ((return_excess.preload_uint(2) != 0) & (msg_ton > 0)) {
+            builder excess = begin_cell()
+                .store_uint(op::gas_excess, 32)
+                .store_uint(query_id, 64);
+            send_msg(false, return_excess.to_builder(), null(), excess, msg_ton, mode::ignore_errors);
+        }
+    } else {
+        slice ts = then_send.begin_parse();
+        int ts_tokens = ts~load_coins();
+        slice ts_recipient = ts~load_msg_addr();
+        int ts_forward_ton_amount = ts~load_coins();
+        slice ts_forward_payload = ts;
+
+        ( cell send_amounts, tokens_dict ) = extract_send_amounts(tokens_dict, ts_tokens);
+        ( builder wallet, cell state_init, _ ) = create_wallet_address(ts_recipient.to_builder(), root, wallet_code);
+        builder body = begin_cell()
+            .store_uint(op::receive_tokens, 32)
+            .store_uint(query_id, 64)
+            .store_coins(0)
+            .store_dict(send_amounts)
+            .store_uint(0, 1)
+            .store_slice(owner)
+            .store_slice(return_excess)
+            .store_coins(ts_forward_ton_amount)
+            .store_slice(ts_forward_payload);
+        send_msg(true, wallet, state_init, body, 0, mode::carry_inbound);
     }
 
-    save_data(owner, root, round_since, balance_active, balance_next, balance_later, wallet_code);
+    save_data(owner, root, unstaked_tokens, tokens_dict, wallet_code);
 }
 
-() withdraw(int msg_ton, int fwd_fee, slice src, slice s) impure {
+() unstake_tokens(int msg_ton, int fwd_fee, slice src, slice s) impure {
     ( slice owner
     , slice root
-    , int round_since
-    , int balance_active
-    , int balance_next
-    , int balance_later
+    , int unstaked_tokens
+    , cell tokens_dict
     , cell wallet_code
     ) = load_data();
 
     int query_id = s~load_uint(64);
-    int stake_amount = s~load_coins();
+    int tokens = s~load_coins();
     slice return_excess = s~load_msg_addr();
-    cell recipient_payload = s~load_maybe_ref();
     s.end_parse();
 
-    ( balance_active
-    , balance_next
-    , balance_later
-    , round_since
-    , _
-    ) = update_round(balance_active, balance_next, balance_later, round_since);
-    slice recipient = owner;
-    cell payload = null();
-    ifnot (recipient_payload.null?()) {
-        slice rs = recipient_payload.begin_parse();
-        slice custom_recipient = rs~load_msg_addr();
-        payload = rs~load_maybe_ref();
-        rs.end_parse();
-        if (custom_recipient.preload_uint(2) != 0) {
-            recipient = custom_recipient;
-        }
-    }
-    ( int recipient_wc, _ ) = parse_std_addr(recipient);
+    int total_tokens = sum_tokens(tokens_dict);
     int min_ton =
-            ;; 3 messages: wallet->root, root->recipient, root->return (optional)
+            ;; 3 messages: wallet->root, root->wallet, wallet->return (optional)
             2 * fwd_fee +
-            fee::wallet_gas_consumption +
-            fee::root_gas_consumption;
+            2 * fee::wallet_gas_consumption +
+            fee::root_unstake_gas_consumption;
 
     throw_unless(err::access_denied, equal_slices(src, owner));
-    throw_unless(err::only_basechain_allowed, recipient_wc == chain::base);
     throw_unless(err::insufficient_fee, msg_ton >= min_ton);
-    throw_unless(err::insufficient_funds, (stake_amount > 0) & (stake_amount <= balance_active));
+    throw_unless(err::insufficient_funds, (tokens > 0) & (tokens <= total_tokens));
 
-    balance_active -= stake_amount;
     builder body = begin_cell()
-        .store_uint(op::release, 32)
+        .store_uint(op::unstake_reserve, 32)
         .store_uint(query_id, 64)
-        .store_coins(stake_amount)
+        .store_coins(tokens)
+        .store_dict(tokens_dict)
         .store_slice(owner)
-        .store_slice(recipient)
-        .store_slice(return_excess)
-        .store_maybe_ref(payload);
-    send_msg(flag::bounceable, root.to_builder(), 0, null(), body, mode::carry_inbound);
+        .store_slice(return_excess);
+    send_msg(true, root.to_builder(), null(), body, 0, mode::carry_inbound);
 
-    save_data(owner, root, round_since, balance_active, balance_next, balance_later, wallet_code);
+    save_data(owner, root, unstaked_tokens, new_dict(), wallet_code);
 }
 
 () send_loan_request(int msg_ton, int fwd_fee, slice src, slice s) impure {
     ( slice owner
     , slice root
-    , int round_since
-    , int balance_active
-    , int balance_next
-    , int balance_later
+    , int unstaked_tokens
+    , cell tokens_dict
     , cell wallet_code
     ) = load_data();
 
     int query_id = s~load_uint(64);
-    int stake_amount = s~load_coins();
+    int tokens = s~load_coins();
     slice return_excess = s~load_msg_addr();
+    int round_since = s~load_uint(32);
     int loan_amount = s~load_coins();
     int min_payment = s~load_coins();
     int validator_reward_share = s~load_uint(16);
     cell new_stake_msg = s~load_ref();
     s.end_parse();
 
-    ( balance_active
-    , balance_next
-    , balance_later
-    , round_since
-    , int round_until
-    ) = update_round(balance_active, balance_next, balance_later, round_since);
+    int staked_tokens = sum_tokens(tokens_dict);
     ( int min_stake, int max_stake, _, _ ) = get_stake_config();
     ( _, int elections_start_before, _, _ ) = get_election_config();
-    int is_election_active? = config_param(36).null?() & (now() >= round_until - elections_start_before);
+    ( _, int round_until ) = get_vset_times(config_param(config::current_validators));
+    int is_election_active? = config_param(config::next_validators).null?() & (now() >= round_until - elections_start_before);
     int min_ton =
             ;; 2 messages: wallet->root, root->return (optional)
             fwd_fee +
@@ -253,78 +248,79 @@
 
     throw_unless(err::access_denied, equal_slices(src, owner));
     throw_unless(err::insufficient_fee, msg_ton >= min_ton);
-    throw_unless(err::insufficient_funds, stake_amount <= balance_active);
+    throw_unless(err::insufficient_funds, tokens <= staked_tokens);
     throw_unless(err::no_active_election, is_election_active?);
     throw_unless(err::invalid_loan_request, loan_amount >= min_stake);
     throw_unless(err::invalid_loan_request, loan_amount <= max_stake);
     throw_unless(err::invalid_loan_request, min_payment > 0);
     throw_unless(err::invalid_loan_request, validator_reward_share <= 10000);
 
-    balance_active -= stake_amount;
+    ( cell send_amounts, tokens_dict ) = extract_send_amounts(tokens_dict, tokens);
     builder body = begin_cell()
         .store_uint(op::save_loan_request, 32)
         .store_uint(query_id, 64)
-        .store_coins(stake_amount)
+        .store_coins(tokens)
         .store_slice(owner)
         .store_slice(return_excess)
+        .store_uint(round_since, 32)
         .store_coins(loan_amount)
         .store_coins(min_payment)
         .store_uint(validator_reward_share, 16)
         .store_ref(new_stake_msg);
-    send_msg(flag::bounceable, root.to_builder(), 0, null(), body, mode::carry_inbound);
+    send_msg(true, root.to_builder(), null(), body, 0, mode::carry_inbound);
 
-    save_data(owner, root, round_since, balance_active, balance_next, balance_later, wallet_code);
+    save_data(owner, root, unstaked_tokens, tokens_dict, wallet_code);
 }
 
-() send_claim_reward(slice src, slice s) impure {
+() send_consolidate(slice src, slice s) impure {
     ( slice owner
     , slice root
-    , int round_since
-    , int balance_active
-    , int balance_next
-    , int balance_later
+    , int unstaked_tokens
+    , cell tokens_dict
     , cell wallet_code
     ) = load_data();
 
     int query_id = s~load_uint(64);
+    slice return_excess = s~load_msg_addr();
     s.end_parse();
 
     throw_unless(err::access_denied, equal_slices(src, owner));
 
     builder body = begin_cell()
-        .store_uint(op::claim_reward, 32)
+        .store_uint(op::consolidate, 32)
         .store_uint(query_id, 64)
-        .store_coins(balance_active)
-        .store_slice(owner);
-    send_msg(flag::non_bounceable, root.to_builder(), 0, null(), body, mode::carry_inbound);
+        .store_slice(owner)
+        .store_ref(tokens_dict)
+        .store_uint(0, 1)
+        .store_slice(return_excess);
+    send_msg(true, root.to_builder(), null(), body, 0, mode::carry_inbound);
+
+    save_data(owner, root, unstaked_tokens, new_dict(), wallet_code);
 }
 
 () handle_bounced_message(slice src, slice s) impure {
     int op = s~load_uint(32);
 
-    if ((op == op::receive) | (op == op::release) | (op == op::save_loan_request)) {
+    if ((op == op::receive_tokens) | (op == op::unstake_tokens) | (op == op::save_loan_request)) {
         ;; re-add stake amount, and return excess gas to owner which is the original sender
         ( slice owner
         , slice root
-        , int round_since
-        , int balance_active
-        , int balance_next
-        , int balance_later
+        , int unstaked_tokens
+        , cell tokens_dict
         , cell wallet_code
         ) = load_data();
 
         int query_id = s~load_uint(64);
-        int stake_amount = s~load_coins();
+        ;; int stake_amount = s~load_coins(); ?
 
-        balance_active += stake_amount;
+        ;; balance_active += stake_amount; ?
 
         builder body = begin_cell()
-            .store_uint(op::excess, 32)
+            .store_uint(op::gas_excess, 32)
             .store_uint(query_id, 64);
-        send_msg(flag::non_bounceable, owner.to_builder(), 0, null(), body,
-            mode::carry_inbound + mode::ignore_errors);
+        send_msg(false, owner.to_builder(), null(), body, 0, mode::carry_inbound + mode::ignore_errors);
 
-        save_data(owner, root, round_since, balance_active, balance_next, balance_later, wallet_code);
+        save_data(owner, root, unstaked_tokens, new_dict(), wallet_code);
     }
 }
 
@@ -338,7 +334,7 @@
     cs~load_coins(); ;; skip ihr_fee
     int fwd_fee = muldiv(cs~load_coins(), 3, 2); ;; used for fee calculations
 
-    int op = 0;
+    int op = null();
     if (in_msg_body.slice_bits() >= 32) {
         op = in_msg_body~load_uint(32);
     }
@@ -348,18 +344,18 @@
         throw(1); ;; to pass test case for this important step
     }
 
-    if (op == op::send) { ;; send hTON
-        send(msg_ton, fwd_fee, src, in_msg_body);
+    if (op == op::send_tokens) { ;; send hTON
+        send_tokens(msg_ton, fwd_fee, src, in_msg_body);
         return ();
     }
 
-    if (op == op::receive) { ;; receive hTON
-        receive(msg_ton, fwd_fee, src, in_msg_body);
+    if (op == op::receive_tokens) { ;; receive hTON
+        receive_tokens(msg_ton, fwd_fee, src, in_msg_body);
         return ();
     }
 
-    if (op == op::withdraw) { ;; withdraw hTON
-        withdraw(msg_ton, fwd_fee, src, in_msg_body);
+    if (op == op::unstake_tokens) { ;; unstake hTON
+        unstake_tokens(msg_ton, fwd_fee, src, in_msg_body);
         return ();
     }
 
@@ -368,12 +364,12 @@
         return ();
     }
 
-    if (op == op::send_claim_reward) { ;; claim my reward share
-        send_claim_reward(src, in_msg_body);
+    if (op == op::send_consolidate) { ;; claim my reward share
+        send_consolidate(src, in_msg_body);
         return ();
     }
 
-    if (op == op::top_up) { ;; top up wallet's TON balance
+    if (op.null?() | (op == op::top_up)) { ;; top up wallet's TON balance
         ;; do nothing
         return ();
     }
@@ -385,45 +381,28 @@
 ;; get methods
 ;;
 
+(int, int, cell) get_wallet_state() method_id {
+    ( _
+    , _
+    , int unstaked_tokens
+    , cell tokens_dict
+    , _
+    ) = load_data();
+
+    int staked_tokens = sum_tokens(tokens_dict);
+    slice s = tokens_dict.begin_parse();
+    return ( staked_tokens, unstaked_tokens, tokens_dict );
+}
+
 (int, slice, slice, cell) get_wallet_data() method_id {
     ( slice owner
     , slice root
-    , int round_since
-    , int balance_active
-    , int balance_next
-    , int balance_later
-    , cell wallet_code
-    ) = load_data();
-
-    ( balance_active
-    , balance_next
-    , balance_later
-    , round_since
     , _
-    ) = update_round(balance_active, balance_next, balance_later, round_since);
-
-    return (balance_active, owner, root, wallet_code);
-}
-
-(int, int, int, int, int) get_balances() method_id {
-    ( slice owner
-    , slice root
-    , int round_since
-    , int balance_active
-    , int balance_next
-    , int balance_later
+    , cell tokens_dict
     , cell wallet_code
     ) = load_data();
 
-    ( balance_active
-    , balance_next
-    , balance_later
-    , round_since
-    , int round_until
-    ) = update_round(balance_active, balance_next, balance_later, round_since);
+    int staked_tokens = sum_tokens(tokens_dict);
 
-    ( int elected_for, _, _, _ ) = get_election_config();
-    int round_later = round_until + elected_for;
-
-    return (balance_active, balance_next, balance_later, round_until, round_later);
+    return ( staked_tokens, owner, root, wallet_code );
 }

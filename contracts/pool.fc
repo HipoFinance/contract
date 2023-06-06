@@ -1,7 +1,3 @@
-#pragma version >=0.4.1;
-
-#include "imports/stdlib.fc";
-#include "imports/constants.fc";
 #include "imports/utils.fc";
 
 () send_new_stake(slice src, slice s) impure {
@@ -26,7 +22,7 @@
         .store_uint(op::new_stake, 32)
         .store_uint(query_id, 64)
         .store_slice(new_stake_msg.begin_parse());
-    send_msg(flag::bounceable, elector, amount+1ton, null(), body, mode::add_transfer_fee);
+    send_msg(true, elector, null(), body, amount+1ton, mode::add_transfer_fee);
 
     begin_cell()
         .store_builder(elector)
@@ -40,7 +36,8 @@
     slice ds = get_data().begin_parse();
     slice elector = ds~load_msg_addr();
     slice root = ds~load_msg_addr();
-    slice validator_owner = ds~load_msg_addr();
+    slice validator = ds~load_msg_addr();
+    int round_since = ds~load_uint(32);
     ds.end_parse();
 
     int query_id = 0;
@@ -58,9 +55,9 @@
         .store_uint(op::new_stake_rejected, 32)
         .store_uint(query_id, 64)
         .store_uint(reason, 32)
-        .store_slice(validator_owner);
-    send_msg(flag::non_bounceable, root.to_builder(), 0, null(), body,
-        mode::carry_everything + mode::destroy_account_if_zero);
+        .store_slice(validator)
+        .store_uint(round_since, 32);
+    send_msg(false, root.to_builder(), null(), body, 0, mode::carry_everything + mode::destroy_account_if_zero);
 }
 
 () send_recover_stake(slice src, slice s) impure {
@@ -76,14 +73,15 @@
     builder body = begin_cell()
         .store_uint(op::recover_stake, 32)
         .store_uint(query_id, 64);
-    send_msg(flag::bounceable, elector.to_builder(), 0, null(), body, mode::carry_inbound);
+    send_msg(true, elector.to_builder(), null(), body, 0, mode::carry_inbound);
 }
 
 () recover_stake_result(slice src, int op, slice s) impure {
     slice ds = get_data().begin_parse();
     slice elector = ds~load_msg_addr();
     slice root = ds~load_msg_addr();
-    slice validator_owner = ds~load_msg_addr();
+    slice validator = ds~load_msg_addr();
+    int round_since = ds~load_uint(32);
     ds.end_parse();
 
     int query_id = 0;
@@ -101,9 +99,9 @@
         .store_uint(op::recover_stake_result, 32)
         .store_uint(query_id, 64)
         .store_uint(ok?, 1)
-        .store_slice(validator_owner);
-    send_msg(flag::non_bounceable, root.to_builder(), 0, null(), body,
-        mode::carry_everything + mode::destroy_account_if_zero);
+        .store_slice(validator)
+        .store_uint(round_since, 32);
+    send_msg(false, root.to_builder(), null(), body, 0, mode::carry_everything + mode::destroy_account_if_zero);
 }
 
 int src_is_elector?(slice src) {
@@ -135,7 +133,7 @@ int src_is_elector?(slice src) {
     int flags = cs~load_uint(4);
     slice src = cs~load_msg_addr();
 
-    int op = 0;
+    int op = null();
     if (in_msg_body.slice_bits() >= 32) {
         op = in_msg_body~load_uint(32);
     }

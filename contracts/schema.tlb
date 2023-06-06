@@ -2,14 +2,6 @@
 // Elector
 //
 
-new_stake_msg#_
-    validator_pubkey:bits256
-    stake_at:uint32
-    max_factor:uint32
-    adnl_addr:bits256
-    signature:^bits512
-        = NewStakeMsg;
-
 new_stake#4e73744b
     query_id:uint64
     validator_pubkey:bits256
@@ -43,44 +35,51 @@ recover_stake_ok#f96f7324
         = InternalMsgBody;
 
 //
+// TEP-64 Token Data
+//
+
+tail#_ {bn:#} b:(bits bn) = SnakeData ~0;
+cons#_ {bn:#} {n:#} b:(bits bn) next:^(SnakeData ~n) = SnakeData ~(n + 1);
+
+chunked_data#_ data:(HashmapE 32 ^(SnakeData ~0)) = ChunkedData;
+
+text#_ {n:#} data:(SnakeData ~n) = Text;
+
+snake#00 data:(SnakeData ~n) = ContentData;
+chunks#01 data:ChunkedData = ContentData;
+
+onchain#00 data:(HashmapE 256 ^ContentData) = FullContent;
+offchain#01 uri:Text = FullContent;
+
+//
 // TEP-74 Jettons
 //
 
-send#0f8a7ea5 // originally named 'transfer'
+send_tokens#0f8a7ea5 // originally named 'transfer'
     query_id:uint64
-    stake_amount:Coins
-    recipient_owner:MsgAddress
+    tokens:Coins
+    recipient:MsgAddress
     return_excess:MsgAddress
-    _:(Maybe ^Cell) // custom_payload ignored
-    notification_ton_amount:Coins
-    notification_payload:(Either Cell ^Cell)
+    custom_payload:(Maybe ^Cell) // ignored
+    forward_ton_amount:Coins
+    forward_payload:(Either Cell ^Cell)
         = InternalMsgBody;
 
-receive#178d4519 // originally named 'internal_transfer'
+transfer_notification#7362d09c
     query_id:uint64
-    stake_amount:Coins
-    sender_owner:MsgAddress
+    tokens:Coins
+    sender:MsgAddress
+    payload:(Either Cell ^Cell)
+        = InternalMsgBody;
+
+gas_excess#d53276db // originally named 'excesses'
+    query_id:uint64
+        = InternalMsgBody;
+
+unstake_tokens#595f07bc // originally named 'burn'
+    query_id:uint64
+    tokens:Coins
     return_excess:MsgAddress
-    notification_ton_amount:Coins
-    notification_payload:(Either Cell ^Cell)
-        = InternalMsgBody;
-
-notify#7362d09c // originally named 'transfer_notification'
-    query_id:uint64
-    stake_amount:Coins
-    sender_owner:MsgAddress
-    notification_payload:(Either Cell ^Cell)
-        = InternalMsgBody;
-
-excess#d53276db // originally named 'excesses'
-    query_id:uint64
-        = InternalMsgBody;
-
-withdraw#595f07bc // originall named 'burn'
-    query_id:uint64
-    stake_amount:Coins
-    return_excess:MsgAddress
-    recipient_payload:(Maybe ^RecipientPayload)
         = InternalMsgBody;
 
 //
@@ -103,37 +102,62 @@ take_wallet_address#d1735400
 // Ops
 //
 
-deposit#696aace0
+stake_ton#696aace0
     query_id:uint64
-    stake_amount:Coins
-    recipient_owner:MsgAddress
-    return_excess:MsgAddress
-    notification_ton_amount:Coins
-    notification_payload:(Either Cell ^Cell)
-        = InternalMsgBody;
-
-release#73d523e4
-    query_id:uint64
-    stake_amount:Coins
-    sender_owner:MsgAddress
+    tokens:Coins
     recipient:MsgAddress
     return_excess:MsgAddress
-    payload:(Maybe ^Cell)
+    forward_ton_amount:Coins
+    forward_payload:(Either Cell ^Cell)
         = InternalMsgBody;
 
-report#2e0aea83
+then_send#_
+    tokens:Coins
+    recipient:MsgAddress
+    forward_ton_amount:Coins
+    forward_payload:(Either Cell ^Cell)
+        = InternalMsgBody;
+
+receive_tokens#178d4519
     query_id:uint64
-    sender_owner:MsgAddress
-    payload:(Maybe ^Cell)
+    unstaked_tokens:Coins
+    tokens_dict:(HashmapE 32 Coins)
+    then_send:(Maybe ^ThenSend)
+    sender:MsgAddress
+    return_excess:MsgAddress
+    forward_ton_amount:Coins
+    forward_payload:(Either Cell ^Cell)
+        = InternalMsgBody;
+
+unstake_reserve#73d523e4
+    query_id:uint64
+    tokens:Coins
+    tokens_dict:(HashmapE 32 Coins)
+    sender:MsgAddress
+    return_excess:MsgAddress
+        = InternalMsgBody;
+
+release_notification#2e0aea83
+    query_id:uint64
+    sender:MsgAddress
         = InternalMsgBody;
 
 top_up#34e5d45a
         = InternalMsgBody;
 
+new_stake_msg#_
+    validator_pubkey:bits256
+    stake_at:uint32
+    max_factor:uint32
+    adnl_addr:bits256
+    signature:^bits512
+        = NewStakeMsg;
+
 send_loan_request#1
     query_id:uint64
     stake_amount:Coins
     return_excess:MsgAddress
+    round_since:uint32
     loan_amount:Coins
     min_payment:Coins
     validator_reward_share:uint16
@@ -142,21 +166,24 @@ send_loan_request#1
 
 save_loan_request#2
     query_id:uint64
-    stake_amount:Coins
-    validator_owner:MsgAddressInt
+    tokens:Coins
+    validator:MsgAddress
     return_excess:MsgAddress
+    round_since:uint32
     loan_amount:Coins
     min_payment:Coins
-    validator_reward_share:uint16
+    validator_reward_share:uint14
     new_stake_msg:^NewStakeMsg
         = InternalMsgBody;
 
 participate#3
     query_id:uint64
+    round_since:uint32
         = InternalMsgBody;
 
 process_loan_requests#4
     query_id:uint64
+    round_since:uint32
         = InternalMsgBody;
 
 send_new_stake#5
@@ -168,15 +195,23 @@ send_new_stake#5
 new_stake_rejected#6
     query_id:uint64
     reason:uint32
-    validator_owner:MsgAddressInt
+    validator:MsgAddress
+    round_since:uint32
+        = InternalMsgBody;
+
+vset_changed#14
+    query_id:uint64
+    round_since:uint32
         = InternalMsgBody;
 
 recover#7
     query_id:uint32
+    round_since:uint32
         = InternalMsgBody;
 
 process_stakes#8
     query_id:uint64
+    round_since:uint32
         = InternalMsgBody;
 
 send_recover_stake#9
@@ -186,81 +221,77 @@ send_recover_stake#9
 recover_stake_result#10
     query_id:uint64
     ok:Bool
-    validator_owner:MsgAddressInt
+    validator:MsgAddress
+    round_since:uint32
         = InternalMsgBody;
 
-send_claim_reward#11
+consolidate#13
     query_id:uint64
+    sender:MsgAddress
+    tokens_dict:(HashmapE 32 Coins)
+    then_send:(Maybe ^ThenSend)
+    return_excess:MsgAddress
         = InternalMsgBody;
 
-claim_reward#12
+send_consolidate#12
     query_id:uint64
-    stake_amount:Coins
-    sender_owner:MsgAddress
+    return_excess:MsgAddress
         = InternalMsgBody;
 
 //
 // Storage
 //
 
-recipient_payload#_
-    recipient:MsgAddress
-    payload:(Maybe ^Cell)
-        = RecipientPayload;
+reward_data#_ staked:Coins recovered:Coins = RewardData;
 
 loan_request#_
     min_payment:Coins
-    validator_reward_share:uint16
+    validator_reward_share:uint14
     loan_amount:Coins
     accrued_amount:Coins
-    stake_amount:Coins
+    staked_tokens:Coins
     new_stake_msg:^NewStakeMsg
         = LoanRequest;
 
-loan_data#_
+participation_data#_
+    state:uint3
     requests:(HashmapE 256 LoanRequest)
     accepted:(HashmapE 256 LoanRequest)
     staked:(HashmapE 256 LoanRequest)
-    held:(HashmapE 256 LoanRequest)
-    current_reward:Coins
-    current_total:Coins
-    active_next:Coins
-    reward_next:Coins
-    active_later:Coins
-    reward_later:Coins
-        = LoanData;
+    recovering:(HashmapE 256 LoanRequest)
+    total_staked:Coins
+    total_recovered:(VarInteger 16)
+    current_vset_hash:bits256
+    stake_held_for:uint32
+    stake_held_until:uint32
+        = ParticipationData;
+
+root_extension#_
+    pool_code:^Cell
+    rewards_size:uint10
+    content:^FullContent
+        = RootExtension;
 
 root_storage#_
-    state:(## 4)
-    round_since:uint32
-    total_active:Coins
-    total_next:Coins
-    total_later:Coins
+    total_staked_tokens:Coins
+    total_unstaked_tokens:Coins
     wallet_code:^Cell
-    pool_code:^Cell
-    loan_data:^LoanData
-    round_next:uint32
-    duration_next:uint32
-    held_next:uint32
-    participation_start:uint32
-    round_later:uint32
-    duration_later:uint32
-    held_later:uint32
-    content:^Cell
+    rewards_dict:(HashmapE 32 RewardData)
+    participations:(HashmapE 32 ParticipationData)
+    root_extension:^RootExtension
         = RootStorage;
 
 wallet_storage#_
-    owner:MsgAddressInt
-    root:MsgAddressInt
-    round_since:uint32
-    balance_active:Coins
-    balance_next:Coins
-    balance_later:Coins
+    owner:MsgAddress
+    root:MsgAddress
+    unstaked_tokens:Coins
+    tokens_dict:(HashmapE 32 Coins)
     wallet_code:^Cell
         = WalletStorage;
 
 pool_storage#_
     elector:MsgAddress
-    root:MsgAddressInt
-    validator_owner:MsgAddressInt
+    root:MsgAddress
+    validator:MsgAddress
+    round_since:uint32
         = PoolStorage;
