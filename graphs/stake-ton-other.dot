@@ -1,0 +1,28 @@
+digraph {
+    label="
+        stake 10 TON for user2\l\
+        send 10 hTON to user2\l\
+        forward 1 TON to user2\l\
+        receive excess\l\
+        "
+    splines=spline
+
+    /* Entities */
+    external [ shape=point ]
+    user1 [ shape=oval color=blue fontcolor=blue ]
+    user2 [ shape=oval color=blue fontcolor=blue ]
+    root [ shape=box color=purple style=filled ]
+    wallet2 [ shape=box color=darkgreen style=filled ]
+
+    /* Relationships */
+    external -> user1
+    user1 -> root [ label="11.1 TON\lstake:10\lforward:1\lgas:0.1\l" ]
+    root -> wallet2 [ label="1.1 TON\ltokens:10\lforward:1\lgas: 0.09\l" ]
+    user2 -> wallet2 [ arrowhead=inv style=dotted ]
+    wallet2 -> user2 [ label="1 TON\ltokens:10\lgas:0.08\l" ]
+    wallet2 -> user1 [ label="excess:0.07\l" ]
+
+    /* Ranks */
+    { rank=min external user1 user2 }
+    { rank=max wallet2 }
+}
