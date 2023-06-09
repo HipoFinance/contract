@@ -111,8 +111,8 @@ builder pack_participation_data
     throw_unless(err::insufficient_fee, msg_ton >= min_ton);
 
     total_staked_tokens += tokens;
-    ( int previous_round_since, _ ) = get_vset_times(config_param(config::previous_validators));
-    ( int current_round_since, _ ) = get_vset_times(config_param(config::current_validators));
+    ( int previous_round_since, _ ) = get_vset_times(config::previous_validators);
+    ( int current_round_since, _ ) = get_vset_times(config::current_validators);
     int stake_time = previous_round_since;
     ( slice participation_data, int f? ) = participations.udict_get?(32, current_round_since);
     if (f?) {
@@ -381,7 +381,7 @@ cell do_consolidation(cell tokens_dict, cell rewards_dict) {
     check_new_stake_msg(new_stake_msg.begin_parse());
 
     ( _, int validator_addr ) = parse_std_addr(validator);
-    ( _, int next_round_since ) = get_vset_times(config_param(config::current_validators));
+    ( _, int next_round_since ) = get_vset_times(config::current_validators);
     ( slice pd, int f? ) = participations.udict_get?(32, next_round_since);
     int state = participation::open;
     cell requests = new_dict();
@@ -539,7 +539,8 @@ cell sort_loan_requests(cell requests) {
         state = pd~load_uint(3);
         requests = pd~load_dict();
     }
-    ( int current_round_since, int next_round_since ) = get_vset_times(config_param(config::current_validators));
+    ;; handle possible error thrown from get_vset_times
+    ( int current_round_since, int next_round_since ) = get_vset_times(config::current_validators);
     ( _, int elections_start_before, int elections_end_before, int stake_held_for ) = get_election_config();
     int election_span = elections_start_before - elections_end_before;
     int election_end = next_round_since - elections_end_before;
@@ -630,7 +631,8 @@ cell sort_loan_requests(cell requests) {
             remain -= 1;
         }
     }
-    ( int round_since, _ ) = get_vset_times(config_param(config::current_validators));
+    ;; handle possible error thrown from get_vset_times
+    ( int round_since, _ ) = get_vset_times(config::current_validators);
     ;; return staked amount of rejected requests
     while ((~ dict_empty?(requests)) & (remain > 0)) {
         ( int validator_addr, slice request, int f? ) = requests~udict_delete_get_min?(256);

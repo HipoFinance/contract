@@ -54,11 +54,11 @@ builder store_body(builder b, builder body) {
     return (cs~load_coins(), cs~load_coins(), cs~load_coins(), cs~load_uint(32));
 }
 
-(int, int) get_vset_times(cell c) impure {
+(int, int) get_vset_times(int i) impure {
     ;; validators_ext#12 utime_since:uint32 utime_until:uint32
     ;;   total:(## 16) main:(## 16) { main <= total } { main >= 1 }
     ;;   total_weight:uint64 list:(HashmapE 16 ValidatorDescr) = ValidatorSet;
-    slice cs = c.begin_parse();
+    slice cs = config_param(i).begin_parse();
     throw_unless(err::unexpected_validator_set_format, cs~load_uint(8) == 0x12);
     return (cs~load_uint(32), cs~load_uint(32));
 }

@@ -237,7 +237,7 @@ int sum_tokens(cell tokens_dict) {
     int staked_tokens = sum_tokens(tokens_dict);
     ( int min_stake, int max_stake, _, _ ) = get_stake_config();
     ( _, int elections_start_before, _, _ ) = get_election_config();
-    ( _, int round_until ) = get_vset_times(config_param(config::current_validators));
+    ( _, int round_until ) = get_vset_times(config::current_validators);
     int is_election_active? = config_param(config::next_validators).null?() & (now() >= round_until - elections_start_before);
     int min_ton =
             ;; 2 messages: wallet->root, root->return (optional)
