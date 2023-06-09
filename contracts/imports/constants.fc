@@ -80,6 +80,7 @@ const int config::stake = 17;
 const int config::previous_validators = 32;
 const int config::current_validators = 34;
 const int config::next_validators = 36;
+const int config::misbehaviour_punishment = 40;
 
 const int chain::main = -1;
 const int chain::base = 0;

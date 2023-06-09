@@ -122,11 +122,11 @@ cell create_pool_data(slice root, builder validator, int round_since) {
     return (pool, state_init, addr);
 }
 
-(cell, cell) extract_send_amounts(cell staked_amounts, int send_amount) {
+(cell, cell) extract_send_amounts(cell tokens_dict, int send_amount) {
     cell send_amounts = new_dict();
     int stake_time = 1 << 32;
     do {
-        ( stake_time, slice v, int f? ) = staked_amounts.udict_get_prev?(32, stake_time);
+        ( stake_time, slice v, int f? ) = tokens_dict.udict_get_prev?(32, stake_time);
         if (f?) {
             int stake_amount = v~load_coins();
             v.end_parse();
@@ -137,13 +137,13 @@ cell create_pool_data(slice root, builder validator, int round_since) {
                 send_amounts~udict_set_builder(32, stake_time, begin_cell().store_coins(send_amount));
                 stake_amount -= send_amount;
                 send_amount = 0;
-                staked_amounts~udict_set_builder(32, stake_time, begin_cell().store_coins(stake_amount));
+                tokens_dict~udict_set_builder(32, stake_time, begin_cell().store_coins(stake_amount));
             }
         }
         f? &= send_amount > 0;
     } until (~ f?);
     throw_unless(err::insufficient_funds, send_amount == 0);
-    return ( send_amounts, staked_amounts );
+    return ( send_amounts, tokens_dict );
 }
 
 () check_new_stake_msg(slice cs) impure {
@@ -154,9 +154,19 @@ cell create_pool_data(slice root, builder validator, int round_since) {
 
 ;; https://github.com/ton-blockchain/ton/blob/ae5c0720143e231c32c3d2034cfe4e533a16d969/crypto/block/block.tlb#L721
 int max_recommended_punishment_for_validator_misbehaviour(int stake) inline_ref {
-    cell cp = config_param(40);
+    ;; misbehaviour_punishment_config_v1#01
+    ;;   default_flat_fine:Grams default_proportional_fine:uint32
+    ;;   severity_flat_mult:uint16 severity_proportional_mult:uint16
+    ;;   unpunishable_interval:uint16
+    ;;   long_interval:uint16 long_flat_mult:uint16 long_proportional_mult:uint16
+    ;;   medium_interval:uint16 medium_flat_mult:uint16 medium_proportional_mult:uint16
+    ;;    = MisbehaviourPunishmentConfig;
+    ;; _ MisbehaviourPunishmentConfig = ConfigParam 40;
+
+    cell cp = config_param(config::misbehaviour_punishment);
     if (cell_null?(cp)) {
-        return 101000000000; ;; 101 TON - https://github.com/ton-blockchain/ton/blob/b38d227a469666d83ac535ad2eea80cb49d911b8/lite-client/lite-client.cpp#L3678
+        ;; 101 TON - https://github.com/ton-blockchain/ton/blob/b38d227a469666d83ac535ad2eea80cb49d911b8/lite-client/lite-client.cpp#L3678
+        return 101000000000;
     }
 
     slice cs = cp.begin_parse();
@@ -173,15 +183,20 @@ int max_recommended_punishment_for_validator_misbehaviour(int stake) inline_ref 
         , cs~load_uint(16), cs~load_uint(16), cs~load_uint(16)
         );
 
-     ;; https://github.com/ton-blockchain/ton/blob/master/lite-client/lite-client.cpp#L3721
-     int fine = default_flat_fine;
-     int fine_part = default_proportional_fine;
+    ;; https://github.com/ton-blockchain/ton/blob/master/lite-client/lite-client.cpp#L3721
+    int fine = default_flat_fine;
+    int fine_part = default_proportional_fine;
 
-     fine *= severity_flat_mult; fine >>= 8;
-     fine_part *= severity_proportional_mult; fine_part >>= 8;
+    fine *= severity_flat_mult;
+    fine >>= 8;
+    fine_part *= severity_proportional_mult;
+    fine_part >>= 8;
 
-     fine *= long_flat_mult; fine >>= 8;
-     fine_part *= long_proportional_mult; fine_part >>= 8;
+    fine *= long_flat_mult;
+    fine >>= 8;
+    fine_part *= long_proportional_mult;
+    fine_part >>= 8;
 
-     return min(stake, fine + muldiv(stake, fine_part, 1 << 32)); ;; https://github.com/ton-blockchain/ton/blob/b38d227a469666d83ac535ad2eea80cb49d911b8/crypto/smartcont/elector-code.fc#L529
+    ;; https://github.com/ton-blockchain/ton/blob/b38d227a469666d83ac535ad2eea80cb49d911b8/crypto/smartcont/elector-code.fc#L529
+    return min(stake, fine + muldiv(stake, fine_part, 1 << 32));
 }
