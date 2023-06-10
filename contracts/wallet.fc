@@ -24,10 +24,9 @@
 
 int sum_tokens(cell tokens_dict) {
     int k = -1;
-    int f? = 0;
     int total = 0;
     do {
-        (k, slice v, f?) = tokens_dict.udict_get_next?(32, k);
+        (k, slice v, int f?) = tokens_dict.udict_get_next?(32, k);
         if (f?) {
             total += v~load_coins();
             v.end_parse();
@@ -390,19 +389,19 @@ int sum_tokens(cell tokens_dict) {
     ) = load_data();
 
     int staked_tokens = sum_tokens(tokens_dict);
-    slice s = tokens_dict.begin_parse();
+
     return ( staked_tokens, unstaked_tokens, tokens_dict );
 }
 
 (int, slice, slice, cell) get_wallet_data() method_id {
     ( slice owner
     , slice root
-    , _
+    , int unstaked_tokens
     , cell tokens_dict
     , cell wallet_code
     ) = load_data();
 
-    int staked_tokens = sum_tokens(tokens_dict);
+    int staked_tokens = sum_tokens(tokens_dict) + unstaked_tokens;
 
     return ( staked_tokens, owner, root, wallet_code );
 }
