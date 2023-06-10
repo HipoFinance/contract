@@ -179,6 +179,32 @@ int sum_tokens(cell tokens_dict) {
     save_data(owner, root, unstaked_tokens, tokens_dict, wallet_code);
 }
 
+() send_consolidate(slice src, slice s) impure {
+    ( slice owner
+    , slice root
+    , int unstaked_tokens
+    , cell tokens_dict
+    , cell wallet_code
+    ) = load_data();
+
+    int query_id = s~load_uint(64);
+    slice return_excess = s~load_msg_addr();
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slices(src, owner));
+
+    builder body = begin_cell()
+        .store_uint(op::consolidate, 32)
+        .store_uint(query_id, 64)
+        .store_slice(owner)
+        .store_ref(tokens_dict)
+        .store_uint(0, 1)
+        .store_slice(return_excess);
+    send_msg(true, root.to_builder(), null(), body, 0, mode::carry_inbound);
+
+    save_data(owner, root, unstaked_tokens, new_dict(), wallet_code);
+}
+
 () unstake_tokens(int msg_ton, int fwd_fee, slice src, slice s) impure {
     ( slice owner
     , slice root
@@ -271,32 +297,6 @@ int sum_tokens(cell tokens_dict) {
     save_data(owner, root, unstaked_tokens, tokens_dict, wallet_code);
 }
 
-() send_consolidate(slice src, slice s) impure {
-    ( slice owner
-    , slice root
-    , int unstaked_tokens
-    , cell tokens_dict
-    , cell wallet_code
-    ) = load_data();
-
-    int query_id = s~load_uint(64);
-    slice return_excess = s~load_msg_addr();
-    s.end_parse();
-
-    throw_unless(err::access_denied, equal_slices(src, owner));
-
-    builder body = begin_cell()
-        .store_uint(op::consolidate, 32)
-        .store_uint(query_id, 64)
-        .store_slice(owner)
-        .store_ref(tokens_dict)
-        .store_uint(0, 1)
-        .store_slice(return_excess);
-    send_msg(true, root.to_builder(), null(), body, 0, mode::carry_inbound);
-
-    save_data(owner, root, unstaked_tokens, new_dict(), wallet_code);
-}
-
 () handle_bounced_message(slice src, slice s) impure {
     int op = s~load_uint(32);
 
@@ -333,8 +333,8 @@ int sum_tokens(cell tokens_dict) {
     cs~load_coins(); ;; skip ihr_fee
     int fwd_fee = muldiv(cs~load_coins(), 3, 2); ;; used for fee calculations
 
-    int op = null();
-    if (in_msg_body.slice_bits() >= 32) {
+    int op = 0;
+    if (in_msg_body.slice_bits()) {
         op = in_msg_body~load_uint(32);
     }
 
@@ -343,33 +343,33 @@ int sum_tokens(cell tokens_dict) {
         throw(1); ;; to pass test case for this important step
     }
 
-    if (op == op::send_tokens) { ;; send hTON
+    if (op == op::send_tokens) {
         send_tokens(msg_ton, fwd_fee, src, in_msg_body);
         return ();
     }
 
-    if (op == op::receive_tokens) { ;; receive hTON
+    if (op == op::receive_tokens) {
         receive_tokens(msg_ton, fwd_fee, src, in_msg_body);
         return ();
     }
 
-    if (op == op::unstake_tokens) { ;; unstake hTON
-        unstake_tokens(msg_ton, fwd_fee, src, in_msg_body);
-        return ();
-    }
-
-    if (op == op::send_loan_request) { ;; send a loan request to root
-        send_loan_request(msg_ton, fwd_fee, src, in_msg_body);
-        return ();
-    }
-
-    if (op == op::send_consolidate) { ;; claim my reward share
+    if (op == op::send_consolidate) {
         send_consolidate(src, in_msg_body);
         return ();
     }
 
-    if (op.null?() | (op == op::top_up)) { ;; top up wallet's TON balance
-        ;; do nothing
+    if (op == op::unstake_tokens) {
+        unstake_tokens(msg_ton, fwd_fee, src, in_msg_body);
+        return ();
+    }
+
+    if (op == op::send_loan_request) {
+        send_loan_request(msg_ton, fwd_fee, src, in_msg_body);
+        return ();
+    }
+
+    if (op == op::top_up) {
+        ;; top up TON balance, do nothing
         return ();
     }
 
