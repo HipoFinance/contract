@@ -1,7 +1,7 @@
 import { expect } from '@jest/globals'
 import type { MatcherFunction } from 'expect'
-import { tonValue } from "../wrappers/Root"
-import { toNano } from 'ton-core'
+import { tonValue } from "../wrappers/common"
+import { Cell, toNano } from 'ton-core'
 
 export function between(a: bigint | string, b: bigint | string): (x?: bigint) => boolean {
     let u = tonValue(a)
@@ -13,6 +13,13 @@ export function between(a: bigint | string, b: bigint | string): (x?: bigint) =>
     }
     return (x?: bigint) => {
         return x != null && u <= x && x <= v
+    }
+}
+
+export function bodyOp(op: number): (body: Cell) => boolean {
+    return (body: Cell): boolean => {
+        const s = body.beginParse()
+        return s.remainingBits >= 32 && s.loadUint(32) === op
     }
 }
 

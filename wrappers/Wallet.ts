@@ -1,5 +1,5 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, ContractState, Dictionary, Sender, SendMode, Slice } from 'ton-core'
-import { tonValue } from './Root'
+import { tonValue } from './common'
 
 const opTopUp = 0x34e5d45a
 

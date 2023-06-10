@@ -1,6 +1,5 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Dictionary, Sender, SendMode, Slice, toNano, TupleBuilder } from 'ton-core'
-
-const opTopUp = 0x34e5d45a
+import { op, tonValue } from './common'
 
 export type Fees = {
     rootStorage: bigint
@@ -103,14 +102,14 @@ export class Root implements Contract {
     async sendDeploy(provider: ContractProvider, via: Sender, value: bigint | string) {
         await this.sendMessage(provider, via, {
             value,
-            body: beginCell().storeUint(opTopUp, 32).endCell(),
+            body: beginCell().storeUint(op.topUp, 32).endCell(),
         })
     }
 
     async sendTopUp(provider: ContractProvider, via: Sender, value: bigint | string) {
         await this.sendMessage(provider, via, {
             value,
-            body: beginCell().storeUint(opTopUp, 32).endCell(),
+            body: beginCell().storeUint(op.topUp, 32).endCell(),
         })
     }
     async sendStakeTon(provider: ContractProvider, via: Sender, opts: {
@@ -204,11 +203,4 @@ export class Root implements Contract {
         const state = await provider.getState()
         return state.balance
     }
-}
-
-export function tonValue(value: bigint | string): bigint {
-    if (typeof value === 'string') {
-        value = toNano(value)
-    }
-    return value
 }

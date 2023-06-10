@@ -4,7 +4,8 @@ import '@ton-community/test-utils'
 import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
 import { Fees, Root } from '../wrappers/Root'
 import { Wallet } from '../wrappers/Wallet'
-import { between } from './utils'
+import { between, bodyOp } from './utils'
+import { op } from '../wrappers/common'
 
 describe('Basic Operations', () => {
     let rootCode: Cell
@@ -37,6 +38,8 @@ describe('Basic Operations', () => {
             deploy: true,
             success: true,
             outMessagesCount: 0,
+            value: toNano('0.01'),
+            body: bodyOp(op.topUp),
         })
         expect(deployResult.transactions).toHaveLength(2);
 
@@ -60,6 +63,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 1,
             value: toNano('10'),
+            body: new Cell(),
         })
         expect(result.transactions).toHaveTransaction({
             from: root.address,
@@ -68,6 +72,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 0,
             value: between(fees.walletStorage, '0.1'),
+            body: bodyOp(op.receiveTokens)
         })
         expect(result.transactions).toHaveLength(3)
 
@@ -108,6 +113,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 1,
             value: toNano('15.1'),
+            body: bodyOp(op.stakeTon),
         })
         expect(result.transactions).toHaveTransaction({
             from: root.address,
@@ -116,6 +122,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 2,
             value: between('5', '5.1'),
+            body: bodyOp(op.receiveTokens),
         })
         expect(result.transactions).toHaveTransaction({
             from: wallet2Address,
@@ -124,6 +131,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 0,
             value: toNano('5'),
+            body: bodyOp(op.transferNotification),
         })
         expect(result.transactions).toHaveTransaction({
             from: wallet2Address,
@@ -131,7 +139,8 @@ describe('Basic Operations', () => {
             deploy: false,
             success: true,
             outMessagesCount: 0,
-            value: between('0', '0.1')
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
         })
         expect(result.transactions).toHaveLength(5)
 
@@ -181,6 +190,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 1,
             value: toNano('2.2'),
+            body: bodyOp(op.sendTokens),
         })
         expect(result.transactions).toHaveTransaction({
             from: wallet1Address,
@@ -189,6 +199,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 1,
             value: between('2', '2.2'),
+            body: bodyOp(op.consolidate),
         })
         expect(result.transactions).toHaveTransaction({
             from: root.address,
@@ -197,6 +208,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 1,
             value: between('2', '2.2'),
+            body: bodyOp(op.receiveTokens),
         })
         expect(result.transactions).toHaveTransaction({
             from: wallet1Address,
@@ -205,6 +217,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 2,
             value: between('2', '2.2'),
+            body: bodyOp(op.receiveTokens),
         })
         expect(result.transactions).toHaveTransaction({
             from: wallet2Address,
@@ -213,6 +226,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 0,
             value: toNano('2'),
+            body: bodyOp(op.transferNotification),
         })
         expect(result.transactions).toHaveTransaction({
             from: wallet2Address,
@@ -221,6 +235,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 0,
             value: between('0', '0.2'),
+            body: bodyOp(op.gasExcess),
         })
         expect(result.transactions).toHaveLength(7)
 
@@ -277,6 +292,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 1,
             value: toNano('2.2'),
+            body: bodyOp(op.sendTokens),
         })
         expect(result.transactions).toHaveTransaction({
             from: wallet1Address,
@@ -285,6 +301,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 1,
             value: between('2', '2.2'),
+            body: bodyOp(op.consolidate),
         })
         expect(result.transactions).toHaveTransaction({
             from: root.address,
@@ -293,6 +310,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 1,
             value: between('2', '2.2'),
+            body: bodyOp(op.receiveTokens),
         })
         expect(result.transactions).toHaveTransaction({
             from: wallet1Address,
@@ -301,6 +319,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 2,
             value: between('2', '2.2'),
+            body: bodyOp(op.receiveTokens),
         })
         expect(result.transactions).toHaveTransaction({
             from: wallet2Address,
@@ -309,6 +328,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 0,
             value: toNano('2'),
+            body: bodyOp(op.transferNotification),
         })
         expect(result.transactions).toHaveTransaction({
             from: wallet2Address,
@@ -317,6 +337,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 0,
             value: between('0', '0.2'),
+            body: bodyOp(op.gasExcess),
         })
         expect(result.transactions).toHaveLength(7)
 
@@ -372,6 +393,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 1,
             value: toNano('0.1'),
+            body: bodyOp(op.unstakeTokens),
         })
         expect(result.transactions).toHaveTransaction({
             from: walletAddress,
@@ -380,6 +402,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 1,
             value: between('0', '0.1'),
+            body: bodyOp(op.unstakeReserve),
         })
         expect(result.transactions).toHaveTransaction({
             from: root.address,
@@ -388,6 +411,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 1,
             value: between('0', '0.1'),
+            body: bodyOp(op.receiveTokens),
         })
         expect(result.transactions).toHaveTransaction({
             from: walletAddress,
@@ -396,6 +420,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 0,
             value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
         })
         expect(result.transactions).toHaveLength(5)
 
@@ -440,6 +465,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 1,
             value: toNano('0.1'),
+            body: bodyOp(op.provideWalletAddress),
         })
         expect(result.transactions).toHaveTransaction({
             from: root.address,
@@ -448,7 +474,7 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 0,
             value: between(0n, '0.1'),
-            body: expectedBody
+            body: expectedBody,
         })
         expect(result.transactions).toHaveLength(3)
     })
