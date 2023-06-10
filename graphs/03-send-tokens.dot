@@ -1,0 +1,28 @@
+digraph {
+    label="User1 sends 10 hTON to User2.\l TON wallets are blue, and hTON wallets are green. Dotted lines show the owner of each hTON wallet.\l"
+    splines=spline
+
+    /* Entities */
+    external [ shape=point ]
+    user1 [ shape=oval color=blue fontcolor=blue ]
+    user2 [ shape=oval color=blue fontcolor=blue ]
+    root [ shape=box color=purple style=filled ]
+    wallet1 [ shape=box color=darkgreen style=filled ]
+    wallet2 [ shape=box color=darkgreen style=filled ]
+
+    /* Relationships */
+    user1 -> wallet1 [ arrowhead=inv style=dotted ]
+    user2 -> wallet2 [ arrowhead=inv style=dotted ]
+    user1 -> root [ style=invis] // just to put root on a lower level
+    external -> user1 [ label=1 ]
+    user1 -> wallet1 [ label="2\l op::send_tokens\l 1.10 TON\l tokens:10\l forward:1\l" ]
+    wallet1 -> root [ label="3\l op::consolidate\l 1.09 TON\l tokens:all\l" ]
+    root -> wallet1 [ label="4\l op::receive_tokens\l 1.08 TON\l tokens:all+interest\l" ]
+    wallet1 -> wallet2 [ label="5\l op::receive_tokens\l 1.07 TON\l tokens:10\l forward:1\l" ]
+    wallet2 -> user2 [ label="6\l op::transfer_notification\l 1 TON\l tokens:10\l" ]
+    wallet2 -> user1 [ label="7\l op::gas_excess\l" ]
+
+    /* Ranks */
+    { rank=min external user1 user2 }
+    { rank=max wallet1 wallet2 }
+}
