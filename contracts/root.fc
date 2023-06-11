@@ -1130,7 +1130,7 @@ cell sort_loan_requests(cell requests) {
 
     if (flags & 1) {
         handle_bounced_message(src, in_msg_body);
-        throw(1); ;; to pass test case for this important step
+        return ();
     }
 
     if (op == 0) { ;; simple transfer, convert to stake request

@@ -358,7 +358,7 @@ int sum_tokens(cell tokens_dict) {
 
     if (flags & 1) {
         on_bounce(src, in_msg_body);
-        throw(1); ;; to pass test case for this important step
+        return ();
     }
 
     if (op == op::send_tokens) {

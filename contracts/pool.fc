@@ -140,7 +140,7 @@ int src_is_elector?(slice src) {
 
     if (flags & 1) {
         handle_bounced_message(src, in_msg_body);
-        throw(1); ;; to pass test case for this important step
+        return ();
     }
 
     if (op == op::send_new_stake) { ;; send a new stake request to the elector
