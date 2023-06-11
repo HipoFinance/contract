@@ -137,6 +137,7 @@ builder pack_participation_data
     builder body = begin_cell()
         .store_uint(op::receive_tokens, 32)
         .store_uint(query_id, 64)
+        .store_coins(tokens)
         .store_coins(0)
         .store_dict(tokens_dict)
         .store_uint(0, 1)
@@ -214,8 +215,9 @@ builder pack_participation_data
     return ( stake_time, tokens );
 }
 
-cell do_consolidation(cell tokens_dict, cell rewards_dict) {
+(cell, int) do_consolidation(cell tokens_dict, cell rewards_dict) {
     cell consolidated = new_dict();
+    int total = 0;
     int stake_time = -1;
     do {
         ( stake_time, slice v, int f? ) = tokens_dict.udict_get_next?(32, stake_time);
@@ -223,6 +225,7 @@ cell do_consolidation(cell tokens_dict, cell rewards_dict) {
             int tokens = v~load_coins();
             v.end_parse();
             ( int new_stake_time, int new_tokens ) = distribute_reward(rewards_dict, stake_time, tokens);
+            total += new_tokens;
             ( slice o, int e? ) = consolidated.udict_get?(32, new_stake_time);
             if (e?) {
                 new_tokens += o~load_coins();
@@ -231,7 +234,7 @@ cell do_consolidation(cell tokens_dict, cell rewards_dict) {
             consolidated~udict_set_builder(32, new_stake_time, begin_cell().store_coins(new_tokens));
         }
     } until (~ f?);
-    return consolidated;
+    return ( consolidated, total );
 }
 
 () consolidate(slice src, slice s) impure {
@@ -242,6 +245,7 @@ cell do_consolidation(cell tokens_dict, cell rewards_dict) {
     cell rewards_dict = ds~load_dict();
 
     int query_id = s~load_uint(64);
+    s~load_coins(); ;; skip recover_tokens which is used only in case of a bounced message
     slice sender = s~load_msg_addr();
     cell tokens_dict = s~load_dict();
     cell then_send = s~load_maybe_ref();
@@ -253,11 +257,12 @@ cell do_consolidation(cell tokens_dict, cell rewards_dict) {
 
     throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == wallet_addr));
 
-    cell consolidated = do_consolidation(tokens_dict, rewards_dict);
+    ( cell consolidated, int total ) = do_consolidation(tokens_dict, rewards_dict);
 
     builder body = begin_cell()
         .store_uint(op::receive_tokens, 32)
         .store_uint(query_id, 64)
+        .store_coins(total)
         .store_coins(0)
         .store_dict(consolidated)
         .store_maybe_ref(then_send)
@@ -276,6 +281,7 @@ cell do_consolidation(cell tokens_dict, cell rewards_dict) {
     cell rewards_dict = ds~load_dict();
 
     int query_id = s~load_uint(64);
+    s~load_coins(); ;; skip recover_tokens which is used only in case of a bounced message
     int tokens = s~load_coins();
     cell tokens_dict = s~load_dict();
     slice sender = s~load_msg_addr();
@@ -288,7 +294,7 @@ cell do_consolidation(cell tokens_dict, cell rewards_dict) {
     throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == wallet_addr));
     throw_unless(err::insufficient_funds, tokens <= total_staked_tokens);
 
-    tokens_dict = do_consolidation(tokens_dict, rewards_dict);
+    ( tokens_dict, int total ) = do_consolidation(tokens_dict, rewards_dict);
     ( _, cell remain ) = extract_send_amounts(tokens_dict, tokens);
 
     total_staked_tokens -= tokens;
@@ -296,6 +302,7 @@ cell do_consolidation(cell tokens_dict, cell rewards_dict) {
     builder body = begin_cell()
         .store_uint(op::receive_tokens, 32)
         .store_uint(query_id, 64)
+        .store_coins(total)
         .store_coins(tokens)
         .store_dict(remain)
         .store_uint(0, 1)
@@ -652,6 +659,7 @@ cell sort_loan_requests(cell requests) {
             builder body = begin_cell()
                 .store_uint(op::receive_tokens, 32)
                 .store_uint(query_id, 64)
+                .store_coins(staked_tokens)
                 .store_coins(0)
                 .store_dict(tokens_dict)
                 .store_builder(create_address(chain::base, validator_addr))
@@ -740,6 +748,7 @@ cell sort_loan_requests(cell requests) {
             builder body = begin_cell()
                 .store_uint(op::receive_tokens, 32)
                 .store_uint(query_id, 64)
+                .store_coins(remain)
                 .store_coins(0)
                 .store_dict(tokens_dict)
                 .store_uint(0, 1)
@@ -1032,6 +1041,7 @@ cell sort_loan_requests(cell requests) {
                 builder body = begin_cell()
                     .store_uint(op::receive_tokens, 32)
                     .store_uint(query_id, 64)
+                    .store_coins(staked_tokens)
                     .store_coins(0)
                     .store_dict(tokens_dict)
                     .store_uint(0, 1)

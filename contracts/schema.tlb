@@ -116,21 +116,23 @@ then_send#_
     recipient:MsgAddress
     forward_ton_amount:Coins
     forward_payload:(Either Cell ^Cell)
-        = InternalMsgBody;
+        = ThenSend;
 
 receive_tokens#178d4519
     query_id:uint64
+    recover_tokens:Coins
     unstaked_tokens:Coins
     tokens_dict:(HashmapE 32 Coins)
     then_send:(Maybe ^ThenSend)
     sender:MsgAddress
     return_excess:MsgAddress
     forward_ton_amount:Coins
-    forward_payload:(Either Cell ^Cell)
+    forward_payload:(Maybe ^Cell)
         = InternalMsgBody;
 
 unstake_reserve#73d523e4
     query_id:uint64
+    recover_tokens:Coins
     tokens:Coins
     tokens_dict:(HashmapE 32 Coins)
     sender:MsgAddress
@@ -227,6 +229,7 @@ recover_stake_result#10
 
 consolidate#13
     query_id:uint64
+    recover_tokens:Coins
     sender:MsgAddress
     tokens_dict:(HashmapE 32 Coins)
     then_send:(Maybe ^ThenSend)

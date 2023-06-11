@@ -78,6 +78,7 @@ int sum_tokens(cell tokens_dict) {
     builder body = begin_cell()
         .store_uint(op::consolidate, 32)
         .store_uint(query_id, 64)
+        .store_coins(staked_tokens)
         .store_slice(owner)
         .store_dict(tokens_dict)
         .store_maybe_ref(then_send)
@@ -96,6 +97,7 @@ int sum_tokens(cell tokens_dict) {
     ) = load_data();
 
     int query_id = s~load_uint(64);
+    s~load_coins(); ;; skip recover_tokens which is used only in case of a bounced message
     int unstaked = s~load_coins();
     cell staked_dict = s~load_dict();
     cell then_send = s~load_maybe_ref();
@@ -166,6 +168,7 @@ int sum_tokens(cell tokens_dict) {
         builder body = begin_cell()
             .store_uint(op::receive_tokens, 32)
             .store_uint(query_id, 64)
+            .store_coins(ts_tokens)
             .store_coins(0)
             .store_dict(send_amounts)
             .store_uint(0, 1)
@@ -193,9 +196,11 @@ int sum_tokens(cell tokens_dict) {
 
     throw_unless(err::access_denied, equal_slices(src, owner));
 
+    int staked_tokens = sum_tokens(tokens_dict);
     builder body = begin_cell()
         .store_uint(op::consolidate, 32)
         .store_uint(query_id, 64)
+        .store_coins(staked_tokens)
         .store_slice(owner)
         .store_ref(tokens_dict)
         .store_uint(0, 1)
@@ -232,6 +237,7 @@ int sum_tokens(cell tokens_dict) {
     builder body = begin_cell()
         .store_uint(op::unstake_reserve, 32)
         .store_uint(query_id, 64)
+        .store_coins(total_tokens)
         .store_coins(tokens)
         .store_dict(tokens_dict)
         .store_slice(owner)
@@ -297,11 +303,16 @@ int sum_tokens(cell tokens_dict) {
     save_data(owner, root, unstaked_tokens, tokens_dict, wallet_code);
 }
 
-() handle_bounced_message(slice src, slice s) impure {
+() on_bounce(slice src, slice s) impure {
     int op = s~load_uint(32);
 
-    if ((op == op::receive_tokens) | (op == op::unstake_tokens) | (op == op::save_loan_request)) {
-        ;; re-add stake amount, and return excess gas to owner which is the original sender
+    if ((op == op::consolidate) |
+        (op == op::receive_tokens) |
+        (op == op::unstake_reserve) |
+        (op == op::save_loan_request)) {
+
+        ;; this should not happen but in a rare case of a bounce (e.g. a frozen account), at least recover tokens
+
         ( slice owner
         , slice root
         , int unstaked_tokens
@@ -310,16 +321,23 @@ int sum_tokens(cell tokens_dict) {
         ) = load_data();
 
         int query_id = s~load_uint(64);
-        ;; int stake_amount = s~load_coins(); ?
+        int recover_tokens = s~load_coins();
 
-        ;; balance_active += stake_amount; ?
+        ( int current_round_since, _ ) = get_vset_times(config::current_validators);
+        ( slice v, int f? ) = tokens_dict.udict_get?(32, current_round_since);
+        if (f?) {
+            recover_tokens += v~load_coins();
+            v.end_parse();
+        }
+        tokens_dict~udict_set_builder(32, current_round_since, begin_cell().store_coins(recover_tokens));
 
+        ;; return excess gas to owner which is the original sender
         builder body = begin_cell()
             .store_uint(op::gas_excess, 32)
             .store_uint(query_id, 64);
         send_msg(false, owner.to_builder(), null(), body, 0, mode::carry_inbound + mode::ignore_errors);
 
-        save_data(owner, root, unstaked_tokens, new_dict(), wallet_code);
+        save_data(owner, root, unstaked_tokens, tokens_dict, wallet_code);
     }
 }
 
@@ -339,7 +357,7 @@ int sum_tokens(cell tokens_dict) {
     }
 
     if (flags & 1) {
-        handle_bounced_message(src, in_msg_body);
+        on_bounce(src, in_msg_body);
         throw(1); ;; to pass test case for this important step
     }
 
