@@ -268,6 +268,7 @@ int sum_tokens(cell tokens_dict) {
     int total_tokens = sum_tokens(tokens_dict);
     ( int min_stake, int max_stake, _, _ ) = get_stake_config();
     ( int participate_since, _, int next_round_since, _ ) = participate_times();
+    int loan_request_until = participate_since - 300;
     int min_ton =
             ;; 2 messages: wallet->root, root->return (optional)
             fwd_fee +
@@ -277,7 +278,7 @@ int sum_tokens(cell tokens_dict) {
 
     throw_unless(err::access_denied, equal_slices(src, owner));
     throw_unless(err::insufficient_fee, msg_ton >= min_ton);
-    throw_unless(err::too_late_for_loan_request, now() <= participate_since - 300);
+    throw_unless(err::too_late_for_loan_request, now() <= loan_request_until);
     throw_unless(err::invalid_loan_request, round_since == next_round_since);
     throw_unless(err::invalid_loan_request, loan_amount >= min_stake);
     throw_unless(err::invalid_loan_request, loan_amount <= max_stake);

@@ -152,8 +152,8 @@ cell create_pool_data(slice root, builder validator, int round_since) {
     ( _, int elections_start_before, int elections_end_before, int stake_held_for ) = get_election_config();
     int election_span = elections_start_before - elections_end_before;
     int election_end = next_round_since - elections_end_before;
-    int participate_since = election_end - muldiv(election_span, 10, 100);
-    int participate_until = election_end - muldiv(election_span, 2, 100);
+    int participate_since = election_end - max(600, muldiv(election_span, 10, 100));
+    int participate_until = election_end - 300;
     return ( participate_since, participate_until, next_round_since, stake_held_for );
 }
 
