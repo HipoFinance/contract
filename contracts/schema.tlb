@@ -157,7 +157,7 @@ new_stake_msg#_
 
 send_loan_request#1
     query_id:uint64
-    stake_amount:Coins
+    tokens:Coins
     return_excess:MsgAddress
     round_since:uint32
     loan_amount:Coins

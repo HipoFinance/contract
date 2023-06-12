@@ -257,14 +257,14 @@ builder pack_participation_data
 
     throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == wallet_addr));
 
-    ( cell consolidated, int total ) = do_consolidation(tokens_dict, rewards_dict);
+    int total = tokens_dict~do_consolidation(rewards_dict);
 
     builder body = begin_cell()
         .store_uint(op::receive_tokens, 32)
         .store_uint(query_id, 64)
         .store_coins(total)
         .store_coins(0)
-        .store_dict(consolidated)
+        .store_dict(tokens_dict)
         .store_maybe_ref(then_send)
         .store_slice(src)
         .store_slice(return_excess)
@@ -294,8 +294,8 @@ builder pack_participation_data
     throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == wallet_addr));
     throw_unless(err::insufficient_funds, tokens <= total_staked_tokens);
 
-    ( tokens_dict, int total ) = do_consolidation(tokens_dict, rewards_dict);
-    ( _, cell remain ) = extract_send_amounts(tokens_dict, tokens);
+    int total = tokens_dict~do_consolidation(rewards_dict);
+    tokens_dict~extract_send_amounts(tokens);
 
     total_staked_tokens -= tokens;
     total_unstaked_tokens += tokens;
@@ -304,7 +304,7 @@ builder pack_participation_data
         .store_uint(query_id, 64)
         .store_coins(total)
         .store_coins(tokens)
-        .store_dict(remain)
+        .store_dict(tokens_dict)
         .store_uint(0, 1)
         .store_slice(sender)
         .store_slice(return_excess)
@@ -546,13 +546,7 @@ cell sort_loan_requests(cell requests) {
         state = pd~load_uint(3);
         requests = pd~load_dict();
     }
-    ;; handle possible error thrown from get_vset_times
-    ( int current_round_since, int next_round_since ) = get_vset_times(config::current_validators);
-    ( _, int elections_start_before, int elections_end_before, int stake_held_for ) = get_election_config();
-    int election_span = elections_start_before - elections_end_before;
-    int election_end = next_round_since - elections_end_before;
-    int participate_since = election_end - muldiv(election_span, 10, 100);
-    int participate_until = election_end - muldiv(election_span, 2, 100);
+    ( int participate_since, int participate_until, _, int stake_held_for ) = participate_times();
 
     throw_unless(err::unable_to_participate, state == participation::open);
     throw_unless(err::too_soon_to_participate, now() >= participate_since);

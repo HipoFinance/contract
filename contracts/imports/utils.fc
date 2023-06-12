@@ -143,7 +143,18 @@ cell create_pool_data(slice root, builder validator, int round_since) {
         f? &= send_amount > 0;
     } until (~ f?);
     throw_unless(err::insufficient_funds, send_amount == 0);
-    return ( send_amounts, tokens_dict );
+    return ( tokens_dict, send_amounts );
+}
+
+(int, int, int, int) participate_times() impure {
+    ;; handle possible error thrown from get_vset_times
+    ( _, int next_round_since ) = get_vset_times(config::current_validators);
+    ( _, int elections_start_before, int elections_end_before, int stake_held_for ) = get_election_config();
+    int election_span = elections_start_before - elections_end_before;
+    int election_end = next_round_since - elections_end_before;
+    int participate_since = election_end - muldiv(election_span, 10, 100);
+    int participate_until = election_end - muldiv(election_span, 2, 100);
+    return ( participate_since, participate_until, next_round_since, stake_held_for );
 }
 
 () check_new_stake_msg(slice cs) impure {

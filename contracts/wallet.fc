@@ -163,7 +163,7 @@ int sum_tokens(cell tokens_dict) {
         int ts_forward_ton_amount = ts~load_coins();
         slice ts_forward_payload = ts;
 
-        ( cell send_amounts, tokens_dict ) = extract_send_amounts(tokens_dict, ts_tokens);
+        cell send_amounts = tokens_dict~extract_send_amounts(ts_tokens);
         ( builder wallet, cell state_init, _ ) = create_wallet_address(ts_recipient.to_builder(), root, wallet_code);
         builder body = begin_cell()
             .store_uint(op::receive_tokens, 32)
@@ -265,11 +265,9 @@ int sum_tokens(cell tokens_dict) {
     cell new_stake_msg = s~load_ref();
     s.end_parse();
 
-    int staked_tokens = sum_tokens(tokens_dict);
+    int total_tokens = sum_tokens(tokens_dict);
     ( int min_stake, int max_stake, _, _ ) = get_stake_config();
-    ( _, int elections_start_before, _, _ ) = get_election_config();
-    ( _, int round_until ) = get_vset_times(config::current_validators);
-    int is_election_active? = config_param(config::next_validators).null?() & (now() >= round_until - elections_start_before);
+    ( int participate_since, _, int next_round_since, _ ) = participate_times();
     int min_ton =
             ;; 2 messages: wallet->root, root->return (optional)
             fwd_fee +
@@ -279,14 +277,14 @@ int sum_tokens(cell tokens_dict) {
 
     throw_unless(err::access_denied, equal_slices(src, owner));
     throw_unless(err::insufficient_fee, msg_ton >= min_ton);
-    throw_unless(err::insufficient_funds, tokens <= staked_tokens);
-    throw_unless(err::no_active_election, is_election_active?);
+    throw_unless(err::too_late_for_loan_request, now() <= participate_since - 300);
+    throw_unless(err::invalid_loan_request, round_since == next_round_since);
     throw_unless(err::invalid_loan_request, loan_amount >= min_stake);
     throw_unless(err::invalid_loan_request, loan_amount <= max_stake);
     throw_unless(err::invalid_loan_request, min_payment > 0);
     throw_unless(err::invalid_loan_request, validator_reward_share <= 10000);
 
-    ( cell send_amounts, tokens_dict ) = extract_send_amounts(tokens_dict, tokens);
+    tokens_dict~extract_send_amounts(tokens);
     builder body = begin_cell()
         .store_uint(op::save_loan_request, 32)
         .store_uint(query_id, 64)
