@@ -1,21 +1,21 @@
 digraph {
-    label="User1 stakes 10 TON for User2, who receives 10 hTON.\l TON wallets are blue, and hTON wallets are green. Dotted lines show the owner of each hTON wallet.\l"
-    splines=spline
+    label="user1 stakes 10 TON for user2, who receives 10 hTON"
+    node [ colorscheme=pastel19 style=filled ]
 
     /* Entities */
     external [ shape=point ]
-    user1 [ shape=oval color=blue fontcolor=blue ]
-    user2 [ shape=oval color=blue fontcolor=blue ]
-    root [ shape=box color=purple style=filled ]
-    wallet2 [ shape=box color=darkgreen style=filled ]
+    user1 [ color=2 ]
+    user2 [ color=2 ]
+    root [ color=4 ]
+    wallet2 [ color=3 ]
 
     /* Relationships */
-    external -> user1 [label=1 ]
+    external -> user1 [label="1" ]
     user1 -> root [ label="2\l op::stake_ton\l 11.10 TON\l tokens:10\l forward:1\l" ]
     root -> wallet2 [ label="3\l op::receive_tokens\l 1.09 TON\l tokens:10\l forward:1\l" ]
     user2 -> wallet2 [ arrowhead=inv style=dotted ]
     wallet2 -> user2 [ label="4\l op::transfer_notification\l 1 TON\l tokens:10\l" ]
-    wallet2 -> user1 [ label="5\l op::gas_excess\l" ]
+    wallet2 -> user1 [ label="5\l op::gas_excess\l 0.08 TON\l" ]
 
     /* Ranks */
     { rank=min external user1 user2 }
