@@ -114,6 +114,8 @@ export class Root implements Contract {
     }
     async sendStakeTon(provider: ContractProvider, via: Sender, opts: {
         value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
         queryId?: bigint
         tokens: bigint | string
         recipient: Address
@@ -123,6 +125,8 @@ export class Root implements Contract {
     }) {
         await this.sendMessage(provider, via, {
             value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(0x696aace0, 32)
                 .storeUint(opts.queryId || 0, 64)
@@ -137,12 +141,16 @@ export class Root implements Contract {
 
     async sendProvideWalletAddress(provider: ContractProvider, via: Sender, opts: {
         value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
         queryId?: bigint
         owner: Address
         includeAddress?: boolean
     }) {
         await this.sendMessage(provider, via, {
             value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(0x2c76b973, 32)
                 .storeUint(opts.queryId || 0, 64)
@@ -199,7 +207,7 @@ export class Root implements Contract {
         }
     }
 
-    async getTonBalance(provider: ContractProvider): Promise<bigint> {
+    async getBalance(provider: ContractProvider): Promise<bigint> {
         const state = await provider.getState()
         return state.balance
     }

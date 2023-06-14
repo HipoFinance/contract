@@ -1,13 +1,12 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, ContractState, Dictionary, Sender, SendMode, Slice } from 'ton-core'
-import { tonValue } from './common'
-
-const opTopUp = 0x34e5d45a
+import { op, tonValue } from './common'
 
 type WalletConfig = {
     owner: Address
     root: Address
-    unstakedTokens: bigint
     tokensDict: Dictionary<bigint, bigint>
+    withdrawalTokens: bigint
+    withdrawalIncentive: bigint
     walletCode: Cell
 }
 
@@ -15,8 +14,9 @@ function walletConfigToCell(config: WalletConfig): Cell {
     return beginCell()
         .storeAddress(config.owner)
         .storeAddress(config.root)
-        .storeCoins(config.unstakedTokens)
         .storeDict(config.tokensDict)
+        .storeCoins(config.withdrawalTokens)
+        .storeCoins(config.withdrawalIncentive)
         .storeRef(config.walletCode)
         .endCell()
 }
@@ -60,7 +60,7 @@ export class Wallet implements Contract {
             bounce: opts.bounce,
             sendMode: opts.sendMode,
             body: beginCell()
-                .storeUint(0x0f8a7ea5, 32)
+                .storeUint(op.sendTokens, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeCoins(tonValue(opts.tokens))
                 .storeAddress(opts.recipient)
@@ -78,6 +78,7 @@ export class Wallet implements Contract {
         sendMode?: SendMode
         queryId?: bigint
         tokens: bigint | string
+        incentive: bigint | string
         returnExcess?: Address
     }) {
         await this.sendMessage(provider, via, {
@@ -85,9 +86,31 @@ export class Wallet implements Contract {
             bounce: opts.bounce,
             sendMode: opts.sendMode,
             body: beginCell()
-                .storeUint(0x595f07bc, 32)
+                .storeUint(op.unstakeTokens, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeCoins(tonValue(opts.tokens))
+                .storeAddress(opts.returnExcess)
+                .storeMaybeRef(beginCell().storeCoins(tonValue(opts.incentive)))
+                .endCell()
+        })
+    }
+
+    async sendReleaseTon(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+        quiet?: boolean
+        returnExcess?: Address
+    }) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.releaseTon, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .storeBit(opts.quiet || false)
                 .storeAddress(opts.returnExcess)
                 .endCell()
         })
@@ -103,7 +126,7 @@ export class Wallet implements Contract {
         return [ stack.readBigNumber(), stack.readAddress(), stack.readAddress(), stack.readCell() ]
     }
 
-    async getTonBalance(provider: ContractProvider): Promise<bigint> {
+    async getBalance(provider: ContractProvider): Promise<bigint> {
         const state = await provider.getState()
         return state.balance
     }

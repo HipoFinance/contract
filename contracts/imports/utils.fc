@@ -91,8 +91,9 @@ cell create_wallet_data(builder owner, slice root, cell wallet_code) {
     return begin_cell()
         .store_builder(owner)
         .store_slice(root)
-        .store_coins(0) ;; unstaked_tokens
         .store_uint(0, 1) ;; tokens_dict
+        .store_coins(0) ;; withdrawal_tokens
+        .store_coins(0) ;; withdrawal_incentive
         .store_ref(wallet_code)
         .end_cell();
 }
@@ -146,15 +147,20 @@ cell create_pool_data(slice root, builder validator, int round_since) {
     return ( tokens_dict, send_amounts );
 }
 
-(int, int, int, int) participate_times() impure {
+(int, int, int, int, int) participate_times() impure {
     ;; handle possible error thrown from get_vset_times
     ( _, int next_round_since ) = get_vset_times(config::current_validators);
-    ( _, int elections_start_before, int elections_end_before, int stake_held_for ) = get_election_config();
+    ( int validators_elected_for
+    , int elections_start_before
+    , int elections_end_before
+    , int stake_held_for
+    ) = get_election_config();
     int election_span = elections_start_before - elections_end_before;
     int election_end = next_round_since - elections_end_before;
     int participate_since = election_end - max(600, muldiv(election_span, 10, 100));
     int participate_until = election_end - 300;
-    return ( participate_since, participate_until, next_round_since, stake_held_for );
+    int next_round_until = next_round_since + validators_elected_for;
+    return ( participate_since, participate_until, next_round_since, next_round_until, stake_held_for );
 }
 
 () check_new_stake_msg(slice cs) impure {

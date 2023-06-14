@@ -80,6 +80,7 @@ unstake_tokens#595f07bc // originally named 'burn'
     query_id:uint64
     tokens:Coins
     return_excess:MsgAddress
+    custom_payload:(Maybe ^Cell)
         = InternalMsgBody;
 
 //
@@ -111,6 +112,11 @@ stake_ton#696aace0
     forward_payload:(Either Cell ^Cell)
         = InternalMsgBody;
 
+withdrawal#_
+    tokens:Coins
+    incentive:Coins
+        = Withdrawal;
+
 then_send#_
     tokens:Coins
     recipient:MsgAddress
@@ -121,7 +127,7 @@ then_send#_
 receive_tokens#178d4519
     query_id:uint64
     recover_tokens:Coins
-    unstaked_tokens:Coins
+    withdrawal:(Maybe ^Withdrawal)
     tokens_dict:(HashmapE 32 Coins)
     then_send:(Maybe ^ThenSend)
     sender:MsgAddress
@@ -135,13 +141,13 @@ unstake_reserve#73d523e4
     recover_tokens:Coins
     tokens:Coins
     tokens_dict:(HashmapE 32 Coins)
-    sender:MsgAddress
+    incentive:Coins
+    owner:MsgAddress
     return_excess:MsgAddress
         = InternalMsgBody;
 
-release_notification#2e0aea83
+withdrawal_notification#2e0aea83
     query_id:uint64
-    sender:MsgAddress
         = InternalMsgBody;
 
 top_up#34e5d45a
@@ -230,7 +236,7 @@ recover_stake_result#10
 consolidate#13
     query_id:uint64
     recover_tokens:Coins
-    sender:MsgAddress
+    owner:MsgAddress
     tokens_dict:(HashmapE 32 Coins)
     then_send:(Maybe ^ThenSend)
     return_excess:MsgAddress
@@ -238,6 +244,20 @@ consolidate#13
 
 send_consolidate#12
     query_id:uint64
+    return_excess:MsgAddress
+        = InternalMsgBody;
+
+release_ton#14
+    query_id:uint64
+    quiet:Bool
+    return_excess:MsgAddress
+        = InternalMsgBody;
+
+withdraw_ton#15
+    query_id:uint64
+    tokens:Coins
+    incentive:Coins
+    owner:MsgAddress
     return_excess:MsgAddress
         = InternalMsgBody;
 
@@ -287,8 +307,8 @@ root_storage#_
 wallet_storage#_
     owner:MsgAddress
     root:MsgAddress
-    unstaked_tokens:Coins
     tokens_dict:(HashmapE 32 Coins)
+    withdrawal:Withdrawal
     wallet_code:^Cell
         = WalletStorage;
 

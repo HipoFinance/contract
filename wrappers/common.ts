@@ -13,6 +13,8 @@ export const op = {
     releaseNotification: 0x2e0aea83,
     topUp: 0x34e5d45a,
     consolidate: 13,
+    releaseTon: 14,
+    withdrawTon: 15,
 }
 
 export function tonValue(value: bigint | string): bigint {
