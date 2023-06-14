@@ -192,7 +192,7 @@ int sum_tokens(cell tokens_dict) {
             .store_slice(owner)
             .store_slice(return_excess)
             .store_coins(ts_forward_ton_amount)
-            .store_slice(ts_forward_payload);
+            .store_forward_payload(ts_forward_payload);
         send_msg(true, wallet, state_init, body, 0, mode::carry_inbound);
     }
 

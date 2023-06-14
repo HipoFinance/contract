@@ -4,6 +4,18 @@
 (slice, int) load_varint16(slice s) asm( -> 1 0) "LDVARINT16";
 builder store_varint16(builder b, int x) asm "STVARINT16";
 
+builder store_forward_payload(builder body, slice forward_payload) {
+    int payload_is_ref? = forward_payload~load_uint(1);
+    if (payload_is_ref?) {
+        body = body.store_uint(1, 1).store_slice(forward_payload);
+    } elseif (forward_payload.slice_bits() <= 1023 - 1 - body.builder_bits()) {
+        body = body.store_uint(0, 1).store_slice(forward_payload);
+    } else {
+        body = body.store_maybe_ref(begin_cell().store_slice(forward_payload).end_cell());
+    }
+    return body;
+}
+
 builder store_state_init(builder b, cell state_init) {
     return state_init.null?()
         ? b.store_uint(0, 1)

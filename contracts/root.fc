@@ -143,7 +143,7 @@ builder pack_participation_data
         .store_slice(src)
         .store_slice(return_excess)
         .store_coins(forward_ton_amount)
-        .store_slice(forward_payload);
+        .store_forward_payload(forward_payload);
     send_msg(true, wallet, state_init, body, msg_ton, mode::add_transfer_fee);
 
     begin_cell()

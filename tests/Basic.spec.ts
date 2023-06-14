@@ -283,12 +283,14 @@ describe('Basic Operations', () => {
         await root.sendMessage(user1.getSender(), { value: '10' })
         await root.sendMessage(user2.getSender(), { value: '5' })
         const wallet1 = blockchain.openContract(Wallet.createFromAddress(wallet1Address))
+        const forwardPayload = beginCell().storeUint(0, 256).storeUint(0, 56).endCell().beginParse()
         const result = await wallet1.sendSendTokens(user1.getSender(), {
             value: '2.2',
             tokens: '9',
             recipient: user2.address,
             returnExcess: user1.address,
             forwardTonAmount: '2',
+            forwardPayload,
         })
 
         expect(result.transactions).toHaveTransaction({
