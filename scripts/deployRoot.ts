@@ -26,7 +26,7 @@ export async function run(provider: NetworkProvider) {
 
     await provider.waitForDeploy(root.address)
 
-    ui.write(`root address: ${root.address}\nroot ton balance: ${await root.getTonBalance()}\n`)
+    ui.write(`root address: ${root.address}\nroot ton balance: ${await root.getBalance()}\n`)
 
     const fees = await root.getFees()
 
@@ -36,18 +36,18 @@ export async function run(provider: NetworkProvider) {
     )
 
     if (choice) {
-        const balanceBefore = await root.getTonBalance();
+        const balanceBefore = await root.getBalance();
 
         await root.sendTopUp(provider.sender(), fees.rootStorage)
 
         ui.write('Waiting for balance to change...');
 
-        let balanceAfter = await root.getTonBalance();
+        let balanceAfter = await root.getBalance();
         let attempt = 1;
         while (balanceAfter === balanceBefore) {
             ui.setActionPrompt(`Attempt ${attempt}`);
             await sleep(2000);
-            balanceAfter = await root.getTonBalance();
+            balanceAfter = await root.getBalance();
             attempt++;
         }
         ui.clearActionPrompt();

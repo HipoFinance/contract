@@ -14,7 +14,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 
     const root = provider.open(Root.createFromAddress(address));
 
-    const balanceBefore = await root.getTonBalance();
+    const balanceBefore = await root.getBalance();
 
     const amountTon = await ui.input('TON amount to stake')
     const amountNano = toNano(amountTon)
@@ -33,12 +33,12 @@ export async function run(provider: NetworkProvider, args: string[]) {
 
     ui.write('Waiting for balance to change...');
 
-    let balanceAfter = await root.getTonBalance();
+    let balanceAfter = await root.getBalance();
     let attempt = 1;
     while (balanceAfter === balanceBefore) {
         ui.setActionPrompt(`Attempt ${attempt}`);
         await sleep(2000);
-        balanceAfter = await root.getTonBalance();
+        balanceAfter = await root.getBalance();
         attempt++;
     }
 
