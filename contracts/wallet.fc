@@ -31,7 +31,7 @@
     return ( owner, root, staked_tokens, unstaked_tokens, withdrawal_incentive, wallet_code );
 }
 
-() receive_tokens(int msg_ton, int fwd_fee, slice src, slice s) impure {
+() receive_tokens(slice src, slice s) impure {
     ( slice owner
     , slice root
     , int staked_tokens
@@ -58,7 +58,7 @@
 
     staked_tokens += tokens;
 
-    raw_reserve(fee::wallet_storage + withdrawal_incentive, reserve::exact);
+    raw_reserve(fee::wallet_storage + withdrawal_incentive, reserve::at_most);
 
     if (forward_ton_amount) {
         builder body = begin_cell()
@@ -160,10 +160,11 @@
     }
 
     int min_ton =
+            withdrawal_incentive +
             ;; 2 messages: wallet->root, wallet->return (optional)
             fwd_fee +
             fee::wallet_gas_consumption +
-            withdrawal_incentive;
+            fee::wallet_storage;
 
     throw_unless(err::access_denied, equal_slices(src, owner));
     throw_unless(err::insufficient_fee, msg_ton >= min_ton);
@@ -206,7 +207,8 @@
         ;; 3 messages: wallet->root, root->owner, root->return (optional)
         ;;         or: wallet->root, root->wallet, wallet->return (optional)
         2 * fwd_fee +
-        2 * fee::wallet_gas_consumption;
+        2 * fee::wallet_gas_consumption +
+        fee::wallet_storage;
 
     throw_unless(err::insufficient_fee, msg_ton >= min_ton);
     throw_unless(err::insufficient_funds, unstaked_tokens > 0);
@@ -223,7 +225,7 @@
     save_data(owner, root, staked_tokens, 0, 0, wallet_code);
 }
 
-() withdraw_failed(int msg_ton, int fwd_fee, slice src, slice s) impure {
+() withdraw_failed(slice src, slice s) impure {
     ( slice owner
     , slice root
     , int staked_tokens
@@ -253,7 +255,7 @@
     save_data(owner, root, staked_tokens, unstaked_tokens, withdrawal_incentive, wallet_code);
 }
 
-() on_bounce(slice src, slice s) impure {
+() on_bounce(slice s) impure {
     ;; this should not happen but in a rare case of a bounce (e.g. a frozen account), at least recover tokens
 
     ( slice owner
@@ -264,12 +266,18 @@
     , cell wallet_code
     ) = load_data();
 
+    s~load_uint(32); ;; skip bounced op
     int op = s~load_uint(32);
     int query_id = s~load_uint(64);
     int tokens = s~load_coins();
 
-    if ((op == op::receive_tokens) | (op == op::unstake_reserve)) {
+    if (op == op::receive_tokens) {
         staked_tokens += tokens;
+    }
+
+    if (op == op::unstake_reserve) {
+        staked_tokens += tokens;
+        unstaked_tokens -= tokens;
     }
 
     if (op == op::withdraw_ton) {
@@ -296,18 +304,18 @@
     cs~load_coins(); ;; skip ihr_fee
     int fwd_fee = muldiv(cs~load_coins(), 3, 2); ;; used for fee calculations
 
+    if (flags & 1) {
+        on_bounce(in_msg_body);
+        return ();
+    }
+
     int op = 0;
     if (in_msg_body.slice_bits()) {
         op = in_msg_body~load_uint(32);
     }
 
-    if (flags & 1) {
-        on_bounce(src, in_msg_body);
-        return ();
-    }
-
     if (op == op::receive_tokens) {
-        receive_tokens(msg_ton, fwd_fee, src, in_msg_body);
+        receive_tokens(src, in_msg_body);
         return ();
     }
 
@@ -327,7 +335,7 @@
     }
 
     if (op == op::withdraw_failed) {
-        withdraw_failed(msg_ton, fwd_fee, src, in_msg_body);
+        withdraw_failed(src, in_msg_body);
     }
 
     if (op == op::top_up) {
