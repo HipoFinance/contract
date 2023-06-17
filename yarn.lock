@@ -697,7 +697,7 @@
   dependencies:
     "@sinonjs/commons" "^2.0.0"
 
-"@tact-lang/compiler@^1.1.1":
+"@tact-lang/compiler@^1.1.2":
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/@tact-lang/compiler/-/compiler-1.1.2.tgz#e02e9eb81d3e3acb5764a8857f831ca127263ea5"
   integrity sha512-1XiwaRA7h1AM5b/nB9T5sXVidXZCOEXpWuhWOUyLvaJDjfICBaQfvRCUCHy5c7sP6WoPXlyZOsofXqh9yO9Lpg==
@@ -738,34 +738,34 @@
     lodash "^4.17.15"
     redent "^3.0.0"
 
-"@ton-community/blueprint@^0.9.0":
-  version "0.9.0"
-  resolved "https://registry.yarnpkg.com/@ton-community/blueprint/-/blueprint-0.9.0.tgz#65242f44c06c6b72ea30aa0c294d221fc201ec71"
-  integrity sha512-b7LIWmQIgqFpV/5rBRVXTab/IzytZNOGAwYR0ulBgx0vNDBsDWlHbFwR0t8FM3yf+4YJRzqsbq77wAckNjotlw==
+"@ton-community/blueprint@^0.10.0":
+  version "0.10.0"
+  resolved "https://registry.yarnpkg.com/@ton-community/blueprint/-/blueprint-0.10.0.tgz#2205efa487991a44e566e0b066a5ed8b6e03c5ef"
+  integrity sha512-PEUcjkYbjIjmnM3d7sQzPjIsGpKPFu5Jp6uxnngH+xUAbzOS6MmAv2cqZjo4QRw3h3ImHHsg3J+GFk5sdqt3lA==
   dependencies:
     "@orbs-network/ton-access" "^2.3.3"
-    "@tact-lang/compiler" "^1.1.1"
-    "@ton-community/func-js" "^0.6.1"
+    "@tact-lang/compiler" "^1.1.2"
+    "@ton-community/func-js" "^0.6.2"
     "@tonconnect/sdk" "^2.1.3"
     arg "^5.0.2"
     chalk "^4.1.0"
-    dotenv "^16.0.3"
+    dotenv "^16.1.4"
     inquirer "^8.2.5"
     qrcode-terminal "^0.12.0"
     ton-x "^2.1.0"
     ts-node "^10.9.1"
 
-"@ton-community/func-js-bin@0.4.3":
-  version "0.4.3"
-  resolved "https://registry.yarnpkg.com/@ton-community/func-js-bin/-/func-js-bin-0.4.3.tgz#2eb0ef4fdcd7cfea9d4741173575d581ebb4ac27"
-  integrity sha512-GOKje82hVRWYwuVtfXehLBsnb+kDmDBvHsGRasboPNzrNsl0N4r6AeUeBwQxdPI6/Si2ZKDK1hO5RH0wR/3hYg==
+"@ton-community/func-js-bin@0.4.4":
+  version "0.4.4"
+  resolved "https://registry.yarnpkg.com/@ton-community/func-js-bin/-/func-js-bin-0.4.4.tgz#b7b1b5b5e0939286cf2ccb0b8ff6c1db5774e623"
+  integrity sha512-zCSVXmh+rFMgouzTbWkSVDIt1Z5i36u9rws/Kuqn89/a0vhA1aEoJJ3oJypz0TjWKJQveU4doJsPlqu7UT2zkw==
 
-"@ton-community/func-js@^0.6.1":
-  version "0.6.1"
-  resolved "https://registry.yarnpkg.com/@ton-community/func-js/-/func-js-0.6.1.tgz#e217485332bed56427c9aa0189e7304d353a3d4f"
-  integrity sha512-C8Hwlv8EMMLGmALbcqAe/omIzv0yFle8W6B+XnEeRWY/O1t5A3+e8+jMIx0k5vk8xa3GtiQh8sQ1d+YlVY41VA==
+"@ton-community/func-js@^0.6.2":
+  version "0.6.2"
+  resolved "https://registry.yarnpkg.com/@ton-community/func-js/-/func-js-0.6.2.tgz#bd82279e1c489a1422d141d99506bdea12ded9dc"
+  integrity sha512-5bewe8APG2TVgIPLUV5atQfAy+NtdjjGBfsWUeRdVUclzQ5H2wZ8aJsVNLiDBpKSNEKdOAP/1PownOFeodpQHg==
   dependencies:
-    "@ton-community/func-js-bin" "0.4.3"
+    "@ton-community/func-js-bin" "0.4.4"
     arg "^5.0.2"
 
 "@ton-community/sandbox@^0.11.0":
@@ -897,18 +897,10 @@
   dependencies:
     "@types/istanbul-lib-report" "*"
 
-"@types/jest@*":
+"@types/jest@*", "@types/jest@^29.5.2":
   version "29.5.2"
   resolved "https://registry.yarnpkg.com/@types/jest/-/jest-29.5.2.tgz#86b4afc86e3a8f3005b297ed8a72494f89e6395b"
   integrity sha512-mSoZVJF5YzGVCk+FsDxzDuH7s+SCkzrgKZzf0Z0T2WudhBUPoF6ktoTPC4R0ZoCPCV5xUvuU6ias5NvxcBcMMg==
-  dependencies:
-    expect "^29.0.0"
-    pretty-format "^29.0.0"
-
-"@types/jest@^29.5.1":
-  version "29.5.1"
-  resolved "https://registry.yarnpkg.com/@types/jest/-/jest-29.5.1.tgz#83c818aa9a87da27d6da85d3378e5a34d2f31a47"
-  integrity sha512-tEuVcHrpaixS36w7hpsfLBLpjtMRJUE09/MHXn923LOVojDwyC14cWcfc0rDs0VEfUyYmt/+iX1kxxp+gZMcaQ==
   dependencies:
     expect "^29.0.0"
     pretty-format "^29.0.0"
@@ -928,10 +920,10 @@
   resolved "https://registry.yarnpkg.com/@types/node/-/node-18.16.3.tgz#6bda7819aae6ea0b386ebc5b24bdf602f1b42b01"
   integrity sha512-OPs5WnnT1xkCBiuQrZA4+YAV4HEJejmHneyraIaxsbev5yCEr6KMwINNFP9wQeFIw8FWcoTqF3vQsa5CDaI+8Q==
 
-"@types/node@^20.2.3":
-  version "20.2.3"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.2.3.tgz#b31eb300610c3835ac008d690de6f87e28f9b878"
-  integrity sha512-pg9d0yC4rVNWQzX8U7xb4olIOFuuVL9za3bzMT2pu2SU0SNEi66i2qrvhE2qt0HvkhuCaWJu7pLNOt/Pj8BIrw==
+"@types/node@^20.3.1":
+  version "20.3.1"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.3.1.tgz#e8a83f1aa8b649377bb1fb5d7bac5cb90e784dfe"
+  integrity sha512-EhcH/wvidPy1WeML3TtYFGR83UzjxeWRen9V402T8aUGYsCHOmfoisV3ZSg03gAFIbLq8TnWOJ0f4cALtnSEUg==
 
 "@types/prettier@^2.1.5":
   version "2.7.2"
@@ -1562,10 +1554,10 @@ dot-case@^3.0.4:
     no-case "^3.0.4"
     tslib "^2.0.3"
 
-dotenv@^16.0.3:
-  version "16.0.3"
-  resolved "https://registry.yarnpkg.com/dotenv/-/dotenv-16.0.3.tgz#115aec42bac5053db3c456db30cc243a5a836a07"
-  integrity sha512-7GO6HghkA5fYG9TYnNxi14/7K9f5occMlp3zXAuSxn7CKCxt9xbNWG7yF8hTCSUchlfWSe3uLmlPfigevRItzQ==
+dotenv@^16.1.4:
+  version "16.3.0"
+  resolved "https://registry.yarnpkg.com/dotenv/-/dotenv-16.3.0.tgz#1c61ae0a7b6f7b7e2285d50016ebab048f12ec6d"
+  integrity sha512-tHB+hmf8MRCkT3VVivGiG8kq9HiGTmQ3FzOKgztfpJQH1IWuZTOvKSJmHNnQPowecAmkCJhLrxdPhOr06LLqIQ==
 
 electron-to-chromium@^1.4.284:
   version "1.4.310"
@@ -3707,10 +3699,10 @@ type-fest@^0.21.3:
   resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-0.21.3.tgz#d260a24b0198436e133fa26a524a6d65fa3b2e37"
   integrity sha512-t0rzBq87m3fVcduHDUFhKmyyX+9eo6WQjZvf51Ea/M0Q7+T374Jp1aUiyUl0GKxp8M/OETVHSDvmkyPgvX+X2w==
 
-typescript@^5.0.4:
-  version "5.0.4"
-  resolved "https://registry.yarnpkg.com/typescript/-/typescript-5.0.4.tgz#b217fd20119bd61a94d4011274e0ab369058da3b"
-  integrity sha512-cW9T5W9xY37cc+jfEnaUvX91foxtHkza3Nw3wkoF4sSlKn0MONdkdEndig/qPBWXNkmplh3NzayQzCiHM4/hqw==
+typescript@^5.1.3:
+  version "5.1.3"
+  resolved "https://registry.yarnpkg.com/typescript/-/typescript-5.1.3.tgz#8d84219244a6b40b6fb2b33cc1c062f715b9e826"
+  integrity sha512-XH627E9vkeqhlZFQuL+UsyAXEnibT0kWR2FWONlr4sTjvxyJYnyefgrkyECLzM5NenmKzRAy2rR/OlYLA1HkZw==
 
 uint8arrays@^3.0.0:
   version "3.1.1"
