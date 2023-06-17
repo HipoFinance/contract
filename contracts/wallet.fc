@@ -128,7 +128,7 @@
         .store_slice(owner)
         .store_slice(return_excess)
         .store_coins(forward_ton_amount)
-        .store_forward_payload(forward_payload);
+        .store_slice(forward_payload);
     send_msg(true, wallet, state_init, body, 0, send::remaining_value);
 
     save_data(owner, root, staked_tokens, unstaked_tokens, withdrawal_incentive, wallet_code);
