@@ -128,7 +128,7 @@ export class Root implements Contract {
             bounce: opts.bounce,
             sendMode: opts.sendMode,
             body: beginCell()
-                .storeUint(0x696aace0, 32)
+                .storeUint(op.stakeTon, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeCoins(tonValue(opts.tokens))
                 .storeAddress(opts.recipient)

@@ -464,7 +464,7 @@ describe('Basic Operations', () => {
             from: root.address,
             to: user.address,
             value: toNano('7'),
-            body: bodyOp(op.releaseNotification),
+            body: bodyOp(op.withdrawalNotification),
             deploy: false,
             success: true,
             outMessagesCount: 0,

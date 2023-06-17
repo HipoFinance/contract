@@ -119,7 +119,7 @@ take_wallet_address#d1735400
 // Stakers Ops
 //
 
-stake_ton#696aace0
+stake_ton#4525e9b2
     query_id:uint64
     stake_amount:Coins
     recipient:MsgAddress
@@ -128,15 +128,12 @@ stake_ton#696aace0
     forward_payload:(Either Cell ^Cell)
         = InternalMsgBody;
 
-top_up#34e5d45a
-        = InternalMsgBody;
-
-release_ton#14
+release_ton#661d636b
     query_id:uint64
     return_excess:MsgAddress
         = InternalMsgBody;
 
-withdraw_ton#15
+withdraw_ton#2fbfa63e
     query_id:uint64
     tokens:Coins
     incentive:Coins
@@ -144,18 +141,18 @@ withdraw_ton#15
     return_excess:MsgAddress
         = InternalMsgBody;
 
-withdraw_failed#16
+withdraw_failed#57fb08ea
     query_id:uint64
     tokens:Coins
     incentive:Coins
     return_excess:MsgAddress
         = InternalMsgBody;
 
-release_failed#17
+release_failed#4c4fc2e7
     query_id:uint64
         = InternalMsgBody;
 
-withdrawal_notification#2e0aea83
+withdrawal_notification#2ec2a5a0
     query_id:uint64
         = InternalMsgBody;
 
@@ -170,17 +167,6 @@ new_stake_msg#_
     adnl_addr:bits256
     signature:^bits512
         = NewStakeMsg;
-
-send_loan_request#1
-    query_id:uint64
-    tokens:Coins
-    return_excess:MsgAddress
-    round_since:uint32
-    loan_amount:Coins
-    min_payment:Coins
-    validator_reward_share:uint16
-    new_stake_msg:^NewStakeMsg
-        = InternalMsgBody;
 
 save_loan_request#2
     query_id:uint64
@@ -241,6 +227,9 @@ recover_stake_result#10
     ok:Bool
     validator:MsgAddress
     round_since:uint32
+        = InternalMsgBody;
+
+top_up#34e5d45a
         = InternalMsgBody;
 
 //
