@@ -19,5 +19,5 @@ digraph {
 
     /* Ranks */
     { rank=min external user1 user2 }
-    { rank=max wallet2 }
+    { rank=max root }
 }

@@ -72,24 +72,33 @@ describe('Basic Operations', () => {
             body: bodyOp(op.receiveTokens),
             deploy: true,
             success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: walletAddress,
+            to: user.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            deploy: false,
+            success: true,
             outMessagesCount: 0,
         })
-        expect(result.transactions).toHaveLength(3)
+        expect(result.transactions).toHaveLength(4)
 
         const rootBalance = await root.getBalance()
-        const [ totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
+        const [ totalTon, totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
         expect(rootBalance).toBeBetween('19.9', '20')
+        expect(totalTon).toBeTonValue(totalStakedTokens)
         expect(totalStakedTokens).toBeBetween('9.9', '10')
         expect(totalUnstakedTokens).toBeTonValue(0n)
 
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         const walletBalance = await wallet.getBalance()
-        const [ stakedTokens, unstakedTokens, tokensDict ] = (await wallet.getWalletState())
-        const dict = Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.BigVarUint(4), tokensDict)
+        const [ stakedTokens, unstakedTokens, withdrawalIncentive ] = (await wallet.getWalletState())
         expect(walletBalance).toBeBetween(fees.walletStorage, '0.1')
         expect(stakedTokens).toBeBetween('9.9', '10')
         expect(unstakedTokens).toBeTonValue(0n)
-        expect(dict.size).toBe(1)
+        expect(withdrawalIncentive).toBeTonValue(0n)
     })
 
     it('should stake ton with custom parameters', async () => {
@@ -145,23 +154,23 @@ describe('Basic Operations', () => {
         expect(result.transactions).toHaveLength(5)
 
         const rootBalance = await root.getBalance()
-        const [ totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
+        const [ totalTon, totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
         expect(rootBalance).toBeBetween('20', '20.1')
+        expect(totalTon).toBeTonValue(totalStakedTokens)
         expect(totalStakedTokens).toBeTonValue('10')
         expect(totalUnstakedTokens).toBeTonValue(0n)
 
         const wallet2 = blockchain.openContract(Wallet.createFromAddress(wallet2Address))
         const wallet2Balance = await wallet2.getBalance()
-        const [ stakedTokens, unstakedTokens, tokensDict ] = await wallet2.getWalletState()
-        const dict = Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.BigVarUint(4), tokensDict)
+        const [ stakedTokens, unstakedTokens, withdrawalIncentive ] = (await wallet2.getWalletState())
         expect(wallet2Balance).toBeBetween(fees.walletStorage, '0.1')
         expect(stakedTokens).toBeTonValue('10')
         expect(unstakedTokens).toBeTonValue(0n)
-        expect(dict.size).toBe(1)
+        expect(withdrawalIncentive).toBeTonValue(0n)
 
         const user1BalanceAfter = await user1.getBalance()
         const user1BalanceDiff = user1BalanceAfter - user1BalanceBefore
-        expect(user1BalanceDiff).toBeBetween('-15.2', '-15.1')
+        expect(user1BalanceDiff).toBeBetween('-15.1', '-15.0')
 
         const user2BalanceAfter = await user2.getBalance()
         const user2BalanceDiff = user2BalanceAfter - user2BalanceBefore
@@ -196,24 +205,6 @@ describe('Basic Operations', () => {
         })
         expect(result.transactions).toHaveTransaction({
             from: wallet1Address,
-            to: root.address,
-            value: between('2', '2.2'),
-            body: bodyOp(op.consolidate),
-            deploy: false,
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(result.transactions).toHaveTransaction({
-            from: root.address,
-            to: wallet1Address,
-            value: between('2', '2.2'),
-            body: bodyOp(op.receiveTokens),
-            deploy: false,
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(result.transactions).toHaveTransaction({
-            from: wallet1Address,
             to: wallet2Address,
             value: between('2', '2.2'),
             body: bodyOp(op.receiveTokens),
@@ -239,34 +230,33 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(result.transactions).toHaveLength(7)
+        expect(result.transactions).toHaveLength(5)
 
         const rootBalance = await root.getBalance()
-        const [ totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
+        const [ totalTon, totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
         expect(rootBalance).toBeBetween('19.9', '20')
+        expect(totalTon).toBeTonValue(totalStakedTokens)
         expect(totalStakedTokens).toBeBetween('9.9', '10')
         expect(totalUnstakedTokens).toBeTonValue(0n)
 
         const wallet1Balance = await wallet1.getBalance()
-        const [ stakedTokens1, unstakedTokens1, tokensDict1 ] = await wallet1.getWalletState()
-        const dict1 = Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.BigVarUint(4), tokensDict1)
+        const [ stakedTokens1, unstakedTokens1, withdrawalIncentive1 ] = (await wallet1.getWalletState())
         expect(wallet1Balance).toBeBetween(fees.walletStorage, '0.1')
         expect(stakedTokens1).toBeBetween('0.9', '1')
         expect(unstakedTokens1).toBeTonValue(0n)
-        expect(dict1.size).toBe(1)
+        expect(withdrawalIncentive1).toBeTonValue(0n)
 
         const wallet2 = blockchain.openContract(Wallet.createFromAddress(wallet2Address))
         const wallet2Balance = await wallet2.getBalance()
-        const [ stakedTokens2, unstakedTokens2, tokensDict2 ] = await wallet2.getWalletState()
-        const dict2 = Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.BigVarUint(4), tokensDict2)
+        const [ stakedTokens2, unstakedTokens2, withdrawalIncentive2 ] = (await wallet2.getWalletState())
         expect(wallet2Balance).toBeBetween(fees.walletStorage, '0.1')
         expect(stakedTokens2).toBeTonValue('9')
         expect(unstakedTokens2).toBeTonValue(0n)
-        expect(dict2.size).toBe(1)
+        expect(withdrawalIncentive2).toBeTonValue(0n)
 
         const user1BalanceAfter = await user1.getBalance()
         const user1BalanceDiff = user1BalanceAfter - user1BalanceBefore
-        expect(user1BalanceDiff).toBeBetween('-12.2', '-12.1')
+        expect(user1BalanceDiff).toBeBetween('-12.1', '-12.0')
 
         const user2BalanceAfter = await user2.getBalance()
         const user2BalanceDiff = user2BalanceAfter - user2BalanceBefore
@@ -276,12 +266,12 @@ describe('Basic Operations', () => {
     it('should send tokens to another existing wallet', async () => {
         const user1 = await blockchain.treasury('user1')
         const user2 = await blockchain.treasury('user2')
-        const user1BalanceBefore = await user1.getBalance()
-        const user2BalanceBefore = await user2.getBalance()
         const wallet1Address = await root.getWalletAddress(user1.address)
         const wallet2Address = await root.getWalletAddress(user2.address)
         await root.sendMessage(user1.getSender(), { value: '10' })
         await root.sendMessage(user2.getSender(), { value: '5' })
+        const user1BalanceBefore = await user1.getBalance()
+        const user2BalanceBefore = await user2.getBalance()
         const wallet1 = blockchain.openContract(Wallet.createFromAddress(wallet1Address))
         const forwardPayload = beginCell().storeUint(0, 256).storeUint(0, 56).endCell().beginParse()
         const result = await wallet1.sendSendTokens(user1.getSender(), {
@@ -298,24 +288,6 @@ describe('Basic Operations', () => {
             to: wallet1Address,
             value: toNano('2.2'),
             body: bodyOp(op.sendTokens),
-            deploy: false,
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(result.transactions).toHaveTransaction({
-            from: wallet1Address,
-            to: root.address,
-            value: between('2', '2.2'),
-            body: bodyOp(op.consolidate),
-            deploy: false,
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(result.transactions).toHaveTransaction({
-            from: root.address,
-            to: wallet1Address,
-            value: between('2', '2.2'),
-            body: bodyOp(op.receiveTokens),
             deploy: false,
             success: true,
             outMessagesCount: 1,
@@ -347,38 +319,37 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(result.transactions).toHaveLength(7)
+        expect(result.transactions).toHaveLength(5)
 
         const rootBalance = await root.getBalance()
-        const [ totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
+        const [ totalTon, totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
         expect(rootBalance).toBeBetween('24.8', '25')
+        expect(totalTon).toBeTonValue(totalStakedTokens)
         expect(totalStakedTokens).toBeBetween('14.8', '15')
         expect(totalUnstakedTokens).toBeTonValue(0n)
 
         const wallet1Balance = await wallet1.getBalance()
-        const [ stakedTokens1, unstakedTokens1, tokensDict1 ] = await wallet1.getWalletState()
-        const dict1 = Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.BigVarUint(4), tokensDict1)
+        const [ stakedTokens1, unstakedTokens1, withdrawalIncentive1 ] = (await wallet1.getWalletState())
         expect(wallet1Balance).toBeBetween(fees.walletStorage, '0.1')
         expect(stakedTokens1).toBeBetween('0.9', '1')
         expect(unstakedTokens1).toBeTonValue(0n)
-        expect(dict1.size).toBe(1)
+        expect(withdrawalIncentive1).toBeTonValue(0n)
 
         const wallet2 = blockchain.openContract(Wallet.createFromAddress(wallet2Address))
         const wallet2Balance = await wallet2.getBalance()
-        const [ stakedTokens2, unstakedTokens2, tokensDict2 ] = await wallet2.getWalletState()
-        const dict2 = Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.BigVarUint(4), tokensDict2)
+        const [ stakedTokens2, unstakedTokens2, withdrawalIncentive2 ] = (await wallet2.getWalletState())
         expect(wallet2Balance).toBeBetween(fees.walletStorage, '0.1')
         expect(stakedTokens2).toBeBetween('13.9', '14')
         expect(unstakedTokens2).toBeTonValue(0n)
-        expect(dict2.size).toBe(1)
+        expect(withdrawalIncentive2).toBeTonValue(0n)
 
         const user1BalanceAfter = await user1.getBalance()
         const user1BalanceDiff = user1BalanceAfter - user1BalanceBefore
-        expect(user1BalanceDiff).toBeBetween('-12.2', '-12.1')
+        expect(user1BalanceDiff).toBeBetween('-2.1', '-2.0')
 
         const user2BalanceAfter = await user2.getBalance()
         const user2BalanceDiff = user2BalanceAfter - user2BalanceBefore
-        expect(user2BalanceDiff).toBeBetween('-3.1', '-3')
+        expect(user2BalanceDiff).toBeBetween('1.9', '2')
     })
 
     it('should unstake tokens', async () => {
@@ -411,7 +382,7 @@ describe('Basic Operations', () => {
         expect(result.transactions).toHaveTransaction({
             from: walletAddress,
             to: root.address,
-            value: between('0.1', '0.15'),
+            value: between('0', '0.1'),
             body: bodyOp(op.unstakeReserve),
             deploy: false,
             success: true,
@@ -419,15 +390,6 @@ describe('Basic Operations', () => {
         })
         expect(result.transactions).toHaveTransaction({
             from: root.address,
-            to: walletAddress,
-            value: between('0.1', '0.15'),
-            body: bodyOp(op.receiveTokens),
-            deploy: false,
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(result.transactions).toHaveTransaction({
-            from: walletAddress,
             to: user.address,
             value: between('0', '0.1'),
             body: bodyOp(op.gasExcess),
@@ -435,21 +397,21 @@ describe('Basic Operations', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(result.transactions).toHaveLength(5)
+        expect(result.transactions).toHaveLength(4)
 
         const rootBalance = await root.getBalance()
-        const [ totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
+        const [ totalTon, totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
         expect(rootBalance).toBeBetween('20', '20.1')
+        expect(totalTon).toBeTonValue('10')
         expect(totalStakedTokens).toBeTonValue('3')
         expect(totalUnstakedTokens).toBeTonValue('7')
 
         const walletBalance = await wallet.getBalance()
-        const [ stakedTokens, unstakedTokens, tokensDict ] = await wallet.getWalletState()
-        const dict = Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.BigVarUint(4), tokensDict)
+        const [ stakedTokens, unstakedTokens, withdrawalIncentive ] = (await wallet.getWalletState())
         expect(walletBalance).toBeBetween(fees.walletStorage + toNano('0.05'), fees.walletStorage + toNano('0.06'))
         expect(stakedTokens).toBeTonValue('3')
         expect(unstakedTokens).toBeTonValue('7')
-        expect(dict.size).toBe(1)
+        expect(withdrawalIncentive).toBeTonValue('0.05')
 
         const userBalanceAfter = await user.getBalance()
         const userBalanceDiff = userBalanceAfter - userBalanceBefore
@@ -519,18 +481,18 @@ describe('Basic Operations', () => {
         expect(result.transactions).toHaveLength(5)
 
         const rootBalance = await root.getBalance()
-        const [ totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
+        const [ totalTon, totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
         expect(rootBalance).toBeBetween('13', '13.1')
+        expect(totalTon).toBeTonValue(totalStakedTokens)
         expect(totalStakedTokens).toBeTonValue('3')
         expect(totalUnstakedTokens).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const [ stakedTokens, unstakedTokens, tokensDict ] = await wallet.getWalletState()
-        const dict = Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.BigVarUint(4), tokensDict)
+        const [ stakedTokens, unstakedTokens, withdrawalIncentive ] = (await wallet.getWalletState())
         expect(walletBalance).toBeBetween(fees.walletStorage, '0.1')
         expect(stakedTokens).toBeTonValue('3')
         expect(unstakedTokens).toBeTonValue('0')
-        expect(dict.size).toBe(1)
+        expect(withdrawalIncentive).toBeTonValue(0n)
 
         const userBalanceAfter = await user.getBalance()
         const userBalanceDiff = userBalanceAfter - userBalanceBefore

@@ -100,7 +100,6 @@ export class Wallet implements Contract {
         bounce?: boolean
         sendMode?: SendMode
         queryId?: bigint
-        quiet?: boolean
         returnExcess?: Address
     }) {
         await this.sendMessage(provider, via, {
@@ -110,15 +109,14 @@ export class Wallet implements Contract {
             body: beginCell()
                 .storeUint(op.releaseTon, 32)
                 .storeUint(opts.queryId || 0, 64)
-                .storeBit(opts.quiet || false)
                 .storeAddress(opts.returnExcess)
                 .endCell()
         })
     }
 
-    async getWalletState(provider: ContractProvider): Promise<[bigint, bigint, Cell | null]> {
+    async getWalletState(provider: ContractProvider): Promise<[bigint, bigint, bigint]> {
         const { stack } = await provider.get('get_wallet_state', [])
-        return [ stack.readBigNumber(), stack.readBigNumber(), stack.readCellOpt() ]
+        return [ stack.readBigNumber(), stack.readBigNumber(), stack.readBigNumber() ]
     }
 
     async getWalletData(provider: ContractProvider): Promise<[bigint, Address, Address, Cell]> {

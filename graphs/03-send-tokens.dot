@@ -6,23 +6,18 @@ digraph {
     external [ shape=point ]
     user1 [ color=2 ]
     user2 [ color=2 ]
-    root [ color=4 ]
     wallet1 [ color=3 ]
     wallet2 [ color=3 ]
 
     /* Relationships */
     user1 -> wallet1 [ arrowhead=inv style=dotted ]
     user2 -> wallet2 [ arrowhead=inv style=dotted ]
-    user1 -> root [ style=invis] // just to put root on a lower level
     external -> user1 [ label="1" ]
     user1 -> wallet1 [ label="2\l op::send_tokens\l 1.10 TON\l tokens:10\l forward:1\l" ]
-    wallet1 -> root [ label="3\l op::consolidate\l 1.09 TON\l tokens:all\l" ]
-    root -> wallet1 [ label="4\l op::receive_tokens\l 1.08 TON\l tokens:all+interest\l" ]
-    wallet1 -> wallet2 [ label="5\l op::receive_tokens\l 1.07 TON\l tokens:10\l forward:1\l" ]
-    wallet2 -> user2 [ label="6\l op::transfer_notification\l 1 TON\l tokens:10\l" ]
-    wallet2 -> user1 [ label="7\l op::gas_excess\l 0.06 TON\l" ]
+    wallet1 -> wallet2 [ label="3\l op::receive_tokens\l 1.09 TON\l tokens:10\l forward:1\l" ]
+    wallet2 -> user2 [ label="4\l op::transfer_notification\l 1 TON\l tokens:10\l" ]
+    wallet2 -> user1 [ label="5\l op::gas_excess\l 0.08 TON\l" ]
 
     /* Ranks */
     { rank=min external user1 user2 }
-    { rank=max wallet1 wallet2 }
 }

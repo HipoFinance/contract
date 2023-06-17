@@ -10,14 +10,12 @@ digraph {
 
     /* Relationships */
     user -> wallet [ arrowhead=inv style=dotted ]
-    user -> root [ style=invis] // just to put root on a lower level
     external -> user [ label="1" ]
-    user -> wallet [ label="2\l op::unstake_tokens\l 0.20 TON\l tokens:10\l" ]
-    wallet -> root [ label="3\l op::unstake_reserve\l 0.19 TON\l tokens:all\l" ]
-    root -> wallet [ label="4\l op::receive_tokens\l 0.18 TON\l tokens:all+interest\l" ]
-    wallet -> user [ label="5\l op::gas_excess\l 0.07 TON\l" ]
+    user -> wallet [ label="2\l op::unstake_tokens\l 0.20 TON\l tokens:10\l incentive: 0.10\l" ]
+    wallet -> root [ label="3\l op::unstake_reserve\l 0.09 TON\l tokens:10\l" ]
+    root -> user [ label="4\l op::gas_excess\l 0.08 TON\l" ]
 
     /* Ranks */
     { rank=min external user }
-    { rank=max wallet }
+    { rank=max root }
 }

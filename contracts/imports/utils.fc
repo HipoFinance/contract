@@ -103,8 +103,8 @@ cell create_wallet_data(builder owner, slice root, cell wallet_code) {
     return begin_cell()
         .store_builder(owner)
         .store_slice(root)
-        .store_uint(0, 1) ;; tokens_dict
-        .store_coins(0) ;; withdrawal_tokens
+        .store_coins(0) ;; staked_tokens
+        .store_coins(0) ;; unstaked_tokens
         .store_coins(0) ;; withdrawal_incentive
         .store_ref(wallet_code)
         .end_cell();

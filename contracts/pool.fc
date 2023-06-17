@@ -22,7 +22,7 @@
         .store_uint(op::new_stake, 32)
         .store_uint(query_id, 64)
         .store_slice(new_stake_msg.begin_parse());
-    send_msg(true, elector, null(), body, amount+1ton, mode::add_transfer_fee);
+    send_msg(true, elector, null(), body, amount+1ton, send::pay_gas_separately);
 
     begin_cell()
         .store_builder(elector)
@@ -57,7 +57,7 @@
         .store_uint(reason, 32)
         .store_slice(validator)
         .store_uint(round_since, 32);
-    send_msg(false, root.to_builder(), null(), body, 0, mode::carry_everything + mode::destroy_account_if_zero);
+    send_msg(false, root.to_builder(), null(), body, 0, send::remaining_balance + send::destroy_if_zero);
 }
 
 () send_recover_stake(slice src, slice s) impure {
@@ -73,7 +73,7 @@
     builder body = begin_cell()
         .store_uint(op::recover_stake, 32)
         .store_uint(query_id, 64);
-    send_msg(true, elector.to_builder(), null(), body, 0, mode::carry_inbound);
+    send_msg(true, elector.to_builder(), null(), body, 0, send::remaining_value);
 }
 
 () recover_stake_result(slice src, int op, slice s) impure {
@@ -101,7 +101,7 @@
         .store_uint(ok?, 1)
         .store_slice(validator)
         .store_uint(round_since, 32);
-    send_msg(false, root.to_builder(), null(), body, 0, mode::carry_everything + mode::destroy_account_if_zero);
+    send_msg(false, root.to_builder(), null(), body, 0, send::remaining_balance + send::destroy_if_zero);
 }
 
 int src_is_elector?(slice src) {

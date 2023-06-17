@@ -30,8 +30,7 @@ const int op::provide_wallet_address = 0x2c76b973;
 const int op::take_wallet_address = 0xd1735400;
 const int op::stake_ton = 0x696aace0;
 const int op::unstake_tokens = 0x595f07bc;
-const int op::unstake_reserve = 0x73d523e4;
-const int op::withdrawal_notification = 0x2e0aea83;
+const int op::unstake_reserve = 0x7bdd97de;
 const int op::top_up = 0x34e5d45a;
 const int op::new_stake = 0x4e73744b;
 const int op::new_stake_error = 0xee6f454c;
@@ -52,7 +51,10 @@ const int op::recover_stake_result = 10;
 const int op::send_consolidate = 11;
 const int op::consolidate = 13;
 const int op::release_ton = 14;
+const int op::withdraw_failed = 16;
+const int op::release_failed = 17;
 const int op::withdraw_ton = 15;
+const int op::withdrawal_notification = 0x2e0aea83;
 
 const int participation::open = 0;
 const int participation::distribution = 1;
@@ -87,11 +89,16 @@ const int config::misbehaviour_punishment = 40;
 const int chain::main = -1;
 const int chain::base = 0;
 
-const int mode::carry_none = 0;
-const int mode::carry_inbound = 64;
-const int mode::carry_everything = 128;
-const int mode::add_transfer_fee = 1;
-const int mode::ignore_errors = 2;
-const int mode::destroy_account_if_zero = 32;
+const int send::remaining_balance = 128;
+const int send::remaining_value = 64;
+const int send::ignore_errors = 2;
+const int send::pay_gas_separately = 1;
+const int send::destroy_if_zero = 32;
+
+const reserve::exact = 0;
+const reserve::all_but_amount = 1;
+const reserve::at_most = 2;
+const reserve::add_original_balance = 4;
+const reserve::negate = 8;
 
 const slice address::empty = "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"a;

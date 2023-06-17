@@ -10,13 +10,12 @@ digraph {
 
     /* Relationships */
     external -> user [ label="1" ]
-    user -> root [ label="2\l op::stake_ton\l 11.10 TON\l tokens:10\l forward:1\l" ]
-    root -> wallet [ label="3\l op::receive_tokens\l 1.09 TON\l tokens:10\l forward:1\l" ]
+    user -> root [ label="2\l op::stake_ton\l 10.10 TON\l tokens:10\l" ]
+    root -> wallet [ label="3\l op::receive_tokens\l 0.09 TON\l tokens:10\l" ]
     user -> wallet [ arrowhead=inv style=dotted ]
-    wallet -> user [ label="4\l op::transfer_notification\l 1 TON\l tokens:10\l" ]
-    wallet -> user [ label="5\l op::gas_excess\l 0.08 TON\l" ]
+    wallet -> user [ label="4\l op::gas_excess\l 0.08 TON\l" ]
 
     /* Ranks */
     { rank=min external user }
-    { rank=max wallet }
+    { rank=max root }
 }

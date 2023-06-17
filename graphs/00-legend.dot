@@ -8,32 +8,26 @@ digraph {
         Blue nodes are simple TON wallets controlled by its owning user.\l \
         Green nodes are hTON wallets.\l \
         Dotted lines show the owner of each hTON wallet.\l \
-        Transfer notification is only sent if requested by the original initiator of the flow.\l \
         Gas excess is optional and returns the excess of gas to usually the original initiator of the flow.\l \
         "
     node [ colorscheme=pastel19 style=filled ]
 
     /* Entities */
     external [ shape=point ]
-    user1 [ color=2 ]
-    user2 [ color=2 ]
+    miner [ color=2 ]
+    user [ color=2 ]
     root [ color=4 ]
-    wallet1 [ color=3 ]
-    wallet2 [ color=3 ]
+    wallet [ color=3 ]
 
     /* Relationships */
-    user1 -> wallet1 [ arrowhead=inv style=dotted ]
-    user2 -> wallet2 [ arrowhead=inv style=dotted ]
-    user1 -> root [ style=invis] // just to put root on a lower level
-    external -> user1 [ label="1" ]
-    user1 -> wallet1 [ label="2\l op::send_tokens\l 1.10 TON\l tokens:10\l forward:1\l" ]
-    wallet1 -> root [ label="3\l op::consolidate\l 1.09 TON\l tokens:all\l" ]
-    root -> wallet1 [ label="4\l op::receive_tokens\l 1.08 TON\l tokens:all+interest\l" ]
-    wallet1 -> wallet2 [ label="5\l op::receive_tokens\l 1.07 TON\l tokens:10\l forward:1\l" ]
-    wallet2 -> user2 [ label="6\l op::transfer_notification\l 1 TON\l tokens:10\l" ]
-    wallet2 -> user1 [ label="7\l op::gas_excess\l" ]
+    user -> wallet [ arrowhead=inv style=dotted ]
+    external -> miner [ label="1" ]
+    miner -> wallet [ label="2\l op::release_ton\l 0.10 TON\l return_excess: miner\l" ]
+    wallet -> root [ label="3\l op::withdraw_ton\l 0.19 TON\l tokens: 10\l" ]
+    root -> user [ label="4\l op::withdrawal_notification\l 10 TON\l" ]
+    root -> miner [ label="5\l op::gas_excess\l 0.18 TON\l" ]
 
     /* Ranks */
-    { rank=min external user1 user2 }
-    { rank=max wallet1 wallet2 }
+    { rank=min external miner user }
+    { rank=max root }
 }

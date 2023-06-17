@@ -52,27 +52,27 @@ type ParticipationData = {
 }
 
 type RootConfig = {
+    totalTon?: bigint
     totalStakedTokens?: bigint
     totalUnstakedTokens?: bigint
-    walletCode: Cell
-    rewardsDict?: Dictionary<bigint, RewardData>
     participations?: Dictionary<bigint, ParticipationData>
+    walletCode: Cell
     poolCode: Cell
-    rewardsSize?: bigint
+    rewardsHistory?: Dictionary<bigint, RewardData>
     content?: Cell
 }
 
 function rootConfigToCell(config: RootConfig): Cell {
     const rootExtension = beginCell()
-        .storeRef(config.poolCode)
-        .storeUint(config.rewardsSize || 0n, 10)
+        .storeDict(config.rewardsHistory)
         .storeRef(config.content || new Cell())
     return beginCell()
+        .storeCoins(config.totalTon || 0n)
         .storeCoins(config.totalStakedTokens || 0n)
         .storeCoins(config.totalUnstakedTokens || 0n)
-        .storeRef(config.walletCode)
-        .storeDict(config.rewardsDict)
         .storeDict(config.participations)
+        .storeRef(config.walletCode)
+        .storeRef(config.poolCode)
         .storeRef(rootExtension)
         .endCell()
 }
@@ -160,15 +160,15 @@ export class Root implements Contract {
         })
     }
 
-    async getRootState(provider: ContractProvider): Promise<[bigint, bigint, Cell | null, Cell | null, Cell, bigint]> {
+    async getRootState(provider: ContractProvider): Promise<[bigint, bigint, bigint, Cell | null, Cell | null, Cell]> {
         const { stack } = await provider.get('get_root_state', [])
         return [
+            stack.readBigNumber(),
             stack.readBigNumber(),
             stack.readBigNumber(),
             stack.readCellOpt(),
             stack.readCellOpt(),
             stack.readCell(),
-            stack.readBigNumber(),
         ]
     }
 

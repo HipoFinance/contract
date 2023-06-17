@@ -9,7 +9,7 @@ export const op = {
     takeWalletAddress: 0xd1735400,
     stakeTon: 0x696aace0,
     unstakeTokens: 0x595f07bc,
-    unstakeReserve: 0x73d523e4,
+    unstakeReserve: 0x7bdd97de,
     releaseNotification: 0x2e0aea83,
     topUp: 0x34e5d45a,
     consolidate: 13,
