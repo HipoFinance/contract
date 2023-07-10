@@ -7,7 +7,7 @@ export type Fees = {
     poolStorage: bigint
 }
 
-type RewardData = {
+type Reward = {
     staked: bigint
     recovered: bigint
 }
@@ -29,7 +29,7 @@ type NewStakeMsg = {
     signature: bigint
 }
 
-type LoanRequest = {
+type Loan = {
     minPayment: bigint
     validatorRewardShare: bigint
     loanAmount: bigint
@@ -38,14 +38,14 @@ type LoanRequest = {
     newStakeMsg: NewStakeMsg
 }
 
-type ParticipationData = {
+type Participation = {
     state?: ParticipationState
     sorted?: Dictionary<bigint, (Dictionary<bigint, bigint>)>
     loansSize?: bigint
-    requests?: Dictionary<bigint, LoanRequest>
-    accepted?: Dictionary<bigint, LoanRequest>
-    staked?: Dictionary<bigint, LoanRequest>
-    recovering?: Dictionary<bigint, LoanRequest>
+    requests?: Dictionary<bigint, Loan>
+    accepted?: Dictionary<bigint, Loan>
+    staked?: Dictionary<bigint, Loan>
+    recovering?: Dictionary<bigint, Loan>
     totalStaked?: bigint
     totalRecovered?: bigint
     currentVsetHash?: bigint
@@ -59,11 +59,11 @@ type RootConfig = {
     totalStaking?: bigint
     totalUnstaking?: bigint
     totalValidatorsStake?: bigint
-    participations?: Dictionary<bigint, ParticipationData>
+    participations?: Dictionary<bigint, Participation>
     walletCode: Cell
     poolCode: Cell
     driver?: Address
-    rewardsHistory?: Dictionary<bigint, RewardData>
+    rewardsHistory?: Dictionary<bigint, Reward>
     content?: Cell
 }
 

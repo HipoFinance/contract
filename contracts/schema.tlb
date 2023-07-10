@@ -244,35 +244,35 @@ top_up#34e5d45a
 // Storage
 //
 
-reward_data#_ staked:Coins recovered:Coins = RewardData;
+reward#_ staked:Coins recovered:Coins = Reward;
 
-loan_request#_
+loan#_
     min_payment:Coins
     validator_reward_share:uint8
     loan_amount:Coins
     accrue_amount:Coins
     stake_amount:Coins
     new_stake_msg:^NewStakeMsg
-        = LoanRequest;
+        = Loan;
 
-participation_data#_
+participation#_
     state:uint3
     sorted:(HashmapE 112 (Hashmap 256 True))
     loans_size:uint16
-    requests:(HashmapE 256 LoanRequest)
-    accepted:(HashmapE 256 LoanRequest)
-    staked:(HashmapE 256 LoanRequest)
-    recovering:(HashmapE 256 LoanRequest) // no refs overflow since there are always some empty dicts
+    requests:(HashmapE 256 Loan)
+    accepted:(HashmapE 256 Loan)
+    staked:(HashmapE 256 Loan)
+    recovering:(HashmapE 256 Loan) // no refs overflow since there are always some empty dicts
     total_staked:Coins
     total_recovered:Coins
     current_vset_hash:bits256
     stake_held_for:uint32
     stake_held_until:uint32
-        = ParticipationData;
+        = Participation;
 
 extension#_
     driver:MsgAddress
-    rewards_history:(HashmapE 32 RewardData)
+    rewards_history:(HashmapE 32 Reward)
     content:^FullContent
         = Extension;
 
@@ -282,7 +282,7 @@ root_storage#_
     total_staking:Coins
     total_unstaking:Coins
     total_validators_stake:Coins
-    participations:(HashmapE 32 ParticipationData)
+    participations:(HashmapE 32 Participation)
     wallet_code:^Cell
     pool_code:^Cell
     extension:^Extension
