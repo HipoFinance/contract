@@ -1,0 +1,24 @@
+digraph {
+    label="anyone sends a message to participate in election"
+    node [ colorscheme=pastel19 style=filled ]
+
+    /* Entities */
+    external [ shape=point ]
+    root [ color=4 ]
+    pool1, pool2 [ color=5 ]
+    elector [ color=1 ]
+
+    /* Relationships */
+    external -> root [ label="1\l op::participate_in_election\l" ]
+    root -> root [ label="2\l op::process_loan_requests\l" ]
+    root -> pool1 [ label="3\l op::send_new_stake\l 300002 TON\l" ]
+    pool1 -> elector [ label="4\l op::new_stake\l 300001 TON\l" ]
+    elector -> pool1 [ label="5\l op::new_stake_ok\l 1 TON\l" ]
+    root -> pool2 [ label="6\l op::send_new_stake\l 300002 TON\l" ]
+    pool2 -> elector [ label="7\l op::new_stake\l 300001 TON\l" ]
+    elector -> pool2 [ label="8\l op::new_stake_ok\l 1 TON\l" ]
+
+    /* Ranks */
+    { rank=min external root }
+    { rank=max elector }
+}

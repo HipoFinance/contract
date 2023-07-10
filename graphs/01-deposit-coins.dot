@@ -1,14 +1,5 @@
 digraph {
-    label="
-        The black point denotes an external message starting the flow.\l \
-        Each node is a smart contract.\l \
-        Arrows denote a message sent from one smart contract to another.\l \
-        The number on each arrow shows the order of messages.\l \
-        Each arrow has an operation identifying the message type being sent.\l \
-        Blue nodes are simple TON wallets controlled by its owning user.\l \
-        Green nodes are hTON wallets.\l \
-        Dotted lines show the owner of each hTON wallet.\l \
-        "
+    label="staker deposits 10 TON to receive near 10 hTON later"
     node [ colorscheme=pastel19 style=filled ]
 
     /* Entities */

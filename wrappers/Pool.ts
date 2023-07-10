@@ -1,9 +1,7 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode } from 'ton-core'
-
-const opTopUp = 0x34e5d45a
+import { Address, beginCell, Cell, Contract, contractAddress } from 'ton-core'
 
 export type PoolConfig = {
-    elector: Address
+    elector?: Address
     root: Address
     validator: Address
     roundSince: bigint

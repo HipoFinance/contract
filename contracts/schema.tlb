@@ -92,7 +92,7 @@ unstake_tokens#595f07bc // originally named 'burn'
     custom_payload:(Maybe ^Cell)
         = InternalMsgBody;
 
-unstake_reserve#7bdd97de // originally named 'burn_notification'
+reserve_tokens#7bdd97de // originally named 'burn_notification'
     query_id:uint64
     tokens:Coins
     owner:MsgAddress
@@ -119,36 +119,48 @@ take_wallet_address#d1735400
 // Stakers Ops
 //
 
-stake_ton#4525e9b2
+deposit_coins#00000020
+    query_id:uint64
+        = InternalMsgBody;
+
+save_coins#00000021
     query_id:uint64
     stake_amount:Coins
-    recipient:MsgAddress
-    return_excess:MsgAddress
-    forward_ton_amount:Coins
-    forward_payload:(Either Cell ^Cell)
-        = InternalMsgBody;
-
-release_ton#661d636b
-    query_id:uint64
+    round_since:uint32
     return_excess:MsgAddress
         = InternalMsgBody;
 
-withdraw_ton#2fbfa63e
+stake_coins#00000022
     query_id:uint64
-    tokens:Coins
-    incentive:Coins
+    round_since:uint32
+        = InternalMsgBody;
+
+mint_tokens#00000023
+    query_id:uint64
+    stake_amount:Coins
+    round_since:uint32
     owner:MsgAddress
     return_excess:MsgAddress
         = InternalMsgBody;
 
-withdraw_failed#57fb08ea
+withdraw_tokens#00000024
+    query_id:uint64
+        = InternalMsgBody;
+
+burn_tokens#00000025
     query_id:uint64
     tokens:Coins
-    incentive:Coins
+    owner:MsgAddress
     return_excess:MsgAddress
         = InternalMsgBody;
 
-release_failed#4c4fc2e7
+burn_failed#57fb08ea
+    query_id:uint64
+    tokens:Coins
+    return_excess:MsgAddress
+        = InternalMsgBody;
+
+withdraw_failed#4c4fc2e7
     query_id:uint64
         = InternalMsgBody;
 
@@ -168,61 +180,57 @@ new_stake_msg#_
     signature:^bits512
         = NewStakeMsg;
 
-save_loan_request#2
+request_loan#00000030
     query_id:uint64
-    tokens:Coins
-    validator:MsgAddress
-    return_excess:MsgAddress
     round_since:uint32
     loan_amount:Coins
     min_payment:Coins
-    validator_reward_share:uint14
+    validator_reward_share:uint8
     new_stake_msg:^NewStakeMsg
         = InternalMsgBody;
 
-participate#3
+participate_in_election#00000031
     query_id:uint64
     round_since:uint32
         = InternalMsgBody;
 
-process_loan_requests#4
+process_loan_requests#00000032
     query_id:uint64
     round_since:uint32
         = InternalMsgBody;
 
-send_new_stake#5
+send_new_stake#00000033
     query_id:uint64
-    total_loan_amount:Coins
     new_stake_msg:^NewStakeMsg
         = InternalMsgBody;
 
-new_stake_rejected#6
+new_stake_rejected#00000034
     query_id:uint64
     reason:uint32
     validator:MsgAddress
     round_since:uint32
         = InternalMsgBody;
 
-vset_changed#14
+vset_changed#00000035
     query_id:uint64
     round_since:uint32
         = InternalMsgBody;
 
-recover#7
+finish_participation#00000036
     query_id:uint32
     round_since:uint32
         = InternalMsgBody;
 
-process_stakes#8
+recover_stakes#00000037
     query_id:uint64
     round_since:uint32
         = InternalMsgBody;
 
-send_recover_stake#9
+send_recover_stake#00000038
     query_id:uint64
         = InternalMsgBody;
 
-recover_stake_result#10
+recover_stake_result#00000039
     query_id:uint64
     ok:Bool
     validator:MsgAddress
@@ -240,47 +248,52 @@ reward_data#_ staked:Coins recovered:Coins = RewardData;
 
 loan_request#_
     min_payment:Coins
-    validator_reward_share:uint14
+    validator_reward_share:uint8
     loan_amount:Coins
-    accrued_amount:Coins
-    staked_tokens:Coins
+    accrue_amount:Coins
+    stake_amount:Coins
     new_stake_msg:^NewStakeMsg
         = LoanRequest;
 
 participation_data#_
     state:uint3
+    sorted:(HashmapE 112 (Hashmap 256 True))
+    loans_size:uint16
     requests:(HashmapE 256 LoanRequest)
     accepted:(HashmapE 256 LoanRequest)
     staked:(HashmapE 256 LoanRequest)
-    recovering:(HashmapE 256 LoanRequest)
+    recovering:(HashmapE 256 LoanRequest) // no refs overflow since there are always some empty dicts
     total_staked:Coins
-    total_recovered:(VarInteger 16)
+    total_recovered:Coins
     current_vset_hash:bits256
     stake_held_for:uint32
     stake_held_until:uint32
         = ParticipationData;
 
-root_extension#_
+extension#_
+    driver:MsgAddress
     rewards_history:(HashmapE 32 RewardData)
     content:^FullContent
-        = RootExtension;
+        = Extension;
 
 root_storage#_
-    total_ton:Coins
-    total_staked_tokens:Coins
-    total_unstaked_tokens:Coins
+    total_coins:Coins
+    total_tokens:Coins
+    total_staking:Coins
+    total_unstaking:Coins
+    total_validators_stake:Coins
     participations:(HashmapE 32 ParticipationData)
     wallet_code:^Cell
     pool_code:^Cell
-    root_extension:^RootExtension
+    extension:^Extension
         = RootStorage;
 
 wallet_storage#_
     owner:MsgAddress
     root:MsgAddress
-    staked_tokens:Coins
-    unstaked_tokens:Coins
-    withdrawal_incentive:Coins
+    tokens:Coins
+    staking:(HashmapE 32 Coins)
+    unstaking:Coins
     wallet_code:^Cell
         = WalletStorage;
 

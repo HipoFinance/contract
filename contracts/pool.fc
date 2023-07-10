@@ -1,44 +1,49 @@
 #include "imports/utils.fc";
 
-() send_new_stake(slice src, slice s) impure {
-    slice ds = get_data().begin_parse();
-    ds~load_msg_addr(); ;; skip elector
-    slice root = ds~load_msg_addr();
-
-    int query_id = s~load_uint(64); ;; must be non-zero to receive success response
-    int total_loan_amount = s~load_coins();
-    cell new_stake_msg = s~load_ref();
-    s.end_parse();
-
-    int amount+1ton = total_loan_amount + fee::one_ton;
-    int min_balance = amount+1ton + fee::pool_storage + fee::new_stake_gas_consumption;
-    int ton_balance = get_balance().pair_first();
-
-    throw_unless(err::access_denied, equal_slices(src, root));
-    throw_unless(err::insufficient_funds, ton_balance >= min_balance);
-
-    builder elector = create_address(get_elector());
-    builder body = begin_cell()
-        .store_uint(op::new_stake, 32)
-        .store_uint(query_id, 64)
-        .store_slice(new_stake_msg.begin_parse());
-    send_msg(true, elector, null(), body, amount+1ton, send::pay_gas_separately);
-
+() save_data(builder elector, slice root, slice validator, int round_since) impure {
     begin_cell()
         .store_builder(elector)
         .store_slice(root)
-        .store_slice(ds)
+        .store_slice(validator)
+        .store_uint(round_since, 32)
         .end_cell()
         .set_data();
 }
 
-() new_stake_error(slice src, slice s) impure {
+(slice, slice, slice, int) load_data() impure {
     slice ds = get_data().begin_parse();
     slice elector = ds~load_msg_addr();
     slice root = ds~load_msg_addr();
     slice validator = ds~load_msg_addr();
     int round_since = ds~load_uint(32);
     ds.end_parse();
+    return ( elector, root, validator, round_since );
+}
+
+() send_new_stake(slice src, slice s) impure {
+    ( _, slice root, slice validator, int round_since ) = load_data();
+
+    int query_id = s~load_uint(64); ;; must be non-zero to receive success response
+    cell new_stake_msg = s~load_ref();
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slices(src, root));
+
+    ( int pool_storage, _ ) = loan_storage_fee();
+    raw_reserve(pool_storage, reserve::at_most);
+
+    builder elector = create_address(get_elector());
+    builder body = begin_cell()
+        .store_uint(op::new_stake, 32)
+        .store_uint(query_id, 64)
+        .store_slice(new_stake_msg.begin_parse());
+    send_msg(true, elector, null(), body, 0, send::remaining_balance);
+
+    save_data(elector, root, validator, round_since);
+}
+
+() new_stake_error(slice src, slice s) impure {
+    ( slice elector, slice root, slice validator, int round_since ) = load_data();
 
     int query_id = 0;
     int reason = 0;
@@ -57,13 +62,11 @@
         .store_uint(reason, 32)
         .store_slice(validator)
         .store_uint(round_since, 32);
-    send_msg(false, root.to_builder(), null(), body, 0, send::remaining_balance + send::destroy_if_zero);
+    send_msg(false, root.to_builder(), null(), body, 0, send::remaining_balance);
 }
 
 () send_recover_stake(slice src, slice s) impure {
-    slice ds = get_data().begin_parse();
-    slice elector = ds~load_msg_addr();
-    slice root = ds~load_msg_addr();
+    ( slice elector, slice root, slice validator, int round_since ) = load_data();
 
     int query_id = s~load_uint(64);
     s.end_parse();
@@ -77,12 +80,7 @@
 }
 
 () recover_stake_result(slice src, int op, slice s) impure {
-    slice ds = get_data().begin_parse();
-    slice elector = ds~load_msg_addr();
-    slice root = ds~load_msg_addr();
-    slice validator = ds~load_msg_addr();
-    int round_since = ds~load_uint(32);
-    ds.end_parse();
+    ( slice elector, slice root, slice validator, int round_since ) = load_data();
 
     int query_id = 0;
     if (s.slice_bits() >= 64) { ;; in case the elector's behavior changed, don't throw
@@ -101,17 +99,17 @@
         .store_uint(ok?, 1)
         .store_slice(validator)
         .store_uint(round_since, 32);
-    send_msg(false, root.to_builder(), null(), body, 0, send::remaining_balance + send::destroy_if_zero);
+    send_msg(false, root.to_builder(), null(), body, 0, send::remaining_balance);
 }
 
 int src_is_elector?(slice src) {
-    slice ds = get_data().begin_parse();
-    slice elector = ds~load_msg_addr();
+    ( slice elector, slice root, slice validator, int round_since ) = load_data();
+    builder current_elector = create_address(get_elector());
 
-    return equal_slices(src, elector);
+    return equal_slices(src, elector) | equal_slices(src, current_elector.end_cell().begin_parse());
 }
 
-() handle_bounced_message(slice src, slice s) impure {
+() on_bounce(slice src, slice s) impure {
     int op = s~load_uint(32);
 
     if (op == op::new_stake) {
@@ -133,32 +131,32 @@ int src_is_elector?(slice src) {
     int flags = cs~load_uint(4);
     slice src = cs~load_msg_addr();
 
-    int op = null();
-    if (in_msg_body.slice_bits() >= 32) {
-        op = in_msg_body~load_uint(32);
-    }
-
     if (flags & 1) {
-        handle_bounced_message(src, in_msg_body);
+        on_bounce(src, in_msg_body);
         return ();
     }
 
-    if (op == op::send_new_stake) { ;; send a new stake request to the elector
+    int op = 0;
+    if (in_msg_body.slice_bits()) {
+        op = in_msg_body~load_uint(32);
+    }
+
+    if (op == op::send_new_stake) {
         send_new_stake(src, in_msg_body);
         return ();
     }
 
-    if (op == op::new_stake_error) { ;; stake rejected by the elector
+    if (op == op::new_stake_error) {
         new_stake_error(src, in_msg_body);
         return ();
     }
 
-    if (op == op::new_stake_ok) { ;; stake accepted before the election
+    if (op == op::new_stake_ok) {
         ;; elector returns 1 TON when query_id > 0, do nothing
         return ();
     }
 
-    if (op == op::send_recover_stake) { ;; recover stake from the elector
+    if (op == op::send_recover_stake) {
         send_recover_stake(src, in_msg_body);
         return ();
     }
@@ -173,12 +171,13 @@ int src_is_elector?(slice src) {
         return ();
     }
 
-    if (op == op::top_up) { ;; top up pool's TON balance
-        ;; do nothing
+    if (op == op::top_up) {
+        ;; top up TON balance, do nothing
         return ();
     }
 
-    if (src_is_elector?(src)) { ;; accept coins from the elector
+    if (src_is_elector?(src)) {
+        ;; accept coins from the elector
         return ();
     }
 

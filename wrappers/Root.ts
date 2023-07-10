@@ -1,4 +1,4 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Dictionary, Sender, SendMode, Slice, toNano, TupleBuilder } from 'ton-core'
+import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Dictionary, Sender, SendMode, TupleBuilder } from 'ton-core'
 import { op, tonValue } from './common'
 
 export type Fees = {
@@ -33,13 +33,15 @@ type LoanRequest = {
     minPayment: bigint
     validatorRewardShare: bigint
     loanAmount: bigint
-    accruedAmount: bigint
-    stakedTokens: bigint
+    accrueAmount: bigint
+    stakeAmount: bigint
     newStakeMsg: NewStakeMsg
 }
 
 type ParticipationData = {
-    state: ParticipationState
+    state?: ParticipationState
+    sorted?: Dictionary<bigint, (Dictionary<bigint, bigint>)>
+    loansSize?: bigint
     requests?: Dictionary<bigint, LoanRequest>
     accepted?: Dictionary<bigint, LoanRequest>
     staked?: Dictionary<bigint, LoanRequest>
@@ -52,24 +54,30 @@ type ParticipationData = {
 }
 
 type RootConfig = {
-    totalTon?: bigint
-    totalStakedTokens?: bigint
-    totalUnstakedTokens?: bigint
+    totalCoins?: bigint
+    totalTokens?: bigint
+    totalStaking?: bigint
+    totalUnstaking?: bigint
+    totalValidatorsStake?: bigint
     participations?: Dictionary<bigint, ParticipationData>
     walletCode: Cell
     poolCode: Cell
+    driver?: Address
     rewardsHistory?: Dictionary<bigint, RewardData>
     content?: Cell
 }
 
 function rootConfigToCell(config: RootConfig): Cell {
     const rootExtension = beginCell()
+        .storeAddress(config.driver)
         .storeDict(config.rewardsHistory)
-        .storeRef(config.content || new Cell())
+        .storeRef(config.content || Cell.EMPTY)
     return beginCell()
-        .storeCoins(config.totalTon || 0n)
-        .storeCoins(config.totalStakedTokens || 0n)
-        .storeCoins(config.totalUnstakedTokens || 0n)
+        .storeCoins(config.totalCoins || 0)
+        .storeCoins(config.totalTokens || 0)
+        .storeCoins(config.totalStaking || 0)
+        .storeCoins(config.totalUnstaking || 0)
+        .storeCoins(config.totalValidatorsStake || 0)
         .storeDict(config.participations)
         .storeRef(config.walletCode)
         .storeRef(config.poolCode)
@@ -112,29 +120,20 @@ export class Root implements Contract {
             body: beginCell().storeUint(op.topUp, 32).endCell(),
         })
     }
-    async sendStakeTon(provider: ContractProvider, via: Sender, opts: {
+
+    async sendDepositCoins(provider: ContractProvider, via: Sender, opts: {
         value: bigint | string
         bounce?: boolean
         sendMode?: SendMode
         queryId?: bigint
-        tokens: bigint | string
-        recipient: Address
-        returnExcess?: Address
-        forwardTonAmount?: bigint | string
-        forwardPayload?: Slice
     }) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
             sendMode: opts.sendMode,
             body: beginCell()
-                .storeUint(op.stakeTon, 32)
+                .storeUint(op.depositCoins, 32)
                 .storeUint(opts.queryId || 0, 64)
-                .storeCoins(tonValue(opts.tokens))
-                .storeAddress(opts.recipient)
-                .storeAddress(opts.returnExcess)
-                .storeCoins(tonValue(opts.forwardTonAmount || 0n) )
-                .storeSlice(opts.forwardPayload || beginCell().storeUint(0, 1).endCell().beginParse())
                 .endCell()
         })
     }
@@ -152,7 +151,7 @@ export class Root implements Contract {
             bounce: opts.bounce,
             sendMode: opts.sendMode,
             body: beginCell()
-                .storeUint(0x2c76b973, 32)
+                .storeUint(op.provideWalletAddress, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeAddress(opts.owner)
                 .storeBit(opts.includeAddress || false)
@@ -160,14 +159,83 @@ export class Root implements Contract {
         })
     }
 
-    async getRootState(provider: ContractProvider): Promise<[bigint, bigint, bigint, Cell | null, Cell | null, Cell]> {
+    async sendRequestLoan(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+        roundSince: bigint
+        loanAmount: bigint | string
+        minPayment: bigint | string
+        validatorRewardShare: bigint
+        newStakeMsg: Cell
+    }) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.requestLoan, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.roundSince, 32)
+                .storeCoins(tonValue(opts.loanAmount))
+                .storeCoins(tonValue(opts.minPayment))
+                .storeUint(opts.validatorRewardShare, 8)
+                .storeRef(opts.newStakeMsg)
+                .endCell()
+        })
+    }
+
+    async sendParticipateInElection(provider: ContractProvider, opts: {
+        queryId?: bigint
+        roundSince: bigint
+    }) {
+        const message = beginCell()
+            .storeUint(op.participateInElection, 32)
+            .storeUint(opts.queryId || 0, 64)
+            .storeUint(opts.roundSince, 32)
+            .endCell()
+        await provider.external(message)
+    }
+
+    async sendVsetChanged(provider: ContractProvider, opts: {
+        queryId?: bigint
+        roundSince: bigint
+    }) {
+        const message = beginCell()
+            .storeUint(op.vsetChanged, 32)
+            .storeUint(opts.queryId || 0, 64)
+            .storeUint(opts.roundSince, 32)
+            .endCell()
+        await provider.external(message)
+    }
+
+    async sendFinishParticipation(provider: ContractProvider, opts: {
+        queryId?: bigint
+        roundSince: bigint
+    }) {
+        const message = beginCell()
+            .storeUint(op.finishParticipation, 32)
+            .storeUint(opts.queryId || 0, 64)
+            .storeUint(opts.roundSince, 32)
+            .endCell()
+        await provider.external(message)
+    }
+
+    async getRootState(provider: ContractProvider):
+            Promise<[bigint, bigint, bigint, bigint, bigint, Cell | null, Cell | null, Address, Cell, Cell, Cell]> {
         const { stack } = await provider.get('get_root_state', [])
         return [
             stack.readBigNumber(),
             stack.readBigNumber(),
             stack.readBigNumber(),
+            stack.readBigNumber(),
+            stack.readBigNumber(),
             stack.readCellOpt(),
             stack.readCellOpt(),
+            stack.readAddress(),
+            stack.readCell(),
+            stack.readCell(),
             stack.readCell(),
         ]
     }
@@ -205,6 +273,13 @@ export class Root implements Contract {
             walletStorage: stack.readBigNumber(),
             poolStorage: stack.readBigNumber(),
         }
+    }
+
+    async getMaxPunishment(provider: ContractProvider, stake: bigint) {
+        const tb = new TupleBuilder()
+        tb.writeNumber(stake)
+        const { stack } = await provider.get('get_max_punishment', tb.build())
+        return stack.readBigNumber()
     }
 
     async getBalance(provider: ContractProvider): Promise<bigint> {

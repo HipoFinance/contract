@@ -1,11 +1,10 @@
 import { expect } from '@jest/globals'
 import type { MatcherFunction } from 'expect'
-import { tonValue } from "../wrappers/common"
 import { Cell, toNano } from 'ton-core'
 
 export function between(a: bigint | string, b: bigint | string): (x?: bigint) => boolean {
-    let u = tonValue(a)
-    let v = tonValue(b)
+    let u = typeof a === 'string' ? toNano(a) : a
+    let v = typeof b === 'string' ? toNano(b) : b
     if (u > v) {
         const t = u
         u = v
@@ -55,27 +54,21 @@ const toBeBetween: MatcherFunction<[a: unknown, b: unknown]> =
 
 const toBeTonValue: MatcherFunction<[v: unknown]> =
     function (actual, v) {
-        if (
-            (typeof v !== 'bigint' && typeof v !== 'string') ||
-            typeof actual !== 'bigint'
-        ) {
+        v = typeof v === 'string' ? toNano(v) : v
+        if (typeof v !== 'bigint' || typeof actual !== 'bigint') {
             throw new Error('invalid type')
-        }
-
-        if (typeof v === 'string') {
-            v = toNano(v)
         }
         const pass = actual === v
         if (pass) {
             return {
                 message: () =>
-                    `expected ${this.utils.printReceived(actual)} not to be ${this.utils.printExpected(v)} TON`,
+                    `expected ${this.utils.printReceived(actual)} not to be ${this.utils.printExpected(v)} nanoTON`,
                 pass: true,
             }
         } else {
             return {
                 message: () =>
-                    `expected ${this.utils.printReceived(actual)} to be ${this.utils.printExpected(v)} TON`,
+                    `expected ${this.utils.printReceived(actual)} to be ${this.utils.printExpected(v)} nanoTON`,
                 pass: false,
             }
         }

@@ -1,10 +1,10 @@
 import { compile } from '@ton-community/blueprint'
-import { Blockchain, SandboxContract } from '@ton-community/sandbox'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
-import { Cell, Dictionary, SendMode, beginCell, toNano } from 'ton-core'
+import { Cell, beginCell, toNano } from 'ton-core'
 import { Fees, Root } from '../wrappers/Root'
 import { Wallet } from '../wrappers/Wallet'
-import { between, bodyOp } from './utils'
+import { between, bodyOp } from './helper'
 import { op } from '../wrappers/common'
 
 describe('Basic Operations', () => {
@@ -20,13 +20,16 @@ describe('Basic Operations', () => {
 
     let blockchain: Blockchain
     let root: SandboxContract<Root>
+    let driver: SandboxContract<TreasuryContract>
     let fees: Fees
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
+        driver = await blockchain.treasury('driver')
         root = blockchain.openContract(Root.createFromConfig({
             walletCode,
             poolCode,
+            driver: driver.address,
         }, rootCode))
 
         const deployer = await blockchain.treasury('deployer')
@@ -51,32 +54,33 @@ describe('Basic Operations', () => {
     it('should deploy root', async () => {
     })
 
-    it('should stake ton by a simple empty message', async () => {
-        const user = await blockchain.treasury('user')
-        const walletAddress = await root.getWalletAddress(user.address)
-        const result = await root.sendMessage(user.getSender(), { value: '10' })
+    it('should deposit coins', async () => {
+        const staker = await blockchain.treasury('staker')
+        const walletAddress = await root.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const result = await root.sendDepositCoins(staker.getSender(), { value: '10' })
 
         expect(result.transactions).toHaveTransaction({
-            from: user.address,
+            from: staker.address,
             to: root.address,
             value: toNano('10'),
-            body: new Cell(),
+            body: bodyOp(op.depositCoins),
             deploy: false,
             success: true,
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
             from: root.address,
-            to: walletAddress,
+            to: wallet.address,
             value: between(fees.walletStorage, '0.1'),
-            body: bodyOp(op.receiveTokens),
+            body: bodyOp(op.saveCoins),
             deploy: true,
             success: true,
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
-            from: walletAddress,
-            to: user.address,
+            from: wallet.address,
+            to: driver.address,
             value: between('0', '0.1'),
             body: bodyOp(op.gasExcess),
             deploy: false,
@@ -86,65 +90,143 @@ describe('Basic Operations', () => {
         expect(result.transactions).toHaveLength(4)
 
         const rootBalance = await root.getBalance()
-        const [ totalTon, totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
+        const [ totalCoins, totalTokens, totalStaking, totalUnstaking, totalValidatorsStake ] =
+            await root.getRootState()
         expect(rootBalance).toBeBetween('19.9', '20')
-        expect(totalTon).toBeTonValue(totalStakedTokens)
-        expect(totalStakedTokens).toBeBetween('9.9', '10')
-        expect(totalUnstakedTokens).toBeTonValue(0n)
+        expect(totalCoins).toBeTonValue('0')
+        expect(totalTokens).toBeTonValue('0')
+        expect(totalStaking).toBeBetween('9.9', '10')
+        expect(totalUnstaking).toBeTonValue('0')
+        expect(totalValidatorsStake).toBeTonValue('0')
 
-        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         const walletBalance = await wallet.getBalance()
-        const [ stakedTokens, unstakedTokens, withdrawalIncentive ] = (await wallet.getWalletState())
+        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(fees.walletStorage, '0.1')
-        expect(stakedTokens).toBeBetween('9.9', '10')
-        expect(unstakedTokens).toBeTonValue(0n)
-        expect(withdrawalIncentive).toBeTonValue(0n)
+        expect(tokens).toBeTonValue('0')
+        expect(staking.keys()).toHaveLength(1)
+        expect(staking.get(0n)).toBeBetween('9.9', '10')
+        expect(unstaking).toBeTonValue('0')
     })
 
-    it('should stake ton with custom parameters', async () => {
-        const user1 = await blockchain.treasury('user1')
-        const user2 = await blockchain.treasury('user2')
-        const user1BalanceBefore = await user1.getBalance()
-        const user2BalanceBefore = await user2.getBalance()
-        const wallet2Address = await root.getWalletAddress(user2.address)
-        const result = await root.sendStakeTon(user1.getSender(), {
-            value: '15.1',
-            tokens: '10',
-            recipient: user2.address,
-            returnExcess: user1.address,
-            forwardTonAmount: '5',
-        })
+    it('should stake coins', async () => {
+        const staker = await blockchain.treasury('staker')
+        await root.sendDepositCoins(staker.getSender(), { value: '10' })
+        const walletAddress = await root.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const result = await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
 
         expect(result.transactions).toHaveTransaction({
-            from: user1.address,
+            from: driver.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.stakeCoins),
+            deploy: false,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet.address,
             to: root.address,
-            value: toNano('15.1'),
-            body: bodyOp(op.stakeTon),
+            value: between('0', '0.1'),
+            body: bodyOp(op.mintTokens),
             deploy: false,
             success: true,
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
             from: root.address,
-            to: wallet2Address,
-            value: between('5', '5.1'),
+            to: wallet.address,
+            value: between('0', '0.1'),
             body: bodyOp(op.receiveTokens),
-            deploy: true,
+            deploy: false,
             success: true,
             outMessagesCount: 2,
         })
         expect(result.transactions).toHaveTransaction({
-            from: wallet2Address,
-            to: user2.address,
-            value: toNano('5'),
+            from: wallet.address,
+            to: staker.address,
+            value: between('0', '0.1'),
             body: bodyOp(op.transferNotification),
             deploy: false,
             success: true,
             outMessagesCount: 0,
         })
         expect(result.transactions).toHaveTransaction({
-            from: wallet2Address,
-            to: user1.address,
+            from: wallet.address,
+            to: driver.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            deploy: false,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(6)
+
+        const rootBalance = await root.getBalance()
+        const [ totalCoins, totalTokens, totalStaking, totalUnstaking, totalValidatorsStake ] =
+            await root.getRootState()
+        expect(rootBalance).toBeBetween('19.9', '20')
+        expect(totalCoins).toBeBetween('9.9', '10')
+        expect(totalTokens).toBeTonValue(totalCoins)
+        expect(totalStaking).toBeTonValue('0')
+        expect(totalUnstaking).toBeTonValue('0')
+        expect(totalValidatorsStake).toBeTonValue('0')
+
+        const walletBalance = await wallet.getBalance()
+        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        expect(walletBalance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
+        expect(tokens).toBeBetween('9.9', '10')
+        expect(staking.keys()).toHaveLength(0)
+        expect(unstaking).toBeTonValue('0')
+    })
+
+    it('should send tokens to another new wallet', async () => {
+        const staker1 = await blockchain.treasury('staker1')
+        const staker2 = await blockchain.treasury('staker2')
+        await root.sendDepositCoins(staker1.getSender(), { value: '10' })
+        const wallet1Address = await root.getWalletAddress(staker1.address)
+        const wallet2Address = await root.getWalletAddress(staker2.address)
+        const wallet1 = blockchain.openContract(Wallet.createFromAddress(wallet1Address))
+        const wallet2 = blockchain.openContract(Wallet.createFromAddress(wallet2Address))
+        await wallet1.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        const result = await wallet1.sendSendTokens(staker1.getSender(), {
+            value: '0.11',
+            tokens: '9',
+            recipient: staker2.address,
+            returnExcess: staker1.address,
+            forwardTonAmount: '0.01',
+        })
+
+        expect(result.transactions).toHaveTransaction({
+            from: staker1.address,
+            to: wallet1.address,
+            value: toNano('0.11'),
+            body: bodyOp(op.sendTokens),
+            deploy: false,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet1.address,
+            to: wallet2.address,
+            value: between('0.01', '0.11'),
+            body: bodyOp(op.receiveTokens),
+            deploy: true,
+            success: true,
+            outMessagesCount: 2,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet2.address,
+            to: staker2.address,
+            value: toNano('0.01'),
+            body: bodyOp(op.transferNotification),
+            deploy: false,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet2.address,
+            to: staker1.address,
             value: between('0', '0.1'),
             body: bodyOp(op.gasExcess),
             deploy: false,
@@ -154,166 +236,82 @@ describe('Basic Operations', () => {
         expect(result.transactions).toHaveLength(5)
 
         const rootBalance = await root.getBalance()
-        const [ totalTon, totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
-        expect(rootBalance).toBeBetween('20', '20.1')
-        expect(totalTon).toBeTonValue(totalStakedTokens)
-        expect(totalStakedTokens).toBeTonValue('10')
-        expect(totalUnstakedTokens).toBeTonValue(0n)
-
-        const wallet2 = blockchain.openContract(Wallet.createFromAddress(wallet2Address))
-        const wallet2Balance = await wallet2.getBalance()
-        const [ stakedTokens, unstakedTokens, withdrawalIncentive ] = (await wallet2.getWalletState())
-        expect(wallet2Balance).toBeBetween(fees.walletStorage, '0.1')
-        expect(stakedTokens).toBeTonValue('10')
-        expect(unstakedTokens).toBeTonValue(0n)
-        expect(withdrawalIncentive).toBeTonValue(0n)
-
-        const user1BalanceAfter = await user1.getBalance()
-        const user1BalanceDiff = user1BalanceAfter - user1BalanceBefore
-        expect(user1BalanceDiff).toBeBetween('-15.1', '-15.0')
-
-        const user2BalanceAfter = await user2.getBalance()
-        const user2BalanceDiff = user2BalanceAfter - user2BalanceBefore
-        expect(user2BalanceDiff).toBeBetween('4.9', '5')
-    })
-
-    it('should send tokens to another new wallet', async () => {
-        const user1 = await blockchain.treasury('user1')
-        const user2 = await blockchain.treasury('user2')
-        const user1BalanceBefore = await user1.getBalance()
-        const user2BalanceBefore = await user2.getBalance()
-        const wallet1Address = await root.getWalletAddress(user1.address)
-        const wallet2Address = await root.getWalletAddress(user2.address)
-        await root.sendMessage(user1.getSender(), { value: '10' })
-        const wallet1 = blockchain.openContract(Wallet.createFromAddress(wallet1Address))
-        const result = await wallet1.sendSendTokens(user1.getSender(), {
-            value: '2.2',
-            tokens: '9',
-            recipient: user2.address,
-            returnExcess: user1.address,
-            forwardTonAmount: '2',
-        })
-
-        expect(result.transactions).toHaveTransaction({
-            from: user1.address,
-            to: wallet1Address,
-            value: toNano('2.2'),
-            body: bodyOp(op.sendTokens),
-            deploy: false,
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(result.transactions).toHaveTransaction({
-            from: wallet1Address,
-            to: wallet2Address,
-            value: between('2', '2.2'),
-            body: bodyOp(op.receiveTokens),
-            deploy: true,
-            success: true,
-            outMessagesCount: 2,
-        })
-        expect(result.transactions).toHaveTransaction({
-            from: wallet2Address,
-            to: user2.address,
-            value: toNano('2'),
-            body: bodyOp(op.transferNotification),
-            deploy: false,
-            success: true,
-            outMessagesCount: 0,
-        })
-        expect(result.transactions).toHaveTransaction({
-            from: wallet2Address,
-            to: user1.address,
-            value: between('0', '0.2'),
-            body: bodyOp(op.gasExcess),
-            deploy: false,
-            success: true,
-            outMessagesCount: 0,
-        })
-        expect(result.transactions).toHaveLength(5)
-
-        const rootBalance = await root.getBalance()
-        const [ totalTon, totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
+        const [ totalCoins, totalTokens, totalStaking, totalUnstaking, totalValidatorsStake ] =
+            await root.getRootState()
         expect(rootBalance).toBeBetween('19.9', '20')
-        expect(totalTon).toBeTonValue(totalStakedTokens)
-        expect(totalStakedTokens).toBeBetween('9.9', '10')
-        expect(totalUnstakedTokens).toBeTonValue(0n)
+        expect(totalCoins).toBeBetween('9.9', '10')
+        expect(totalTokens).toBeTonValue(totalCoins)
+        expect(totalStaking).toBeTonValue('0')
+        expect(totalUnstaking).toBeTonValue('0')
+        expect(totalValidatorsStake).toBeTonValue('0')
 
         const wallet1Balance = await wallet1.getBalance()
-        const [ stakedTokens1, unstakedTokens1, withdrawalIncentive1 ] = (await wallet1.getWalletState())
-        expect(wallet1Balance).toBeBetween(fees.walletStorage, '0.1')
-        expect(stakedTokens1).toBeBetween('0.9', '1')
-        expect(unstakedTokens1).toBeTonValue(0n)
-        expect(withdrawalIncentive1).toBeTonValue(0n)
+        const [ tokens1, staking1, unstaking1 ] = await wallet1.getWalletState()
+        expect(wallet1Balance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
+        expect(tokens1).toBeBetween('0.9', '1')
+        expect(staking1.keys()).toHaveLength(0)
+        expect(unstaking1).toBeTonValue('0')
 
-        const wallet2 = blockchain.openContract(Wallet.createFromAddress(wallet2Address))
         const wallet2Balance = await wallet2.getBalance()
-        const [ stakedTokens2, unstakedTokens2, withdrawalIncentive2 ] = (await wallet2.getWalletState())
-        expect(wallet2Balance).toBeBetween(fees.walletStorage, '0.1')
-        expect(stakedTokens2).toBeTonValue('9')
-        expect(unstakedTokens2).toBeTonValue(0n)
-        expect(withdrawalIncentive2).toBeTonValue(0n)
-
-        const user1BalanceAfter = await user1.getBalance()
-        const user1BalanceDiff = user1BalanceAfter - user1BalanceBefore
-        expect(user1BalanceDiff).toBeBetween('-12.1', '-12.0')
-
-        const user2BalanceAfter = await user2.getBalance()
-        const user2BalanceDiff = user2BalanceAfter - user2BalanceBefore
-        expect(user2BalanceDiff).toBeBetween('1.9', '2')
+        const [ tokens2, staking2, unstaking2 ] = await wallet2.getWalletState()
+        expect(wallet2Balance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
+        expect(tokens2).toBeTonValue('9')
+        expect(staking2.keys()).toHaveLength(0)
+        expect(unstaking2).toBeTonValue('0')
     })
 
     it('should send tokens to another existing wallet', async () => {
-        const user1 = await blockchain.treasury('user1')
-        const user2 = await blockchain.treasury('user2')
-        const wallet1Address = await root.getWalletAddress(user1.address)
-        const wallet2Address = await root.getWalletAddress(user2.address)
-        await root.sendMessage(user1.getSender(), { value: '10' })
-        await root.sendMessage(user2.getSender(), { value: '5' })
-        const user1BalanceBefore = await user1.getBalance()
-        const user2BalanceBefore = await user2.getBalance()
+        const staker1 = await blockchain.treasury('staker1')
+        const staker2 = await blockchain.treasury('staker2')
+        await root.sendDepositCoins(staker1.getSender(), { value: '10' })
+        await root.sendDepositCoins(staker2.getSender(), { value: '5' })
+        const wallet1Address = await root.getWalletAddress(staker1.address)
+        const wallet2Address = await root.getWalletAddress(staker2.address)
         const wallet1 = blockchain.openContract(Wallet.createFromAddress(wallet1Address))
+        const wallet2 = blockchain.openContract(Wallet.createFromAddress(wallet2Address))
+        await wallet1.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet2.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
         const forwardPayload = beginCell().storeUint(0, 256).storeUint(0, 56).endCell().beginParse()
-        const result = await wallet1.sendSendTokens(user1.getSender(), {
-            value: '2.2',
+        const result = await wallet1.sendSendTokens(staker1.getSender(), {
+            value: '0.11',
             tokens: '9',
-            recipient: user2.address,
-            returnExcess: user1.address,
-            forwardTonAmount: '2',
+            recipient: staker2.address,
+            returnExcess: staker1.address,
+            forwardTonAmount: '0.01',
             forwardPayload,
         })
 
         expect(result.transactions).toHaveTransaction({
-            from: user1.address,
-            to: wallet1Address,
-            value: toNano('2.2'),
+            from: staker1.address,
+            to: wallet1.address,
+            value: toNano('0.11'),
             body: bodyOp(op.sendTokens),
             deploy: false,
             success: true,
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
-            from: wallet1Address,
-            to: wallet2Address,
-            value: between('2', '2.2'),
+            from: wallet1.address,
+            to: wallet2.address,
+            value: between('0.01', '0.11'),
             body: bodyOp(op.receiveTokens),
             deploy: false,
             success: true,
             outMessagesCount: 2,
         })
         expect(result.transactions).toHaveTransaction({
-            from: wallet2Address,
-            to: user2.address,
-            value: toNano('2'),
+            from: wallet2.address,
+            to: staker2.address,
+            value: toNano('0.01'),
             body: bodyOp(op.transferNotification),
             deploy: false,
             success: true,
             outMessagesCount: 0,
         })
         expect(result.transactions).toHaveTransaction({
-            from: wallet2Address,
-            to: user1.address,
-            value: between('0', '0.2'),
+            from: wallet2.address,
+            to: staker1.address,
+            value: between('0', '0.1'),
             body: bodyOp(op.gasExcess),
             deploy: false,
             success: true,
@@ -322,147 +320,124 @@ describe('Basic Operations', () => {
         expect(result.transactions).toHaveLength(5)
 
         const rootBalance = await root.getBalance()
-        const [ totalTon, totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
+        const [ totalCoins, totalTokens, totalStaking, totalUnstaking, totalValidatorsStake ] =
+            await root.getRootState()
         expect(rootBalance).toBeBetween('24.8', '25')
-        expect(totalTon).toBeTonValue(totalStakedTokens)
-        expect(totalStakedTokens).toBeBetween('14.8', '15')
-        expect(totalUnstakedTokens).toBeTonValue(0n)
+        expect(totalCoins).toBeBetween('14.8', '15')
+        expect(totalTokens).toBeTonValue(totalCoins)
+        expect(totalStaking).toBeTonValue('0')
+        expect(totalUnstaking).toBeTonValue('0')
+        expect(totalValidatorsStake).toBeTonValue('0')
 
         const wallet1Balance = await wallet1.getBalance()
-        const [ stakedTokens1, unstakedTokens1, withdrawalIncentive1 ] = (await wallet1.getWalletState())
-        expect(wallet1Balance).toBeBetween(fees.walletStorage, '0.1')
-        expect(stakedTokens1).toBeBetween('0.9', '1')
-        expect(unstakedTokens1).toBeTonValue(0n)
-        expect(withdrawalIncentive1).toBeTonValue(0n)
+        const [ tokens1, staking1, unstaking1 ] = await wallet1.getWalletState()
+        expect(wallet1Balance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
+        expect(tokens1).toBeBetween('0.9', '1')
+        expect(staking1.keys()).toHaveLength(0)
+        expect(unstaking1).toBeTonValue('0')
 
-        const wallet2 = blockchain.openContract(Wallet.createFromAddress(wallet2Address))
         const wallet2Balance = await wallet2.getBalance()
-        const [ stakedTokens2, unstakedTokens2, withdrawalIncentive2 ] = (await wallet2.getWalletState())
-        expect(wallet2Balance).toBeBetween(fees.walletStorage, '0.1')
-        expect(stakedTokens2).toBeBetween('13.9', '14')
-        expect(unstakedTokens2).toBeTonValue(0n)
-        expect(withdrawalIncentive2).toBeTonValue(0n)
-
-        const user1BalanceAfter = await user1.getBalance()
-        const user1BalanceDiff = user1BalanceAfter - user1BalanceBefore
-        expect(user1BalanceDiff).toBeBetween('-2.1', '-2.0')
-
-        const user2BalanceAfter = await user2.getBalance()
-        const user2BalanceDiff = user2BalanceAfter - user2BalanceBefore
-        expect(user2BalanceDiff).toBeBetween('1.9', '2')
+        const [ tokens2, staking2, unstaking2 ] = await wallet2.getWalletState()
+        expect(wallet2Balance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
+        expect(tokens2).toBeBetween('13.9', '14')
+        expect(staking2.keys()).toHaveLength(0)
+        expect(unstaking2).toBeTonValue('0')
     })
 
     it('should unstake tokens', async () => {
-        const user = await blockchain.treasury('user')
-        const userBalanceBefore = await user.getBalance()
-        await root.sendStakeTon(user.getSender(), {
-            value: '10.1',
-            tokens: '10',
-            recipient: user.address,
-            returnExcess: user.address,
-        })
-        const walletAddress = await root.getWalletAddress(user.address)
+        const staker = await blockchain.treasury('staker')
+        await root.sendDepositCoins(staker.getSender(), { value: '10' })
+        const walletAddress = await root.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        const result = await wallet.sendUnstakeTokens(user.getSender(), {
-            value: '0.15',
-            tokens: '7',
-            incentive: '0.05',
-            returnExcess: user.address,
-        })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        const result = await wallet.sendUnstakeTokens(staker.getSender(), { value: '0.1', tokens: '7' })
 
         expect(result.transactions).toHaveTransaction({
-            from: user.address,
-            to: walletAddress,
-            value: toNano('0.15'),
+            from: staker.address,
+            to: wallet.address,
+            value: toNano('0.1'),
             body: bodyOp(op.unstakeTokens),
             deploy: false,
             success: true,
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
-            from: walletAddress,
+            from: wallet.address,
             to: root.address,
             value: between('0', '0.1'),
-            body: bodyOp(op.unstakeReserve),
-            deploy: false,
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(result.transactions).toHaveTransaction({
-            from: root.address,
-            to: user.address,
-            value: between('0', '0.1'),
-            body: bodyOp(op.gasExcess),
-            deploy: false,
-            success: true,
-            outMessagesCount: 0,
-        })
-        expect(result.transactions).toHaveLength(4)
-
-        const rootBalance = await root.getBalance()
-        const [ totalTon, totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
-        expect(rootBalance).toBeBetween('20', '20.1')
-        expect(totalTon).toBeTonValue('10')
-        expect(totalStakedTokens).toBeTonValue('3')
-        expect(totalUnstakedTokens).toBeTonValue('7')
-
-        const walletBalance = await wallet.getBalance()
-        const [ stakedTokens, unstakedTokens, withdrawalIncentive ] = (await wallet.getWalletState())
-        expect(walletBalance).toBeBetween(fees.walletStorage + toNano('0.05'), fees.walletStorage + toNano('0.06'))
-        expect(stakedTokens).toBeTonValue('3')
-        expect(unstakedTokens).toBeTonValue('7')
-        expect(withdrawalIncentive).toBeTonValue('0.05')
-
-        const userBalanceAfter = await user.getBalance()
-        const userBalanceDiff = userBalanceAfter - userBalanceBefore
-        expect(userBalanceDiff).toBeBetween('-10.1', '-10.25')
-    })
-
-    it('should withdraw tokens', async () => {
-        const user = await blockchain.treasury('user')
-        const userBalanceBefore = await user.getBalance()
-        const miner = await blockchain.treasury('miner')
-        const minerBalanceBefore = await miner.getBalance()
-        await root.sendStakeTon(user.getSender(), {
-            value: '10.1',
-            tokens: '10',
-            recipient: user.address,
-            returnExcess: user.address,
-        })
-        const walletAddress = await root.getWalletAddress(user.address)
-        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendUnstakeTokens(user.getSender(), {
-            value: '0.15',
-            tokens: '7',
-            incentive: '0.05',
-            returnExcess: user.address,
-        })
-        const result = await wallet.sendReleaseTon(miner.getSender(), {
-            value: '0.1',
-            returnExcess: miner.address,
-        })
-
-        expect(result.transactions).toHaveTransaction({
-            from: miner.address,
-            to: walletAddress,
-            value: toNano('0.1'),
-            body: bodyOp(op.releaseTon),
-            deploy: false,
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(result.transactions).toHaveTransaction({
-            from: walletAddress,
-            to: root.address,
-            value: between('0.05', '0.15'),
-            body: bodyOp(op.withdrawTon),
+            body: bodyOp(op.reserveTokens),
             deploy: false,
             success: true,
             outMessagesCount: 2,
         })
         expect(result.transactions).toHaveTransaction({
             from: root.address,
-            to: user.address,
+            to: driver.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            deploy: false,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: root.address,
+            to: staker.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            deploy: false,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(5)
+
+        const rootBalance = await root.getBalance()
+        const [ totalCoins, totalTokens, totalStaking, totalUnstaking, totalValidatorsStake ] =
+            await root.getRootState()
+        expect(rootBalance).toBeBetween('19.9', '20')
+        expect(totalCoins).toBeBetween('9.9', '10')
+        expect(totalTokens).toBeTonValue(totalCoins)
+        expect(totalStaking).toBeTonValue('0')
+        expect(totalUnstaking).toBeTonValue('7')
+        expect(totalValidatorsStake).toBeTonValue('0')
+
+        const walletBalance = await wallet.getBalance()
+        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        expect(walletBalance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
+        expect(tokens).toBeBetween('2.9', '3')
+        expect(staking.keys()).toHaveLength(0)
+        expect(unstaking).toBeTonValue('7')
+    })
+
+    it('should withdraw tokens', async () => {
+        const staker = await blockchain.treasury('staker')
+        await root.sendDepositCoins(staker.getSender(), { value: '10' })
+        const walletAddress = await root.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendUnstakeTokens(staker.getSender(), { value: '0.1', tokens: '7' })
+        const result = await wallet.sendWithdrawTokens(driver.getSender(), { value: '0.1' })
+
+        expect(result.transactions).toHaveTransaction({
+            from: driver.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.withdrawTokens),
+            deploy: false,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: root.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.burnTokens),
+            deploy: false,
+            success: true,
+            outMessagesCount: 2,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: root.address,
+            to: staker.address,
             value: toNano('7'),
             body: bodyOp(op.withdrawalNotification),
             deploy: false,
@@ -471,8 +446,8 @@ describe('Basic Operations', () => {
         })
         expect(result.transactions).toHaveTransaction({
             from: root.address,
-            to: miner.address,
-            value: between('0.1', '0.15'),
+            to: driver.address,
+            value: between('0', '0.1'),
             body: bodyOp(op.gasExcess),
             deploy: false,
             success: true,
@@ -481,47 +456,43 @@ describe('Basic Operations', () => {
         expect(result.transactions).toHaveLength(5)
 
         const rootBalance = await root.getBalance()
-        const [ totalTon, totalStakedTokens, totalUnstakedTokens ] = await root.getRootState()
-        expect(rootBalance).toBeBetween('13', '13.1')
-        expect(totalTon).toBeTonValue(totalStakedTokens)
-        expect(totalStakedTokens).toBeTonValue('3')
-        expect(totalUnstakedTokens).toBeTonValue('0')
+        const [ totalCoins, totalTokens, totalStaking, totalUnstaking, totalValidatorsStake ] =
+            await root.getRootState()
+        expect(rootBalance).toBeBetween('12.9', '13')
+        expect(totalCoins).toBeBetween('2.9', '3')
+        expect(totalTokens).toBeTonValue(totalCoins)
+        expect(totalStaking).toBeTonValue('0')
+        expect(totalUnstaking).toBeTonValue('0')
+        expect(totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const [ stakedTokens, unstakedTokens, withdrawalIncentive ] = (await wallet.getWalletState())
-        expect(walletBalance).toBeBetween(fees.walletStorage, '0.1')
-        expect(stakedTokens).toBeTonValue('3')
-        expect(unstakedTokens).toBeTonValue('0')
-        expect(withdrawalIncentive).toBeTonValue(0n)
-
-        const userBalanceAfter = await user.getBalance()
-        const userBalanceDiff = userBalanceAfter - userBalanceBefore
-        expect(userBalanceDiff).toBeBetween('-3.1', '-3.25')
-
-        const minerBalanceAfter = await miner.getBalance()
-        const minerBalanceDiff = minerBalanceAfter - minerBalanceBefore
-        expect(minerBalanceDiff).toBeBetween('0', '0.05')
+        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        expect(walletBalance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
+        expect(tokens).toBeBetween('2.9', '3')
+        expect(staking.keys()).toHaveLength(0)
+        expect(unstaking).toBeTonValue('0')
     })
 
     it('should respond with wallet address', async () => {
-        const user = await blockchain.treasury('user')
-        const walletAddress = await root.getWalletAddress(user.address)
+        const staker = await blockchain.treasury('staker')
+        await root.sendDepositCoins(staker.getSender(), { value: '10' })
+        const walletAddress = await root.getWalletAddress(staker.address)
         const queryId = BigInt(Math.floor(Math.random() * Math.pow(2, 64)))
         const expectedBody = beginCell()
-            .storeUint(0xd1735400, 32)
+            .storeUint(op.takeWalletAddress, 32)
             .storeUint(queryId, 64)
             .storeAddress(walletAddress)
-            .storeMaybeRef(beginCell().storeAddress(user.address))
+            .storeMaybeRef(beginCell().storeAddress(staker.address))
             .endCell()
-        const result = await root.sendProvideWalletAddress(user.getSender(), {
+        const result = await root.sendProvideWalletAddress(staker.getSender(), {
             value: '0.1',
             queryId: queryId,
-            owner: user.address,
+            owner: staker.address,
             includeAddress: true,
         })
 
         expect(result.transactions).toHaveTransaction({
-            from: user.address,
+            from: staker.address,
             to: root.address,
             value: toNano('0.1'),
             body: bodyOp(op.provideWalletAddress),
@@ -531,8 +502,8 @@ describe('Basic Operations', () => {
         })
         expect(result.transactions).toHaveTransaction({
             from: root.address,
-            to: user.address,
-            value: between(0n, '0.1'),
+            to: staker.address,
+            value: between('0', '0.1'),
             body: expectedBody,
             deploy: false,
             success: true,

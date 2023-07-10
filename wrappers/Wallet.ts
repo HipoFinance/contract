@@ -1,12 +1,12 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, ContractState, Dictionary, Sender, SendMode, Slice } from 'ton-core'
+import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Dictionary, Sender, SendMode, Slice } from 'ton-core'
 import { op, tonValue } from './common'
 
 type WalletConfig = {
     owner: Address
     root: Address
-    tokensDict: Dictionary<bigint, bigint>
-    withdrawalTokens: bigint
-    withdrawalIncentive: bigint
+    tokens: bigint
+    staking: Dictionary<bigint, bigint>
+    unstaking: bigint
     walletCode: Cell
 }
 
@@ -14,11 +14,15 @@ function walletConfigToCell(config: WalletConfig): Cell {
     return beginCell()
         .storeAddress(config.owner)
         .storeAddress(config.root)
-        .storeDict(config.tokensDict)
-        .storeCoins(config.withdrawalTokens)
-        .storeCoins(config.withdrawalIncentive)
+        .storeCoins(config.tokens)
+        .storeDict(config.staking)
+        .storeCoins(config.unstaking)
         .storeRef(config.walletCode)
         .endCell()
+}
+
+function toStakingDict(dict: Cell | null): Dictionary<bigint, bigint> {
+    return Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.BigVarUint(4), dict)
 }
 
 export class Wallet implements Contract {
@@ -41,6 +45,25 @@ export class Wallet implements Contract {
         body?: Cell | string
     }) {
         await provider.internal(via, opts)
+    }
+
+    async sendStakeCoins(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+        roundSince: bigint
+    }) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.stakeCoins, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.roundSince, 32)
+                .endCell()
+        })
     }
 
     async sendSendTokens(provider: ContractProvider, via: Sender, opts: {
@@ -78,8 +101,8 @@ export class Wallet implements Contract {
         sendMode?: SendMode
         queryId?: bigint
         tokens: bigint | string
-        incentive: bigint | string
         returnExcess?: Address
+        customPayload?: Cell
     }) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -90,33 +113,31 @@ export class Wallet implements Contract {
                 .storeUint(opts.queryId || 0, 64)
                 .storeCoins(tonValue(opts.tokens))
                 .storeAddress(opts.returnExcess)
-                .storeMaybeRef(beginCell().storeCoins(tonValue(opts.incentive)))
+                .storeMaybeRef(opts.customPayload)
                 .endCell()
         })
     }
 
-    async sendReleaseTon(provider: ContractProvider, via: Sender, opts: {
+    async sendWithdrawTokens(provider: ContractProvider, via: Sender, opts: {
         value: bigint | string
         bounce?: boolean
         sendMode?: SendMode
         queryId?: bigint
-        returnExcess?: Address
     }) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
             sendMode: opts.sendMode,
             body: beginCell()
-                .storeUint(op.releaseTon, 32)
+                .storeUint(op.withdrawTokens, 32)
                 .storeUint(opts.queryId || 0, 64)
-                .storeAddress(opts.returnExcess)
                 .endCell()
         })
     }
 
-    async getWalletState(provider: ContractProvider): Promise<[bigint, bigint, bigint]> {
+    async getWalletState(provider: ContractProvider): Promise<[bigint, Dictionary<bigint, bigint>, bigint]> {
         const { stack } = await provider.get('get_wallet_state', [])
-        return [ stack.readBigNumber(), stack.readBigNumber(), stack.readBigNumber() ]
+        return [ stack.readBigNumber(), toStakingDict(stack.readCellOpt()), stack.readBigNumber() ]
     }
 
     async getWalletData(provider: ContractProvider): Promise<[bigint, Address, Address, Cell]> {

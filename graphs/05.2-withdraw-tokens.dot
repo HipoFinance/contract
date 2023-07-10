@@ -1,0 +1,22 @@
+digraph {
+    label="staker withdraws 10 TON"
+    node [ colorscheme=pastel19 style=filled ]
+
+    /* Entities */
+    external [ shape=point ]
+    staker, driver [ color=2 ]
+    root [ color=4 ]
+    wallet [ color=3 ]
+
+    /* Relationships */
+    staker -> wallet [ arrowhead=inv style=dotted ]
+    external -> driver [ label="1" ]
+    driver -> wallet [ label="2\l op::withdraw_tokens\l 0.07 TON\l" ]
+    wallet -> root [ label="3\l op::burn_tokens\l 0.06 TON\l tokens: 10\l" ]
+    root -> staker [ label="4\l op::withdrawal_notification\l 10 TON\l" ]
+    root -> driver [ label="5\l op::gas_excess\l 0.04 TON\l" ]
+
+    /* Ranks */
+    { rank=min external staker driver }
+    { rank=max root }
+}
