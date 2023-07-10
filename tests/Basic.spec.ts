@@ -10,12 +10,12 @@ import { op } from '../wrappers/common'
 describe('Basic Operations', () => {
     let treasuryCode: Cell
     let walletCode: Cell
-    let poolCode: Cell
+    let loanCode: Cell
 
     beforeAll(async () => {
         treasuryCode = await compile('Treasury')
         walletCode = await compile('Wallet')
-        poolCode = await compile('Pool')
+        loanCode = await compile('Loan')
     })
 
     let blockchain: Blockchain
@@ -28,7 +28,7 @@ describe('Basic Operations', () => {
         driver = await blockchain.treasury('driver')
         treasury = blockchain.openContract(Treasury.createFromConfig({
             walletCode,
-            poolCode,
+            loanCode,
             driver: driver.address,
         }, treasuryCode))
 

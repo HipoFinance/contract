@@ -5,18 +5,18 @@ digraph {
     /* Entities */
     external [ shape=point ]
     treasury [ color=4 ]
-    pool1, pool2 [ color=5 ]
+    loan1, loan2 [ color=5 ]
     elector [ color=1 ]
 
     /* Relationships */
     external -> treasury [ label="1\l op::participate_in_election\l" ]
     treasury -> treasury [ label="2\l op::process_loan_requests\l" ]
-    treasury -> pool1 [ label="3\l op::send_new_stake\l 300002 TON\l" ]
-    pool1 -> elector [ label="4\l op::new_stake\l 300001 TON\l" ]
-    elector -> pool1 [ label="5\l op::new_stake_ok\l 1 TON\l" ]
-    treasury -> pool2 [ label="6\l op::send_new_stake\l 300002 TON\l" ]
-    pool2 -> elector [ label="7\l op::new_stake\l 300001 TON\l" ]
-    elector -> pool2 [ label="8\l op::new_stake_ok\l 1 TON\l" ]
+    treasury -> loan1 [ label="3\l op::send_new_stake\l 300002 TON\l" ]
+    loan1 -> elector [ label="4\l op::new_stake\l 300001 TON\l" ]
+    elector -> loan1 [ label="5\l op::new_stake_ok\l 1 TON\l" ]
+    treasury -> loan2 [ label="6\l op::send_new_stake\l 300002 TON\l" ]
+    loan2 -> elector [ label="7\l op::new_stake\l 300001 TON\l" ]
+    elector -> loan2 [ label="8\l op::new_stake_ok\l 1 TON\l" ]
 
     /* Ranks */
     { rank=min external treasury }

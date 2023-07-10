@@ -4,7 +4,7 @@ import { op, tonValue } from './common'
 export type Fees = {
     treasuryStorage: bigint
     walletStorage: bigint
-    poolStorage: bigint
+    loanStorage: bigint
 }
 
 type Reward = {
@@ -61,7 +61,7 @@ type TreasuryConfig = {
     totalValidatorsStake?: bigint
     participations?: Dictionary<bigint, Participation>
     walletCode: Cell
-    poolCode: Cell
+    loanCode: Cell
     driver?: Address
     rewardsHistory?: Dictionary<bigint, Reward>
     content?: Cell
@@ -80,7 +80,7 @@ function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeCoins(config.totalValidatorsStake || 0)
         .storeDict(config.participations)
         .storeRef(config.walletCode)
-        .storeRef(config.poolCode)
+        .storeRef(config.loanCode)
         .storeRef(treasuryExtension)
         .endCell()
 }
@@ -258,11 +258,11 @@ export class Treasury implements Contract {
         return stack.readAddress()
     }
 
-    async getPoolAddress(provider: ContractProvider, validator: Address, roundSince: bigint) {
+    async getLoanAddress(provider: ContractProvider, validator: Address, roundSince: bigint) {
         const tb = new TupleBuilder()
         tb.writeAddress(validator)
         tb.writeNumber(roundSince)
-        const { stack } = await provider.get('get_pool_address', tb.build())
+        const { stack } = await provider.get('get_loan_address', tb.build())
         return stack.readAddress()
     }
 
@@ -271,7 +271,7 @@ export class Treasury implements Contract {
         return {
             treasuryStorage: stack.readBigNumber(),
             walletStorage: stack.readBigNumber(),
-            poolStorage: stack.readBigNumber(),
+            loanStorage: stack.readBigNumber(),
         }
     }
 

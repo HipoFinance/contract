@@ -284,7 +284,7 @@ treasury_storage#_
     total_validators_stake:Coins
     participations:(HashmapE 32 Participation)
     wallet_code:^Cell
-    pool_code:^Cell
+    loan_code:^Cell
     extension:^Extension
         = TreasuryStorage;
 
@@ -297,9 +297,9 @@ wallet_storage#_
     wallet_code:^Cell
         = WalletStorage;
 
-pool_storage#_
+loan_storage#_
     elector:MsgAddress
     treasury:MsgAddress
     validator:MsgAddress
     round_since:uint32
-        = PoolStorage;
+        = LoanStorage;

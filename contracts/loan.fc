@@ -29,8 +29,8 @@
 
     throw_unless(err::access_denied, equal_slices(src, treasury));
 
-    ( int pool_storage, _ ) = loan_storage_fee();
-    raw_reserve(pool_storage, reserve::at_most);
+    ( int loan_storage, _ ) = loan_storage_fee();
+    raw_reserve(loan_storage, reserve::at_most);
 
     builder elector = create_address(get_elector());
     builder body = begin_cell()

@@ -17,7 +17,7 @@ export async function run(provider: NetworkProvider) {
     const treasury = provider.open(
         Treasury.createFromConfig({
             walletCode: await compile('Wallet'),
-            poolCode: await compile('Pool'),
+            loanCode: await compile('Loan'),
             content,
         }, await compile('Treasury'))
     )

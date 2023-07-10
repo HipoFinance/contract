@@ -156,7 +156,7 @@ cell create_wallet_data(builder owner, slice treasury, cell wallet_code) {
         .end_cell();
 }
 
-cell create_pool_data(slice treasury, builder validator, int round_since) {
+cell create_loan_data(slice treasury, builder validator, int round_since) {
     return begin_cell()
         .store_uint(0, 2) ;; addr_none for elector
         .store_slice(treasury)
@@ -173,25 +173,25 @@ cell create_pool_data(slice treasury, builder validator, int round_since) {
     return (wallet, state_init, addr);
 }
 
-(builder, cell, int) create_pool_address(slice treasury, builder validator, int round_since, cell pool_code) {
-    cell pool_data = create_pool_data(treasury, validator, round_since);
-    cell state_init = create_state_init(pool_code, pool_data);
+(builder, cell, int) create_loan_address(slice treasury, builder validator, int round_since, cell loan_code) {
+    cell loan_data = create_loan_data(treasury, validator, round_since);
+    cell state_init = create_state_init(loan_code, loan_data);
     int addr = state_init.cell_hash();
-    builder pool = create_address(chain::main, addr);
-    return (pool, state_init, addr);
+    builder loan = create_address(chain::main, addr);
+    return (loan, state_init, addr);
 }
 
 int loan_sort_key(int min_payment, int validator_reward_share, int loan_amount) {
     ;; sort based on:
     ;;   1. efficieny
-    ;;   2. pool reward share
+    ;;   2. treasury reward share
     ;;   3. least loan amount
-    int pool_reward_share = 255 - validator_reward_share;
+    int treasury_reward_share = 255 - validator_reward_share;
     int min_payment_round = min_payment >> 30; ;; round to around 1 TON
     int loan_amount_round = loan_amount >> 40; ;; round to around 1000 TON
     int loan_amount_round_comp = ~ loan_amount_round;
     int efficieny = min((1 << 24) - 1, muldiv(min_payment_round, 1000, loan_amount_round));
-    return (efficieny << (8 + 80)) + (pool_reward_share << 80) + loan_amount_round_comp;
+    return (efficieny << (8 + 80)) + (treasury_reward_share << 80) + loan_amount_round_comp;
 }
 
 (int, int, int, int, int) participate_times() impure {
@@ -277,7 +277,7 @@ int wallet_storage_fee() impure {
 }
 
 (int, int) loan_storage_fee() impure {
-    ;; pool smart contract storage on main chain while validating
+    ;; loan smart contract storage on main chain while validating
     ( int bit_price_ps, int cell_price_ps, int mc_bit_price_ps, int mc_cell_price_ps ) = get_storage_prices();
     int bits1 = 267 + 267 + 267 + 32;
     int cells1 = 1;
@@ -457,9 +457,9 @@ int withdraw_tokens_fee() impure {
     return storage_fee + computation_fee + fwd_fee;
 }
 
-int request_loan_fee(cell pool_state_init, int loans_size) impure {
-    ( int pool_storage_fee, int request_storage_fee ) = loan_storage_fee();
-    int storage_fee = pool_storage_fee + request_storage_fee;
+int request_loan_fee(cell loan_state_init, int loans_size) impure {
+    ( int loan_storage_fee, int request_storage_fee ) = loan_storage_fee();
+    int storage_fee = loan_storage_fee + request_storage_fee;
 
     ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
     ( int mc_gas_price, _ ) = get_gas_prices(config::mc_gas_prices);
@@ -487,7 +487,7 @@ int request_loan_fee(cell pool_state_init, int loans_size) impure {
 
     ( int lump_price, int bit_price, int cell_price ) = get_msg_forward_prices(config::fwd_prices);
     ( int mc_lump_price, int mc_bit_price, int mc_cell_price ) = get_msg_forward_prices(config::mc_fwd_prices);
-    ( int cells, int bits, _ ) = compute_data_size(pool_state_init, 1000);
+    ( int cells, int bits, _ ) = compute_data_size(loan_state_init, 1000);
     ;; consider two additional cells for the message body
     cells += 2;
     bits += 1088;
@@ -516,9 +516,9 @@ int request_loan_fee(cell pool_state_init, int loans_size) impure {
     return storage_fee + computation_fee + fwd_fee;
 }
 
-int send_new_stake_fee(cell pool_state_init, int loans_size) impure {
-    ( int pool_storage_fee, _ ) = loan_storage_fee();
-    int storage_fee = pool_storage_fee;
+int send_new_stake_fee(cell loan_state_init, int loans_size) impure {
+    ( int loan_storage_fee, _ ) = loan_storage_fee();
+    int storage_fee = loan_storage_fee;
 
     ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
     ( int mc_gas_price, _ ) = get_gas_prices(config::mc_gas_prices);
@@ -533,7 +533,7 @@ int send_new_stake_fee(cell pool_state_init, int loans_size) impure {
 
     ( int lump_price, int bit_price, int cell_price ) = get_msg_forward_prices(config::fwd_prices);
     ( int mc_lump_price, int mc_bit_price, int mc_cell_price ) = get_msg_forward_prices(config::mc_fwd_prices);
-    ( int cells, int bits, _ ) = compute_data_size(pool_state_init, 1000);
+    ( int cells, int bits, _ ) = compute_data_size(loan_state_init, 1000);
     ;; consider two additional cells for the message body
     cells += 2;
     bits += 1088;
@@ -552,8 +552,8 @@ int send_new_stake_fee(cell pool_state_init, int loans_size) impure {
 }
 
 int recover_stake_fee(int loans_size) impure {
-    ( int pool_storage_fee, _ ) = loan_storage_fee();
-    int storage_fee = pool_storage_fee;
+    ( int loan_storage_fee, _ ) = loan_storage_fee();
+    int storage_fee = loan_storage_fee;
 
     ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
     ( int mc_gas_price, _ ) = get_gas_prices(config::mc_gas_prices);
