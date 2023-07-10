@@ -7,6 +7,7 @@ digraph {
     treasury [ color=4 ]
     loan1, loan2 [ color=5 ]
     elector [ color=1 ]
+    validatorN [ color=2 ]
 
     /* Relationships */
     external -> treasury [ label="1\l op::participate_in_election\l" ]
@@ -17,8 +18,10 @@ digraph {
     treasury -> loan2 [ label="6\l op::send_new_stake\l 300002 TON\l" ]
     loan2 -> elector [ label="7\l op::new_stake\l 300001 TON\l" ]
     elector -> loan2 [ label="8\l op::new_stake_ok\l 1 TON\l" ]
+    treasury -> validatorN [ label="9\l 301 TON\l" ]
 
     /* Ranks */
-    { rank=min external treasury }
+    { rank=min validatorN }
+    { rank=same external treasury }
     { rank=max elector }
 }
