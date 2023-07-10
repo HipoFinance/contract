@@ -349,7 +349,7 @@ builder pack_extension
 
     int ton_balance = get_balance().pair_first();
     int ton_balance_before_msg = ton_balance - msg_ton;
-    int available_ton = ton_balance_before_msg - fee::root_storage - total_validators_stake;
+    int available_ton = ton_balance_before_msg - fee::treasury_storage - total_validators_stake;
 
     int withdrawal_amount = tokens;
     if (total_tokens > 0) {
@@ -641,7 +641,7 @@ builder pack_extension
     ( _, cell state_init, _ ) = create_pool_address(my_address(), my_address().to_builder(), round_since, pool_code);
     int fee = request_loan_fee(state_init, loans_size);
     int ton_balance = get_balance().pair_first();
-    int available = ton_balance - fee::root_storage - loans_size * fee - reserved_amount;
+    int available = ton_balance - fee::treasury_storage - loans_size * fee - reserved_amount;
 
     ( requests, cell accepted, int accepted_size ) = decide_on_loans(sorted, requests, participate_until, available);
     int current_vset_hash = config_param(config::current_validators).cell_hash();
@@ -1282,7 +1282,7 @@ builder pack_extension
 ;; get methods
 ;;
 
-(int, int, int, int, int, cell, cell, slice, cell, cell, cell) get_root_state() method_id {
+(int, int, int, int, int, cell, cell, slice, cell, cell, cell) get_treasury_state() method_id {
     ( int total_coins
     , int total_tokens
     , int total_staking
@@ -1372,7 +1372,7 @@ slice get_pool_address(slice validator, int round_since) method_id {
     int wallet_storage = wallet_storage_fee();
     ( int pool_storage, _ ) = loan_storage_fee();
     return
-        ( fee::root_storage
+        ( fee::treasury_storage
         , wallet_storage
         , pool_storage
         );

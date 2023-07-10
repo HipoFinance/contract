@@ -2,7 +2,7 @@ import { Address, beginCell, Cell, Contract, contractAddress } from 'ton-core'
 
 export type PoolConfig = {
     elector?: Address
-    root: Address
+    treasury: Address
     validator: Address
     roundSince: bigint
 }
@@ -10,7 +10,7 @@ export type PoolConfig = {
 export function poolConfigToCell(config: PoolConfig): Cell {
     return beginCell()
         .storeAddress(config.elector)
-        .storeAddress(config.root)
+        .storeAddress(config.treasury)
         .storeAddress(config.validator)
         .storeUint(config.roundSince, 32)
         .endCell()

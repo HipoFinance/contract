@@ -4,12 +4,12 @@ digraph {
 
     /* Entities */
     external [ shape=point ]
-    root [ color=4 ]
+    treasury [ color=4 ]
 
     /* Relationships */
-    external -> root [ label="1\l op::vset_changed\l" ]
+    external -> treasury [ label="1\l op::vset_changed\l" ]
 
     /* Ranks */
     { rank=min external }
-    { rank=max root }
+    { rank=max treasury }
 }

@@ -2,7 +2,7 @@ import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, 
 import { op, tonValue } from './common'
 
 export type Fees = {
-    rootStorage: bigint
+    treasuryStorage: bigint
     walletStorage: bigint
     poolStorage: bigint
 }
@@ -53,7 +53,7 @@ type Participation = {
     stakeHeldUntil?: bigint
 }
 
-type RootConfig = {
+type TreasuryConfig = {
     totalCoins?: bigint
     totalTokens?: bigint
     totalStaking?: bigint
@@ -67,8 +67,8 @@ type RootConfig = {
     content?: Cell
 }
 
-function rootConfigToCell(config: RootConfig): Cell {
-    const rootExtension = beginCell()
+function treasuryConfigToCell(config: TreasuryConfig): Cell {
+    const treasuryExtension = beginCell()
         .storeAddress(config.driver)
         .storeDict(config.rewardsHistory)
         .storeRef(config.content || Cell.EMPTY)
@@ -81,21 +81,21 @@ function rootConfigToCell(config: RootConfig): Cell {
         .storeDict(config.participations)
         .storeRef(config.walletCode)
         .storeRef(config.poolCode)
-        .storeRef(rootExtension)
+        .storeRef(treasuryExtension)
         .endCell()
 }
 
-export class Root implements Contract {
+export class Treasury implements Contract {
     constructor(readonly address: Address, readonly init?: { code: Cell, data: Cell }) {}
 
     static createFromAddress(address: Address) {
-        return new Root(address)
+        return new Treasury(address)
     }
 
-    static createFromConfig(config: RootConfig, code: Cell, workchain = 0) {
-        const data = rootConfigToCell(config)
+    static createFromConfig(config: TreasuryConfig, code: Cell, workchain = 0) {
+        const data = treasuryConfigToCell(config)
         const init = { code, data }
-        return new Root(contractAddress(workchain, init), init)
+        return new Treasury(contractAddress(workchain, init), init)
     }
 
     async sendMessage(provider: ContractProvider, via: Sender, opts: {
@@ -222,9 +222,9 @@ export class Root implements Contract {
         await provider.external(message)
     }
 
-    async getRootState(provider: ContractProvider):
+    async getTreasuryState(provider: ContractProvider):
             Promise<[bigint, bigint, bigint, bigint, bigint, Cell | null, Cell | null, Address, Cell, Cell, Cell]> {
-        const { stack } = await provider.get('get_root_state', [])
+        const { stack } = await provider.get('get_treasury_state', [])
         return [
             stack.readBigNumber(),
             stack.readBigNumber(),
@@ -269,7 +269,7 @@ export class Root implements Contract {
     async getFees(provider: ContractProvider): Promise<Fees> {
         const { stack } = await provider.get('get_fees', [])
         return {
-            rootStorage: stack.readBigNumber(),
+            treasuryStorage: stack.readBigNumber(),
             walletStorage: stack.readBigNumber(),
             poolStorage: stack.readBigNumber(),
         }

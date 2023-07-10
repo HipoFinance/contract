@@ -5,18 +5,18 @@ digraph {
     /* Entities */
     external [ shape=point ]
     staker, driver [ color=2 ]
-    root [ color=4 ]
+    treasury [ color=4 ]
     wallet [ color=3 ]
 
     /* Relationships */
     staker -> wallet [ arrowhead=inv style=dotted ]
     external -> staker [ label="1" ]
     staker -> wallet [ label="2\l op::unstake_tokens\l 0.20 TON\l tokens: 10\l" ]
-    wallet -> root [ label="3\l op::reserve_tokens\l 0.19 TON\l tokens: 10\l" ]
-    root -> driver [ label="4\l op::gas_excess\l 0.08 TON\l" ]
-    root -> staker [ label="5\l op::gas_excess\l 0.10 TON\l" ]
+    wallet -> treasury [ label="3\l op::reserve_tokens\l 0.19 TON\l tokens: 10\l" ]
+    treasury -> driver [ label="4\l op::gas_excess\l 0.08 TON\l" ]
+    treasury -> staker [ label="5\l op::gas_excess\l 0.10 TON\l" ]
 
     /* Ranks */
     { rank=min external staker driver }
-    { rank=max root }
+    { rank=max treasury }
 }

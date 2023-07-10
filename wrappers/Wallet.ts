@@ -3,7 +3,7 @@ import { op, tonValue } from './common'
 
 type WalletConfig = {
     owner: Address
-    root: Address
+    treasury: Address
     tokens: bigint
     staking: Dictionary<bigint, bigint>
     unstaking: bigint
@@ -13,7 +13,7 @@ type WalletConfig = {
 function walletConfigToCell(config: WalletConfig): Cell {
     return beginCell()
         .storeAddress(config.owner)
-        .storeAddress(config.root)
+        .storeAddress(config.treasury)
         .storeCoins(config.tokens)
         .storeDict(config.staking)
         .storeCoins(config.unstaking)

@@ -1,9 +1,9 @@
 #include "imports/utils.fc";
 
-() save_data(builder elector, slice root, slice validator, int round_since) impure {
+() save_data(builder elector, slice treasury, slice validator, int round_since) impure {
     begin_cell()
         .store_builder(elector)
-        .store_slice(root)
+        .store_slice(treasury)
         .store_slice(validator)
         .store_uint(round_since, 32)
         .end_cell()
@@ -13,21 +13,21 @@
 (slice, slice, slice, int) load_data() impure {
     slice ds = get_data().begin_parse();
     slice elector = ds~load_msg_addr();
-    slice root = ds~load_msg_addr();
+    slice treasury = ds~load_msg_addr();
     slice validator = ds~load_msg_addr();
     int round_since = ds~load_uint(32);
     ds.end_parse();
-    return ( elector, root, validator, round_since );
+    return ( elector, treasury, validator, round_since );
 }
 
 () send_new_stake(slice src, slice s) impure {
-    ( _, slice root, slice validator, int round_since ) = load_data();
+    ( _, slice treasury, slice validator, int round_since ) = load_data();
 
     int query_id = s~load_uint(64); ;; must be non-zero to receive success response
     cell new_stake_msg = s~load_ref();
     s.end_parse();
 
-    throw_unless(err::access_denied, equal_slices(src, root));
+    throw_unless(err::access_denied, equal_slices(src, treasury));
 
     ( int pool_storage, _ ) = loan_storage_fee();
     raw_reserve(pool_storage, reserve::at_most);
@@ -39,11 +39,11 @@
         .store_slice(new_stake_msg.begin_parse());
     send_msg(true, elector, null(), body, 0, send::remaining_balance);
 
-    save_data(elector, root, validator, round_since);
+    save_data(elector, treasury, validator, round_since);
 }
 
 () new_stake_error(slice src, slice s) impure {
-    ( slice elector, slice root, slice validator, int round_since ) = load_data();
+    ( slice elector, slice treasury, slice validator, int round_since ) = load_data();
 
     int query_id = 0;
     int reason = 0;
@@ -62,16 +62,16 @@
         .store_uint(reason, 32)
         .store_slice(validator)
         .store_uint(round_since, 32);
-    send_msg(false, root.to_builder(), null(), body, 0, send::remaining_balance);
+    send_msg(false, treasury.to_builder(), null(), body, 0, send::remaining_balance);
 }
 
 () send_recover_stake(slice src, slice s) impure {
-    ( slice elector, slice root, slice validator, int round_since ) = load_data();
+    ( slice elector, slice treasury, slice validator, int round_since ) = load_data();
 
     int query_id = s~load_uint(64);
     s.end_parse();
 
-    throw_unless(err::access_denied, equal_slices(src, root));
+    throw_unless(err::access_denied, equal_slices(src, treasury));
 
     builder body = begin_cell()
         .store_uint(op::recover_stake, 32)
@@ -80,7 +80,7 @@
 }
 
 () recover_stake_result(slice src, int op, slice s) impure {
-    ( slice elector, slice root, slice validator, int round_since ) = load_data();
+    ( slice elector, slice treasury, slice validator, int round_since ) = load_data();
 
     int query_id = 0;
     if (s.slice_bits() >= 64) { ;; in case the elector's behavior changed, don't throw
@@ -99,11 +99,11 @@
         .store_uint(ok?, 1)
         .store_slice(validator)
         .store_uint(round_since, 32);
-    send_msg(false, root.to_builder(), null(), body, 0, send::remaining_balance);
+    send_msg(false, treasury.to_builder(), null(), body, 0, send::remaining_balance);
 }
 
 int src_is_elector?(slice src) {
-    ( slice elector, slice root, slice validator, int round_since ) = load_data();
+    ( slice elector, slice treasury, slice validator, int round_since ) = load_data();
     builder current_elector = create_address(get_elector());
 
     return equal_slices(src, elector) | equal_slices(src, current_elector.end_cell().begin_parse());

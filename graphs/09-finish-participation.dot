@@ -4,23 +4,23 @@ digraph {
 
     /* Entities */
     external [ shape=point ]
-    root [ color=4 ]
+    treasury [ color=4 ]
     pool1, pool2 [ color=5 ]
     elector [ color=1 ]
 
     /* Relationships */
-    external -> root [ label="1\l op::finish_participation\l" ]
-    root -> root [ label="2\l op::recover_stakes\l" ]
-    root -> pool1 [ label="3\l op::send_recover_stake\l 1 TON\l" ]
+    external -> treasury [ label="1\l op::finish_participation\l" ]
+    treasury -> treasury [ label="2\l op::recover_stakes\l" ]
+    treasury -> pool1 [ label="3\l op::send_recover_stake\l 1 TON\l" ]
     pool1 -> elector [ label="4\l op::recover_stake\l 1 TON\l" ]
     elector -> pool1 [ label="5\l op::recover_stake_ok\l 300101 TON\l" ]
-    pool1 -> root [ label="6\l op::recover_stake_result\l 300101 TON\l" ]
-    root -> pool2 [ label="6\l op::send_recover_stake\l 1 TON\l" ]
+    pool1 -> treasury [ label="6\l op::recover_stake_result\l 300101 TON\l" ]
+    treasury -> pool2 [ label="6\l op::send_recover_stake\l 1 TON\l" ]
     pool2 -> elector [ label="7\l op::recover_stake\l 1 TON\l" ]
     elector -> pool2 [ label="8\l op::recover_stake_ok\l 300101 TON\l" ]
-    pool2 -> root [ label="9\l op::recover_stake_result\l 300101 TON\l"]
+    pool2 -> treasury [ label="9\l op::recover_stake_result\l 300101 TON\l"]
 
     /* Ranks */
-    { rank=min external root }
+    { rank=min external treasury }
     { rank=max elector }
 }

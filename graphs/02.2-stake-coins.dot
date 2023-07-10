@@ -6,18 +6,18 @@ digraph {
     external [ shape=point ]
     staker, driver [ color=2 ]
     wallet [ color=3 ]
-    root [ color=4 ]
+    treasury [ color=4 ]
 
     /* Relationships */
     staker -> wallet [ arrowhead=inv style=dotted ]
     external -> driver [ label="1" ]
     driver -> wallet [ label="2\l op::stake_coins\l 0.07 TON\l" ]
-    wallet -> root [ label="3\l op::mint_tokens\l 0.06 TON\l coins: 10\l" ]
-    root -> wallet [ label="4\l op::receive_tokens\l 0.05 TON\l tokens: 10\l" ]
+    wallet -> treasury [ label="3\l op::mint_tokens\l 0.06 TON\l coins: 10\l" ]
+    treasury -> wallet [ label="4\l op::receive_tokens\l 0.05 TON\l tokens: 10\l" ]
     wallet -> staker [ label="5\l op::transfer_notification\l 0.01 TON\l tokens: 9\l" ]
     wallet -> driver [ label="6\l op::gas_excess\l 0.03 TON\l" ]
 
     /* Ranks */
     { rank=min external staker driver }
-    { rank=max root }
+    { rank=max treasury }
 }

@@ -145,10 +145,10 @@ builder create_address(int wc, int addr) {
         .store_uint(addr, 256);
 }
 
-cell create_wallet_data(builder owner, slice root, cell wallet_code) {
+cell create_wallet_data(builder owner, slice treasury, cell wallet_code) {
     return begin_cell()
         .store_builder(owner)
-        .store_slice(root)
+        .store_slice(treasury)
         .store_coins(0) ;; tokens
         .store_dict(null()) ;; staking
         .store_coins(0) ;; unstaking
@@ -156,25 +156,25 @@ cell create_wallet_data(builder owner, slice root, cell wallet_code) {
         .end_cell();
 }
 
-cell create_pool_data(slice root, builder validator, int round_since) {
+cell create_pool_data(slice treasury, builder validator, int round_since) {
     return begin_cell()
         .store_uint(0, 2) ;; addr_none for elector
-        .store_slice(root)
+        .store_slice(treasury)
         .store_builder(validator)
         .store_uint(round_since, 32)
         .end_cell();
 }
 
-(builder, cell, int) create_wallet_address(builder owner, slice root, cell wallet_code) {
-    cell wallet_data = create_wallet_data(owner, root, wallet_code);
+(builder, cell, int) create_wallet_address(builder owner, slice treasury, cell wallet_code) {
+    cell wallet_data = create_wallet_data(owner, treasury, wallet_code);
     cell state_init = create_state_init(wallet_code, wallet_data);
     int addr = state_init.cell_hash();
     builder wallet = create_address(chain::base, addr);
     return (wallet, state_init, addr);
 }
 
-(builder, cell, int) create_pool_address(slice root, builder validator, int round_since, cell pool_code) {
-    cell pool_data = create_pool_data(root, validator, round_since);
+(builder, cell, int) create_pool_address(slice treasury, builder validator, int round_since, cell pool_code) {
+    cell pool_data = create_pool_data(treasury, validator, round_since);
     cell state_init = create_state_init(pool_code, pool_data);
     int addr = state_init.cell_hash();
     builder pool = create_address(chain::main, addr);
@@ -287,7 +287,7 @@ int wallet_storage_fee() impure {
     int cells2 = 1 + 1 + 1;
 
     ;; sotrage of participation on base chain while participating
-    bits2 = 32 + 3 + 1 + 112 + 32 + 256 + 16 + 4 + 256 + bits2 + 124 + 124 + 256 + 32 + 32;
+    bits2 = 32 + 3 + 1 + 112 + 256 + 16 + 4 + 256 + bits2 + 124 + 124 + 256 + 32 + 32;
     cells2 = 2 + 4 + 2 + cells2;
 
     int pps1 = bits1 * mc_bit_price_ps + cells1 * mc_cell_price_ps;

@@ -101,7 +101,7 @@ const int gas::recover_stake_error = 1000;
 const int gas::recover_stake_ok = 1000;
 
 
-const int fee::root_storage = 10000000000; ;; 10 TON
+const int fee::treasury_storage = 10000000000; ;; 10 TON
 
 
 const int config::elector_address = 1;

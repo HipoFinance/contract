@@ -1,5 +1,5 @@
 import { beginCell, Cell, Dictionary, fromNano, toNano } from 'ton-core'
-import { Root } from '../wrappers/Root'
+import { Treasury } from '../wrappers/Treasury'
 import { compile, NetworkProvider, sleep } from '@ton-community/blueprint'
 import { sha256_sync } from 'ton-crypto'
 
@@ -14,32 +14,32 @@ const content = beginCell().storeUint(0, 8).storeDict(contentDict).endCell()
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui();
 
-    const root = provider.open(
-        Root.createFromConfig({
+    const treasury = provider.open(
+        Treasury.createFromConfig({
             walletCode: await compile('Wallet'),
             poolCode: await compile('Pool'),
             content,
-        }, await compile('Root'))
+        }, await compile('Treasury'))
     )
-    await root.sendDeploy(provider.sender(), toNano('0.01'))
-    await provider.waitForDeploy(root.address)
-    ui.write(`root address: ${root.address}\nroot ton balance: ${await root.getBalance()}\n`)
+    await treasury.sendDeploy(provider.sender(), toNano('0.01'))
+    await provider.waitForDeploy(treasury.address)
+    ui.write(`treasury address: ${treasury.address}\ntreasury ton balance: ${await treasury.getBalance()}\n`)
 
-    const fees = await root.getFees()
+    const fees = await treasury.getFees()
     const choice = await ui.choose(
-        `Top up root's balance to ${fromNano(fees.rootStorage)} TON?`,
+        `Top up treasury's balance to ${fromNano(fees.treasuryStorage)} TON?`,
         [false, true], v => v ? 'Yes' : 'No'
     )
     if (choice) {
-        const balanceBefore = await root.getBalance();
-        await root.sendTopUp(provider.sender(), fees.rootStorage)
+        const balanceBefore = await treasury.getBalance();
+        await treasury.sendTopUp(provider.sender(), fees.treasuryStorage)
         ui.write('Waiting for balance to change...');
-        let balanceAfter = await root.getBalance();
+        let balanceAfter = await treasury.getBalance();
         let attempt = 1;
         while (balanceAfter === balanceBefore) {
             ui.setActionPrompt(`Attempt ${attempt}`);
             await sleep(2000);
-            balanceAfter = await root.getBalance();
+            balanceAfter = await treasury.getBalance();
             attempt += 1;
         }
     }

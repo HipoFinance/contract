@@ -276,7 +276,7 @@ extension#_
     content:^FullContent
         = Extension;
 
-root_storage#_
+treasury_storage#_
     total_coins:Coins
     total_tokens:Coins
     total_staking:Coins
@@ -286,11 +286,11 @@ root_storage#_
     wallet_code:^Cell
     pool_code:^Cell
     extension:^Extension
-        = RootStorage;
+        = TreasuryStorage;
 
 wallet_storage#_
     owner:MsgAddress
-    root:MsgAddress
+    treasury:MsgAddress
     tokens:Coins
     staking:(HashmapE 32 Coins)
     unstaking:Coins
@@ -299,7 +299,7 @@ wallet_storage#_
 
 pool_storage#_
     elector:MsgAddress
-    root:MsgAddress
+    treasury:MsgAddress
     validator:MsgAddress
     round_since:uint32
         = PoolStorage;

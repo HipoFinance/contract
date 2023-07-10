@@ -15,16 +15,16 @@ digraph {
     external [ shape=point ]
     staker, driver [ color=2 ]
     wallet [ color=3 ]
-    root [ color=4 ]
+    treasury [ color=4 ]
 
     /* Relationships */
     staker -> wallet [ arrowhead=inv style=dotted ]
     external -> staker [ label="1" ]
-    staker -> root [ label="2\l op::deposit_coins\l 10.10 TON\l" ]
-    root -> wallet [ label="3\l op::save_coins\l 0.09 TON\l coins: 10\l" ]
+    staker -> treasury [ label="2\l op::deposit_coins\l 10.10 TON\l" ]
+    treasury -> wallet [ label="3\l op::save_coins\l 0.09 TON\l coins: 10\l" ]
     wallet -> driver [ label="4\l op::gas_excess\l 0.08 TON\l" ]
 
     /* Ranks */
     { rank=min external staker driver }
-    { rank=max root }
+    { rank=max treasury }
 }

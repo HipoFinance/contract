@@ -5,17 +5,17 @@ digraph {
     /* Entities */
     external1, external2, externalN [ shape=point ]
     validator1, validator2, validatorN [ color=2 ]
-    root [ color=4 ]
+    treasury [ color=4 ]
 
     /* Relationships */
     external1 -> validator1 [ label="1" ]
-    validator1 -> root [ label="2\l op::request_loan\l 100002 TON\l loan: 200000\l min payment: 100\l share: 40%\l" ]
+    validator1 -> treasury [ label="2\l op::request_loan\l 100002 TON\l loan: 200000\l min payment: 100\l share: 40%\l" ]
     external2 -> validator2 [ label="1" ]
-    validator2 -> root [ label="2\l op::request_loan\l 202 TON\l loan: 300000\l min payment: 100\l share: 40%\l" ]
+    validator2 -> treasury [ label="2\l op::request_loan\l 202 TON\l loan: 300000\l min payment: 100\l share: 40%\l" ]
     externalN -> validatorN [ label="1" ]
-    validatorN -> root [ label="2\l op::request_loan\l 302 TON\l loan: 300000\l min payment: 200\l share: 100%\l" ]
+    validatorN -> treasury [ label="2\l op::request_loan\l 302 TON\l loan: 300000\l min payment: 200\l share: 100%\l" ]
 
     /* Ranks */
     { rank=min external1 validator1 external2 validator2 externalN validatorN }
-    { rank=max root }
+    { rank=max treasury }
 }
