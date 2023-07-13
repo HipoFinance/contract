@@ -110,6 +110,7 @@ int src_is_elector?(slice src) {
 }
 
 () on_bounce(slice src, slice s) impure {
+    s~load_uint(32); ;; skip bounced op
     int op = s~load_uint(32);
 
     if (op == op::new_stake) {
