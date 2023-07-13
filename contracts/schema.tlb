@@ -119,23 +119,23 @@ take_wallet_address#d1735400
 // Stakers Ops
 //
 
-deposit_coins#00000020
+deposit_coins#1375a585
     query_id:uint64
         = InternalMsgBody;
 
-save_coins#00000021
+save_coins#7f30ee55
     query_id:uint64
     stake_amount:Coins
     round_since:uint32
     return_excess:MsgAddress
         = InternalMsgBody;
 
-stake_coins#00000022
+stake_coins#2bf595ba
     query_id:uint64
     round_since:uint32
         = InternalMsgBody;
 
-mint_tokens#00000023
+mint_tokens#4559ca57
     query_id:uint64
     stake_amount:Coins
     round_since:uint32
@@ -143,24 +143,24 @@ mint_tokens#00000023
     return_excess:MsgAddress
         = InternalMsgBody;
 
-withdraw_tokens#00000024
+withdraw_tokens#168c0784
     query_id:uint64
         = InternalMsgBody;
 
-burn_tokens#00000025
+burn_tokens#002c6e13
     query_id:uint64
     tokens:Coins
     owner:MsgAddress
     return_excess:MsgAddress
         = InternalMsgBody;
 
-burn_failed#57fb08ea
+burn_failed#272e3dda
     query_id:uint64
     tokens:Coins
     return_excess:MsgAddress
         = InternalMsgBody;
 
-withdraw_failed#4c4fc2e7
+withdraw_failed#c6caea4d
     query_id:uint64
         = InternalMsgBody;
 
@@ -180,7 +180,7 @@ new_stake_msg#_
     signature:^bits512
         = NewStakeMsg;
 
-request_loan#00000030
+request_loan#12b808d3
     query_id:uint64
     round_since:uint32
     loan_amount:Coins
@@ -189,48 +189,48 @@ request_loan#00000030
     new_stake_msg:^NewStakeMsg
         = InternalMsgBody;
 
-participate_in_election#00000031
+participate_in_election#574a297b
     query_id:uint64
     round_since:uint32
         = InternalMsgBody;
 
-process_loan_requests#00000032
+process_loan_requests#71d07cc
     query_id:uint64
     round_since:uint32
         = InternalMsgBody;
 
-send_new_stake#00000033
+send_new_stake#77a897f2
     query_id:uint64
     new_stake_msg:^NewStakeMsg
         = InternalMsgBody;
 
-new_stake_rejected#00000034
+new_stake_rejected#2bf7a8d5
     query_id:uint64
     reason:uint32
     validator:MsgAddress
     round_since:uint32
         = InternalMsgBody;
 
-vset_changed#00000035
+vset_changed#2f0b5b3b
     query_id:uint64
     round_since:uint32
         = InternalMsgBody;
 
-finish_participation#00000036
+finish_participation#23274435
     query_id:uint32
     round_since:uint32
         = InternalMsgBody;
 
-recover_stakes#00000037
+recover_stakes#4f173d3e
     query_id:uint64
     round_since:uint32
         = InternalMsgBody;
 
-send_recover_stake#00000038
+send_recover_stake#5eec9a2
     query_id:uint64
         = InternalMsgBody;
 
-recover_stake_result#00000039
+recover_stake_result#48310d2a
     query_id:uint64
     ok:Bool
     validator:MsgAddress

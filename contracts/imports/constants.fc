@@ -46,26 +46,26 @@ const int op::reserve_tokens = 0x7bdd97de;
 const int op::provide_wallet_address = 0x2c76b973;
 const int op::take_wallet_address = 0xd1735400;
 
-const int op::deposit_coins = 0x20;
-const int op::save_coins = 0x21;
-const int op::stake_coins = 0x22;
-const int op::mint_tokens = 0x23;
-const int op::withdraw_tokens = 0x24;
-const int op::burn_tokens = 0x25;
-const int op::burn_failed = 0x57fb08ea;
-const int op::withdraw_failed = 0x4c4fc2e7;
+const int op::deposit_coins = 0x1375a585;
+const int op::save_coins = 0x7f30ee55;
+const int op::stake_coins = 0x2bf595ba;
+const int op::mint_tokens = 0x4559ca57;
+const int op::withdraw_tokens = 0x168c0784;
+const int op::burn_tokens = 0x002c6e13;
+const int op::burn_failed = 0x272e3dda;
+const int op::withdraw_failed = 0xc6caea4d;
 const int op::withdrawal_notification = 0x2ec2a5a0;
 
-const int op::request_loan = 0x30;
-const int op::participate_in_election = 0x31;
-const int op::process_loan_requests = 0x32;
-const int op::send_new_stake = 0x33;
-const int op::new_stake_rejected = 0x34;
-const int op::vset_changed = 0x35;
-const int op::finish_participation = 0x36;
-const int op::recover_stakes = 0x37;
-const int op::send_recover_stake = 0x38;
-const int op::recover_stake_result = 0x39;
+const int op::request_loan = 0x12b808d3;
+const int op::participate_in_election = 0x574a297b;
+const int op::process_loan_requests = 0x71d07cc;
+const int op::send_new_stake = 0x77a897f2;
+const int op::new_stake_rejected = 0x2bf7a8d5;
+const int op::vset_changed = 0x2f0b5b3b;
+const int op::finish_participation = 0x23274435;
+const int op::recover_stakes = 0x4f173d3e;
+const int op::send_recover_stake = 0x5eec9a2;
+const int op::recover_stake_result = 0x48310d2a;
 
 const int op::top_up = 0x34e5d45a;
 
