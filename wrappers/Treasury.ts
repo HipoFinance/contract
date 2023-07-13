@@ -1,5 +1,28 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Dictionary, Sender, SendMode, TupleBuilder } from 'ton-core'
+import { Address, beginCell, Builder, Cell, Contract, contractAddress, ContractProvider, Dictionary, DictionaryValue, Sender, SendMode, Slice, TupleBuilder } from 'ton-core'
 import { op, tonValue } from './common'
+
+export type TreasuryState = {
+    totalCoins: bigint
+    totalTokens: bigint
+    totalStaking: bigint
+    totalUnstaking: bigint
+    totalValidatorsStake: bigint
+    participations: Dictionary<bigint, Participation>
+    rewardsHistory: Dictionary<bigint, Reward>
+    driver: Address
+    walletCode: Cell
+    loanCode: Cell
+    content: Cell
+}
+
+export type Times = {
+    currentRoundSince: bigint
+    participateSince: bigint
+    participateUntil: bigint
+    nextRoundSince: bigint
+    nextRoundUntil: bigint
+    stakeHeldFor: bigint
+}
 
 export type Fees = {
     treasuryStorage: bigint
@@ -21,26 +44,18 @@ enum ParticipationState {
     Recovering,
 }
 
-type NewStakeMsg = {
-    validatorPubKey: bigint
-    stakeAt: bigint
-    maxFactor: bigint
-    adnlAddr: bigint
-    signature: bigint
-}
-
 type Loan = {
     minPayment: bigint
     validatorRewardShare: bigint
     loanAmount: bigint
     accrueAmount: bigint
     stakeAmount: bigint
-    newStakeMsg: NewStakeMsg
+    newStakeMsg: Cell
 }
 
 type Participation = {
     state?: ParticipationState
-    sorted?: Dictionary<bigint, (Dictionary<bigint, bigint>)>
+    sorted?: Dictionary<bigint, Cell>
     loansSize?: bigint
     requests?: Dictionary<bigint, Loan>
     accepted?: Dictionary<bigint, Loan>
@@ -65,6 +80,76 @@ type TreasuryConfig = {
     driver?: Address
     rewardsHistory?: Dictionary<bigint, Reward>
     content?: Cell
+}
+
+const rewardDictionaryValue: DictionaryValue<Reward> = {
+    serialize: function(src: Reward, builder: Builder) {
+        builder
+            .storeCoins(src.staked)
+            .storeCoins(src.recovered)
+    },
+    parse: function(src: Slice): Reward {
+        return {
+            staked: src.loadCoins(),
+            recovered: src.loadCoins(),
+        }
+    }
+}
+
+const loanDictionaryValue: DictionaryValue<Loan> = {
+    serialize: function(src: Loan, builder: Builder) {
+        builder
+            .storeCoins(src.minPayment)
+            .storeUint(src.validatorRewardShare, 8)
+            .storeCoins(src.loanAmount)
+            .storeCoins(src.accrueAmount)
+            .storeCoins(src.stakeAmount)
+            .storeRef(src.newStakeMsg)
+    },
+    parse: function(src: Slice): Loan {
+        return {
+            minPayment: src.loadCoins(),
+            validatorRewardShare: src.loadUintBig(8),
+            loanAmount: src.loadCoins(),
+            accrueAmount: src.loadCoins(),
+            stakeAmount: src.loadCoins(),
+            newStakeMsg: src.loadRef(),
+        }
+    }
+}
+
+const participationDictionaryValue: DictionaryValue<Participation> = {
+    serialize: function(src: Participation, builder: Builder) {
+        builder
+            .storeUint(src.state || 0, 3)
+            .storeDict(src.sorted)
+            .storeUint(src.loansSize || 0, 16)
+            .storeDict(src.requests)
+            .storeDict(src.accepted)
+            .storeDict(src.staked)
+            .storeDict(src.recovering)
+            .storeCoins(src.totalStaked || 0)
+            .storeCoins(src.totalRecovered || 0)
+            .storeUint(src.currentVsetHash || 0, 256)
+            .storeUint(src.stakeHeldFor || 0, 32)
+            .storeUint(src.stakeHeldUntil || 0, 32)
+    },
+    parse: function(src: Slice): Participation {
+        return {
+            state: src.loadUint(3),
+            sorted: src.loadDict(Dictionary.Keys.BigUint(112), Dictionary.Values.Cell()),
+            loansSize: src.loadUintBig(16),
+            requests: src.loadDict(Dictionary.Keys.BigUint(256), loanDictionaryValue),
+            accepted: src.loadDict(Dictionary.Keys.BigUint(256), loanDictionaryValue),
+            staked: src.loadDict(Dictionary.Keys.BigUint(256), loanDictionaryValue),
+            recovering: src.loadDict(Dictionary.Keys.BigUint(256), loanDictionaryValue),
+            totalStaked: src.loadCoins(),
+            totalRecovered: src.loadCoins(),
+            currentVsetHash: src.loadUintBig(256),
+            stakeHeldFor: src.loadUintBig(32),
+            stakeHeldUntil: src.loadUintBig(32),
+        }
+    }
 }
 
 function treasuryConfigToCell(config: TreasuryConfig): Cell {
@@ -222,22 +307,23 @@ export class Treasury implements Contract {
         await provider.external(message)
     }
 
-    async getTreasuryState(provider: ContractProvider):
-            Promise<[bigint, bigint, bigint, bigint, bigint, Cell | null, Cell | null, Address, Cell, Cell, Cell]> {
+    async getTreasuryState(provider: ContractProvider): Promise<TreasuryState> {
         const { stack } = await provider.get('get_treasury_state', [])
-        return [
-            stack.readBigNumber(),
-            stack.readBigNumber(),
-            stack.readBigNumber(),
-            stack.readBigNumber(),
-            stack.readBigNumber(),
-            stack.readCellOpt(),
-            stack.readCellOpt(),
-            stack.readAddress(),
-            stack.readCell(),
-            stack.readCell(),
-            stack.readCell(),
-        ]
+        return {
+            totalCoins: stack.readBigNumber(),
+            totalTokens: stack.readBigNumber(),
+            totalStaking: stack.readBigNumber(),
+            totalUnstaking: stack.readBigNumber(),
+            totalValidatorsStake: stack.readBigNumber(),
+            participations: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), participationDictionaryValue,
+                stack.readCellOpt()),
+            rewardsHistory: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), rewardDictionaryValue,
+                stack.readCellOpt()),
+            driver: stack.readAddress(),
+            walletCode: stack.readCell(),
+            loanCode: stack.readCell(),
+            content: stack.readCell(),
+        }
     }
 
     async getJettonData(provider: ContractProvider): Promise<[bigint, boolean, Address, Cell, Cell]> {
@@ -264,6 +350,18 @@ export class Treasury implements Contract {
         tb.writeNumber(roundSince)
         const { stack } = await provider.get('get_loan_address', tb.build())
         return stack.readAddress()
+    }
+
+    async getTimes(provider: ContractProvider): Promise<Times> {
+        const { stack } = await provider.get('get_times', [])
+        return {
+            currentRoundSince: stack.readBigNumber(),
+            participateSince: stack.readBigNumber(),
+            participateUntil: stack.readBigNumber(),
+            nextRoundSince: stack.readBigNumber(),
+            nextRoundUntil: stack.readBigNumber(),
+            stakeHeldFor: stack.readBigNumber(),
+        }
     }
 
     async getFees(provider: ContractProvider): Promise<Fees> {

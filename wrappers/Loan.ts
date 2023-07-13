@@ -1,4 +1,4 @@
-import { Address, beginCell, Cell, Contract, contractAddress } from 'ton-core'
+import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider } from 'ton-core'
 
 export type LoanConfig = {
     elector?: Address
@@ -27,5 +27,10 @@ export class Loan implements Contract {
         const data = loanConfigToCell(config)
         const init = { code, data }
         return new Loan(contractAddress(workchain, init), init)
+    }
+
+    async getBalance(provider: ContractProvider): Promise<bigint> {
+        const state = await provider.getState()
+        return state.balance
     }
 }

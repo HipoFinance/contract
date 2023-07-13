@@ -1,6 +1,13 @@
 import { toNano } from "ton-core"
 
 export const op = {
+    newStake: 0x4e73744b,
+    newStakeError: 0xee6f454c,
+    newStakeOk: 0xf374484c,
+    recoverStake: 0x47657424,
+    recoverStakeError: 0xfffffffe,
+    recoverStakeOk: 0xf96f7324,
+
     sendTokens: 0x0f8a7ea5,
     receiveTokens: 0x178d4519,
     transferNotification: 0x7362d09c,
@@ -9,6 +16,7 @@ export const op = {
     reserveTokens: 0x7bdd97de,
     provideWalletAddress: 0x2c76b973,
     takeWalletAddress: 0xd1735400,
+
     depositCoins: 0x00000020,
     saveCoins: 0x00000021,
     stakeCoins: 0x00000022,
@@ -18,6 +26,7 @@ export const op = {
     burnFailed: 0x57fb08ea,
     withdrawFailed: 0x4c4fc2e7,
     withdrawalNotification: 0x2ec2a5a0,
+
     requestLoan: 0x00000030,
     participateInElection: 0x00000031,
     processLoanRequests: 0x00000032,
@@ -28,7 +37,12 @@ export const op = {
     recoverStakes: 0x00000037,
     sendRecoverStake: 0x00000038,
     recoverStakeResult: 0x00000039,
+
     topUp: 0x34e5d45a,
+}
+
+export const config = {
+    currentValidators: 34n
 }
 
 export function tonValue(value: bigint | string): bigint {

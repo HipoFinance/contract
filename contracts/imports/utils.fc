@@ -141,7 +141,7 @@ builder create_address(int wc, int addr) {
     ;;   workchain_id:int8 address:bits256  = MsgAddressInt;
     return begin_cell()
         .store_uint(4, 3) ;; 100
-        .store_uint(wc, 8)
+        .store_int(wc, 8)
         .store_uint(addr, 256);
 }
 
@@ -188,26 +188,10 @@ int loan_sort_key(int min_payment, int validator_reward_share, int loan_amount) 
     ;;   3. least loan amount
     int treasury_reward_share = 255 - validator_reward_share;
     int min_payment_round = min_payment >> 30; ;; round to around 1 TON
-    int loan_amount_round = loan_amount >> 40; ;; round to around 1000 TON
+    int loan_amount_round = max(1, loan_amount >> 40); ;; round to around 1100 TON
     int loan_amount_round_comp = ~ loan_amount_round;
     int efficieny = min((1 << 24) - 1, muldiv(min_payment_round, 1000, loan_amount_round));
     return (efficieny << (8 + 80)) + (treasury_reward_share << 80) + loan_amount_round_comp;
-}
-
-(int, int, int, int, int) participate_times() impure {
-    ;; handle possible error thrown from get_vset_times
-    ( _, int next_round_since ) = get_vset_times(config::current_validators);
-    ( int validators_elected_for
-    , int elections_start_before
-    , int elections_end_before
-    , int stake_held_for
-    ) = get_election_config();
-    int election_span = elections_start_before - elections_end_before;
-    int election_end = next_round_since - elections_end_before;
-    int participate_since = election_end - max(600, muldiv(election_span, 10, 100));
-    int participate_until = election_end - 300;
-    int next_round_until = next_round_since + validators_elected_for;
-    return ( participate_since, participate_until, next_round_since, next_round_until, stake_held_for );
 }
 
 () check_new_stake_msg(slice cs) impure {
@@ -273,7 +257,7 @@ int wallet_storage_fee() impure {
     int cells = 1 + 3; ;; 3 cells may be used by a dict holding 2 entries
     int pps = bits * bit_price_ps + cells * cell_price_ps;
     int duration = 60 * 60 * 24 * 365 * 2; ;; 2 years in seconds
-    return (pps * duration) >> 16; ;; currently near 0.003 TON
+    return pps * duration >> 16; ;; currently near 0.003 TON
 }
 
 (int, int) loan_storage_fee() impure {
@@ -295,7 +279,7 @@ int wallet_storage_fee() impure {
     ;; 1 round validation, 1 round participation and stake held, 1 round for prolonged rounds, 1 round to be safe
     ( int validators_elected_for, _, _, _ ) = get_election_config();
     int duration = 4 * validators_elected_for;
-    return ( (pps1 * duration) >> 16, (pps2 * duration) >> 16);
+    return ( pps1 * duration >> 16, pps2 * duration >> 16);
 }
 
 int msg_fwd_fee(int lump_price, int bit_price, int cell_price, int rest_bits, int rest_cells) {
@@ -319,7 +303,7 @@ int deposit_coins_fee(cell wallet_state_init) impure {
         gas::receive_tokens +
         gas::transfer_notification +
         gas::gas_excess;
-    int computation_fee = (computation_gas * gas_price) >> 16;
+    int computation_fee = computation_gas * gas_price >> 16;
 
     ( int lump_price, int bit_price, int cell_price ) = get_msg_forward_prices(config::fwd_prices);
     ( int cells, int bits, _ ) = compute_data_size(wallet_state_init, 1000);
@@ -353,7 +337,7 @@ int stake_coins_fee() impure {
         gas::receive_tokens +
         gas::transfer_notification +
         gas::gas_excess;
-    int computation_fee = (computation_gas * gas_price) >> 16;
+    int computation_fee = computation_gas * gas_price >> 16;
 
     ( int lump_price, int bit_price, int cell_price ) = get_msg_forward_prices(config::fwd_prices);
     int s_fwd_fee = lump_price;
@@ -377,7 +361,7 @@ int send_tokens_fee(cell wallet_state_init) impure {
         gas::receive_tokens +
         gas::transfer_notification +
         gas::gas_excess;
-    int computation_fee = (computation_gas * gas_price) >> 16;
+    int computation_fee = computation_gas * gas_price >> 16;
 
     ( int lump_price, int bit_price, int cell_price ) = get_msg_forward_prices(config::fwd_prices);
     ( int cells, int bits, _ ) = compute_data_size(wallet_state_init, 1000);
@@ -410,7 +394,7 @@ int unstake_tokens_fee() impure {
         gas::burn_failed +
         gas::withdrawal_notification +
         gas::gas_excess;
-    int computation_fee = (computation_gas * gas_price) >> 16;
+    int computation_fee = computation_gas * gas_price >> 16;
 
     ( int lump_price, int bit_price, int cell_price ) = get_msg_forward_prices(config::fwd_prices);
     int s_fwd_fee = lump_price;
@@ -430,7 +414,7 @@ int unstake_tokens_fee() impure {
 
 int transfer_notification_fee() impure {
     ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
-    return (gas::transfer_notification * gas_price) >> 16;
+    return gas::transfer_notification * gas_price >> 16;
 }
 
 int withdraw_tokens_fee() impure {
@@ -443,7 +427,7 @@ int withdraw_tokens_fee() impure {
         gas::burn_failed +
         gas::withdrawal_notification +
         gas::gas_excess;
-    int computation_fee = (computation_gas * gas_price) >> 16;
+    int computation_fee = computation_gas * gas_price >> 16;
 
     ( int lump_price, int bit_price, int cell_price ) = get_msg_forward_prices(config::fwd_prices);
     int s_fwd_fee = lump_price;
@@ -457,7 +441,7 @@ int withdraw_tokens_fee() impure {
     return storage_fee + computation_fee + fwd_fee;
 }
 
-int request_loan_fee(cell loan_state_init, int loans_size) impure {
+int request_loan_fee(cell loan_state_init) impure {
     ( int loan_storage_fee, int request_storage_fee ) = loan_storage_fee();
     int storage_fee = loan_storage_fee + request_storage_fee;
 
@@ -480,10 +464,7 @@ int request_loan_fee(cell loan_state_init, int loans_size) impure {
         gas::recover_stake +
         gas::recover_stake_error +
         gas::recover_stake_ok;
-    int dict_size_bucket = ((loans_size >> 8) + 1) << 8;
-    int factor = ubitsize(dict_size_bucket - 1);
-    int computation_fee =
-        ((computation_gas * gas_price * factor) >> 16) + ((mc_computation_gas * mc_gas_price * factor) >> 16);
+    int computation_fee = (computation_gas * gas_price >> 16) + (mc_computation_gas * mc_gas_price >> 16);
 
     ( int lump_price, int bit_price, int cell_price ) = get_msg_forward_prices(config::fwd_prices);
     ( int mc_lump_price, int mc_bit_price, int mc_cell_price ) = get_msg_forward_prices(config::mc_fwd_prices);
@@ -516,7 +497,7 @@ int request_loan_fee(cell loan_state_init, int loans_size) impure {
     return storage_fee + computation_fee + fwd_fee;
 }
 
-int send_new_stake_fee(cell loan_state_init, int loans_size) impure {
+int send_new_stake_fee(cell loan_state_init) impure {
     ( int loan_storage_fee, _ ) = loan_storage_fee();
     int storage_fee = loan_storage_fee;
 
@@ -528,8 +509,7 @@ int send_new_stake_fee(cell loan_state_init, int loans_size) impure {
         gas::new_stake +
         gas::new_stake_error +
         gas::new_stake_ok;
-    int factor = ubitsize(loans_size);
-    int computation_fee = ((computation_gas * gas_price * factor) >> 16) + ((mc_computation_gas * mc_gas_price) >> 16);
+    int computation_fee = (computation_gas * gas_price >> 16) + (mc_computation_gas * mc_gas_price >> 16);
 
     ( int lump_price, int bit_price, int cell_price ) = get_msg_forward_prices(config::fwd_prices);
     ( int mc_lump_price, int mc_bit_price, int mc_cell_price ) = get_msg_forward_prices(config::mc_fwd_prices);
@@ -551,7 +531,7 @@ int send_new_stake_fee(cell loan_state_init, int loans_size) impure {
     return storage_fee + computation_fee + fwd_fee;
 }
 
-int recover_stake_fee(int loans_size) impure {
+int recover_stake_fee() impure {
     ( int loan_storage_fee, _ ) = loan_storage_fee();
     int storage_fee = loan_storage_fee;
 
@@ -563,8 +543,7 @@ int recover_stake_fee(int loans_size) impure {
         gas::recover_stake +
         gas::recover_stake_error +
         gas::recover_stake_ok;
-    int factor = ubitsize(loans_size);
-    int computation_fee = ((computation_gas * gas_price * factor) >> 16) + ((mc_computation_gas * mc_gas_price) >> 16);
+    int computation_fee = (computation_gas * gas_price >> 16) + (mc_computation_gas * mc_gas_price >> 16);
 
     ( int lump_price, int bit_price, int cell_price ) = get_msg_forward_prices(config::fwd_prices);
     ( int mc_lump_price, int mc_bit_price, int mc_cell_price ) = get_msg_forward_prices(config::mc_fwd_prices);

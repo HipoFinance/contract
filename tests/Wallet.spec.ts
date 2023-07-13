@@ -2,12 +2,12 @@ import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
 import { Cell, beginCell, toNano } from 'ton-core'
-import { Fees, Treasury } from '../wrappers/Treasury'
-import { Wallet } from '../wrappers/Wallet'
 import { between, bodyOp } from './helper'
 import { op } from '../wrappers/common'
+import { Fees, Treasury } from '../wrappers/Treasury'
+import { Wallet } from '../wrappers/Wallet'
 
-describe('Basic Operations', () => {
+describe('Wallet', () => {
     let treasuryCode: Cell
     let walletCode: Cell
     let loanCode: Cell
@@ -90,14 +90,13 @@ describe('Basic Operations', () => {
         expect(result.transactions).toHaveLength(4)
 
         const treasuryBalance = await treasury.getBalance()
-        const [ totalCoins, totalTokens, totalStaking, totalUnstaking, totalValidatorsStake ] =
-            await treasury.getTreasuryState()
+        const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('19.9', '20')
-        expect(totalCoins).toBeTonValue('0')
-        expect(totalTokens).toBeTonValue('0')
-        expect(totalStaking).toBeBetween('9.9', '10')
-        expect(totalUnstaking).toBeTonValue('0')
-        expect(totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalCoins).toBeTonValue('0')
+        expect(treasuryState.totalTokens).toBeTonValue('0')
+        expect(treasuryState.totalStaking).toBeBetween('9.9', '10')
+        expect(treasuryState.totalUnstaking).toBeTonValue('0')
+        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
         const [ tokens, staking, unstaking ] = await wallet.getWalletState()
@@ -163,14 +162,13 @@ describe('Basic Operations', () => {
         expect(result.transactions).toHaveLength(6)
 
         const treasuryBalance = await treasury.getBalance()
-        const [ totalCoins, totalTokens, totalStaking, totalUnstaking, totalValidatorsStake ] =
-            await treasury.getTreasuryState()
+        const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('19.9', '20')
-        expect(totalCoins).toBeBetween('9.9', '10')
-        expect(totalTokens).toBeTonValue(totalCoins)
-        expect(totalStaking).toBeTonValue('0')
-        expect(totalUnstaking).toBeTonValue('0')
-        expect(totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalCoins).toBeBetween('9.9', '10')
+        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
+        expect(treasuryState.totalStaking).toBeTonValue('0')
+        expect(treasuryState.totalUnstaking).toBeTonValue('0')
+        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
         const [ tokens, staking, unstaking ] = await wallet.getWalletState()
@@ -236,14 +234,13 @@ describe('Basic Operations', () => {
         expect(result.transactions).toHaveLength(5)
 
         const treasuryBalance = await treasury.getBalance()
-        const [ totalCoins, totalTokens, totalStaking, totalUnstaking, totalValidatorsStake ] =
-            await treasury.getTreasuryState()
+        const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('19.9', '20')
-        expect(totalCoins).toBeBetween('9.9', '10')
-        expect(totalTokens).toBeTonValue(totalCoins)
-        expect(totalStaking).toBeTonValue('0')
-        expect(totalUnstaking).toBeTonValue('0')
-        expect(totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalCoins).toBeBetween('9.9', '10')
+        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
+        expect(treasuryState.totalStaking).toBeTonValue('0')
+        expect(treasuryState.totalUnstaking).toBeTonValue('0')
+        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const wallet1Balance = await wallet1.getBalance()
         const [ tokens1, staking1, unstaking1 ] = await wallet1.getWalletState()
@@ -320,14 +317,13 @@ describe('Basic Operations', () => {
         expect(result.transactions).toHaveLength(5)
 
         const treasuryBalance = await treasury.getBalance()
-        const [ totalCoins, totalTokens, totalStaking, totalUnstaking, totalValidatorsStake ] =
-            await treasury.getTreasuryState()
+        const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('24.8', '25')
-        expect(totalCoins).toBeBetween('14.8', '15')
-        expect(totalTokens).toBeTonValue(totalCoins)
-        expect(totalStaking).toBeTonValue('0')
-        expect(totalUnstaking).toBeTonValue('0')
-        expect(totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalCoins).toBeBetween('14.8', '15')
+        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
+        expect(treasuryState.totalStaking).toBeTonValue('0')
+        expect(treasuryState.totalUnstaking).toBeTonValue('0')
+        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const wallet1Balance = await wallet1.getBalance()
         const [ tokens1, staking1, unstaking1 ] = await wallet1.getWalletState()
@@ -391,14 +387,13 @@ describe('Basic Operations', () => {
         expect(result.transactions).toHaveLength(5)
 
         const treasuryBalance = await treasury.getBalance()
-        const [ totalCoins, totalTokens, totalStaking, totalUnstaking, totalValidatorsStake ] =
-            await treasury.getTreasuryState()
+        const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('19.9', '20')
-        expect(totalCoins).toBeBetween('9.9', '10')
-        expect(totalTokens).toBeTonValue(totalCoins)
-        expect(totalStaking).toBeTonValue('0')
-        expect(totalUnstaking).toBeTonValue('7')
-        expect(totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalCoins).toBeBetween('9.9', '10')
+        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
+        expect(treasuryState.totalStaking).toBeTonValue('0')
+        expect(treasuryState.totalUnstaking).toBeTonValue('7')
+        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
         const [ tokens, staking, unstaking ] = await wallet.getWalletState()
@@ -456,14 +451,13 @@ describe('Basic Operations', () => {
         expect(result.transactions).toHaveLength(5)
 
         const treasuryBalance = await treasury.getBalance()
-        const [ totalCoins, totalTokens, totalStaking, totalUnstaking, totalValidatorsStake ] =
-            await treasury.getTreasuryState()
+        const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('12.9', '13')
-        expect(totalCoins).toBeBetween('2.9', '3')
-        expect(totalTokens).toBeTonValue(totalCoins)
-        expect(totalStaking).toBeTonValue('0')
-        expect(totalUnstaking).toBeTonValue('0')
-        expect(totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalCoins).toBeBetween('2.9', '3')
+        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
+        expect(treasuryState.totalStaking).toBeTonValue('0')
+        expect(treasuryState.totalUnstaking).toBeTonValue('0')
+        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
         const [ tokens, staking, unstaking ] = await wallet.getWalletState()

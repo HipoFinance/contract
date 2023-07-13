@@ -96,7 +96,7 @@
     builder body = begin_cell()
         .store_uint(op::recover_stake_result, 32)
         .store_uint(query_id, 64)
-        .store_uint(ok?, 1)
+        .store_int(ok?, 1)
         .store_slice(validator)
         .store_uint(round_since, 32);
     send_msg(false, treasury.to_builder(), null(), body, 0, send::remaining_balance);

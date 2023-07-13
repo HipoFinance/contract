@@ -429,6 +429,28 @@ builder pack_extension
     send_msg(false, src.to_builder(), null(), body, 0, send::remaining_value);
 }
 
+(int, int, int, int, int, int) get_times() impure method_id {
+    ( int current_round_since, int next_round_since ) = get_vset_times(config::current_validators);
+    ( int validators_elected_for
+    , int elections_start_before
+    , int elections_end_before
+    , int stake_held_for
+    ) = get_election_config();
+    int election_span = elections_start_before - elections_end_before;
+    int election_end = next_round_since - elections_end_before;
+    int participate_since = election_end - max(600, muldiv(election_span, 10, 100));
+    int participate_until = election_end - 300;
+    int next_round_until = next_round_since + validators_elected_for;
+    return
+        ( current_round_since
+        , participate_since
+        , participate_until
+        , next_round_since
+        , next_round_until
+        , stake_held_for
+        );
+}
+
 () request_loan(int msg_ton, slice src, slice s) impure {
     ( int total_coins
     , int total_tokens
@@ -484,16 +506,17 @@ builder pack_extension
         }
     }
     ( _, cell state_init, _ ) = create_loan_address(my_address(), src.to_builder(), round_since, loan_code);
-    int fee = request_loan_fee(state_init, loans_size);
+    int fee = request_loan_fee(state_init);
     int stake_amount = msg_ton - fee + old_stake_amount;
     total_validators_stake += stake_amount - old_stake_amount;
     int max_punishment = max_recommended_punishment_for_validator_misbehaviour(loan_amount + stake_amount);
+    ( _, int participate_since, _, _, _, _ ) = get_times();
 
     throw_unless(err::access_denied, validator_wc == chain::base);
     throw_unless(err::not_accepting_loan_requests, state == participation::open);
     throw_unless(err::not_accepting_loan_requests, round_since == next_round_since);
-    throw_unless(err::insufficient_funds, (loan_amount >> 40) > 0); ;; at least 1000 TON
-    throw_unless(err::insufficient_funds, stake_amount + loan_amount >= min_stake);
+    throw_unless(err::not_accepting_loan_requests, now() < participate_since);
+    throw_unless(err::insufficient_funds, stake_amount + loan_amount >= min_stake + fee::new_stake_confirmation);
     throw_unless(err::insufficient_funds, stake_amount >= min_payment + max_punishment);
 
     builder request = pack_loan(min_payment, validator_reward_share, loan_amount, 0, stake_amount, new_stake_msg);
@@ -509,7 +532,7 @@ builder pack_extension
     if (loans_size > max_validators) {
         ( int last_sort_key, slice v, _ ) = sorted~udict_delete_get_min?(112);
         cell last_bucket = v~load_ref();
-        ( int last_validator_addr, _, _ ) = last_bucket~udict_delete_get_min?(256);
+        ( int last_validator_addr, _, _ ) = last_bucket~udict_delete_get_max?(256);
         ( slice last_request, _ ) = requests~udict_delete_get?(256, last_validator_addr);
         loans_size -= 1;
         ifnot (last_bucket.null?()) {
@@ -550,12 +573,10 @@ builder pack_extension
         ( k, slice v, int f? ) = sorted.udict_get_prev?(112, k);
         if (f?) {
             cell bucket = v~load_ref();
-            int j = 1 << 32;
+            int validator_addr = -1;
             do {
-                ( j, slice vs, int e? ) = bucket.udict_get_prev?(32, j);
+                ( validator_addr, _, int e? ) = bucket.udict_get_next?(256, validator_addr);
                 if (e?) {
-                    int validator_addr = vs~load_uint(256);
-                    vs.end_parse();
                     ( slice request, _ ) = requests.udict_get?(256, validator_addr);
                     ( _, _, int loan_amount, _, _, _ ) = unpack_loan(request);
                     if (available >= loan_amount) {
@@ -617,7 +638,7 @@ builder pack_extension
         ;; force reply from elector when staking
         query_id = now() << 32;
     }
-    int state = null();
+    int state = -1;
     cell sorted = new_dict();
     int loans_size = 0;
     cell requests = new_dict();
@@ -625,7 +646,7 @@ builder pack_extension
     if (f?) {
         ( state, sorted, loans_size, requests, _, _, _, _, _, _, _, _ ) = unpack_participation(pd);
     }
-    ( int participate_since, int participate_until, _, int next_round_until, int stake_held_for ) = participate_times();
+    ( _, int participate_since, int participate_until, _, int next_round_until, int stake_held_for ) = get_times();
 
     throw_unless(err::unable_to_participate, state == participation::open);
     throw_unless(err::too_soon_to_participate, now() >= participate_since);
@@ -639,9 +660,9 @@ builder pack_extension
         reserved_amount = muldiv(total_unstaking, total_coins, total_tokens);
     }
     ( _, cell state_init, _ ) = create_loan_address(my_address(), my_address().to_builder(), round_since, loan_code);
-    int fee = request_loan_fee(state_init, loans_size);
+    int fee = request_loan_fee(state_init);
     int ton_balance = get_balance().pair_first();
-    int available = ton_balance - fee::treasury_storage - loans_size * fee - reserved_amount;
+    int available = ton_balance - fee::treasury_storage - total_validators_stake - loans_size * fee - reserved_amount;
 
     ( requests, cell accepted, int accepted_size ) = decide_on_loans(sorted, requests, participate_until, available);
     int current_vset_hash = config_param(config::current_validators).cell_hash();
@@ -708,8 +729,8 @@ builder pack_extension
             ( _, _, int loan_amount, int accrue_amount, int stake_amount, cell new_stake_msg ) = unpack_loan(request);
             builder validator = create_address(chain::base, validator_addr);
             ( builder loan, cell state_init, _ ) = create_loan_address(my_address(), validator, round_since, loan_code);
-            int fee = send_new_stake_fee(state_init, loans_size);
-            int ton_amount = loan_amount + accrue_amount + stake_amount;
+            int fee = send_new_stake_fee(state_init);
+            int ton_amount = loan_amount + accrue_amount + stake_amount + fee;
             total_staked += loan_amount + accrue_amount;
             staked~udict_set(256, validator_addr, request);
             total_validators_stake -= stake_amount;
@@ -718,9 +739,8 @@ builder pack_extension
             builder body = begin_cell()
                 .store_uint(op::send_new_stake, 32)
                 .store_uint(query_id, 64)
-                .store_coins(ton_amount)
                 .store_ref(new_stake_msg);
-            send_msg(true, loan, state_init, body, ton_amount + fee, send::pay_gas_separately);
+            send_msg(true, loan, state_init, body, ton_amount, send::pay_gas_separately);
         }
     }
 
@@ -927,9 +947,6 @@ builder pack_extension
     , int stake_held_until
     ) = unpack_participation(pd);
 
-    ( _, cell state_init, _ ) = create_loan_address(my_address(), my_address().to_builder(), round_since, loan_code);
-    int fee = request_loan_fee(state_init, loans_size);
-
     throw_unless(err::not_ready_to_finish_participation, state == participation::held);
     throw_unless(err::too_soon_to_finish_participation, now() >= stake_held_until);
 
@@ -942,6 +959,9 @@ builder pack_extension
         current_vset_hash, stake_held_for, stake_held_until
     );
     participations~udict_set_builder(32, round_since, pdb);
+
+    ( _, cell state_init, _ ) = create_loan_address(my_address(), my_address().to_builder(), round_since, loan_code);
+    int fee = request_loan_fee(state_init);
 
     builder body = begin_cell()
         .store_uint(op::recover_stakes, 32)
@@ -986,7 +1006,7 @@ builder pack_extension
     , int stake_held_until
     ) = unpack_participation(pd);
 
-    int fee = recover_stake_fee(loans_size);
+    int fee = recover_stake_fee();
 
     throw_unless(err::access_denied, equal_slices(src, my_address()));
 

@@ -66,6 +66,7 @@ const int op::finish_participation = 0x36;
 const int op::recover_stakes = 0x37;
 const int op::send_recover_stake = 0x38;
 const int op::recover_stake_result = 0x39;
+
 const int op::top_up = 0x34e5d45a;
 
 
@@ -93,15 +94,16 @@ const int gas::vset_changed = 1000;
 const int gas::finish_participation = 1000;
 const int gas::recover_stakes = 10000;
 const int gas::recover_stake_result = 20000;
-const int gas::new_stake = 1000000;
+const int gas::new_stake = 10000;
 const int gas::new_stake_error = 1000;
 const int gas::new_stake_ok = 1000;
-const int gas::recover_stake = 1000000;
+const int gas::recover_stake = 10000;
 const int gas::recover_stake_error = 1000;
 const int gas::recover_stake_ok = 1000;
 
 
 const int fee::treasury_storage = 10000000000; ;; 10 TON
+const int fee::new_stake_confirmation = 1000000000; ;; 1 TON
 
 
 const int config::elector_address = 1;

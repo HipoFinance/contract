@@ -1,6 +1,15 @@
 import { expect } from '@jest/globals'
+import { Blockchain } from '@ton-community/sandbox'
 import type { MatcherFunction } from 'expect'
-import { Cell, toNano } from 'ton-core'
+import { Address, Builder, Cell, Dictionary, Message, beginCell, toNano } from 'ton-core'
+import { op } from '../wrappers/common'
+
+export function bodyOp(op: number): (body: Cell) => boolean {
+    return (body: Cell): boolean => {
+        const s = body.beginParse()
+        return s.remainingBits >= 32 && s.loadUint(32) === op
+    }
+}
 
 export function between(a: bigint | string, b: bigint | string): (x?: bigint) => boolean {
     let u = typeof a === 'string' ? toNano(a) : a
@@ -15,14 +24,7 @@ export function between(a: bigint | string, b: bigint | string): (x?: bigint) =>
     }
 }
 
-export function bodyOp(op: number): (body: Cell) => boolean {
-    return (body: Cell): boolean => {
-        const s = body.beginParse()
-        return s.remainingBits >= 32 && s.loadUint(32) === op
-    }
-}
-
-const toBeBetween: MatcherFunction<[a: unknown, b: unknown]> =
+export const toBeBetween: MatcherFunction<[a: unknown, b: unknown]> =
     function (actual, a, b) {
         if (
             (typeof a !== 'bigint' && typeof a !== 'string') ||
@@ -52,7 +54,7 @@ const toBeBetween: MatcherFunction<[a: unknown, b: unknown]> =
         }
     }
 
-const toBeTonValue: MatcherFunction<[v: unknown]> =
+export const toBeTonValue: MatcherFunction<[v: unknown]> =
     function (actual, v) {
         v = typeof v === 'string' ? toNano(v) : v
         if (typeof v !== 'bigint' || typeof actual !== 'bigint') {
@@ -88,4 +90,60 @@ declare module 'expect' {
         toBeBetween(a: bigint | string, b: bigint | string): R
         toBeTonValue(v: bigint | string): R
     }
+}
+
+export const emptyNewStakeMsg = beginCell()
+    .storeUint(0, 256)
+    .storeUint(0, 32)
+    .storeUint(0, 32)
+    .storeUint(0, 256)
+    .storeRef(beginCell().storeUint(0, 256).storeUint(0, 256))
+    .endCell()
+
+export function createVset(since: bigint, until: bigint, total?: bigint, main?: bigint, list?: Builder | Cell): Cell {
+    return beginCell()
+        .storeUint(0x12, 8)
+        .storeUint(since, 32)
+        .storeUint(until, 32)
+        .storeUint(total || 1n, 16)
+        .storeUint(main || 1n, 16)
+        .storeMaybeRef(list)
+        .endCell()
+}
+
+export function createRecoverStakeOkMessage(src: Address, dest: Address, value: bigint): Message {
+    return {
+        info: {
+            type: 'internal',
+            ihrDisabled: true,
+            bounce: true,
+            bounced: false,
+            src,
+            dest,
+            value: { coins: value },
+            ihrFee: 0n,
+            forwardFee: 0n,
+            createdLt: 0n,
+            createdAt: 0,
+        },
+        body: beginCell()
+            .storeUint(op.recoverStakeOk, 32)
+            .storeUint(0, 64)
+            .endCell(),
+    }
+}
+
+export function setConfig(blockchain: Blockchain, index: bigint, value: Cell) {
+    const config = Dictionary.loadDirect(Dictionary.Keys.BigInt(32), Dictionary.Values.Cell(), blockchain.config)
+    config.set(index, value)
+    const storage = beginCell()
+    config.storeDirect(storage)
+    const newConfig = storage.endCell()
+    blockchain.setConfig(newConfig)
+}
+
+export function getElector(blockchain: Blockchain): Address {
+    const config = Dictionary.loadDirect(Dictionary.Keys.BigInt(32), Dictionary.Values.Cell(), blockchain.config)
+    const electorAddr = config.get(1n)?.beginParse().loadUintBig(256) || 0n
+    return Address.parseRaw('-1:' + electorAddr.toString(16))
 }
