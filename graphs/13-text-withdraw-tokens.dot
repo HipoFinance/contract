@@ -1,0 +1,23 @@
+digraph {
+    label="staker sends a simple message with comment 'u' to withdraw tokens"
+    node [ colorscheme=pastel19 style=filled ]
+
+    /* Entities */
+    external [ shape=point ]
+    staker [ color=2 ]
+    treasury [ color=4 ]
+    wallet [ color=3 ]
+
+    /* Relationships */
+    staker -> wallet [ arrowhead=inv style=dotted ]
+    external -> staker [ label="1" ]
+    staker -> treasury [ label="2\l comment: u\l 0.07 TON\l" ]
+    treasury -> wallet [ label="3\l op::withdraw_tokens\l 0.07 TON\l" ]
+    wallet -> treasury [ label="4\l op::burn_tokens\l 0.06 TON\l tokens: 10\l" ]
+    treasury -> staker [ label="5\l op::withdrawal_notification\l 10 TON\l" ]
+    treasury -> staker [ label="6\l op::gas_excess\l 0.04 TON\l" ]
+
+    /* Ranks */
+    { rank=min external staker }
+    { rank=max wallet }
+}

@@ -111,28 +111,6 @@ export function createVset(since: bigint, until: bigint, total?: bigint, main?: 
         .endCell()
 }
 
-export function createRecoverStakeOkMessage(src: Address, dest: Address, value: bigint): Message {
-    return {
-        info: {
-            type: 'internal',
-            ihrDisabled: true,
-            bounce: true,
-            bounced: false,
-            src,
-            dest,
-            value: { coins: value },
-            ihrFee: 0n,
-            forwardFee: 0n,
-            createdLt: 0n,
-            createdAt: 0,
-        },
-        body: beginCell()
-            .storeUint(op.recoverStakeOk, 32)
-            .storeUint(0, 64)
-            .endCell(),
-    }
-}
-
 export function setConfig(blockchain: Blockchain, index: bigint, value: Cell) {
     const config = Dictionary.loadDirect(Dictionary.Keys.BigInt(32), Dictionary.Values.Cell(), blockchain.config)
     config.set(index, value)

@@ -116,14 +116,12 @@ int src_is_elector?(slice src) {
     if (op == op::new_stake) {
         ;; the elector does not throw because format of new_stake_msg is already checked,
         ;; however, its code might change in the future, so let's handle a potential throw
-        new_stake_error(src, s);
-        return ();
+        return new_stake_error(src, s);
     }
 
     if (op == op::recover_stake) {
         ;; the elector does not throw, but we'll handle it in case the elector's code has changed
-        recover_stake_result(src, op::recover_stake_error, s);
-        return ();
+        return recover_stake_result(src, op::recover_stake_error, s);
     }
 }
 
@@ -133,8 +131,7 @@ int src_is_elector?(slice src) {
     slice src = cs~load_msg_addr();
 
     if (flags & 1) {
-        on_bounce(src, in_msg_body);
-        return ();
+        return on_bounce(src, in_msg_body);
     }
 
     int op = 0;
@@ -143,44 +140,36 @@ int src_is_elector?(slice src) {
     }
 
     if (op == op::send_new_stake) {
-        send_new_stake(src, in_msg_body);
-        return ();
+        return send_new_stake(src, in_msg_body);
     }
 
     if (op == op::new_stake_error) {
-        new_stake_error(src, in_msg_body);
-        return ();
+        return new_stake_error(src, in_msg_body);
     }
 
     if (op == op::new_stake_ok) {
-        ;; elector returns 1 TON when query_id > 0, do nothing
-        return ();
+        return (); ;; elector returns 1 TON when query_id > 0, do nothing
     }
 
     if (op == op::send_recover_stake) {
-        send_recover_stake(src, in_msg_body);
-        return ();
+        return send_recover_stake(src, in_msg_body);
     }
 
-    if (op == op::recover_stake_error) { ;; nothing to recover
-        recover_stake_result(src, op, in_msg_body);
-        return ();
+    if (op == op::recover_stake_error) {
+        return recover_stake_result(src, op, in_msg_body);
     }
 
-    if (op == op::recover_stake_ok) { ;; recover returns some TON
-        recover_stake_result(src, op, in_msg_body);
-        return ();
+    if (op == op::recover_stake_ok) {
+        return recover_stake_result(src, op, in_msg_body);
     }
 
     if (op == op::top_up) {
-        ;; top up TON balance, do nothing
-        return ();
+        return (); ;; top up TON balance, do nothing
     }
 
     if (src_is_elector?(src)) {
-        ;; accept coins from the elector
-        return ();
+        return (); ;; accept coins from the elector
     }
 
-    throw(err::unknown_op);
+    throw(err::invalid_op);
 }

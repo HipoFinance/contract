@@ -299,7 +299,6 @@ int deposit_coins_fee(cell wallet_state_init) impure {
         gas::gas_excess +
         gas::stake_coins +
         gas::mint_tokens +
-        gas::save_coins +
         gas::receive_tokens +
         gas::transfer_notification +
         gas::gas_excess;
@@ -350,6 +349,11 @@ int stake_coins_fee() impure {
         s_fwd_fee; ;; gas_excess
 
     return storage_fee + computation_fee + fwd_fee;
+}
+
+int stake_first_coins_fee() impure {
+    ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
+    return gas::stake_first_coins * gas_price >> 16;
 }
 
 int send_tokens_fee(cell wallet_state_init) impure {
@@ -412,6 +416,11 @@ int unstake_tokens_fee() impure {
     return storage_fee + computation_fee + fwd_fee;
 }
 
+int unstake_all_tokens_fee() impure {
+    ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
+    return gas::unstake_all_tokens * gas_price >> 16;
+}
+
 int transfer_notification_fee() impure {
     ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
     return gas::transfer_notification * gas_price >> 16;
@@ -458,9 +467,11 @@ int request_loan_fee(cell loan_state_init) impure {
         gas::recover_stakes +
         gas::recover_stake_result;
     int mc_computation_gas =
+        gas::send_new_stake +
         gas::new_stake +
         gas::new_stake_error +
         gas::new_stake_ok +
+        gas::send_recover_stake +
         gas::recover_stake +
         gas::recover_stake_error +
         gas::recover_stake_ok;
@@ -506,6 +517,7 @@ int send_new_stake_fee(cell loan_state_init) impure {
     int computation_gas =
         gas::new_stake_rejected;
     int mc_computation_gas =
+        gas::send_new_stake +
         gas::new_stake +
         gas::new_stake_error +
         gas::new_stake_ok;
@@ -540,6 +552,7 @@ int recover_stake_fee() impure {
     int computation_gas =
         gas::recover_stake_result;
     int mc_computation_gas =
+        gas::send_recover_stake +
         gas::recover_stake +
         gas::recover_stake_error +
         gas::recover_stake_ok;

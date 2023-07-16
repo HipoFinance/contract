@@ -53,6 +53,7 @@ export class Wallet implements Contract {
         sendMode?: SendMode
         queryId?: bigint
         roundSince: bigint
+        returnExcess?: Address
     }) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -62,6 +63,7 @@ export class Wallet implements Contract {
                 .storeUint(op.stakeCoins, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeUint(opts.roundSince, 32)
+                .storeAddress(opts.returnExcess)
                 .endCell()
         })
     }
@@ -123,6 +125,7 @@ export class Wallet implements Contract {
         bounce?: boolean
         sendMode?: SendMode
         queryId?: bigint
+        returnExcess?: Address
     }) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -131,6 +134,7 @@ export class Wallet implements Contract {
             body: beginCell()
                 .storeUint(op.withdrawTokens, 32)
                 .storeUint(opts.queryId || 0, 64)
+                .storeAddress(opts.returnExcess)
                 .endCell()
         })
     }

@@ -130,9 +130,15 @@ save_coins#7f30ee55
     return_excess:MsgAddress
         = InternalMsgBody;
 
-stake_coins#2bf595ba
+stake_coins#4cae3ab1
     query_id:uint64
     round_since:uint32
+    return_excess:MsgAddress
+        = InternalMsgBody;
+
+stake_first_coins#70c09713
+    query_id:uint64
+    return_excess:MsgAddress
         = InternalMsgBody;
 
 mint_tokens#4559ca57
@@ -143,8 +149,14 @@ mint_tokens#4559ca57
     return_excess:MsgAddress
         = InternalMsgBody;
 
-withdraw_tokens#168c0784
+unstake_all_tokens#2dda9652
     query_id:uint64
+    return_excess:MsgAddress
+        = InternalMsgBody;
+
+withdraw_tokens#469bd91e
+    query_id:uint64
+    return_excess:MsgAddress
         = InternalMsgBody;
 
 burn_tokens#002c6e13
@@ -194,7 +206,7 @@ participate_in_election#574a297b
     round_since:uint32
         = InternalMsgBody;
 
-process_loan_requests#71d07cc
+process_loan_requests#071d07cc
     query_id:uint64
     round_since:uint32
         = InternalMsgBody;
@@ -226,7 +238,7 @@ recover_stakes#4f173d3e
     round_since:uint32
         = InternalMsgBody;
 
-send_recover_stake#5eec9a2
+send_recover_stake#05eec9a2
     query_id:uint64
         = InternalMsgBody;
 

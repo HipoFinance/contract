@@ -176,7 +176,7 @@ builder pack_extension
     s.end_parse();
 
     ( builder wallet, cell state_init, _ ) = create_wallet_address(src.to_builder(), my_address(), wallet_code);
-    ( int src_wc, int src_addr ) = parse_std_addr(src);
+    ( int src_wc, _ ) = parse_std_addr(src);
     int min_fee = deposit_coins_fee(state_init);
     int storage_fee = 0; ;; todo
     int stake_amount = msg_ton - storage_fee - min_fee;
@@ -392,6 +392,78 @@ builder pack_extension
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
         participations, wallet_code, loan_code, extension
     );
+}
+
+() send_stake_first_coins(slice src) impure {
+    ( int total_coins
+    , int total_tokens
+    , int total_staking
+    , int total_unstaking
+    , int total_validators_stake
+    , cell participations
+    , cell wallet_code
+    , cell loan_code
+    , cell extension
+    ) = load_data();
+
+    ( builder wallet, _, _ ) = create_wallet_address(src.to_builder(), my_address(), wallet_code);
+    ( int src_wc, _ ) = parse_std_addr(src);
+
+    throw_unless(err::only_basechain_allowed, src_wc == chain::base);
+
+    builder body = begin_cell()
+        .store_uint(op::stake_first_coins, 32)
+        .store_uint(0, 64)
+        .store_slice(src);
+    send_msg(false, wallet, null(), body, 0, send::remaining_value);
+}
+
+() send_unstake_all_tokens(slice src) impure {
+    ( int total_coins
+    , int total_tokens
+    , int total_staking
+    , int total_unstaking
+    , int total_validators_stake
+    , cell participations
+    , cell wallet_code
+    , cell loan_code
+    , cell extension
+    ) = load_data();
+
+    ( builder wallet, _, _ ) = create_wallet_address(src.to_builder(), my_address(), wallet_code);
+    ( int src_wc, _ ) = parse_std_addr(src);
+
+    throw_unless(err::only_basechain_allowed, src_wc == chain::base);
+
+    builder body = begin_cell()
+        .store_uint(op::unstake_all_tokens, 32)
+        .store_uint(0, 64)
+        .store_slice(src);
+    send_msg(false, wallet, null(), body, 0, send::remaining_value);
+}
+
+() send_withdraw_tokens(slice src) impure {
+    ( int total_coins
+    , int total_tokens
+    , int total_staking
+    , int total_unstaking
+    , int total_validators_stake
+    , cell participations
+    , cell wallet_code
+    , cell loan_code
+    , cell extension
+    ) = load_data();
+
+    ( builder wallet, _, _ ) = create_wallet_address(src.to_builder(), my_address(), wallet_code);
+    ( int src_wc, _ ) = parse_std_addr(src);
+
+    throw_unless(err::only_basechain_allowed, src_wc == chain::base);
+
+    builder body = begin_cell()
+        .store_uint(op::withdraw_tokens, 32)
+        .store_uint(0, 64)
+        .store_slice(src);
+    send_msg(false, wallet, null(), body, 0, send::remaining_value);
 }
 
 () provide_wallet_address(slice src, slice s) impure {
@@ -1174,18 +1246,21 @@ builder pack_extension
         ;; This is very rare and may happen when staker's jetton wallet is already frozen.
         ;; Nothing we can do, since we don't know staker's account address in this bounced message.
         ;; Just accept bounced coins.
+        return ();
     }
 
     if (op == op::send_new_stake) {
         ;; Loan failed to send new stake.
         ;; This must not happen, since for each round a new loan is created.
         ;; Just accept bounced coins.
+        return ();
     }
 
     if (op == op::send_recover_stake) {
         ;; Loan failed to send recover stake.
         ;; This must not happen, since for each round a new loan is created.
         ;; Just accept bounced coins.
+        return ();
     }
 }
 
@@ -1195,8 +1270,7 @@ builder pack_extension
     slice src = cs~load_msg_addr();
 
     if (flags & 1) {
-        on_bounce(in_msg_body);
-        return ();
+        return on_bounce(in_msg_body);
     }
 
     int op = 0;
@@ -1204,77 +1278,86 @@ builder pack_extension
         op = in_msg_body~load_uint(32);
     }
 
+    if (op == 0) {
+        if ((in_msg_body.slice_bits() == 8) & (in_msg_body.slice_refs() == 0)) {
+            int c = in_msg_body~load_uint(8);
+            if (c == "d"u) {
+                return deposit_coins(msg_ton, src, query_id::zero);
+            }
+
+            if (c == "s"u) {
+                return send_stake_first_coins(src);
+            }
+
+            if (c == "w"u) {
+                return send_unstake_all_tokens(src);
+            }
+
+            if (c == "u"u) {
+                return send_withdraw_tokens(src);
+            }
+        }
+
+        throw(err::invalid_comment);
+    }
+
     if (op == op::deposit_coins) {
-        deposit_coins(msg_ton, src, in_msg_body);
-        return ();
+        return deposit_coins(msg_ton, src, in_msg_body);
     }
 
     if (op == op::mint_tokens) {
-        mint_tokens(msg_ton, src, in_msg_body);
-        return ();
+        return mint_tokens(msg_ton, src, in_msg_body);
     }
 
     if (op == op::reserve_tokens) {
-        reserve_tokens(msg_ton, src, in_msg_body);
-        return ();
+        return reserve_tokens(msg_ton, src, in_msg_body);
     }
 
     if (op == op::burn_tokens) {
-        burn_tokens(msg_ton, src, in_msg_body);
-        return ();
+        return burn_tokens(msg_ton, src, in_msg_body);
     }
 
     if (op == op::provide_wallet_address) {
-        provide_wallet_address(src, in_msg_body);
-        return ();
+        return provide_wallet_address(src, in_msg_body);
     }
 
     if (op == op::request_loan) {
-        request_loan(msg_ton, src, in_msg_body);
-        return ();
+        return request_loan(msg_ton, src, in_msg_body);
     }
 
     if (op == op::participate_in_election) {
-        participate_in_election(in_msg_body);
-        return ();
+        return participate_in_election(in_msg_body);
     }
 
     if (op == op::process_loan_requests) {
-        process_loan_requests(msg_ton, src, in_msg_body);
-        return ();
+        return process_loan_requests(msg_ton, src, in_msg_body);
     }
 
     if (op == op::new_stake_rejected) {
-        new_stake_rejected(msg_ton, src, in_msg_body);
-        return ();
+        return new_stake_rejected(msg_ton, src, in_msg_body);
     }
 
     if (op == op::vset_changed) {
-        vset_changed(in_msg_body);
-        return ();
+        return vset_changed(in_msg_body);
     }
 
     if (op == op::finish_participation) {
-        finish_participation(in_msg_body);
-        return ();
+        return finish_participation(in_msg_body);
     }
 
     if (op == op::recover_stakes) {
-        recover_stakes(msg_ton, src, in_msg_body);
-        return ();
+        return recover_stakes(msg_ton, src, in_msg_body);
     }
 
     if (op == op::recover_stake_result) {
-        recover_stake_result(msg_ton, src, in_msg_body);
-        return ();
+        return recover_stake_result(msg_ton, src, in_msg_body);
     }
 
     if (op == op::top_up) {
-        ;; top up TON balance, do nothing
-        return ();
+        return (); ;; top up TON balance, do nothing
     }
 
-    throw(err::unknown_op);
+    throw(err::invalid_op);
 }
 
 () recv_external(slice in_msg_body) impure {
@@ -1295,7 +1378,7 @@ builder pack_extension
         return ();
     }
 
-    throw(err::unknown_op);
+    throw(err::invalid_op);
 }
 
 ;;

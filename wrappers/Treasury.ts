@@ -30,12 +30,14 @@ export type Fees = {
     loanStorage: bigint
 }
 
+export type True = {}
+
 type Reward = {
     staked: bigint
     recovered: bigint
 }
 
-enum ParticipationState {
+export enum ParticipationState {
     Open,
     Distribution,
     Staked,
@@ -55,7 +57,7 @@ type Loan = {
 
 type Participation = {
     state?: ParticipationState
-    sorted?: Dictionary<bigint, Cell>
+    sorted?: Dictionary<bigint, Dictionary<bigint, True>>
     loansSize?: bigint
     requests?: Dictionary<bigint, Loan>
     accepted?: Dictionary<bigint, Loan>
@@ -82,7 +84,15 @@ type TreasuryConfig = {
     content?: Cell
 }
 
-const rewardDictionaryValue: DictionaryValue<Reward> = {
+export const trueDictionaryValue: DictionaryValue<True> = {
+    serialize: function(src: True, builder: Builder) {
+    },
+    parse: function(src: Slice): True {
+        return {}
+    }
+}
+
+export const rewardDictionaryValue: DictionaryValue<Reward> = {
     serialize: function(src: Reward, builder: Builder) {
         builder
             .storeCoins(src.staked)
@@ -96,7 +106,17 @@ const rewardDictionaryValue: DictionaryValue<Reward> = {
     }
 }
 
-const loanDictionaryValue: DictionaryValue<Loan> = {
+export const sortedDictionaryValue: DictionaryValue<Dictionary<bigint, True>> = {
+    serialize: function(src: Dictionary<bigint, True>, builder: Builder) {
+        builder
+            .storeRef(beginCell().storeDictDirect(src))
+    },
+    parse: function(src: Slice): Dictionary<bigint, True> {
+        return src.loadRef().beginParse().loadDictDirect(Dictionary.Keys.BigUint(256), trueDictionaryValue)
+    }
+}
+
+export const loanDictionaryValue: DictionaryValue<Loan> = {
     serialize: function(src: Loan, builder: Builder) {
         builder
             .storeCoins(src.minPayment)
@@ -118,7 +138,7 @@ const loanDictionaryValue: DictionaryValue<Loan> = {
     }
 }
 
-const participationDictionaryValue: DictionaryValue<Participation> = {
+export const participationDictionaryValue: DictionaryValue<Participation> = {
     serialize: function(src: Participation, builder: Builder) {
         builder
             .storeUint(src.state || 0, 3)
@@ -137,7 +157,7 @@ const participationDictionaryValue: DictionaryValue<Participation> = {
     parse: function(src: Slice): Participation {
         return {
             state: src.loadUint(3),
-            sorted: src.loadDict(Dictionary.Keys.BigUint(112), Dictionary.Values.Cell()),
+            sorted: src.loadDict(Dictionary.Keys.BigUint(112), sortedDictionaryValue),
             loansSize: src.loadUintBig(16),
             requests: src.loadDict(Dictionary.Keys.BigUint(256), loanDictionaryValue),
             accepted: src.loadDict(Dictionary.Keys.BigUint(256), loanDictionaryValue),

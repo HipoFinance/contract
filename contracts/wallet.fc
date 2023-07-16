@@ -79,7 +79,12 @@
 
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
+    slice return_excess = s~load_msg_addr();
     s.end_parse();
+
+    if (return_excess.preload_uint(2) == 0) {
+        return_excess = src;
+    }
 
     int min_fee = stake_coins_fee();
     int stake_amount = 0;
@@ -98,10 +103,41 @@
         .store_coins(stake_amount)
         .store_uint(round_since, 32)
         .store_slice(owner)
-        .store_slice(src);
+        .store_slice(return_excess);
     send_msg(true, treasury.to_builder(), null(), body, 0, send::remaining_value);
 
     save_data(owner, treasury, tokens, staking, unstaking, wallet_code);
+}
+
+() stake_first_coins(int msg_ton, slice s) impure {
+    ( slice owner
+    , slice treasury
+    , int tokens
+    , cell staking
+    , int unstaking
+    , cell wallet_code
+    ) = load_data();
+
+    int query_id = s~load_uint(64);
+    slice return_excess = s~load_msg_addr();
+    s.end_parse();
+
+    int min_fee = stake_first_coins_fee() + stake_coins_fee();
+
+    throw_unless(err::insufficient_fee, msg_ton >= min_fee);
+
+    ( int round_since, _, int f? ) = staking.udict_get_min?(32);
+    ifnot (f?) {
+        round_since = 0;
+    }
+    slice s = begin_cell()
+        .store_uint(query_id, 64)
+        .store_uint(round_since, 32)
+        .store_slice(return_excess)
+        .end_cell()
+        .begin_parse();
+
+    stake_coins(msg_ton, owner, s);
 }
 
 () receive_tokens(int msg_ton, slice src, slice s) impure {
@@ -245,6 +281,39 @@
     save_data(owner, treasury, tokens, staking, unstaking, wallet_code);
 }
 
+() unstake_all_tokens(int msg_ton, slice src, slice s) impure {
+    ( slice owner
+    , slice treasury
+    , int tokens
+    , cell staking
+    , int unstaking
+    , cell wallet_code
+    ) = load_data();
+
+    int query_id = s~load_uint(64);
+    slice return_excess = s~load_msg_addr();
+    s.end_parse();
+
+    if (return_excess.preload_uint(2) == 0) {
+        return_excess = src;
+    }
+
+    int min_ton = unstake_all_tokens_fee() + unstake_tokens_fee();
+
+    throw_unless(err::access_denied, equal_slices(src, treasury));
+    throw_unless(err::insufficient_fee, msg_ton >= min_ton);
+
+    slice s = begin_cell()
+        .store_uint(query_id, 64)
+        .store_coins(tokens)
+        .store_slice(owner)
+        .store_uint(0, 1) ;; custom payload
+        .end_cell()
+        .begin_parse();
+
+    unstake_tokens(msg_ton, owner, s);
+}
+
 () withdraw_tokens(int msg_ton, slice src, slice s) impure {
     ( slice owner
     , slice treasury
@@ -255,7 +324,12 @@
     ) = load_data();
 
     int query_id = s~load_uint(64);
+    slice return_excess = s~load_msg_addr();
     s.end_parse();
+
+    if (return_excess.preload_uint(2) == 0) {
+        return_excess = src;
+    }
 
     int min_ton = withdraw_tokens_fee();
 
@@ -267,7 +341,7 @@
         .store_uint(query_id, 64)
         .store_coins(unstaking)
         .store_slice(owner)
-        .store_slice(src);
+        .store_slice(return_excess);
     send_msg(true, treasury.to_builder(), null(), body, 0, send::remaining_value);
 
     save_data(owner, treasury, tokens, staking, 0, wallet_code);
@@ -283,13 +357,13 @@
     ) = load_data();
 
     int query_id = s~load_uint(64);
-    int tokens = s~load_coins();
+    int amount = s~load_coins();
     slice return_excess = s~load_msg_addr();
     s.end_parse();
 
     throw_unless(err::access_denied, equal_slices(src, treasury));
 
-    unstaking += tokens;
+    unstaking += amount;
 
     int ton_balance = get_balance().pair_first();
     int ton_balance_before_msg = ton_balance - msg_ton;
@@ -364,8 +438,7 @@
     slice src = cs~load_msg_addr();
 
     if (flags & 1) {
-        on_bounce(in_msg_body);
-        return ();
+        return on_bounce(in_msg_body);
     }
 
     int op = 0;
@@ -374,45 +447,46 @@
     }
 
     if (op == op::save_coins) {
-        save_coins(msg_ton, src, in_msg_body);
-        return ();
+        return save_coins(msg_ton, src, in_msg_body);
     }
 
     if (op == op::stake_coins) {
-        stake_coins(msg_ton, src, in_msg_body);
-        return ();
+        return stake_coins(msg_ton, src, in_msg_body);
+    }
+
+    if (op == op::stake_first_coins) {
+        return stake_first_coins(msg_ton, in_msg_body);
     }
 
     if (op == op::receive_tokens) {
-        receive_tokens(msg_ton, src, in_msg_body);
-        return ();
+        return receive_tokens(msg_ton, src, in_msg_body);
     }
 
     if (op == op::send_tokens) {
-        send_tokens(msg_ton, src, in_msg_body);
-        return ();
+        return send_tokens(msg_ton, src, in_msg_body);
     }
 
     if (op == op::unstake_tokens) {
-        unstake_tokens(msg_ton, src, in_msg_body);
-        return ();
+        return unstake_tokens(msg_ton, src, in_msg_body);
+    }
+
+    if (op == op::unstake_all_tokens) {
+        return unstake_all_tokens(msg_ton, src, in_msg_body);
     }
 
     if (op == op::withdraw_tokens) {
-        withdraw_tokens(msg_ton, src, in_msg_body);
-        return ();
+        return withdraw_tokens(msg_ton, src, in_msg_body);
     }
 
     if (op == op::burn_failed) {
-        burn_failed(msg_ton, src, in_msg_body);
+        return burn_failed(msg_ton, src, in_msg_body);
     }
 
     if (op == op::top_up) {
-        ;; top up TON balance, do nothing
-        return ();
+        return (); ;; top up TON balance, do nothing
     }
 
-    throw(err::unknown_op);
+    throw(err::invalid_op);
 }
 
 ;;
