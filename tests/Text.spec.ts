@@ -37,6 +37,7 @@ describe('Text Interface', () => {
             totalUnstaking: 0n,
             totalValidatorsStake: 0n,
             participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
+            stopped: false,
             walletCode,
             loanCode,
             driver: driver.address,

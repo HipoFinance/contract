@@ -6,21 +6,22 @@ const int err::insufficient_funds = 102;
 const int err::access_denied = 103;
 const int err::only_basechain_allowed = 104;
 const int err::receiver_is_sender = 105;
-const int err::invalid_op = 106;
-const int err::invalid_comment = 107;
+const int err::stopped = 106;
+const int err::invalid_op = 107;
+const int err::invalid_comment = 108;
 
-const int err::not_accepting_loan_requests = 111;
-const int err::unable_to_participate = 112;
-const int err::too_soon_to_participate = 113;
-const int err::not_ready_to_finish_participation = 114;
-const int err::too_soon_to_finish_participation = 115;
-const int err::vset_not_changed = 116;
-const int err::vset_not_changeable = 117;
+const int err::not_accepting_loan_requests = 201;
+const int err::unable_to_participate = 202;
+const int err::too_soon_to_participate = 203;
+const int err::not_ready_to_finish_participation = 204;
+const int err::too_soon_to_finish_participation = 205;
+const int err::vset_not_changed = 206;
+const int err::vset_not_changeable = 207;
 
-const int err::unexpected_storage_price_format = 121;
-const int err::unexpected_gas_price_format = 122;
-const int err::unexpected_msg_forward_prices_format = 123;
-const int err::unexpected_validator_set_format = 124;
+const int err::unexpected_storage_price_format = 301;
+const int err::unexpected_gas_price_format = 302;
+const int err::unexpected_msg_forward_prices_format = 303;
+const int err::unexpected_validator_set_format = 304;
 
 
 const int participation::open = 0;
@@ -73,6 +74,7 @@ const int op::recover_stake_result = 0x48310d2a;
 const int op::propose_governor = 0x76ff2956;
 const int op::accept_governance = 0x06e237e3;
 const int op::set_halter = 0x16bb5b17;
+const int op::set_stopped = 0x700d5e50;
 const int op::set_driver = 0x7e7da841;
 const int op::set_content = 0x471dad93;
 

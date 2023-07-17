@@ -63,6 +63,7 @@ type TreasuryConfig = {
     totalUnstaking: bigint
     totalValidatorsStake: bigint
     participations: Dictionary<bigint, Participation>
+    stopped: boolean
     walletCode: Cell
     loanCode: Cell
     driver: Address
@@ -176,6 +177,7 @@ function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeCoins(config.totalUnstaking || 0)
         .storeCoins(config.totalValidatorsStake || 0)
         .storeDict(config.participations)
+        .storeBit(config.stopped)
         .storeRef(config.walletCode)
         .storeRef(config.loanCode)
         .storeRef(treasuryExtension)
@@ -374,6 +376,25 @@ export class Treasury implements Contract {
         })
     }
 
+    async sendSetStopped(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+        newStopped: boolean
+    }) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.setStopped, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .storeBit(opts.newStopped)
+                .endCell()
+        })
+    }
+
     async sendSetDriver(provider: ContractProvider, via: Sender, opts: {
         value: bigint | string
         bounce?: boolean
@@ -424,6 +445,7 @@ export class Treasury implements Contract {
                 stack.readCellOpt()),
             rewardsHistory: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), rewardDictionaryValue,
                 stack.readCellOpt()),
+            stopped: stack.readBoolean(),
             driver: stack.readAddress(),
             halter: stack.readAddress(),
             governor: stack.readAddress(),

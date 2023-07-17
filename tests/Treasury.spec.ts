@@ -2,9 +2,10 @@ import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
 import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
-import { between, bodyOp } from './helper'
-import { op } from '../wrappers/common'
+import { between, bodyOp, createVset, emptyNewStakeMsg, setConfig } from './helper'
+import { config, op } from '../wrappers/common'
 import { Fees, Treasury, participationDictionaryValue, rewardDictionaryValue } from '../wrappers/Treasury'
+import { Wallet } from '../wrappers/Wallet'
 
 describe('Treasury', () => {
     let treasuryCode: Cell
@@ -36,6 +37,7 @@ describe('Treasury', () => {
             totalUnstaking: 0n,
             totalValidatorsStake: 0n,
             participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
+            stopped: false,
             walletCode,
             loanCode,
             driver: driver.address,
@@ -160,6 +162,127 @@ describe('Treasury', () => {
 
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryState.halter.equals(newHalter.address)).toBeTruthy()
+    })
+
+    it('should set stopped', async () => {
+        const result1 = await treasury.sendSetStopped(halter.getSender(), { value: '0.1', newStopped: true })
+
+        expect(result1.transactions).toHaveTransaction({
+            from: halter.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.setStopped),
+            deploy: false,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: halter.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            deploy: false,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result1.transactions).toHaveLength(3)
+
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryState.stopped).toBeTruthy()
+
+        const staker = await blockchain.treasury('staker')
+        const result2 = await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
+
+        expect(result2.transactions).toHaveTransaction({
+            from: staker.address,
+            to: treasury.address,
+            value: toNano('10'),
+            body: bodyOp(op.depositCoins),
+            deploy: false,
+            success: false,
+            outMessagesCount: 1,
+        })
+        expect(result2.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: staker.address,
+            value: between('9.9', '10'),
+            body: bodyOp(0xffffffff),
+            deploy: false,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result2.transactions).toHaveLength(3)
+
+        const times = await treasury.getTimes()
+        const electedFor = times.nextRoundSince - times.currentRoundSince
+        const since = BigInt(Math.floor(Date.now() / 1000)) - electedFor / 2n
+        const until = since + electedFor
+        const vset = createVset(since, until)
+        setConfig(blockchain, config.currentValidators, vset)
+
+        const validator = await blockchain.treasury('validator')
+        const result3 = await treasury.sendRequestLoan(validator.getSender(), {
+            value: '152.7', // 101 (max punishment) + 50 (min payment) + 1.7 (fee)
+            roundSince: until,
+            loanAmount: '300000',
+            minPayment: '50',
+            validatorRewardShare: 102n, // 40%
+            newStakeMsg: emptyNewStakeMsg,
+        })
+
+        expect(result3.transactions).toHaveTransaction({
+            from: validator.address,
+            to: treasury.address,
+            value: toNano('152.7'),
+            body: bodyOp(op.requestLoan),
+            deploy: false,
+            success: false,
+            outMessagesCount: 1,
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: validator.address,
+            value: between('152.6', '152.7'),
+            body: bodyOp(0xffffffff),
+            deploy: false,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result3.transactions).toHaveLength(3)
+
+        await treasury.sendSetStopped(halter.getSender(), { value: '0.1', newStopped: false })
+        const walletAddress = await treasury.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const result4 = await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
+
+        expect(result4.transactions).toHaveTransaction({
+            from: staker.address,
+            to: treasury.address,
+            value: toNano('10'),
+            body: bodyOp(op.depositCoins),
+            deploy: false,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result4.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: wallet.address,
+            value: between(fees.walletStorage, '0.1'),
+            body: bodyOp(op.saveCoins),
+            deploy: true,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result4.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: driver.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            deploy: false,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result4.transactions).toHaveLength(4)
     })
 
     it('should set driver', async () => {

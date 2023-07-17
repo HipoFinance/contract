@@ -37,6 +37,7 @@ describe('Wallet', () => {
             totalUnstaking: 0n,
             totalValidatorsStake: 0n,
             participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
+            stopped: false,
             walletCode,
             loanCode,
             driver: driver.address,
@@ -541,6 +542,7 @@ describe('Wallet', () => {
             .storeCoins(state.totalUnstaking)
             .storeCoins(state.totalValidatorsStake)
             .storeDict(state.participations)
+            .storeBit(state.stopped)
             .storeRef(state.walletCode)
             .storeRef(state.loanCode)
             .storeRef(extension)
@@ -636,6 +638,7 @@ describe('Wallet', () => {
             .storeCoins(state.totalUnstaking)
             .storeCoins(state.totalValidatorsStake)
             .storeDict(state.participations)
+            .storeBit(state.stopped)
             .storeRef(state.walletCode)
             .storeRef(state.loanCode)
             .storeRef(extension)

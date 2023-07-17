@@ -43,6 +43,7 @@ export const op = {
     proposeGovernor: 0x76ff2956,
     acceptGovernance: 0x06e237e3,
     setHalter: 0x16bb5b17,
+    setStopped: 0x700d5e50,
     setDriver: 0x7e7da841,
     setContent: 0x471dad93,
 
