@@ -70,6 +70,7 @@ type TreasuryConfig = {
     halter: Address
     governor: Address
     proposedGovernor: Cell | null
+    rewardShare: bigint
     rewardsHistory: Dictionary<bigint, Reward>
     content: Cell
 }
@@ -168,6 +169,7 @@ function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeAddress(config.halter)
         .storeAddress(config.governor)
         .storeMaybeRef(config.proposedGovernor)
+        .storeUint(config.rewardShare, 16)
         .storeDict(config.rewardsHistory)
         .storeRef(config.content || Cell.EMPTY)
     return beginCell()
@@ -443,15 +445,16 @@ export class Treasury implements Contract {
             totalValidatorsStake: stack.readBigNumber(),
             participations: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), participationDictionaryValue,
                 stack.readCellOpt()),
-            rewardsHistory: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), rewardDictionaryValue,
-                stack.readCellOpt()),
             stopped: stack.readBoolean(),
+            walletCode: stack.readCell(),
+            loanCode: stack.readCell(),
             driver: stack.readAddress(),
             halter: stack.readAddress(),
             governor: stack.readAddress(),
             proposedGovernor: stack.readCellOpt(),
-            walletCode: stack.readCell(),
-            loanCode: stack.readCell(),
+            rewardShare: stack.readBigNumber(),
+            rewardsHistory: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), rewardDictionaryValue,
+                stack.readCellOpt()),
             content: stack.readCell(),
         }
     }

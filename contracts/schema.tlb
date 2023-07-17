@@ -320,6 +320,7 @@ extension#_
     halter:MsgAddress
     governor:MsgAddress
     proposed_governor:(Maybe ^MsgAddress)
+    reward_share:uint16
     rewards_history:(HashmapE 32 Reward)
     content:^FullContent
         = Extension;

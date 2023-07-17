@@ -45,6 +45,7 @@ describe('Loan', () => {
             halter: halter.address,
             governor: governor.address,
             proposedGovernor: null,
+            rewardShare: 4096n,
             rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
             content: Cell.EMPTY,
         }, treasuryCode))
@@ -476,6 +477,7 @@ describe('Loan', () => {
             .storeAddress(state.halter)
             .storeAddress(state.governor)
             .storeMaybeRef(state.proposedGovernor)
+            .storeUint(state.rewardShare, 16)
             .storeDict(state.rewardsHistory)
             .storeRef(state.content)
         const fakeData = beginCell()
@@ -632,8 +634,8 @@ describe('Loan', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('700139', '700140')
-        expect(treasuryState.totalCoins).toBeBetween('699999', '700000')
-        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalTokens)
+        expect(treasuryState.totalCoins).toBeBetween('700122', '700123')
+        expect(treasuryState.totalTokens).toBeBetween('699999', '700000')
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
@@ -641,6 +643,6 @@ describe('Loan', () => {
         const reward = treasuryState.rewardsHistory.get(until1)
         expect(treasuryState.rewardsHistory.size).toBe(1)
         expect(reward?.staked).toBeBetween('699999', '700000')
-        expect(reward?.recovered).toBeBetween('700130', '700131')
+        expect(reward?.recovered).toBeBetween('700122', '700123')
     })
 })

@@ -44,6 +44,7 @@ describe('Wallet', () => {
             halter: halter.address,
             governor: governor.address,
             proposedGovernor: null,
+            rewardShare: 4096n,
             rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
             content: Cell.EMPTY,
         }, treasuryCode))
@@ -533,6 +534,7 @@ describe('Wallet', () => {
             .storeAddress(state.halter)
             .storeAddress(state.governor)
             .storeMaybeRef(state.proposedGovernor)
+            .storeUint(state.rewardShare, 16)
             .storeDict(state.rewardsHistory)
             .storeRef(state.content)
         const fakeData = beginCell()
@@ -629,6 +631,7 @@ describe('Wallet', () => {
             .storeAddress(state.halter)
             .storeAddress(state.governor)
             .storeMaybeRef(state.proposedGovernor)
+            .storeUint(state.rewardShare, 16)
             .storeDict(state.rewardsHistory)
             .storeRef(state.content)
         const fakeData = beginCell()

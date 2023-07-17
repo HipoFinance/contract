@@ -44,6 +44,7 @@ describe('Treasury', () => {
             halter: halter.address,
             governor: governor.address,
             proposedGovernor: null,
+            rewardShare: 4096n,
             rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
             content: Cell.EMPTY,
         }, treasuryCode))

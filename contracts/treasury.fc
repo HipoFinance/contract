@@ -92,6 +92,7 @@ builder pack_extension
     , slice halter
     , slice governor
     , cell proposed_governor
+    , int reward_share
     , cell rewards_history
     , cell content
     ) {
@@ -100,15 +101,17 @@ builder pack_extension
         .store_slice(halter)
         .store_slice(governor)
         .store_maybe_ref(proposed_governor)
+        .store_uint(reward_share, 16)
         .store_dict(rewards_history)
         .store_ref(content);
 }
 
-(slice, slice, slice, cell, cell, cell) unpack_extension(slice s) {
+(slice, slice, slice, cell, int, cell, cell) unpack_extension(slice s) {
     slice driver = s~load_msg_addr();
     slice halter = s~load_msg_addr();
     slice governor = s~load_msg_addr();
     cell proposed_governor = s~load_maybe_ref();
+    int reward_share = s~load_uint(16);
     cell rewards_history = s~load_dict();
     cell content = s~load_ref();
     s.end_parse();
@@ -117,6 +120,7 @@ builder pack_extension
         , halter
         , governor
         , proposed_governor
+        , reward_share
         , rewards_history
         , content
         );
@@ -187,7 +191,7 @@ builder pack_extension
     , cell loan_code
     , cell extension
     ) = load_data();
-    ( slice driver, _, _, _, _, _ ) = unpack_extension(extension.begin_parse());
+    ( slice driver, _, _, _, _, _, _ ) = unpack_extension(extension.begin_parse());
 
     int query_id = s~load_uint(64);
     s.end_parse();
@@ -311,7 +315,7 @@ builder pack_extension
     , cell loan_code
     , cell extension
     ) = load_data();
-    ( slice driver, _, _, _, _, _ ) = unpack_extension(extension.begin_parse());
+    ( slice driver, _, _, _, _, _, _ ) = unpack_extension(extension.begin_parse());
 
     int query_id = s~load_uint(64);
     int amount = s~load_coins();
@@ -1172,6 +1176,7 @@ builder pack_extension
     , slice halter
     , slice governor
     , cell proposed_governor
+    , int reward_share
     , cell rewards_history
     , cell content
     ) = unpack_extension(extension.begin_parse());
@@ -1216,13 +1221,16 @@ builder pack_extension
             , _
             ) = unpack_loan(request);
 
+            int stakers_reward_share = 65535 - reward_share;
             int reward = msg_ton - loan_amount - accrue_amount - stake_amount;
             if (reward >= 0) {
                 int treasury_reward_share = 255 - validator_reward_share;
                 int treasury_reward = max(min_payment, muldiv(reward, treasury_reward_share, 255));
                 int validator_reward = reward - treasury_reward;
                 stake_amount += validator_reward;
-                total_recovered += loan_amount + accrue_amount + treasury_reward;
+                int new_coins = muldiv(treasury_reward, stakers_reward_share, 65535);
+                total_coins += new_coins;
+                total_recovered += loan_amount + accrue_amount + new_coins;
             } else {
                 ;; when reward is negative, punish the validator first
                 int compensation = min(stake_amount, - reward);
@@ -1230,11 +1238,15 @@ builder pack_extension
                 ;; then try to take at most min_payment
                 int payment = min(stake_amount, min_payment);
                 stake_amount -= payment;
-                total_recovered += msg_ton - stake_amount + payment;
+                int new_coins = muldiv(max(0, payment), stakers_reward_share, 65535);
+                total_coins += reward + compensation + new_coins;
+                total_recovered += msg_ton - stake_amount + new_coins;
             }
 
             if (stake_amount > 0) {
-                send_msg(false, validator.to_builder(), null(), begin_cell(), stake_amount, send::pay_gas_separately);
+                send_msg(false, validator.to_builder(), null(), begin_cell(), stake_amount,
+                    send::pay_gas_separately + send::ignore_errors
+                );
             }
 
             if (dict_empty?(recovering)) {
@@ -1259,7 +1271,7 @@ builder pack_extension
                 } until (~ x?);
 
                 extension = pack_extension(
-                    driver, halter, governor, proposed_governor, rewards_history, content
+                    driver, halter, governor, proposed_governor, reward_share, rewards_history, content
                 ).end_cell();
             } else {
                 builder pdb = pack_participation(
@@ -1292,6 +1304,7 @@ builder pack_extension
     , slice halter
     , slice governor
     , _
+    , int reward_share
     , cell rewards_history
     , cell content
     ) = unpack_extension(extension.begin_parse());
@@ -1307,7 +1320,9 @@ builder pack_extension
     cell proposed_governor = begin_cell()
         .store_slice(new_governor)
         .end_cell();
-    extension = pack_extension(driver, halter, governor, proposed_governor, rewards_history, content).end_cell();
+    extension = pack_extension(
+        driver, halter, governor, proposed_governor, reward_share, rewards_history, content
+    ).end_cell();
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
@@ -1336,6 +1351,7 @@ builder pack_extension
     , slice halter
     , slice governor
     , cell proposed_governor
+    , int reward_share
     , cell rewards_history
     , cell content
     ) = unpack_extension(extension.begin_parse());
@@ -1349,7 +1365,7 @@ builder pack_extension
 
     throw_unless(err::access_denied, equal_slices(src, new_governor));
 
-    extension = pack_extension(driver, halter, new_governor, null(), rewards_history, content).end_cell();
+    extension = pack_extension(driver, halter, new_governor, null(), reward_share, rewards_history, content).end_cell();
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
@@ -1378,6 +1394,7 @@ builder pack_extension
     , slice halter
     , slice governor
     , cell proposed_governor
+    , int reward_share
     , cell rewards_history
     , cell content
     ) = unpack_extension(extension.begin_parse());
@@ -1390,7 +1407,9 @@ builder pack_extension
 
     throw_unless(err::access_denied, equal_slices(src, governor) | equal_slices(src, halter));
 
-    extension = pack_extension(driver, new_halter, governor, proposed_governor, rewards_history, content).end_cell();
+    extension = pack_extension(
+        driver, new_halter, governor, proposed_governor, reward_share, rewards_history, content
+    ).end_cell();
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
@@ -1419,6 +1438,7 @@ builder pack_extension
     , slice halter
     , slice governor
     , cell proposed_governor
+    , int reward_share
     , cell rewards_history
     , cell content
     ) = unpack_extension(extension.begin_parse());
@@ -1456,6 +1476,7 @@ builder pack_extension
     , slice halter
     , slice governor
     , cell proposed_governor
+    , int reward_share
     , cell rewards_history
     , cell content
     ) = unpack_extension(extension.begin_parse());
@@ -1469,7 +1490,9 @@ builder pack_extension
     throw_unless(err::access_denied, equal_slices(src, governor) | equal_slices(src, halter));
     throw_unless(err::only_basechain_allowed, driver_wc == chain::base);
 
-    extension = pack_extension(new_driver, halter, governor, proposed_governor, rewards_history, content).end_cell();
+    extension = pack_extension(
+        new_driver, halter, governor, proposed_governor, reward_share, rewards_history, content
+    ).end_cell();
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
@@ -1498,6 +1521,7 @@ builder pack_extension
     , slice halter
     , slice governor
     , cell proposed_governor
+    , int reward_share
     , cell rewards_history
     , _
     ) = unpack_extension(extension.begin_parse());
@@ -1508,7 +1532,9 @@ builder pack_extension
 
     throw_unless(err::access_denied, equal_slices(src, governor));
 
-    extension = pack_extension(driver, halter, governor, proposed_governor, rewards_history, new_content).end_cell();
+    extension = pack_extension(
+        driver, halter, governor, proposed_governor, reward_share, rewards_history, new_content
+    ).end_cell();
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
@@ -1696,7 +1722,8 @@ builder pack_extension
 ;; get methods
 ;;
 
-(int, int, int, int, int, cell, cell, int, slice, slice, slice, cell, cell, cell, cell) get_treasury_state() method_id {
+(int, int, int, int, int, cell, int, cell, cell, slice, slice, slice, cell, int, cell, cell) get_treasury_state()
+    method_id {
     ( int total_coins
     , int total_tokens
     , int total_staking
@@ -1712,6 +1739,7 @@ builder pack_extension
     , slice halter
     , slice governor
     , cell proposed_governor
+    , int reward_share
     , cell rewards_history
     , cell content
     ) = unpack_extension(extension.begin_parse());
@@ -1723,14 +1751,15 @@ builder pack_extension
         , total_unstaking
         , total_validators_stake
         , participations
-        , rewards_history
         , stopped?
+        , wallet_code
+        , loan_code
         , driver
         , halter
         , governor
         , proposed_governor
-        , wallet_code
-        , loan_code
+        , reward_share
+        , rewards_history
         , content
         );
 }
@@ -1747,7 +1776,7 @@ builder pack_extension
     , cell loan_code
     , cell extension
     ) = load_data();
-    ( _, _, _, _, _, cell content ) = unpack_extension(extension.begin_parse());
+    ( _, _, _, _, _, _, cell content ) = unpack_extension(extension.begin_parse());
 
     return ( total_tokens, true, address::empty, content, wallet_code );
 }
