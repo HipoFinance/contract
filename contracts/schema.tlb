@@ -275,6 +275,11 @@ set_driver#7e7da841
     new_driver:MsgAddress
         = InternalMsgBody;
 
+set_content#471dad93
+    query_id:uint64
+    new_content:^FullContent
+        = InternalMsgBody;
+
 //
 // Storage
 //

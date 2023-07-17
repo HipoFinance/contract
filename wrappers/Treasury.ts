@@ -393,6 +393,25 @@ export class Treasury implements Contract {
         })
     }
 
+    async sendSetContent(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+        newContent: Cell
+    }) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.setContent, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .storeRef(opts.newContent)
+                .endCell()
+        })
+    }
+
     async getTreasuryState(provider: ContractProvider): Promise<TreasuryConfig> {
         const { stack } = await provider.get('get_treasury_state', [])
         return {

@@ -1419,6 +1419,44 @@ builder pack_extension
     );
 }
 
+() set_content(slice src, slice s) impure {
+    ( int total_coins
+    , int total_tokens
+    , int total_staking
+    , int total_unstaking
+    , int total_validators_stake
+    , cell participations
+    , cell wallet_code
+    , cell loan_code
+    , cell extension
+    ) = load_data();
+    ( slice driver
+    , slice halter
+    , slice governor
+    , cell proposed_governor
+    , cell rewards_history
+    , _
+    ) = unpack_extension(extension.begin_parse());
+
+    int query_id = s~load_uint(64);
+    cell new_content = s~load_ref();
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slices(src, governor));
+
+    extension = pack_extension(driver, halter, governor, proposed_governor, rewards_history, new_content).end_cell();
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+
+    save_data(
+        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
+        participations, wallet_code, loan_code, extension
+    );
+}
+
 () on_bounce(slice s) impure {
     ;; This function does nothing, but it is written like this to serve as a form of documentation.
 
@@ -1552,6 +1590,10 @@ builder pack_extension
 
     if (op == op::set_driver) {
         return set_driver(src, in_msg_body);
+    }
+
+    if (op == op::set_content) {
+        return set_content(src, in_msg_body);
     }
 
     if (op == op::top_up) {
