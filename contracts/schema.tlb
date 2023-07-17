@@ -253,7 +253,7 @@ top_up#34e5d45a
         = InternalMsgBody;
 
 //
-// Owner Ops
+// Governance Ops
 //
 
 propose_governor#76ff2956
@@ -263,6 +263,11 @@ propose_governor#76ff2956
 
 accept_governance#06e237e3
     query_id:uint64
+        = InternalMsgBody;
+
+set_halter#16bb5b17
+    query_id:uint64
+    new_halter:MsgAddress
         = InternalMsgBody;
 
 //

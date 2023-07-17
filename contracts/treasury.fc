@@ -1338,6 +1338,46 @@ builder pack_extension
     );
 }
 
+() set_halter(slice src, slice s) impure {
+    ( int total_coins
+    , int total_tokens
+    , int total_staking
+    , int total_unstaking
+    , int total_validators_stake
+    , cell participations
+    , cell wallet_code
+    , cell loan_code
+    , cell extension
+    ) = load_data();
+    ( slice driver
+    , _
+    , slice governor
+    , cell proposed_governor
+    , cell rewards_history
+    , cell content
+    ) = unpack_extension(extension.begin_parse());
+
+    int query_id = s~load_uint(64);
+    slice new_halter = s~load_msg_addr();
+    s.end_parse();
+
+    parse_std_addr(new_halter); ;; just check it to be a valid standard address
+
+    throw_unless(err::access_denied, equal_slices(src, governor));
+
+    extension = pack_extension(driver, new_halter, governor, proposed_governor, rewards_history, content).end_cell();
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+
+    save_data(
+        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
+        participations, wallet_code, loan_code, extension
+    );
+}
+
 () on_bounce(slice s) impure {
     ;; This function does nothing, but it is written like this to serve as a form of documentation.
 
@@ -1463,6 +1503,10 @@ builder pack_extension
 
     if (op == op::accept_governance) {
         return accept_governance(src, in_msg_body);
+    }
+
+    if (op == op::set_halter) {
+        return set_halter(src, in_msg_body);
     }
 
     if (op == op::top_up) {

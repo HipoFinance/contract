@@ -130,4 +130,32 @@ describe('Treasury', () => {
         expect(treasuryState.governor.equals(newGovernor.address)).toBeTruthy()
         expect(treasuryState.proposedGovernor == null).toBeTruthy()
     })
+
+    it('should set halter', async () => {
+        const newHalter = await blockchain.treasury('newHalter')
+        const result = await treasury.sendSetHalter(governor.getSender(), { value: '0.1', newHalter: newHalter.address })
+
+        expect(result.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.setHalter),
+            deploy: false,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: governor.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            deploy: false,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(3)
+
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryState.halter.equals(newHalter.address)).toBeTruthy()
+    })
 })
