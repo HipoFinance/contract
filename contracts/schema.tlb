@@ -270,6 +270,11 @@ set_halter#16bb5b17
     new_halter:MsgAddress
         = InternalMsgBody;
 
+set_driver#7e7da841
+    query_id:uint64
+    new_driver:MsgAddress
+        = InternalMsgBody;
+
 //
 // Storage
 //

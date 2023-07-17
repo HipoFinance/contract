@@ -73,6 +73,7 @@ const int op::recover_stake_result = 0x48310d2a;
 const int op::propose_governor = 0x76ff2956;
 const int op::accept_governance = 0x06e237e3;
 const int op::set_halter = 0x16bb5b17;
+const int op::set_driver = 0x7e7da841;
 
 const int op::top_up = 0x34e5d45a;
 

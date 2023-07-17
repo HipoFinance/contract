@@ -158,4 +158,31 @@ describe('Treasury', () => {
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryState.halter.equals(newHalter.address)).toBeTruthy()
     })
+
+    it('should set driver', async () => {
+        const newDriver = await blockchain.treasury('newDriver')
+        const result = await treasury.sendSetDriver(halter.getSender(), { value: '0.1', newDriver: newDriver.address })
+
+        expect(result.transactions).toHaveTransaction({
+            from: halter.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.setDriver),
+            deploy: false,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: halter.address,
+            value: between('0', '0.1'),
+            deploy: false,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(3)
+
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryState.driver.equals(newDriver.address)).toBeTruthy()
+    })
 })

@@ -374,6 +374,25 @@ export class Treasury implements Contract {
         })
     }
 
+    async sendSetDriver(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+        newDriver: Address
+    }) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.setDriver, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .storeAddress(opts.newDriver)
+                .endCell()
+        })
+    }
+
     async getTreasuryState(provider: ContractProvider): Promise<TreasuryConfig> {
         const { stack } = await provider.get('get_treasury_state', [])
         return {
