@@ -1,0 +1,18 @@
+digraph {
+    label="the new governor accepts governance"
+    node [ colorscheme=pastel19 style=filled ]
+
+    /* Entities */
+    external [ shape=point ]
+    proposed_governor [ color=2 ]
+    treasury [ color=4 ]
+
+    /* Relationships */
+    external -> proposed_governor [ label="1" ]
+    proposed_governor -> treasury [ label="2\l op::accept_governance\l 0.10 TON\l" ]
+    treasury -> proposed_governor [ label="3\l op::gas_excess\l 0.09 TON\l" ]
+
+    /* Ranks */
+    { rank=min external proposed_governor }
+    { rank=max treasury }
+}

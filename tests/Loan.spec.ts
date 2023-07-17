@@ -1,12 +1,12 @@
-import { compile } from "@ton-community/blueprint"
-import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from "@ton-community/sandbox"
+import { compile } from '@ton-community/blueprint'
+import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
-import { Cell, beginCell, toNano } from "ton-core"
-import { between, bodyOp, createVset, emptyNewStakeMsg, getElector, setConfig } from "./helper"
-import { config, op } from "../wrappers/common"
-import { Loan } from "../wrappers/Loan"
-import { Fees, Treasury } from "../wrappers/Treasury"
-import { Wallet } from "../wrappers/Wallet"
+import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
+import { between, bodyOp, createVset, emptyNewStakeMsg, getElector, setConfig } from './helper'
+import { config, op } from '../wrappers/common'
+import { Loan } from '../wrappers/Loan'
+import { Fees, Treasury, participationDictionaryValue, rewardDictionaryValue } from '../wrappers/Treasury'
+import { Wallet } from '../wrappers/Wallet'
 
 describe('Loan', () => {
     let treasuryCode: Cell
@@ -22,15 +22,30 @@ describe('Loan', () => {
     let blockchain: Blockchain
     let treasury: SandboxContract<Treasury>
     let driver: SandboxContract<TreasuryContract>
+    let halter: SandboxContract<TreasuryContract>
+    let governor: SandboxContract<TreasuryContract>
     let fees: Fees
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
         driver = await blockchain.treasury('driver')
+        halter = await blockchain.treasury('halter')
+        governor = await blockchain.treasury('governor')
         treasury = blockchain.openContract(Treasury.createFromConfig({
+            totalCoins: 0n,
+            totalTokens: 0n,
+            totalStaking: 0n,
+            totalUnstaking: 0n,
+            totalValidatorsStake: 0n,
+            participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
             walletCode,
             loanCode,
             driver: driver.address,
+            halter: halter.address,
+            governor: governor.address,
+            proposedGovernor: null,
+            rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
+            content: Cell.EMPTY,
         }, treasuryCode))
 
         const deployer = await blockchain.treasury('deployer')
@@ -457,6 +472,9 @@ describe('Loan', () => {
         state.participations.set(until1, participation)
         const extension = beginCell()
             .storeAddress(state.driver)
+            .storeAddress(state.halter)
+            .storeAddress(state.governor)
+            .storeMaybeRef(state.proposedGovernor)
             .storeDict(state.rewardsHistory)
             .storeRef(state.content)
         const fakeData = beginCell()

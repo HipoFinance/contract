@@ -89,22 +89,34 @@ builder pack_participation
 
 builder pack_extension
     ( slice driver
+    , slice halter
+    , slice governor
+    , cell proposed_governor
     , cell rewards_history
     , cell content
     ) {
     return begin_cell()
         .store_slice(driver)
+        .store_slice(halter)
+        .store_slice(governor)
+        .store_maybe_ref(proposed_governor)
         .store_dict(rewards_history)
         .store_ref(content);
 }
 
-(slice, cell, cell) unpack_extension(slice s) {
+(slice, slice, slice, cell, cell, cell) unpack_extension(slice s) {
     slice driver = s~load_msg_addr();
+    slice halter = s~load_msg_addr();
+    slice governor = s~load_msg_addr();
+    cell proposed_governor = s~load_maybe_ref();
     cell rewards_history = s~load_dict();
     cell content = s~load_ref();
     s.end_parse();
     return
         ( driver
+        , halter
+        , governor
+        , proposed_governor
         , rewards_history
         , content
         );
@@ -170,7 +182,7 @@ builder pack_extension
     , cell loan_code
     , cell extension
     ) = load_data();
-    ( slice driver, _, _ ) = unpack_extension(extension.begin_parse());
+    ( slice driver, _, _, _, _, _ ) = unpack_extension(extension.begin_parse());
 
     int query_id = s~load_uint(64);
     s.end_parse();
@@ -291,7 +303,7 @@ builder pack_extension
     , cell loan_code
     , cell extension
     ) = load_data();
-    ( slice driver, _, _ ) = unpack_extension(extension.begin_parse());
+    ( slice driver, _, _, _, _, _ ) = unpack_extension(extension.begin_parse());
 
     int query_id = s~load_uint(64);
     int amount = s~load_coins();
@@ -1134,7 +1146,13 @@ builder pack_extension
     , cell loan_code
     , cell extension
     ) = load_data();
-    ( slice driver, cell rewards_history, cell content ) = unpack_extension(extension.begin_parse());
+    ( slice driver
+    , slice halter
+    , slice governor
+    , cell proposed_governor
+    , cell rewards_history
+    , cell content
+    ) = unpack_extension(extension.begin_parse());
 
     int query_id = s~load_uint(64);
     int ok? = s~load_int(1);
@@ -1218,7 +1236,9 @@ builder pack_extension
                     }
                 } until (~ x?);
 
-                extension = pack_extension(driver, rewards_history, content).end_cell();
+                extension = pack_extension(
+                    driver, halter, governor, proposed_governor, rewards_history, content
+                ).end_cell();
             } else {
                 builder pdb = pack_participation(
                     state, new_dict(), loans_size, requests, accepted, staked, recovering, total_staked, total_recovered,
@@ -1228,6 +1248,90 @@ builder pack_extension
             }
         }
     }
+    save_data(
+        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
+        participations, wallet_code, loan_code, extension
+    );
+}
+
+() propose_governor(slice src, slice s) impure {
+    ( int total_coins
+    , int total_tokens
+    , int total_staking
+    , int total_unstaking
+    , int total_validators_stake
+    , cell participations
+    , cell wallet_code
+    , cell loan_code
+    , cell extension
+    ) = load_data();
+    ( slice driver
+    , slice halter
+    , slice governor
+    , _
+    , cell rewards_history
+    , cell content
+    ) = unpack_extension(extension.begin_parse());
+
+    int query_id = s~load_uint(64);
+    slice new_governor = s~load_msg_addr();
+    s.end_parse();
+
+    parse_std_addr(new_governor); ;; just check it to be a valid standard address
+
+    throw_unless(err::access_denied, equal_slices(src, governor));
+
+    cell proposed_governor = begin_cell()
+        .store_slice(new_governor)
+        .end_cell();
+    extension = pack_extension(driver, halter, governor, proposed_governor, rewards_history, content).end_cell();
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+
+    save_data(
+        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
+        participations, wallet_code, loan_code, extension
+    );
+}
+
+() accept_governance(slice src, slice s) impure {
+    ( int total_coins
+    , int total_tokens
+    , int total_staking
+    , int total_unstaking
+    , int total_validators_stake
+    , cell participations
+    , cell wallet_code
+    , cell loan_code
+    , cell extension
+    ) = load_data();
+    ( slice driver
+    , slice halter
+    , slice governor
+    , cell proposed_governor
+    , cell rewards_history
+    , cell content
+    ) = unpack_extension(extension.begin_parse());
+
+    int query_id = s~load_uint(64);
+    s.end_parse();
+
+    slice gs = proposed_governor.begin_parse();
+    slice new_governor = gs~load_msg_addr();
+    gs.end_parse();
+
+    throw_unless(err::access_denied, equal_slices(src, new_governor));
+
+    extension = pack_extension(driver, halter, new_governor, null(), rewards_history, content).end_cell();
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
         participations, wallet_code, loan_code, extension
@@ -1353,6 +1457,14 @@ builder pack_extension
         return recover_stake_result(msg_ton, src, in_msg_body);
     }
 
+    if (op == op::propose_governor) {
+        return propose_governor(src, in_msg_body);
+    }
+
+    if (op == op::accept_governance) {
+        return accept_governance(src, in_msg_body);
+    }
+
     if (op == op::top_up) {
         return (); ;; top up TON balance, do nothing
     }
@@ -1385,7 +1497,7 @@ builder pack_extension
 ;; get methods
 ;;
 
-(int, int, int, int, int, cell, cell, slice, cell, cell, cell) get_treasury_state() method_id {
+(int, int, int, int, int, cell, cell, slice, slice, slice, cell, cell, cell, cell) get_treasury_state() method_id {
     ( int total_coins
     , int total_tokens
     , int total_staking
@@ -1396,7 +1508,13 @@ builder pack_extension
     , cell loan_code
     , cell extension
     ) = load_data();
-    ( slice driver, cell rewards_history, cell content ) = unpack_extension(extension.begin_parse());
+    ( slice driver
+    , slice halter
+    , slice governor
+    , cell proposed_governor
+    , cell rewards_history
+    , cell content
+    ) = unpack_extension(extension.begin_parse());
 
     return
         ( total_coins
@@ -1407,6 +1525,9 @@ builder pack_extension
         , participations
         , rewards_history
         , driver
+        , halter
+        , governor
+        , proposed_governor
         , wallet_code
         , loan_code
         , content
@@ -1424,7 +1545,7 @@ builder pack_extension
     , cell loan_code
     , cell extension
     ) = load_data();
-    ( slice driver, cell rewards_history, cell content ) = unpack_extension(extension.begin_parse());
+    ( _, _, _, _, _, cell content ) = unpack_extension(extension.begin_parse());
 
     return ( total_tokens, true, address::empty, content, wallet_code );
 }

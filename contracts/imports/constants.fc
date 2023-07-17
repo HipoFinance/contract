@@ -70,6 +70,9 @@ const int op::recover_stakes = 0x4f173d3e;
 const int op::send_recover_stake = 0x05eec9a2;
 const int op::recover_stake_result = 0x48310d2a;
 
+const int op::propose_governor = 0x76ff2956;
+const int op::accept_governance = 0x06e237e3;
+
 const int op::top_up = 0x34e5d45a;
 
 

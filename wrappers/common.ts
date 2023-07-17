@@ -40,6 +40,9 @@ export const op = {
     sendRecoverStake: 0x05eec9a2,
     recoverStakeResult: 0x48310d2a,
 
+    proposeGovernor: 0x76ff2956,
+    acceptGovernance: 0x06e237e3,
+
     topUp: 0x34e5d45a,
 }
 

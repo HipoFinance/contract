@@ -253,6 +253,19 @@ top_up#34e5d45a
         = InternalMsgBody;
 
 //
+// Owner Ops
+//
+
+propose_governor#76ff2956
+    query_id:uint64
+    new_governor:MsgAddress
+        = InternalMsgBody;
+
+accept_governance#06e237e3
+    query_id:uint64
+        = InternalMsgBody;
+
+//
 // Storage
 //
 
@@ -284,6 +297,9 @@ participation#_
 
 extension#_
     driver:MsgAddress
+    halter:MsgAddress
+    governor:MsgAddress
+    proposed_governor:(Maybe ^MsgAddress)
     rewards_history:(HashmapE 32 Reward)
     content:^FullContent
         = Extension;

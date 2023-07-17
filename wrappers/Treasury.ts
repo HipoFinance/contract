@@ -1,20 +1,6 @@
 import { Address, beginCell, Builder, Cell, Contract, contractAddress, ContractProvider, Dictionary, DictionaryValue, Sender, SendMode, Slice, TupleBuilder } from 'ton-core'
 import { op, tonValue } from './common'
 
-export type TreasuryState = {
-    totalCoins: bigint
-    totalTokens: bigint
-    totalStaking: bigint
-    totalUnstaking: bigint
-    totalValidatorsStake: bigint
-    participations: Dictionary<bigint, Participation>
-    rewardsHistory: Dictionary<bigint, Reward>
-    driver: Address
-    walletCode: Cell
-    loanCode: Cell
-    content: Cell
-}
-
 export type Times = {
     currentRoundSince: bigint
     participateSince: bigint
@@ -71,17 +57,20 @@ type Participation = {
 }
 
 type TreasuryConfig = {
-    totalCoins?: bigint
-    totalTokens?: bigint
-    totalStaking?: bigint
-    totalUnstaking?: bigint
-    totalValidatorsStake?: bigint
-    participations?: Dictionary<bigint, Participation>
+    totalCoins: bigint
+    totalTokens: bigint
+    totalStaking: bigint
+    totalUnstaking: bigint
+    totalValidatorsStake: bigint
+    participations: Dictionary<bigint, Participation>
     walletCode: Cell
     loanCode: Cell
-    driver?: Address
-    rewardsHistory?: Dictionary<bigint, Reward>
-    content?: Cell
+    driver: Address
+    halter: Address
+    governor: Address
+    proposedGovernor: Cell | null
+    rewardsHistory: Dictionary<bigint, Reward>
+    content: Cell
 }
 
 export const trueDictionaryValue: DictionaryValue<True> = {
@@ -175,6 +164,9 @@ export const participationDictionaryValue: DictionaryValue<Participation> = {
 function treasuryConfigToCell(config: TreasuryConfig): Cell {
     const treasuryExtension = beginCell()
         .storeAddress(config.driver)
+        .storeAddress(config.halter)
+        .storeAddress(config.governor)
+        .storeMaybeRef(config.proposedGovernor)
         .storeDict(config.rewardsHistory)
         .storeRef(config.content || Cell.EMPTY)
     return beginCell()
@@ -327,7 +319,43 @@ export class Treasury implements Contract {
         await provider.external(message)
     }
 
-    async getTreasuryState(provider: ContractProvider): Promise<TreasuryState> {
+    async sendProposeGovernor(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+        newGovernor: Address
+    }) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.proposeGovernor, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .storeAddress(opts.newGovernor)
+                .endCell()
+        })
+    }
+
+    async sendAcceptGovernance(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+    }) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.acceptGovernance, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .endCell()
+        })
+    }
+
+    async getTreasuryState(provider: ContractProvider): Promise<TreasuryConfig> {
         const { stack } = await provider.get('get_treasury_state', [])
         return {
             totalCoins: stack.readBigNumber(),
@@ -340,6 +368,9 @@ export class Treasury implements Contract {
             rewardsHistory: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), rewardDictionaryValue,
                 stack.readCellOpt()),
             driver: stack.readAddress(),
+            halter: stack.readAddress(),
+            governor: stack.readAddress(),
+            proposedGovernor: stack.readCellOpt(),
             walletCode: stack.readCell(),
             loanCode: stack.readCell(),
             content: stack.readCell(),

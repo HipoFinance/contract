@@ -1,10 +1,10 @@
 import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
-import { Cell, toNano } from 'ton-core'
+import { Cell, Dictionary, toNano } from 'ton-core'
 import { between, bodyOp } from './helper'
 import { op } from '../wrappers/common'
-import { Fees, Treasury } from '../wrappers/Treasury'
+import { Fees, Treasury, participationDictionaryValue, rewardDictionaryValue } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
 
 describe('Text Interface', () => {
@@ -21,15 +21,30 @@ describe('Text Interface', () => {
     let blockchain: Blockchain
     let treasury: SandboxContract<Treasury>
     let driver: SandboxContract<TreasuryContract>
+    let halter: SandboxContract<TreasuryContract>
+    let governor: SandboxContract<TreasuryContract>
     let fees: Fees
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
         driver = await blockchain.treasury('driver')
+        halter = await blockchain.treasury('halter')
+        governor = await blockchain.treasury('governor')
         treasury = blockchain.openContract(Treasury.createFromConfig({
+            totalCoins: 0n,
+            totalTokens: 0n,
+            totalStaking: 0n,
+            totalUnstaking: 0n,
+            totalValidatorsStake: 0n,
+            participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
             walletCode,
             loanCode,
             driver: driver.address,
+            halter: halter.address,
+            governor: governor.address,
+            proposedGovernor: null,
+            rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
+            content: Cell.EMPTY,
         }, treasuryCode))
 
         const deployer = await blockchain.treasury('deployer')
