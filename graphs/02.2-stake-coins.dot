@@ -14,7 +14,7 @@ digraph {
     driver -> wallet [ label="2\l op::stake_coins\l 0.07 TON\l" ]
     wallet -> treasury [ label="3\l op::mint_tokens\l 0.06 TON\l coins: 10\l" ]
     treasury -> wallet [ label="4\l op::receive_tokens\l 0.05 TON\l tokens: 10\l" ]
-    wallet -> staker [ label="5\l op::transfer_notification\l 0.01 TON\l tokens: 9\l" ]
+    wallet -> staker [ label="5\l op::transfer_notification\l 0.01 TON\l tokens: 10\l" ]
     wallet -> driver [ label="6\l op::gas_excess\l 0.03 TON\l" ]
 
     /* Ranks */

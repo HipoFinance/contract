@@ -184,7 +184,7 @@ describe('Loan', () => {
             from: treasury.address,
             to: validator1.address,
             value: between('151', '151.1'),
-            body: Cell.EMPTY,
+            body: bodyOp(op.loanRejected),
             deploy: false,
             success: true,
             outMessagesCount: 0,
@@ -261,7 +261,7 @@ describe('Loan', () => {
             from: treasury.address,
             to: validator2.address,
             value: between('101', '102'),
-            body: Cell.EMPTY,
+            body: bodyOp(op.loanResult),
             deploy: false,
             success: true,
             outMessagesCount: 0,
@@ -270,7 +270,7 @@ describe('Loan', () => {
             from: treasury.address,
             to: validator3.address,
             value: between('101', '102'),
-            body: Cell.EMPTY,
+            body: bodyOp(op.loanResult),
             deploy: false,
             success: true,
             outMessagesCount: 0,
@@ -600,7 +600,7 @@ describe('Loan', () => {
             body: bodyOp(op.recoverStakeResult),
             deploy: false,
             success: true,
-            outMessagesCount: 1,
+            outMessagesCount: 2,
         })
         expect(result.transactions).toHaveTransaction({
             from:loan3.address,
@@ -609,13 +609,13 @@ describe('Loan', () => {
             body: bodyOp(op.recoverStakeResult),
             deploy: false,
             success: true,
-            outMessagesCount: 1,
+            outMessagesCount: 2,
         })
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: validator2.address,
             value: between('201', '202'),
-            body: Cell.EMPTY,
+            body: bodyOp(op.loanResult),
             deploy: false,
             success: true,
             outMessagesCount: 0,
@@ -624,16 +624,34 @@ describe('Loan', () => {
             from: treasury.address,
             to: validator3.address,
             value: between('201', '202'),
-            body: Cell.EMPTY,
+            body: bodyOp(op.loanResult),
             deploy: false,
             success: true,
             outMessagesCount: 0,
         })
-        expect(result.transactions).toHaveLength(12)
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: governor.address,
+            value: between('3', '4'),
+            body: bodyOp(op.takeProfit),
+            deploy: false,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: governor.address,
+            value: between('4', '5'),
+            body: bodyOp(op.takeProfit),
+            deploy: false,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(14)
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('700139', '700140')
+        expect(treasuryBalance).toBeBetween('700131', '700132')
         expect(treasuryState.totalCoins).toBeBetween('700122', '700123')
         expect(treasuryState.totalTokens).toBeBetween('699999', '700000')
         expect(treasuryState.totalStaking).toBeTonValue('0')

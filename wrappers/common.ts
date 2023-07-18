@@ -32,6 +32,7 @@ export const op = {
     requestLoan: 0x12b808d3,
     participateInElection: 0x574a297b,
     processLoanRequests: 0x071d07cc,
+    loanRejected: 0x45d0f209,
     sendNewStake: 0x77a897f2,
     newStakeRejected: 0x2bf7a8d5,
     vsetChanged: 0x2f0b5b3b,
@@ -39,6 +40,8 @@ export const op = {
     recoverStakes: 0x4f173d3e,
     sendRecoverStake: 0x05eec9a2,
     recoverStakeResult: 0x48310d2a,
+    loanResult: 0x7aaa8366,
+    takeProfit: 0x0b556813,
 
     proposeGovernor: 0x76ff2956,
     acceptGovernance: 0x06e237e3,

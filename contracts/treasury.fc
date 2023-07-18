@@ -644,7 +644,11 @@ builder pack_extension
         builder last_validator = create_address(chain::base, last_validator_addr);
         ( _, _, _, _, int last_stake_amount, _ ) = unpack_loan(last_request);
         total_validators_stake -= last_stake_amount;
-        send_msg(false, last_validator, null(), begin_cell(), last_stake_amount, send::pay_gas_separately);
+
+        builder body = begin_cell()
+            .store_uint(op::loan_rejected, 32)
+            .store_uint(query_id, 64);
+        send_msg(false, last_validator, null(), body, last_stake_amount, send::pay_gas_separately);
     }
 
     builder pdb = pack_participation(
@@ -858,7 +862,10 @@ builder pack_extension
             total_validators_stake -= stake_amount;
             remain -= 1;
 
-            send_msg(false, validator, null(), begin_cell(), stake_amount, send::pay_gas_separately);
+            builder body = begin_cell()
+                .store_uint(op::loan_rejected, 32)
+                .store_uint(query_id, 64);
+            send_msg(false, validator, null(), body, stake_amount, send::pay_gas_separately);
         }
     }
 
@@ -943,7 +950,10 @@ builder pack_extension
                 total_recovered += loan_amount + accrue_amount + min_payment;
                 int amount = min(stake_amount - min_payment, msg_ton - loan_amount - accrue_amount - min_payment);
 
-                send_msg(false, validator.to_builder(), null(), begin_cell(), amount, send::ignore_errors);
+                builder body = begin_cell()
+                    .store_uint(op::loan_result, 32)
+                    .store_uint(query_id, 64);
+                send_msg(false, validator.to_builder(), null(), body, amount, send::ignore_errors);
             } else {
                 total_recovered += msg_ton;
             }
@@ -1194,6 +1204,8 @@ builder pack_extension
 
     accept_message();
 
+    int reserve_amount = 0;
+    int stake_amount = 0;
     ( _, int validator_addr ) = parse_std_addr(validator);
     ( slice pd, int f? ) = participations.udict_get?(32, round_since);
     if (f?) {
@@ -1217,36 +1229,31 @@ builder pack_extension
             , int validator_reward_share
             , int loan_amount
             , int accrue_amount
-            , int stake_amount
+            , stake_amount
             , _
             ) = unpack_loan(request);
 
-            int stakers_reward_share = 65535 - reward_share;
             int reward = msg_ton - loan_amount - accrue_amount - stake_amount;
             if (reward >= 0) {
                 int treasury_reward_share = 255 - validator_reward_share;
                 int treasury_reward = max(min_payment, muldiv(reward, treasury_reward_share, 255));
                 int validator_reward = reward - treasury_reward;
                 stake_amount += validator_reward;
-                int new_coins = muldiv(treasury_reward, stakers_reward_share, 65535);
+                int new_coins = treasury_reward - muldiv(treasury_reward, reward_share, 65535);
                 total_coins += new_coins;
-                total_recovered += loan_amount + accrue_amount + new_coins;
+                reserve_amount = loan_amount + accrue_amount + new_coins;
+                total_recovered += reserve_amount;
             } else {
                 ;; when reward is negative, punish the validator first
                 int compensation = min(stake_amount, - reward);
                 stake_amount -= compensation;
                 ;; then try to take at most min_payment
-                int payment = min(stake_amount, min_payment);
-                stake_amount -= payment;
-                int new_coins = muldiv(max(0, payment), stakers_reward_share, 65535);
+                int treasury_reward = min(stake_amount, min_payment);
+                stake_amount -= treasury_reward;
+                int new_coins = treasury_reward - muldiv(max(0, treasury_reward), reward_share, 65535);
                 total_coins += reward + compensation + new_coins;
-                total_recovered += msg_ton - stake_amount + new_coins;
-            }
-
-            if (stake_amount > 0) {
-                send_msg(false, validator.to_builder(), null(), begin_cell(), stake_amount,
-                    send::pay_gas_separately + send::ignore_errors
-                );
+                reserve_amount = msg_ton - stake_amount + new_coins;
+                total_recovered += reserve_amount;
             }
 
             if (dict_empty?(recovering)) {
@@ -1282,6 +1289,21 @@ builder pack_extension
             }
         }
     }
+
+    raw_reserve(reserve_amount, reserve::add_original_balance);
+
+    if (stake_amount > 0) {
+        builder body = begin_cell()
+            .store_uint(op::loan_result, 32)
+            .store_uint(query_id, 64);
+        send_msg(false, validator.to_builder(), null(), body, stake_amount, send::ignore_errors);
+    }
+
+    builder profit = begin_cell()
+        .store_uint(op::take_profit, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, governor.to_builder(), null(), profit, 0, send::remaining_balance + send::ignore_errors);
+
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
         participations, stopped?, wallet_code, loan_code, extension

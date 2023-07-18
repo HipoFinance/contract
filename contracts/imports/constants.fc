@@ -63,6 +63,7 @@ const int op::withdrawal_notification = 0x2ec2a5a0;
 const int op::request_loan = 0x12b808d3;
 const int op::participate_in_election = 0x574a297b;
 const int op::process_loan_requests = 0x071d07cc;
+const int op::loan_rejected = 0x45d0f209;
 const int op::send_new_stake = 0x77a897f2;
 const int op::new_stake_rejected = 0x2bf7a8d5;
 const int op::vset_changed = 0x2f0b5b3b;
@@ -70,6 +71,8 @@ const int op::finish_participation = 0x23274435;
 const int op::recover_stakes = 0x4f173d3e;
 const int op::send_recover_stake = 0x05eec9a2;
 const int op::recover_stake_result = 0x48310d2a;
+const int op::loan_result = 0x7aaa8366;
+const int op::take_profit = 0x0b556813;
 
 const int op::propose_governor = 0x76ff2956;
 const int op::accept_governance = 0x06e237e3;

@@ -211,6 +211,10 @@ process_loan_requests#071d07cc
     round_since:uint32
         = InternalMsgBody;
 
+loan_rejected#45d0f209
+    query_id:uint64
+        = InternalMsgBody;
+
 send_new_stake#77a897f2
     query_id:uint64
     new_stake_msg:^NewStakeMsg
@@ -247,6 +251,14 @@ recover_stake_result#48310d2a
     ok:Bool
     validator:MsgAddress
     round_since:uint32
+        = InternalMsgBody;
+
+loan_result#7aaa8366
+    query_id:uint64
+        = InternalMsgBody;
+
+take_profit#0b556813
+    query_id:uint64
         = InternalMsgBody;
 
 top_up#34e5d45a
