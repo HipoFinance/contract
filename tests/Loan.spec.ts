@@ -4,8 +4,8 @@ import '@ton-community/test-utils'
 import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
 import { between, bodyOp, createVset, emptyNewStakeMsg, getElector, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
-import { Loan } from '../wrappers/Loan'
-import { Fees, Treasury, participationDictionaryValue, rewardDictionaryValue } from '../wrappers/Treasury'
+import { Loan, loanConfigToCell } from '../wrappers/Loan'
+import { Fees, Treasury, participationDictionaryValue, rewardDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
 
 describe('Loan', () => {
@@ -461,26 +461,7 @@ describe('Loan', () => {
         participation.staked?.set(BigInt('0x' + validator3.address.toRawString().split(':')[1]), fakeLoan3)
         participation.totalRecovered = 0n
         state.participations.set(until1, participation)
-        const extension = beginCell()
-            .storeAddress(state.driver)
-            .storeAddress(state.halter)
-            .storeAddress(state.governor)
-            .storeMaybeRef(state.proposedGovernor)
-            .storeUint(state.rewardShare, 16)
-            .storeDict(state.rewardsHistory)
-            .storeRef(state.content)
-        const fakeData = beginCell()
-            .storeCoins(state.totalCoins)
-            .storeCoins(state.totalTokens)
-            .storeCoins(state.totalStaking)
-            .storeCoins(state.totalUnstaking)
-            .storeCoins(state.totalValidatorsStake)
-            .storeDict(state.participations)
-            .storeBit(state.stopped)
-            .storeRef(state.walletCode)
-            .storeRef(state.loanCode)
-            .storeRef(extension)
-            .endCell()
+        const fakeData = treasuryConfigToCell(state)
         await blockchain.setShardAccount(treasury.address, createShardAccount({
             workchain: 0,
             address: treasury.address,
@@ -488,18 +469,18 @@ describe('Loan', () => {
             data: fakeData,
             balance: toNano('10'),
         }))
-        const loan2Data = beginCell()
-            .storeAddress(electorAddress)
-            .storeAddress(treasury.address)
-            .storeAddress(validator2.address)
-            .storeUint(until1, 32)
-            .endCell()
-        const loan3Data = beginCell()
-            .storeAddress(electorAddress)
-            .storeAddress(treasury.address)
-            .storeAddress(validator3.address)
-            .storeUint(until1, 32)
-            .endCell()
+        const loan2Data = loanConfigToCell({
+            elector: electorAddress,
+            treasury: treasury.address,
+            validator: validator2.address,
+            roundSince: until1,
+        })
+        const loan3Data = loanConfigToCell({
+            elector: electorAddress,
+            treasury: treasury.address,
+            validator: validator3.address,
+            roundSince: until1,
+        })
         await blockchain.setShardAccount(loan2.address, createShardAccount({
             workchain: -1,
             address: loan2.address,

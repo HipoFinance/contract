@@ -4,7 +4,7 @@ import '@ton-community/test-utils'
 import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
 import { between, bodyOp } from './helper'
 import { op } from '../wrappers/common'
-import { Fees, ParticipationState, Treasury, participationDictionaryValue, rewardDictionaryValue } from '../wrappers/Treasury'
+import { Fees, ParticipationState, Treasury, participationDictionaryValue, rewardDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
 
 describe('Wallet', () => {
@@ -505,26 +505,7 @@ describe('Wallet', () => {
         const state = await treasury.getTreasuryState()
         const fakeParticipation = { state: ParticipationState.Staked }
         state.participations.set(roundSince, fakeParticipation)
-        const extension = beginCell()
-            .storeAddress(state.driver)
-            .storeAddress(state.halter)
-            .storeAddress(state.governor)
-            .storeMaybeRef(state.proposedGovernor)
-            .storeUint(state.rewardShare, 16)
-            .storeDict(state.rewardsHistory)
-            .storeRef(state.content)
-        const fakeData = beginCell()
-            .storeCoins(state.totalCoins)
-            .storeCoins(state.totalTokens)
-            .storeCoins(state.totalStaking)
-            .storeCoins(state.totalUnstaking)
-            .storeCoins(state.totalValidatorsStake)
-            .storeDict(state.participations)
-            .storeBit(state.stopped)
-            .storeRef(state.walletCode)
-            .storeRef(state.loanCode)
-            .storeRef(extension)
-            .endCell()
+        const fakeData = treasuryConfigToCell(state)
         await blockchain.setShardAccount(treasury.address, createShardAccount({
             workchain: 0,
             address: treasury.address,
@@ -598,32 +579,13 @@ describe('Wallet', () => {
         await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
         await wallet.sendUnstakeTokens(staker.getSender(), { value: '0.2', tokens: '7' })
         const state = await treasury.getTreasuryState()
-        const extension = beginCell()
-            .storeAddress(state.driver)
-            .storeAddress(state.halter)
-            .storeAddress(state.governor)
-            .storeMaybeRef(state.proposedGovernor)
-            .storeUint(state.rewardShare, 16)
-            .storeDict(state.rewardsHistory)
-            .storeRef(state.content)
-        const fakeData = beginCell()
-            .storeCoins(state.totalCoins)
-            .storeCoins(state.totalTokens)
-            .storeCoins(state.totalStaking)
-            .storeCoins(state.totalUnstaking)
-            .storeCoins(state.totalValidatorsStake)
-            .storeDict(state.participations)
-            .storeBit(state.stopped)
-            .storeRef(state.walletCode)
-            .storeRef(state.loanCode)
-            .storeRef(extension)
-            .endCell()
+        const fakeData = treasuryConfigToCell(state)
         await blockchain.setShardAccount(treasury.address, createShardAccount({
             workchain: 0,
             address: treasury.address,
             code: treasuryCode,
             data: fakeData,
-            balance: toNano('15'),
+            balance: toNano('5') + toNano('10'),
         }))
         const result = await wallet.sendWithdrawTokens(staker.getSender(), { value: '0.1' })
 

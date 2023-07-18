@@ -1611,6 +1611,67 @@ builder pack_extension
     );
 }
 
+() withdraw_surplus(slice src, slice s) impure {
+    ( int total_coins
+    , int total_tokens
+    , int total_staking
+    , int total_unstaking
+    , int total_validators_stake
+    , cell participations
+    , int stopped?
+    , cell wallet_code
+    , cell loan_code
+    , cell extension
+    ) = load_data();
+    ( slice driver
+    , slice halter
+    , slice governor
+    , cell proposed_governor
+    , int reward_share
+    , cell rewards_history
+    , cell content
+    ) = unpack_extension(extension.begin_parse());
+
+    int query_id = s~load_uint(64);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slices(src, governor));
+
+    ( _, cell state_init, _ ) = create_loan_address(my_address(), my_address().to_builder(), now(), loan_code);
+    int fee = request_loan_fee(state_init);
+    int k = -1;
+    do {
+        ( k, slice pd, int f? ) = participations.udict_get_next?(32, k);
+        if (f?) {
+            ( _
+            , _
+            , int loans_size
+            , _
+            , _
+            , _
+            , _
+            , int total_staked
+            , int total_recovered
+            , _
+            , _
+            , _
+            ) = unpack_participation(pd);
+            total_coins -= total_staked - total_recovered;
+            total_coins += loans_size * fee;
+        }
+    } until (~ f?);
+
+    int ton_balance = get_balance().pair_first();
+    int available = max(0, ton_balance - fee::treasury_storage - total_validators_stake - total_staking - total_coins);
+
+    raw_reserve(available, reserve::all_but_amount);
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_balance + send::ignore_errors);
+}
+
 () on_bounce(slice s) impure {
     ;; This function does nothing, but it is written like this to serve as a form of documentation.
 
@@ -1756,6 +1817,10 @@ builder pack_extension
 
     if (op == op::set_reward_share) {
         return set_reward_share(src, in_msg_body);
+    }
+
+    if (op == op::withdraw_surplus) {
+        return withdraw_surplus(src, in_msg_body);
     }
 
     if (op == op::top_up) {

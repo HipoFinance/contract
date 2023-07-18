@@ -7,7 +7,7 @@ digraph {
     treasury [ color=4 ]
     loan1, loan2 [ color=5 ]
     elector [ color=1 ]
-    validator1, validator2 [ color=2 ]
+    validator1, validator2, governor [ color=2 ]
 
     /* Relationships */
     external -> treasury [ label="1\l op::finish_participation\l" ]
@@ -16,15 +16,17 @@ digraph {
     loan1 -> elector [ label="4\l op::recover_stake\l 1 TON\l" ]
     elector -> loan1 [ label="5\l op::recover_stake_ok\l 300101 TON\l" ]
     loan1 -> treasury [ label="6\l op::recover_stake_result\l 300101 TON\l" ]
-    treasury -> validator1 [ label="7\l 100100 TON\l" ]
-    treasury -> loan2 [ label="8\l op::send_recover_stake\l 1 TON\l" ]
-    loan2 -> elector [ label="9\l op::recover_stake\l 1 TON\l" ]
-    elector -> loan2 [ label="10\l op::recover_stake_ok\l 300101 TON\l" ]
-    loan2 -> treasury [ label="11\l op::recover_stake_result\l 300101 TON\l"]
-    treasury -> validator2 [ label="12\l 300 TON\l" ]
+    treasury -> validator1 [ label="7\l op::loan_result\l 100050 TON\l" ]
+    treasury -> governor [ label="8\l op::take_profit\l 50 TON\l" ]
+    treasury -> loan2 [ label="9\l op::send_recover_stake\l 1 TON\l" ]
+    loan2 -> elector [ label="10\l op::recover_stake\l 1 TON\l" ]
+    elector -> loan2 [ label="11\l op::recover_stake_ok\l 300101 TON\l" ]
+    loan2 -> treasury [ label="12\l op::recover_stake_result\l 300101 TON\l"]
+    treasury -> validator2 [ label="13\l op::loan_result\l 250 TON\l" ]
+    treasury -> governor [ label="14\l op::take_profit\l 50 TON\l" ]
 
     /* Ranks */
-    { rank=min validator1 validator2 }
+    { rank=min validator1 validator2 governor }
     { rank=same external treasury }
     { rank=max elector }
 }

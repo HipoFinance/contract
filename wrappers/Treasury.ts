@@ -18,7 +18,7 @@ export type Fees = {
 
 export type True = {}
 
-type Reward = {
+export type Reward = {
     staked: bigint
     recovered: bigint
 }
@@ -32,7 +32,7 @@ export enum ParticipationState {
     Recovering,
 }
 
-type Loan = {
+export type Loan = {
     minPayment: bigint
     validatorRewardShare: bigint
     loanAmount: bigint
@@ -41,7 +41,7 @@ type Loan = {
     newStakeMsg: Cell
 }
 
-type Participation = {
+export type Participation = {
     state?: ParticipationState
     sorted?: Dictionary<bigint, Dictionary<bigint, True>>
     loansSize?: bigint
@@ -56,7 +56,7 @@ type Participation = {
     stakeHeldUntil?: bigint
 }
 
-type TreasuryConfig = {
+export type TreasuryConfig = {
     totalCoins: bigint
     totalTokens: bigint
     totalStaking: bigint
@@ -73,6 +73,29 @@ type TreasuryConfig = {
     rewardShare: bigint
     rewardsHistory: Dictionary<bigint, Reward>
     content: Cell
+}
+
+export function treasuryConfigToCell(config: TreasuryConfig): Cell {
+    const treasuryExtension = beginCell()
+        .storeAddress(config.driver)
+        .storeAddress(config.halter)
+        .storeAddress(config.governor)
+        .storeMaybeRef(config.proposedGovernor)
+        .storeUint(config.rewardShare, 16)
+        .storeDict(config.rewardsHistory)
+        .storeRef(config.content || Cell.EMPTY)
+    return beginCell()
+        .storeCoins(config.totalCoins || 0)
+        .storeCoins(config.totalTokens || 0)
+        .storeCoins(config.totalStaking || 0)
+        .storeCoins(config.totalUnstaking || 0)
+        .storeCoins(config.totalValidatorsStake || 0)
+        .storeDict(config.participations)
+        .storeBit(config.stopped)
+        .storeRef(config.walletCode)
+        .storeRef(config.loanCode)
+        .storeRef(treasuryExtension)
+        .endCell()
 }
 
 export const trueDictionaryValue: DictionaryValue<True> = {
@@ -161,29 +184,6 @@ export const participationDictionaryValue: DictionaryValue<Participation> = {
             stakeHeldUntil: src.loadUintBig(32),
         }
     }
-}
-
-function treasuryConfigToCell(config: TreasuryConfig): Cell {
-    const treasuryExtension = beginCell()
-        .storeAddress(config.driver)
-        .storeAddress(config.halter)
-        .storeAddress(config.governor)
-        .storeMaybeRef(config.proposedGovernor)
-        .storeUint(config.rewardShare, 16)
-        .storeDict(config.rewardsHistory)
-        .storeRef(config.content || Cell.EMPTY)
-    return beginCell()
-        .storeCoins(config.totalCoins || 0)
-        .storeCoins(config.totalTokens || 0)
-        .storeCoins(config.totalStaking || 0)
-        .storeCoins(config.totalUnstaking || 0)
-        .storeCoins(config.totalValidatorsStake || 0)
-        .storeDict(config.participations)
-        .storeBit(config.stopped)
-        .storeRef(config.walletCode)
-        .storeRef(config.loanCode)
-        .storeRef(treasuryExtension)
-        .endCell()
 }
 
 export class Treasury implements Contract {
@@ -462,6 +462,23 @@ export class Treasury implements Contract {
                 .storeUint(op.setRewardShare, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeUint(opts.newRewardShare, 16)
+                .endCell()
+        })
+    }
+
+    async sendWithdrawSurplus(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+    }) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.withdrawSurplus, 32)
+                .storeUint(opts.queryId || 0, 64)
                 .endCell()
         })
     }

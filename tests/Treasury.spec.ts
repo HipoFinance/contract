@@ -1,10 +1,10 @@
 import { compile } from '@ton-community/blueprint'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton-community/sandbox'
+import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
 import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
 import { between, bodyOp, createVset, emptyNewStakeMsg, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
-import { Fees, Treasury, participationDictionaryValue, rewardDictionaryValue } from '../wrappers/Treasury'
+import { Fees, Treasury, participationDictionaryValue, rewardDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
 
 describe('Treasury', () => {
@@ -345,5 +345,59 @@ describe('Treasury', () => {
 
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryState.rewardShare).toBe(8192n)
+    })
+
+    it('should withdraw surplus', async () => {
+        const state = await treasury.getTreasuryState()
+        const participation1 = {
+            loansSize: 5n,
+            totalStaked: toNano('1000000'),
+            totalRecovered: toNano('1001000'),
+        }
+        const participation2 = {
+            loansSize: 10n,
+            totalStaked: toNano('500000'),
+            totalRecovered: 0n,
+        }
+        const participation3 = {
+            loansSize: 1n,
+            totalStaked: 0n,
+            totalRecovered: 0n,
+        }
+        state.participations.set(1n, participation1)
+        state.participations.set(2n, participation2)
+        state.participations.set(3n, participation3)
+        state.totalCoins = toNano('900000')
+        state.totalTokens = toNano('800000')
+        state.totalStaking = toNano('100000')
+        state.totalUnstaking = toNano('200000')
+        state.totalValidatorsStake = toNano('300000')
+        const fakeData = treasuryConfigToCell(state)
+        await blockchain.setShardAccount(treasury.address, createShardAccount({
+            workchain: 0,
+            address: treasury.address,
+            code: treasuryCode,
+            data: fakeData,
+            balance: toNano('10') + toNano('801000') + 16n * toNano('1.7') + toNano('20'),
+        }))
+        const result = await treasury.sendWithdrawSurplus(governor.getSender(), { value: '0.1' })
+
+        expect(result.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.withdrawSurplus),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: governor.address,
+            value: between('20', '21'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(3)
     })
 })
