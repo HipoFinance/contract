@@ -1,0 +1,19 @@
+digraph {
+    label="staker withdraws surplus of wallet"
+    node [ colorscheme=pastel19 style=filled ]
+
+    /* Entities */
+    external [ shape=point ]
+    staker [ color=2 ]
+    wallet [ color=3 ]
+
+    /* Relationships */
+    staker -> wallet [ arrowhead=inv style=dotted ]
+    external -> staker [ label="1" ]
+    staker -> wallet [ label="2\l op::withdraw_surplus\l 0.10 TON\l" ]
+    wallet -> staker [ label="3\l op::gas_excess\l 0.14 TON\l" ]
+
+    /* Ranks */
+    { rank=min external staker }
+    { rank=max wallet }
+}

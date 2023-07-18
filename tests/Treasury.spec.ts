@@ -50,7 +50,7 @@ describe('Treasury', () => {
         }, treasuryCode))
 
         const deployer = await blockchain.treasury('deployer')
-        const deployResult = await treasury.sendDeploy(deployer.getSender(), '0.01')
+        const deployResult = await treasury.sendDeploy(deployer.getSender(), { value: '0.01' })
 
         expect(deployResult.transactions).toHaveTransaction({
             from: deployer.address,
@@ -65,7 +65,7 @@ describe('Treasury', () => {
 
         fees = await treasury.getFees()
 
-        await treasury.sendTopUp(deployer.getSender(), fees.treasuryStorage)
+        await treasury.sendTopUp(deployer.getSender(), { value: fees.treasuryStorage })
     })
 
     it('should deploy treasury', async () => {
@@ -83,7 +83,6 @@ describe('Treasury', () => {
             to: treasury.address,
             value: toNano('0.1'),
             body: bodyOp(op.proposeGovernor),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -92,7 +91,6 @@ describe('Treasury', () => {
             to: governor.address,
             value: between('0', '0.1'),
             body: bodyOp(op.gasExcess),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -114,7 +112,6 @@ describe('Treasury', () => {
             to: treasury.address,
             value: toNano('0.1'),
             body: bodyOp(op.acceptGovernance),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -123,7 +120,6 @@ describe('Treasury', () => {
             to: newGovernor.address,
             value: between('0', '0.1'),
             body: bodyOp(op.gasExcess),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -146,7 +142,6 @@ describe('Treasury', () => {
             to: treasury.address,
             value: toNano('0.1'),
             body: bodyOp(op.setHalter),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -155,7 +150,6 @@ describe('Treasury', () => {
             to: governor.address,
             value: between('0', '0.1'),
             body: bodyOp(op.gasExcess),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -173,7 +167,6 @@ describe('Treasury', () => {
             to: treasury.address,
             value: toNano('0.1'),
             body: bodyOp(op.setStopped),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -182,7 +175,6 @@ describe('Treasury', () => {
             to: halter.address,
             value: between('0', '0.1'),
             body: bodyOp(op.gasExcess),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -199,7 +191,6 @@ describe('Treasury', () => {
             to: treasury.address,
             value: toNano('10'),
             body: bodyOp(op.depositCoins),
-            deploy: false,
             success: false,
             outMessagesCount: 1,
         })
@@ -208,7 +199,6 @@ describe('Treasury', () => {
             to: staker.address,
             value: between('9.9', '10'),
             body: bodyOp(0xffffffff),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -236,7 +226,6 @@ describe('Treasury', () => {
             to: treasury.address,
             value: toNano('152.7'),
             body: bodyOp(op.requestLoan),
-            deploy: false,
             success: false,
             outMessagesCount: 1,
         })
@@ -245,7 +234,6 @@ describe('Treasury', () => {
             to: validator.address,
             value: between('152.6', '152.7'),
             body: bodyOp(0xffffffff),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -261,7 +249,6 @@ describe('Treasury', () => {
             to: treasury.address,
             value: toNano('10'),
             body: bodyOp(op.depositCoins),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -279,7 +266,6 @@ describe('Treasury', () => {
             to: driver.address,
             value: between('0', '0.1'),
             body: bodyOp(op.gasExcess),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -295,7 +281,6 @@ describe('Treasury', () => {
             to: treasury.address,
             value: toNano('0.1'),
             body: bodyOp(op.setDriver),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -303,7 +288,6 @@ describe('Treasury', () => {
             from: treasury.address,
             to: halter.address,
             value: between('0', '0.1'),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -322,7 +306,6 @@ describe('Treasury', () => {
             to: treasury.address,
             value: toNano('0.1'),
             body: bodyOp(op.setContent),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -330,7 +313,6 @@ describe('Treasury', () => {
             from: treasury.address,
             to: governor.address,
             value: between('0', '0.1'),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -348,7 +330,6 @@ describe('Treasury', () => {
             to: treasury.address,
             value: toNano('0.1'),
             body: bodyOp(op.setRewardShare),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -357,7 +338,6 @@ describe('Treasury', () => {
             to: governor.address,
             value: between('0', '0.1'),
             body: bodyOp(op.gasExcess),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })

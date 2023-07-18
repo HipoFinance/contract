@@ -51,7 +51,8 @@ export const op = {
     setContent: 0x471dad93,
     setRewardShare: 0x51df41a6,
 
-    topUp: 0x34e5d45a,
+    withdrawSurplus: 0x302b2fea,
+    topUp: 0x5372158c,
 }
 
 export const config = {

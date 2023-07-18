@@ -51,7 +51,7 @@ describe('Loan', () => {
         }, treasuryCode))
 
         const deployer = await blockchain.treasury('deployer')
-        const deployResult = await treasury.sendDeploy(deployer.getSender(), '0.01')
+        const deployResult = await treasury.sendDeploy(deployer.getSender(), { value: '0.01' })
 
         expect(deployResult.transactions).toHaveTransaction({
             from: deployer.address,
@@ -66,7 +66,7 @@ describe('Loan', () => {
 
         fees = await treasury.getFees()
 
-        await treasury.sendTopUp(deployer.getSender(), fees.treasuryStorage)
+        await treasury.sendTopUp(deployer.getSender(), { value: fees.treasuryStorage })
     })
 
     it('should deploy treasury', async () => {
@@ -95,7 +95,6 @@ describe('Loan', () => {
             to: treasury.address,
             value: toNano('152.7'),
             body: bodyOp(op.requestLoan),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -176,7 +175,6 @@ describe('Loan', () => {
             to: treasury.address,
             value: between('1.6', '1.7'),
             body: bodyOp(op.processLoanRequests),
-            deploy: false,
             success: true,
             outMessagesCount: 3,
         })
@@ -185,7 +183,6 @@ describe('Loan', () => {
             to: validator1.address,
             value: between('151', '151.1'),
             body: bodyOp(op.loanRejected),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -212,7 +209,6 @@ describe('Loan', () => {
             to: electorAddress,
             value: between('350161', '350162'),
             body: bodyOp(op.newStake),
-            deploy: false,
             success: false, // elector smart contract is not available on sandbox
             outMessagesCount: 1,
         })
@@ -221,21 +217,18 @@ describe('Loan', () => {
             to: electorAddress,
             value: between('350171', '350172'),
             body: bodyOp(op.newStake),
-            deploy: false,
             success: false, // elector smart contract is not available on sandbox
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
             from: electorAddress,
             to: loan2.address,
-            deploy: false,
             success: true, // this is the bounce message from elector instead of new_stake_ok
             outMessagesCount: 1, // rejects new stake
         })
         expect(result.transactions).toHaveTransaction({
             from: electorAddress,
             to: loan3.address,
-            deploy: false,
             success: true, // this is the bounce message from elector instead of new_stake_ok
             outMessagesCount: 1, // rejects new stake
         })
@@ -244,7 +237,6 @@ describe('Loan', () => {
             to: treasury.address,
             value: between('350161', '350162'),
             body: bodyOp(op.newStakeRejected),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -253,7 +245,6 @@ describe('Loan', () => {
             to: treasury.address,
             value: between('350171', '350172'),
             body: bodyOp(op.newStakeRejected),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -262,7 +253,6 @@ describe('Loan', () => {
             to: validator2.address,
             value: between('101', '102'),
             body: bodyOp(op.loanResult),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -271,7 +261,6 @@ describe('Loan', () => {
             to: validator3.address,
             value: between('101', '102'),
             body: bodyOp(op.loanResult),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -539,7 +528,6 @@ describe('Loan', () => {
             to: treasury.address,
             value: between('1.6', '1.7'),
             body: bodyOp(op.recoverStakes),
-            deploy: false,
             success: true,
             outMessagesCount: 2,
         })
@@ -548,7 +536,6 @@ describe('Loan', () => {
             to: loan2.address,
             value: between('0.5', '0.6'),
             body: bodyOp(op.sendRecoverStake),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -557,7 +544,6 @@ describe('Loan', () => {
             to: loan3.address,
             value: between('0.5', '0.6'),
             body: bodyOp(op.sendRecoverStake),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -566,7 +552,6 @@ describe('Loan', () => {
             to: electorAddress,
             value: between('0.4', '0.5'),
             body: bodyOp(op.recoverStake),
-            deploy: false,
             success: false, // elector smart contract is not available on sandbox
             outMessagesCount: 1,
         })
@@ -575,21 +560,18 @@ describe('Loan', () => {
             to: electorAddress,
             value: between('0.4', '0.5'),
             body: bodyOp(op.recoverStake),
-            deploy: false,
             success: false, // elector smart contract is not available on sandbox
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
             from: electorAddress,
             to: loan2.address,
-            deploy: false,
             success: true, // this is the bounce message from elector instead of recover_stake_ok
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
             from: electorAddress,
             to: loan3.address,
-            deploy: false,
             success: true, // this is the bounce message from elector instead of recover_stake_ok
             outMessagesCount: 1,
         })
@@ -598,7 +580,6 @@ describe('Loan', () => {
             to: treasury.address,
             value: between('350261', '350262'),
             body: bodyOp(op.recoverStakeResult),
-            deploy: false,
             success: true,
             outMessagesCount: 2,
         })
@@ -607,7 +588,6 @@ describe('Loan', () => {
             to: treasury.address,
             value: between('350271', '350272'),
             body: bodyOp(op.recoverStakeResult),
-            deploy: false,
             success: true,
             outMessagesCount: 2,
         })
@@ -616,7 +596,6 @@ describe('Loan', () => {
             to: validator2.address,
             value: between('201', '202'),
             body: bodyOp(op.loanResult),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -625,7 +604,6 @@ describe('Loan', () => {
             to: validator3.address,
             value: between('201', '202'),
             body: bodyOp(op.loanResult),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -634,7 +612,6 @@ describe('Loan', () => {
             to: governor.address,
             value: between('3', '4'),
             body: bodyOp(op.takeProfit),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -643,7 +620,6 @@ describe('Loan', () => {
             to: governor.address,
             value: between('4', '5'),
             body: bodyOp(op.takeProfit),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })

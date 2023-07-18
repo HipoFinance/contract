@@ -378,6 +378,28 @@
     save_data(owner, treasury, tokens, staking, unstaking, wallet_code);
 }
 
+() withdraw_surplus(slice src, slice s) impure {
+    ( slice owner
+    , slice treasury
+    , int tokens
+    , cell staking
+    , int unstaking
+    , cell wallet_code
+    ) = load_data();
+
+    int query_id = s~load_uint(64);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slices(src, owner));
+
+    raw_reserve(wallet_storage_fee(), reserve::exact);
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_balance + send::ignore_errors);
+}
+
 () on_bounce(slice s) impure {
     ;; this should not happen but in a rare case of a bounce (e.g. a frozen account), at least recover tokens
 
@@ -480,6 +502,10 @@
 
     if (op == op::burn_failed) {
         return burn_failed(msg_ton, src, in_msg_body);
+    }
+
+    if (op == op::withdraw_surplus) {
+        return withdraw_surplus(src, in_msg_body);
     }
 
     if (op == op::top_up) {

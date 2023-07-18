@@ -208,17 +208,29 @@ export class Treasury implements Contract {
         await provider.internal(via, opts)
     }
 
-    async sendDeploy(provider: ContractProvider, via: Sender, value: bigint | string) {
-        await this.sendMessage(provider, via, {
-            value,
-            body: beginCell().storeUint(op.topUp, 32).endCell(),
-        })
+    async sendDeploy(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+    }) {
+        await this.sendTopUp(provider, via, opts)
     }
 
-    async sendTopUp(provider: ContractProvider, via: Sender, value: bigint | string) {
+    async sendTopUp(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+    }) {
         await this.sendMessage(provider, via, {
-            value,
-            body: beginCell().storeUint(op.topUp, 32).endCell(),
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.topUp, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .endCell(),
         })
     }
 

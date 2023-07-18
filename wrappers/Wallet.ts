@@ -47,6 +47,23 @@ export class Wallet implements Contract {
         await provider.internal(via, opts)
     }
 
+    async sendTopUp(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+    }) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.topUp, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .endCell()
+        })
+    }
+
     async sendStakeCoins(provider: ContractProvider, via: Sender, opts: {
         value: bigint | string
         bounce?: boolean
@@ -135,6 +152,23 @@ export class Wallet implements Contract {
                 .storeUint(op.withdrawTokens, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeAddress(opts.returnExcess)
+                .endCell()
+        })
+    }
+
+    async sendWithdrawSurplus(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+    }) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.withdrawSurplus, 32)
+                .storeUint(opts.queryId || 0, 64)
                 .endCell()
         })
     }

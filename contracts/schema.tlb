@@ -261,9 +261,6 @@ take_profit#0b556813
     query_id:uint64
         = InternalMsgBody;
 
-top_up#34e5d45a
-        = InternalMsgBody;
-
 //
 // Governance Ops
 //
@@ -300,6 +297,18 @@ set_content#471dad93
 set_reward_share#51df41a6
     query_id:uint64
     new_reward_share:uint16
+        = InternalMsgBody;
+
+//
+// General Ops
+//
+
+withdraw_surplus#302b2fea
+    query_id:uint64
+        = InternalMsgBody;
+
+top_up#5372158c
+    query_id:uint64
         = InternalMsgBody;
 
 //

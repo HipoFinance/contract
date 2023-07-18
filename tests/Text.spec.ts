@@ -50,7 +50,7 @@ describe('Text Interface', () => {
         }, treasuryCode))
 
         const deployer = await blockchain.treasury('deployer')
-        const deployResult = await treasury.sendDeploy(deployer.getSender(), '0.01')
+        const deployResult = await treasury.sendDeploy(deployer.getSender(), { value: '0.01' })
 
         expect(deployResult.transactions).toHaveTransaction({
             from: deployer.address,
@@ -65,7 +65,7 @@ describe('Text Interface', () => {
 
         fees = await treasury.getFees()
 
-        await treasury.sendTopUp(deployer.getSender(), fees.treasuryStorage)
+        await treasury.sendTopUp(deployer.getSender(), { value: fees.treasuryStorage })
     })
 
     it('should deploy treasury', async () => {
@@ -82,7 +82,6 @@ describe('Text Interface', () => {
             to: treasury.address,
             value: toNano('10'),
             body: bodyOp(0),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -100,7 +99,6 @@ describe('Text Interface', () => {
             to: driver.address,
             value: between('0', '0.1'),
             body: bodyOp(op.gasExcess),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -136,7 +134,6 @@ describe('Text Interface', () => {
             to: treasury.address,
             value: toNano('0.2'),
             body: bodyOp(0),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -145,7 +142,6 @@ describe('Text Interface', () => {
             to: wallet.address,
             value: between('0', '0.2'),
             body: bodyOp(op.stakeFirstCoins),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -154,7 +150,6 @@ describe('Text Interface', () => {
             to: treasury.address,
             value: between('0', '0.2'),
             body: bodyOp(op.mintTokens),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -163,7 +158,6 @@ describe('Text Interface', () => {
             to: wallet.address,
             value: between('0', '0.2'),
             body: bodyOp(op.receiveTokens),
-            deploy: false,
             success: true,
             outMessagesCount: 2,
         })
@@ -172,7 +166,6 @@ describe('Text Interface', () => {
             to: staker.address,
             value: between('0', '0.1'),
             body: bodyOp(op.transferNotification),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -181,7 +174,6 @@ describe('Text Interface', () => {
             to: staker.address,
             value: between('0', '0.2'),
             body: bodyOp(op.gasExcess),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -217,7 +209,6 @@ describe('Text Interface', () => {
             to: treasury.address,
             value: toNano('0.2'),
             body: bodyOp(0),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -226,7 +217,6 @@ describe('Text Interface', () => {
             to: wallet.address,
             value: between('0', '0.2'),
             body: bodyOp(op.unstakeAllTokens),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -235,7 +225,6 @@ describe('Text Interface', () => {
             to: treasury.address,
             value: between('0', '0.2'),
             body: bodyOp(op.reserveTokens),
-            deploy: false,
             success: true,
             outMessagesCount: 2,
         })
@@ -244,7 +233,6 @@ describe('Text Interface', () => {
             to: staker.address,
             value: between('0', '0.2'),
             body: bodyOp(op.gasExcess),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -253,7 +241,6 @@ describe('Text Interface', () => {
             to: staker.address,
             value: between('0', '0.2'),
             body: bodyOp(op.gasExcess),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -290,7 +277,6 @@ describe('Text Interface', () => {
             to: treasury.address,
             value: toNano('0.2'),
             body: bodyOp(0),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -299,7 +285,6 @@ describe('Text Interface', () => {
             to: wallet.address,
             value: between('0', '0.2'),
             body: bodyOp(op.withdrawTokens),
-            deploy: false,
             success: true,
             outMessagesCount: 1,
         })
@@ -308,7 +293,6 @@ describe('Text Interface', () => {
             to: treasury.address,
             value: between('0', '0.2'),
             body: bodyOp(op.burnTokens),
-            deploy: false,
             success: true,
             outMessagesCount: 2,
         })
@@ -317,7 +301,6 @@ describe('Text Interface', () => {
             to: staker.address,
             value: toNano('7'),
             body: bodyOp(op.withdrawalNotification),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })
@@ -326,7 +309,6 @@ describe('Text Interface', () => {
             to: staker.address,
             value: between('0', '0.2'),
             body: bodyOp(op.gasExcess),
-            deploy: false,
             success: true,
             outMessagesCount: 0,
         })

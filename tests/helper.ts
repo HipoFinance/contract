@@ -1,8 +1,7 @@
 import { expect } from '@jest/globals'
 import { Blockchain } from '@ton-community/sandbox'
 import type { MatcherFunction } from 'expect'
-import { Address, Builder, Cell, Dictionary, Message, beginCell, toNano } from 'ton-core'
-import { op } from '../wrappers/common'
+import { Address, Builder, Cell, Dictionary, beginCell, toNano } from 'ton-core'
 
 export function bodyOp(op: number): (body: Cell) => boolean {
     return (body: Cell): boolean => {
