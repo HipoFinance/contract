@@ -339,4 +339,31 @@ describe('Treasury', () => {
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryState.content.equals(newContent)).toBeTruthy()
     })
+
+    it('should set reward share', async () => {
+        const result = await treasury.sendSetRewardShare(governor.getSender(), { value: '0.1', newRewardShare: 8192n })
+
+        expect(result.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.setRewardShare),
+            deploy: false,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: governor.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            deploy: false,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(3)
+
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryState.rewardShare).toBe(8192n)
+    })
 })

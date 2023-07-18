@@ -80,6 +80,7 @@ const int op::set_halter = 0x16bb5b17;
 const int op::set_stopped = 0x700d5e50;
 const int op::set_driver = 0x7e7da841;
 const int op::set_content = 0x471dad93;
+const int op::set_reward_share = 0x51df41a6;
 
 const int op::top_up = 0x34e5d45a;
 

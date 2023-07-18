@@ -49,6 +49,7 @@ export const op = {
     setStopped: 0x700d5e50,
     setDriver: 0x7e7da841,
     setContent: 0x471dad93,
+    setRewardShare: 0x51df41a6,
 
     topUp: 0x34e5d45a,
 }

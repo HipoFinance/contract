@@ -297,6 +297,11 @@ set_content#471dad93
     new_content:^FullContent
         = InternalMsgBody;
 
+set_reward_share#51df41a6
+    query_id:uint64
+    new_reward_share:uint16
+        = InternalMsgBody;
+
 //
 // Storage
 //
