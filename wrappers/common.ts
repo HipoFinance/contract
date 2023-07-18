@@ -50,6 +50,7 @@ export const op = {
     setDriver: 0x7e7da841,
     setContent: 0x471dad93,
     setRewardShare: 0x51df41a6,
+    sendMessageToLoan: 0x2b93b447,
 
     withdrawSurplus: 0x302b2fea,
     topUp: 0x5372158c,

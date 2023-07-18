@@ -299,6 +299,13 @@ set_reward_share#51df41a6
     new_reward_share:uint16
         = InternalMsgBody;
 
+send_message_to_loan#2b93b447
+    query_id:uint64
+    validator:MsgAddress
+    round_since:uint32
+    message:^Cell
+        = InternalMsgBody;
+
 //
 // General Ops
 //

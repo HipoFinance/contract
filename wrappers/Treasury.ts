@@ -466,6 +466,29 @@ export class Treasury implements Contract {
         })
     }
 
+    async sendSendMessageToLoan(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+        validator: Address
+        roundSince: bigint
+        message: Cell
+    }) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.sendMessageToLoan, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .storeAddress(opts.validator)
+                .storeUint(opts.roundSince, 32)
+                .storeRef(opts.message)
+                .endCell()
+        })
+    }
+
     async sendWithdrawSurplus(provider: ContractProvider, via: Sender, opts: {
         value: bigint | string
         bounce?: boolean

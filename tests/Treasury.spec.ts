@@ -347,6 +347,39 @@ describe('Treasury', () => {
         expect(treasuryState.rewardShare).toBe(8192n)
     })
 
+    it('should send message to loan', async () => {
+        const validator = await blockchain.treasury('validator')
+        const loanAddress = await treasury.getLoanAddress(validator.address, 0n)
+        const message = beginCell()
+            .storeUint(op.sendRecoverStake, 32)
+            .storeUint(1, 64)
+            .endCell()
+        const result = await treasury.sendSendMessageToLoan(halter.getSender(), {
+            value: '1',
+            validator: validator.address,
+            roundSince: 0n,
+            message,
+        })
+
+        expect(result.transactions).toHaveTransaction({
+            from: halter.address,
+            to: treasury.address,
+            value: toNano('1'),
+            body: bodyOp(op.sendMessageToLoan),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: loanAddress,
+            value: between('0', '1'),
+            body: bodyOp(op.sendRecoverStake),
+            success: false, // loan is a dummy account and is not deployed
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(3)
+    })
+
     it('should withdraw surplus', async () => {
         const state = await treasury.getTreasuryState()
         const participation1 = {

@@ -81,6 +81,7 @@ const int op::set_stopped = 0x700d5e50;
 const int op::set_driver = 0x7e7da841;
 const int op::set_content = 0x471dad93;
 const int op::set_reward_share = 0x51df41a6;
+const int op::send_message_to_loan = 0x2b93b447;
 
 const int op::withdraw_surplus = 0x302b2fea;
 const int op::top_up = 0x5372158c;
@@ -135,6 +136,7 @@ const int config::mc_gas_prices = 20;
 const int config::gas_prices = 21;
 const int config::mc_fwd_prices = 24;
 const int config::fwd_prices = 25;
+const int config::previous_validators = 32;
 const int config::current_validators = 34;
 const int config::next_validators = 36;
 const int config::misbehaviour_punishment = 40;
