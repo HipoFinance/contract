@@ -1640,20 +1640,17 @@ builder pack_extension
 
     ( builder loan, _, _ ) = create_loan_address(my_address(), validator.to_builder(), round_since, loan_code);
     int vset_hash = -1;
+    int stake_held_until = 0;
     ( slice pd, int f? ) = participations.udict_get?(32, round_since);
     if (f?) {
-        ( _, _, _, _, _, _, _, _, vset_hash, _, _, _ ) = unpack_participation(pd);
+        ( _, _, _, _, _, _, _, _, vset_hash, _, _, stake_held_until ) = unpack_participation(pd);
     }
     int previous = config_param(config::previous_validators).cell_hash();
     int current = config_param(config::current_validators).cell_hash();
-    int next = 0;
-    cell next_config = config_param(config::next_validators);
-    ifnot (next_config.null?()) {
-        next = next_config.cell_hash();
-    }
 
     throw_unless(err::access_denied, equal_slices(src, governor) | equal_slices(src, halter));
-    throw_unless(err::vset_not_changed, (vset_hash != next) & (vset_hash != current) & (vset_hash != previous));
+    throw_unless(err::vset_not_changed, (vset_hash != current) & (vset_hash != previous));
+    throw_unless(err::not_ready_to_finish_participation, now() >= stake_held_until);
 
     send_msg(false, loan, null(), message.begin_parse().to_builder(), 0, send::remaining_value);
 }
