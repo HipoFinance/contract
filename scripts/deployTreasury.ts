@@ -41,9 +41,9 @@ export async function run(provider: NetworkProvider) {
 const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
     .set(toSha256("decimals"), toTextCell("9"))
     .set(toSha256("symbol"), toTextCell("hTON"))
-    .set(toSha256("name"), toTextCell("Hipo TON"))
-    .set(toSha256("description"), toTextCell("Treasury for Hipo liquid-staking protocol"))
-    .set(toSha256("image"), toTextCell("https://hipo.finance/hTON.png"))
+    .set(toSha256("name"), toTextCell("hTON"))
+    .set(toSha256("description"), toTextCell("Hipo liquid staking protocol"))
+    .set(toSha256("image"), toTextCell("https://hipo.finance/hton.png"))
 
 const content = beginCell().storeUint(0, 8).storeDict(contentDict).endCell()
 
