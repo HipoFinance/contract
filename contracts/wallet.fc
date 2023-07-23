@@ -519,18 +519,6 @@
 ;; get methods
 ;;
 
-(int, cell, int) get_wallet_state() method_id {
-    ( _
-    , _
-    , int tokens
-    , cell staking
-    , int unstaking
-    , _
-    ) = load_data();
-
-    return ( tokens, staking, unstaking );
-}
-
 (int, slice, slice, cell) get_wallet_data() method_id {
     ( slice owner
     , slice treasury
@@ -541,4 +529,16 @@
     ) = load_data();
 
     return ( tokens, owner, treasury, wallet_code );
+}
+
+(int, cell, int) get_wallet_state() method_id {
+    ( _
+    , _
+    , int tokens
+    , cell staking
+    , int unstaking
+    , _
+    ) = load_data();
+
+    return ( tokens, staking, unstaking );
 }

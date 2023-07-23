@@ -173,14 +173,14 @@ export class Wallet implements Contract {
         })
     }
 
-    async getWalletState(provider: ContractProvider): Promise<[bigint, Dictionary<bigint, bigint>, bigint]> {
-        const { stack } = await provider.get('get_wallet_state', [])
-        return [ stack.readBigNumber(), toStakingDict(stack.readCellOpt()), stack.readBigNumber() ]
-    }
-
     async getWalletData(provider: ContractProvider): Promise<[bigint, Address, Address, Cell]> {
         const { stack } = await provider.get('get_wallet_data', [])
         return [ stack.readBigNumber(), stack.readAddress(), stack.readAddress(), stack.readCell() ]
+    }
+
+    async getWalletState(provider: ContractProvider): Promise<[bigint, Dictionary<bigint, bigint>, bigint]> {
+        const { stack } = await provider.get('get_wallet_state', [])
+        return [ stack.readBigNumber(), toStakingDict(stack.readCellOpt()), stack.readBigNumber() ]
     }
 
     async getBalance(provider: ContractProvider): Promise<bigint> {

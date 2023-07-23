@@ -506,27 +506,15 @@ export class Treasury implements Contract {
         })
     }
 
-    async getTreasuryState(provider: ContractProvider): Promise<TreasuryConfig> {
-        const { stack } = await provider.get('get_treasury_state', [])
+    async getTimes(provider: ContractProvider): Promise<Times> {
+        const { stack } = await provider.get('get_times', [])
         return {
-            totalCoins: stack.readBigNumber(),
-            totalTokens: stack.readBigNumber(),
-            totalStaking: stack.readBigNumber(),
-            totalUnstaking: stack.readBigNumber(),
-            totalValidatorsStake: stack.readBigNumber(),
-            participations: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), participationDictionaryValue,
-                stack.readCellOpt()),
-            stopped: stack.readBoolean(),
-            walletCode: stack.readCell(),
-            loanCode: stack.readCell(),
-            driver: stack.readAddress(),
-            halter: stack.readAddress(),
-            governor: stack.readAddress(),
-            proposedGovernor: stack.readCellOpt(),
-            rewardShare: stack.readBigNumber(),
-            rewardsHistory: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), rewardDictionaryValue,
-                stack.readCellOpt()),
-            content: stack.readCell(),
+            currentRoundSince: stack.readBigNumber(),
+            participateSince: stack.readBigNumber(),
+            participateUntil: stack.readBigNumber(),
+            nextRoundSince: stack.readBigNumber(),
+            nextRoundUntil: stack.readBigNumber(),
+            stakeHeldFor: stack.readBigNumber(),
         }
     }
 
@@ -556,15 +544,45 @@ export class Treasury implements Contract {
         return stack.readAddress()
     }
 
-    async getTimes(provider: ContractProvider): Promise<Times> {
-        const { stack } = await provider.get('get_times', [])
+    async getTreasuryState(provider: ContractProvider): Promise<TreasuryConfig> {
+        const { stack } = await provider.get('get_treasury_state', [])
         return {
-            currentRoundSince: stack.readBigNumber(),
-            participateSince: stack.readBigNumber(),
-            participateUntil: stack.readBigNumber(),
-            nextRoundSince: stack.readBigNumber(),
-            nextRoundUntil: stack.readBigNumber(),
+            totalCoins: stack.readBigNumber(),
+            totalTokens: stack.readBigNumber(),
+            totalStaking: stack.readBigNumber(),
+            totalUnstaking: stack.readBigNumber(),
+            totalValidatorsStake: stack.readBigNumber(),
+            participations: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), participationDictionaryValue,
+                stack.readCellOpt()),
+            stopped: stack.readBoolean(),
+            walletCode: stack.readCell(),
+            loanCode: stack.readCell(),
+            driver: stack.readAddress(),
+            halter: stack.readAddress(),
+            governor: stack.readAddress(),
+            proposedGovernor: stack.readCellOpt(),
+            rewardShare: stack.readBigNumber(),
+            rewardsHistory: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), rewardDictionaryValue,
+                stack.readCellOpt()),
+            content: stack.readCell(),
+        }
+    }
+
+    async getParticipation(provider: ContractProvider): Promise<Participation> {
+        const { stack } = await provider.get('get_participation', [])
+        return {
+            state: stack.readNumber(),
+            sorted: Dictionary.loadDirect(Dictionary.Keys.BigUint(112), sortedDictionaryValue, stack.readCellOpt()),
+            loansSize: stack.readBigNumber(),
+            requests: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), loanDictionaryValue, stack.readCellOpt()),
+            accepted: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), loanDictionaryValue, stack.readCellOpt()),
+            staked: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), loanDictionaryValue, stack.readCellOpt()),
+            recovering: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), loanDictionaryValue, stack.readCellOpt()),
+            totalStaked: stack.readBigNumber(),
+            totalRecovered: stack.readBigNumber(),
+            currentVsetHash: stack.readBigNumber(),
             stakeHeldFor: stack.readBigNumber(),
+            stakeHeldUntil: stack.readBigNumber(),
         }
     }
 

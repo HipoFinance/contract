@@ -1906,48 +1906,6 @@ builder pack_extension
 ;; get methods
 ;;
 
-(int, int, int, int, int, cell, int, cell, cell, slice, slice, slice, cell, int, cell, cell) get_treasury_state()
-    method_id {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
-
-    return
-        ( total_coins
-        , total_tokens
-        , total_staking
-        , total_unstaking
-        , total_validators_stake
-        , participations
-        , stopped?
-        , wallet_code
-        , loan_code
-        , driver
-        , halter
-        , governor
-        , proposed_governor
-        , reward_share
-        , rewards_history
-        , content
-        );
-}
-
 (int, int, slice, cell, cell) get_jetton_data() method_id {
     ( int total_coins
     , int total_tokens
@@ -2007,6 +1965,92 @@ slice get_loan_address(slice validator, int round_since) method_id {
     ( builder loan, _, _ ) = create_loan_address(my_address(), validator.to_builder(), round_since, loan_code);
 
     return loan.end_cell().begin_parse();
+}
+
+(int, int, int, int, int, cell, int, cell, cell, slice, slice, slice, cell, int, cell, cell) get_treasury_state()
+    method_id {
+    ( int total_coins
+    , int total_tokens
+    , int total_staking
+    , int total_unstaking
+    , int total_validators_stake
+    , cell participations
+    , int stopped?
+    , cell wallet_code
+    , cell loan_code
+    , cell extension
+    ) = load_data();
+    ( slice driver
+    , slice halter
+    , slice governor
+    , cell proposed_governor
+    , int reward_share
+    , cell rewards_history
+    , cell content
+    ) = unpack_extension(extension.begin_parse());
+
+    return
+        ( total_coins
+        , total_tokens
+        , total_staking
+        , total_unstaking
+        , total_validators_stake
+        , participations
+        , stopped?
+        , wallet_code
+        , loan_code
+        , driver
+        , halter
+        , governor
+        , proposed_governor
+        , reward_share
+        , rewards_history
+        , content
+        );
+}
+
+(int, cell, int, cell, cell, cell, cell, int, int, int, int, int) get_participation(int round_since) method_id {
+    ( int total_coins
+    , int total_tokens
+    , int total_staking
+    , int total_unstaking
+    , int total_validators_stake
+    , cell participations
+    , int stopped?
+    , cell wallet_code
+    , cell loan_code
+    , cell extension
+    ) = load_data();
+
+    ( slice pd, _ ) = participations.udict_get?(32, round_since);
+    ( int state
+    , cell sorted
+    , int loans_size
+    , cell requests
+    , cell accepted
+    , cell staked
+    , cell recovering
+    , int total_staked
+    , int total_recovered
+    , int current_vset_hash
+    , int stake_held_for
+    , int stake_held_until
+    ) = unpack_participation(pd);
+
+    return
+        ( state
+        , sorted
+        , loans_size
+        , requests
+        , accepted
+        , staked
+        , recovering
+        , total_staked
+        , total_recovered
+        , current_vset_hash
+        , stake_held_for
+        , stake_held_until
+        );
 }
 
 (int, int, int) get_fees() method_id {
