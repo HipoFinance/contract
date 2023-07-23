@@ -1,7 +1,8 @@
 {
-    "name": "stakehipo",
+    "name": "hton",
     "version": "0.0.1",
     "license": "MIT",
+    "private": true,
     "scripts": {
         "test": "jest"
     },

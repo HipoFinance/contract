@@ -1,115 +1,147 @@
-# Stake Hipo: hTON
+# hTON
 
-Stake Hipo is a liquidity staking protocol on the TON blockchain. hTON is the jetton that users receive for staking their Toncoin.
+hTON is a **decentralized**, **permission-less**, **open-source** liquid staking protocol on the TON blockchain. Visit [Hipo.Finance](https://hipo.finance) for more information or read the [docs](https://docs.hipo.finance).
 
-## Highlights
+hTON consists of these components:
 
-- Automatic activation of hTON balance in wallets with zero messages or transactions.
-- Protocol is driven by only 2 external messages, and gas fee is paid by Root itself.
-- Participate external messages can only be accepted after at least one loan request.
-- Recover external messages can only happen after round changes, and it can correct itself for prolonged rounds.
-- Validators stake their hTON to receive a loan.
-- Very little gas usage and storage on masterchain.
-- Node operators can ask for loans with around 100 hTON.
+- **Contract**: The smart contract code that is running on-chain. The code is available here on this repository.
+- **[Webapp](https://github.com/HipoFinance/webapp)**: The web application that helps users in staking and unstaking.
+- **[Driver](https://github.com/HipoFinance/driver)**: The off-chain application that drives the protocol and helps users to receive their TON and hTON.
+- **[Borrower](https://github.com/HipoFinance/borrower)**: The application that helps validators in borrowing from the protocol and validating blocks.
 
-### What Is Staking
+## Users
 
-BitCoin uses proof-of-work consensus. Miners should try to find a hash for the next block, and they have to use a lot of energy and spend a lot of money on mining hardware. For their hard work, they'll receive a block reward when they've found the hash.
+There are two groups of users who would be interested in using hTON: stakers and validators.
 
-TON uses a proof-of-stake consensus. Instead of spending a lot of money on energy and hardware equipment, validators (called miners in Bitcoin) just stake a big amount of TON, start producing blocks, and after a staking round, they'll receive their initial staked amount plus block rewards and collected fees. This has the advantage of not spending money on hardware and energy, and be honest or they'll get punished.
+### Stakers
 
-### What Is Liquid Staking
+Stakers are users who have some TON and want to earn staking rewards on their TON. In normal staking, a staker must have a large sum of TON (like at-least 300,000 TON) before being able to participate in validation. Most users don't have access to such a big amount, but with a liquid staking protocol like hTON, they can earn rewards on any TON amount.
 
-To be able to stake in the TON blockchain, you have to have a powerful server, a lot of TON (currently at least 300,000 TON), and lock access to your TON while staking.
+When stakers deposit their TON, they will receive hTON jettons (a token in the TON blockchain) as a receipt. Stakers can keep it or send it to other users or use it in other DeFi protocols. Whoever brings it back to the protocol, can receive the corresponding amount in TON by burning it.
 
-Liquid staking helps here:
+Meanwhile, protocol puts staked TON from all stakers to use and will give it as a loan to validators. In turn they'll receive a reward and share it with the protocol and stakers. So over time, each hTON will have more TON value, and stakers can burn their hTON jetton to receive TON.
 
-- Users who don't have a big amount of TON, can join their forces and share the result.
+### Validators
 
-- System administrators can use cloud servers to validate blocks and earn an income, using TON that is staked by many users. They can't steal users' money and run. Users' TON is controlled by the protocol.
+Validators are node operators who have the technical knowledge of running a validator server, and have access to such a server. However, they might not have access to the minimum amount required for staking. They can ask for a loan from the hTON protocol, to receive a loan and participate in validation and earn rewards. After earning rewards, they share it with the protocol and stakers.
 
-- Users who have staked their TON will receive a Jetton (token) called **hTON** which is 1-1 equal for their staked TON. They can send it to anyone, anytime they want, without having to wait for the lock period to end.
+Loans are given to validators in a safe way. Validators can't withdraw the loan. They can only use it for staking in the TON blockchain. Any punishment will be deducted from the validator's staked amount, so they'll pay for their own misbehavior.
 
-### How Much Is the Reward in TON
+## Smart Contracts
 
-The TON blockchain has an inflation of %0.6 per year. This inflation, plus fees paid in each transaction is distributed between validators for their service of maintaining the network.
+There are 3 smart contracts in the hTON protocol: **Treasury**, **Wallet**, and **Loan**.
 
-### High Level Overview
+### Treasury
 
-![Smart Contracts](docs/smart-contracts.excalidraw.png)
+Treasury is the main smart contract which receives all stakers' TON, and lends it to interested validators. It's also the jetton minter, minting new hTON jetton for stakers. The jettons are stored in wallets.
 
-Users stake their TON using one of these options:
+### Wallet
 
-1. They can transfer any amount of TON to the `Root` smart contract of the protocol. This way, `Root` calculates the fees required for processing their request, subtracts it from the input amount, and then generates (mints) hTON and sends it to a special hTON `Wallet` for each user. Only the user has access to this wallet and only they can withdraw from it.
+Each staker will have a wallet that will store staker's jetton. Wallets receive jettons only from the treasury or from other wallets. They can also send jetton only to other wallets, or they can burn jetton by sending a request to the treasury.
 
-2. They can use the Stake tab of the protocols dApp (decentralized application) available at [https://stakehipo.com/app](https://stakehipo.com/app). This has the benefit that the user can enter the exact amount of hTON they want.
+### Loan
 
-After this step, users have hTON and the protocol has TON. Now validators can come and ask for a TON loan. Loan requests are stored and at a specific time, all requests are checked, and the best ones that can return the most income will win. Winners will receive the requested TON in another smart contract called `Pool`.
+When a validator requests a loan and it's accepted, a loan smart contract is created for that validator, and only for that validation round. Loan amount is sent to this smart contract and it will automatically stake it for the validator. After the validation round finishes, the loan amount plus the reward is returned to the loan smart contract, which will forward it to the treasury. Then the treasury will calculate the reward share and distribute it between the validator and stakers.
 
-This `Pool` automatically enters the election round that is ongoing on the blockchain by the `Elector` smart contract. If they win the election, then their related validator should validate blocks for the next round. After the round of validation ends, and after the punishment voting time has passed, `Pool` receives the staked amount plus its reward. Then `Pool` returns everything back to `Root`.
+## Flows
 
-`Root` calculates validator's share and sends the equivalent hTON to validators `Wallet`. The rest of the amount is distributed between users.
+Both stakers and validators use different flows for different tasks. Here, each flow is described in more detail. **There are Graphviz graphs available for each flow in the `graphs` folder**. It's recommended to first look at the graph of each flow to better understand them.
 
-From each user's wallet, a claim reward request must be sent to `Root`, which will then calculate the user's share and return the equivalent hTON.
+## Staker Flows
 
-This process continues for the next validation rounds. At some point, a user wants to transfer their hTON to another user. They can simply do a Jetton transfer from their wallet application.
+Usually stakers use the web application available at [https://app.hipo.finance](https://app.hipo.finance) to send messages and talk to the protocol, but there is also an alternative. A simple text based interface is available which makes talking with the protocol easier for stakers who don't want to use the web application, or are using cold wallets and don't want to connect them to apps.
 
-At another point in time, users may want to redeem their hTON and receive TON. They can use the Unstake tab of the protocol's dApp. Now hTON is transferred from the user's `Wallet` to `Root`, which then releases TON to the user.
+### Deposit Coins
 
-### Technical Details
+When a staker wants to deposit some TON and receive hTON, he/she sends a `deposit_coins` message to the treasury with the TON amount.
 
-In TON, protocols should avoid keeping a big table of data, and they have to be sharded. hTON is hence a sharded smart contract. There is one `Root` smart contract that receives TON and mints hTON and sends it to each user's `Wallet`. So there will be a lot of `Wallet` smart contracts, and each user's balance is kept in their `Wallet`. Validators send their loan request to `Root` too, and for each winner, a `Pool` smart contract will be created, which will participate in elections instead of validators.
+> Alternatively a simple text message with the comment `d` may be sent to the treasury by the staker.
 
-`Elector` is a smart contract on the master chain which conducts elections. Here is how it works:
+After this, the staker has sent the coins but will not receive hTON jetton yet. The reason is that there might be another validation round in progress, and the staker has to wait for that round to finish. When the in-progress round finishes, the staker can receive hTON jetton.
 
-![Election Rounds](docs/election-rounds.excalidraw.png)
+### Stake Coins
 
-This image is drawn in [Excalidraw](https://excalidraw.com) and is editable over there.
+This step is usually handled by the **Driver** automatically. When the previous in-progress validation round finishes, the driver will send the `stake_coins` message for pending deposits.
 
-Currently, each round of validation is around 18.2 hours, stake of validators is held for an additional 9.1 hours, elections start 9.1 hours before the end of round, elections end 2.2 hours before the end of round. Stakes are at least locked for 29.5 hours, and at worst 36.3 hours.
+> Alternatively a simple text message with the comment `s` may be sent to the treasury by the staker. Note that this most likely happens automatically, however it's available here to make the protocol permission-less: in the unlikely case that the driver doesn't work as expected, the user can drive the protocol forward.
 
-Since the new TON entering the system is not available for current validators, any newly staked amount is activated at a later time. When the stake time (when users stake their TON and receive hTON) is before the election begins, it will be activated beginning the next round. By activation we mean that hTON becomes transferrable and unstakeable. If it arrives after the election starts, it will be activated not at the next round, but at the later round, which is the round after next.
+### Send Tokens
 
-This mechanism helps prevent freeloaders from constantly staking and unstaking and receive the reward of the round and then quickly exit the protocol. So hTON is at least one round locked, but maybe two.
+Stakers can send hTON jetton to anyone. This is usually done through TON Wallet applications which send `send_tokens` message to the staker's hTON jetton wallet.
 
-The process of activation is automatic with no messages or transactions required. When users check their balance using get methods, the current round is compared to the last saved round, and if it has changed, inactive balance becomes active, so there is no need for any messages or transactions. When users want to send some hTON, the same process happens again and inactive balance becomes active and usable.
+### Unstake Tokens
 
-At `recover stakes`, an external message is sent to `Root`. This message can be sent by anyone, but we also send it automatically at the correct time. If the time is right, `Root` asks old `Pool`s to recover their stake from `Elector` and return it to `Root`. This is a quick action and all `Pool`s participating in the previous round will retrieve their funds.
+When a staker wants to burn hTON and withdraw some TON, he/she sends an `unstake_tokens` message to the hTON jetton wallet.
 
-When the last `Pool` returns funds, total earned rewards are calculated, and then `Root` is ready to distribute rewards to users' `Wallet`s.
+> Alternatively a simple text message with the comment `w` may be sent to the treasury by the staker. The choice of 'w' is intentional to match other similar protocols in the ecosystem.
 
-`Wallet`s have a `reward distribution` timespan to claim their reward share. An external message is sent to each `Wallet`. This message can be sent by anyone, but we also send it automatically at the correct time. If the time is right, `Wallet` sends a claim reward message to `Root`. Inside the message, `Wallet` includes all its active balance which is eligible for sharing the reward. `Root` receives this message, calculates the user's share, and adds it to the incoming active balance of the `Wallet` and returns it to the user. After this step, all users' `Wallet`s have received their reward share.
+After this, the staker has burned the tokens but will not receive TON yet. The reason is that there might be a validation round in progress and TON coins might be locked for the duration of the round. When the in-progress round finishes, the staker can receive TON coins.
 
-Validators can send a loan request in the `loan request` timespan. This timespan is around 90% of the election time. At `participate` time, `Root` will receive an external message which can be sent by anyone, but we also send it automatically.
+### Withdraw Tokens
 
-`Root` will then decide on loan requests. Requests that are going to return the most reward will win. Any remaining TON amount in protocol is accrued between winners to increase the reward.
+This step is usually handled by the **Driver** automatically. When funds are available, the driver will send the `withdraw_tokens` message for pending withdrawals.
 
-To prevent validators from draining the resources, a minimum payment can be set. This way validators who pay more will have more chances to win. If they waste the resources, they'll have to pay for it. For example, currently having less than 300,000 TON or more than 900,000 TON is rejected by `Elector`. Also there is a reward share parameter, which determines how the reward is shared between validators and protocol. Validators with lower shares have better chances.
+> Alternatively a simple text message with the comment `u` may be sent to the treasury by the staker. Note that this most likely happens automatically, however it's available here to make the protocol permission-less: in the unlikely case that the driver doesn't work as expected, the user can drive the protocol forward.
 
-There can be many winning `Pool`s, and the protocol supports even more than 255.
+## Validator Flows
 
-## Status
+Validators may use the **Borrower** application to talk to the protocol.
 
-We wanted to participate in the [DoraHacks Hack-a-TONx](https://dorahacks.io/hackathon/hack-a-tonx/) competition. We had to release this first version described above, but there are some steps needed for a production ready version. These include:
+### Request Loan
 
-- an upgrade mechanism
-- a governance token to decide on the upgrade activation
-- a mechanism to distribute rewards at later times to minimize network fees for wallets
-- optimize gas usage
-- update pre-calculated fee prices
-- fork/update `mytonctrl` to be able to easily use hTON for validation
-- add alternate pool functionality, so that validators can use the same wallet for two pools
-- complete test suites to test different scenarios
-- add an auto-unstake mechanism
-- security audit
-- bug bounty program
+A validator requests a loan by sending a `request_loan` message. The parameters include:
+
+- loan amount: the minimum amount that the validator wants to borrow.
+- min payment: the minimum payment that the validator will pay if the loan request is accepted.
+- validator reward share: the share of the reward for the validator.
+- round since: the validation round for the loan.
+- new stake message: the signed message that will be sent to the Elector.
+
+Notes:
+
+1. The loan amount might be more than requested. If the treasury has more funds available, it may distribute it between accepted loans proportionally.
+2. The min payment is a mechanism to select validators with the most reward returned for the loan amount requested. It's also a way to avoid draining funds by sending fake loan requests.
+3. The validator reward share is the ratio to split reward. The reward is distributed by considering this ratio and also the final paid amount must be greater than min payment.
+
+Validators that provide better return on investment (ROI) have a higher chance to win.
+
+### Participate In Election
+
+The message `participate_in_election` will start the process of deciding on loan requests and distributing funds. Rejected requests will receive back their staked amount and accepted requests will be given the loan and participate in the election automatically.
+
+### Vset Changed
+
+The message `vset_changed` gives a hint to the treasury that a round has passed. This is a way to wait for the correct time to accept the message to finish participation.
+
+### Finish Participation
+
+The message `finish_participation` asks the treasury to retrieve the loaned amount plus reward for each given loan and distribute rewards.
+
+## Governance
+
+There are 3 roles in the governance of the protocol:
+
+- Governor: the top authority in the protocol.
+- Halter: the one that can stop deposits to the treasury and also stops new loan requests.
+- Driver: the account that receives the gas fee for driving the protocol.
+
+## Governance Flows
+
+- A new governor can be proposed.
+- The new governor can accept governance.
+- The halter can be changed.
+- The halter can stop deposits to the treasury and also loan requests.
+- The driver can be changed.
+- The metadata of the protocol can be updated.
+- The reward share of the protocol can be updated.
+- The halter can send messages from the treasury to the loans in the emergency case.
 
 ## Development
 
-- Install dependencies: `yarn install`
+- Install dependencies: `yarn`
 - Build contracts: `yarn blueprint build`
 - Deploy: `yarn blueprint run`
-- Test: `yarn test --watch-all`
+- Test: `yarn test`
 
 ## License
 
