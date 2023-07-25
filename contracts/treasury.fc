@@ -2050,11 +2050,35 @@ slice get_loan_address(slice validator, int round_since) method_id {
         );
 }
 
-(int, int, int) get_fees() method_id {
+(int, int, int, int, int, int, int) get_fees() method_id {
+    ( int total_coins
+    , int total_tokens
+    , int total_staking
+    , int total_unstaking
+    , int total_validators_stake
+    , cell participations
+    , int stopped?
+    , cell wallet_code
+    , cell loan_code
+    , cell extension
+    ) = load_data();
+
+    ( _
+    , cell wallet_state_init
+    , _
+    ) = create_wallet_address(my_address().to_builder(), my_address(), wallet_code);
+    ( _
+    , cell loan_state_init
+    , _
+    ) = create_loan_address(my_address(), my_address().to_builder(), 0, loan_code);
     int wallet_storage = wallet_storage_fee();
     ( int loan_storage, _ ) = loan_storage_fee();
     return
-        ( fee::treasury_storage
+        ( deposit_coins_fee(wallet_state_init)
+        , unstake_tokens_fee()
+        , send_tokens_fee(wallet_state_init)
+        , request_loan_fee(loan_state_init)
+        , fee::treasury_storage
         , wallet_storage
         , loan_storage
         );

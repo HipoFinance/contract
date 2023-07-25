@@ -11,6 +11,10 @@ export type Times = {
 }
 
 export type Fees = {
+    depositCoinsFee: bigint
+    unstakeTokensFee: bigint
+    sendTokensFee: bigint
+    requestLoanFee: bigint
     treasuryStorage: bigint
     walletStorage: bigint
     loanStorage: bigint
@@ -589,6 +593,10 @@ export class Treasury implements Contract {
     async getFees(provider: ContractProvider): Promise<Fees> {
         const { stack } = await provider.get('get_fees', [])
         return {
+            depositCoinsFee: stack.readBigNumber(),
+            unstakeTokensFee: stack.readBigNumber(),
+            sendTokensFee: stack.readBigNumber(),
+            requestLoanFee: stack.readBigNumber(),
             treasuryStorage: stack.readBigNumber(),
             walletStorage: stack.readBigNumber(),
             loanStorage: stack.readBigNumber(),
