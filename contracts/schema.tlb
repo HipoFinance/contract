@@ -211,7 +211,7 @@ process_loan_requests#071d07cc
     round_since:uint32
         = InternalMsgBody;
 
-loan_rejected#45d0f209
+request_rejected#4d0f2116
     query_id:uint64
         = InternalMsgBody;
 
@@ -324,23 +324,23 @@ top_up#5372158c
 
 reward#_ staked:Coins recovered:Coins = Reward;
 
-loan#_
+request#_
     min_payment:Coins
     validator_reward_share:uint8
     loan_amount:Coins
     accrue_amount:Coins
     stake_amount:Coins
     new_stake_msg:^NewStakeMsg
-        = Loan;
+        = Request;
 
 participation#_
     state:uint3
     sorted:(HashmapE 112 (Hashmap 256 True))
-    loans_size:uint16
-    requests:(HashmapE 256 Loan)
-    accepted:(HashmapE 256 Loan)
-    staked:(HashmapE 256 Loan)
-    recovering:(HashmapE 256 Loan) // no refs overflow since there are always some empty dicts
+    requests_size:uint16
+    requests:(HashmapE 256 Request)
+    accepted:(HashmapE 256 Request)
+    staked:(HashmapE 256 Request)
+    recovering:(HashmapE 256 Request) // no refs overflow since there are always some empty dicts
     total_staked:Coins
     total_recovered:Coins
     current_vset_hash:bits256

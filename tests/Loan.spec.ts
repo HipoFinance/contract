@@ -182,7 +182,7 @@ describe('Loan', () => {
             from: treasury.address,
             to: validator1.address,
             value: between('151', '151.1'),
-            body: bodyOp(op.loanRejected),
+            body: bodyOp(op.requestRejected),
             success: true,
             outMessagesCount: 0,
         })

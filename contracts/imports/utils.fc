@@ -181,7 +181,7 @@ cell create_loan_data(slice treasury, builder validator, int round_since) {
     return (loan, state_init, addr);
 }
 
-int loan_sort_key(int min_payment, int validator_reward_share, int loan_amount) {
+int request_sort_key(int min_payment, int validator_reward_share, int loan_amount) {
     ;; sort based on:
     ;;   1. efficieny
     ;;   2. treasury reward share

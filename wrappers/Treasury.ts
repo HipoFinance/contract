@@ -36,7 +36,7 @@ export enum ParticipationState {
     Recovering,
 }
 
-export type Loan = {
+export type Request = {
     minPayment: bigint
     validatorRewardShare: bigint
     loanAmount: bigint
@@ -48,11 +48,11 @@ export type Loan = {
 export type Participation = {
     state?: ParticipationState
     sorted?: Dictionary<bigint, Dictionary<bigint, True>>
-    loansSize?: bigint
-    requests?: Dictionary<bigint, Loan>
-    accepted?: Dictionary<bigint, Loan>
-    staked?: Dictionary<bigint, Loan>
-    recovering?: Dictionary<bigint, Loan>
+    requestsSize?: bigint
+    requests?: Dictionary<bigint, Request>
+    accepted?: Dictionary<bigint, Request>
+    staked?: Dictionary<bigint, Request>
+    recovering?: Dictionary<bigint, Request>
     totalStaked?: bigint
     totalRecovered?: bigint
     currentVsetHash?: bigint
@@ -134,8 +134,8 @@ export const sortedDictionaryValue: DictionaryValue<Dictionary<bigint, True>> = 
     }
 }
 
-export const loanDictionaryValue: DictionaryValue<Loan> = {
-    serialize: function(src: Loan, builder: Builder) {
+export const requestDictionaryValue: DictionaryValue<Request> = {
+    serialize: function(src: Request, builder: Builder) {
         builder
             .storeCoins(src.minPayment)
             .storeUint(src.validatorRewardShare, 8)
@@ -144,7 +144,7 @@ export const loanDictionaryValue: DictionaryValue<Loan> = {
             .storeCoins(src.stakeAmount)
             .storeRef(src.newStakeMsg)
     },
-    parse: function(src: Slice): Loan {
+    parse: function(src: Slice): Request {
         return {
             minPayment: src.loadCoins(),
             validatorRewardShare: src.loadUintBig(8),
@@ -161,7 +161,7 @@ export const participationDictionaryValue: DictionaryValue<Participation> = {
         builder
             .storeUint(src.state || 0, 3)
             .storeDict(src.sorted)
-            .storeUint(src.loansSize || 0, 16)
+            .storeUint(src.requestsSize || 0, 16)
             .storeDict(src.requests)
             .storeDict(src.accepted)
             .storeDict(src.staked)
@@ -176,11 +176,11 @@ export const participationDictionaryValue: DictionaryValue<Participation> = {
         return {
             state: src.loadUint(3),
             sorted: src.loadDict(Dictionary.Keys.BigUint(112), sortedDictionaryValue),
-            loansSize: src.loadUintBig(16),
-            requests: src.loadDict(Dictionary.Keys.BigUint(256), loanDictionaryValue),
-            accepted: src.loadDict(Dictionary.Keys.BigUint(256), loanDictionaryValue),
-            staked: src.loadDict(Dictionary.Keys.BigUint(256), loanDictionaryValue),
-            recovering: src.loadDict(Dictionary.Keys.BigUint(256), loanDictionaryValue),
+            requestsSize: src.loadUintBig(16),
+            requests: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
+            accepted: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
+            staked: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
+            recovering: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
             totalStaked: src.loadCoins(),
             totalRecovered: src.loadCoins(),
             currentVsetHash: src.loadUintBig(256),
@@ -577,11 +577,11 @@ export class Treasury implements Contract {
         return {
             state: stack.readNumber(),
             sorted: Dictionary.loadDirect(Dictionary.Keys.BigUint(112), sortedDictionaryValue, stack.readCellOpt()),
-            loansSize: stack.readBigNumber(),
-            requests: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), loanDictionaryValue, stack.readCellOpt()),
-            accepted: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), loanDictionaryValue, stack.readCellOpt()),
-            staked: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), loanDictionaryValue, stack.readCellOpt()),
-            recovering: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), loanDictionaryValue, stack.readCellOpt()),
+            requestsSize: stack.readBigNumber(),
+            requests: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
+            accepted: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
+            staked: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
+            recovering: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
             totalStaked: stack.readBigNumber(),
             totalRecovered: stack.readBigNumber(),
             currentVsetHash: stack.readBigNumber(),

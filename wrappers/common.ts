@@ -32,7 +32,7 @@ export const op = {
     requestLoan: 0x12b808d3,
     participateInElection: 0x574a297b,
     processLoanRequests: 0x071d07cc,
-    loanRejected: 0x45d0f209,
+    requestRejected: 0x4d0f2116,
     sendNewStake: 0x77a897f2,
     newStakeRejected: 0x2bf7a8d5,
     vsetChanged: 0x2f0b5b3b,
