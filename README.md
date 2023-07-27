@@ -9,6 +9,10 @@ hTON consists of these components:
 - **[Driver](https://github.com/HipoFinance/driver)**: The off-chain application that drives the protocol and helps users to receive their TON and hTON.
 - **[Borrower](https://github.com/HipoFinance/borrower)**: The application that helps validators in borrowing from the protocol and validating blocks.
 
+Last deployed contract on testnet:
+
+> [kQAcH7it996XJ_8orOBALJpawbYJv6-zmu-9fP7enU4f7qnF](https://testnet.tonviewer.com/kQAcH7it996XJ_8orOBALJpawbYJv6-zmu-9fP7enU4f7qnF)
+
 ## Users
 
 There are two groups of users who would be interested in using hTON: stakers and validators.
