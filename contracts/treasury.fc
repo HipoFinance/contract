@@ -2006,7 +2006,7 @@ slice get_loan_address(slice validator, int round_since) method_id {
         );
 }
 
-(int, cell, int, cell, cell, cell, cell, int, int, int, int, int) get_participation(int round_since) method_id {
+(int, cell, int, cell, cell, cell, cell, int, int, int, int, int, int) get_participation(int round_since) method_id {
     ( int total_coins
     , int total_tokens
     , int total_staking
@@ -2019,20 +2019,35 @@ slice get_loan_address(slice validator, int round_since) method_id {
     , cell extension
     ) = load_data();
 
-    ( slice ps, _ ) = participations.udict_get?(32, round_since);
-    ( int state
-    , cell sorted
-    , int requests_size
-    , cell requests
-    , cell accepted
-    , cell staked
-    , cell recovering
-    , int total_staked
-    , int total_recovered
-    , int current_vset_hash
-    , int stake_held_for
-    , int stake_held_until
-    ) = unpack_participation(ps);
+    int state = participation::open;
+    cell sorted = new_dict();
+    int requests_size = 0;
+    cell requests = new_dict();
+    cell accepted = new_dict();
+    cell staked = new_dict();
+    cell recovering = new_dict();
+    int total_staked = 0;
+    int total_recovered = 0;
+    int current_vset_hash = 0;
+    int stake_held_for = 0;
+    int stake_held_until = 0;
+
+    ( slice ps, int f? ) = participations.udict_get?(32, round_since);
+    if (f?) {
+        ( state
+        , sorted
+        , requests_size
+        , requests
+        , accepted
+        , staked
+        , recovering
+        , total_staked
+        , total_recovered
+        , current_vset_hash
+        , stake_held_for
+        , stake_held_until
+        ) = unpack_participation(ps);
+    }
 
     return
         ( state
@@ -2047,6 +2062,7 @@ slice get_loan_address(slice validator, int round_since) method_id {
         , current_vset_hash
         , stake_held_for
         , stake_held_until
+        , f?
         );
 }
 
@@ -2082,6 +2098,30 @@ slice get_loan_address(slice validator, int round_since) method_id {
         , wallet_storage
         , loan_storage
         );
+}
+
+int get_max_burnable_tokens() method_id {
+    ( int total_coins
+    , int total_tokens
+    , int total_staking
+    , int total_unstaking
+    , int total_validators_stake
+    , cell participations
+    , int stopped?
+    , cell wallet_code
+    , cell loan_code
+    , cell extension
+    ) = load_data();
+
+    int ton_balance = get_balance().pair_first();
+    int available_ton = ton_balance - fee::treasury_storage - total_validators_stake;
+    int burnable_tokens = 0;
+
+    if (total_coins > 0) {
+        burnable_tokens = muldiv(available_ton, total_tokens, total_coins);
+    }
+
+    return burnable_tokens;
 }
 
 int get_max_punishment(int stake) method_id {
