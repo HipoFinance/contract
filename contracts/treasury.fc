@@ -662,13 +662,12 @@ builder pack_extension
     );
 }
 
-(cell, cell, int) decide_on_requests(cell sorted, cell requests, int participate_until, int available) impure {
+(cell, cell, int) decide_on_requests(cell sorted, cell requests, int too_late?, int available) impure {
     cell accepted = new_dict();
     int accepted_size = 0;
     int allocated = 0;
 
     int elected? = ~ config_param(config::next_validators).null?();
-    int too_late? = now() > participate_until;
     if (elected? | too_late?) {
         ;; reject all requests if already elected or there is not enough time for safe participation
         return ( requests, accepted, accepted_size );
@@ -755,9 +754,10 @@ builder pack_extension
         ( state, sorted, requests_size, requests, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
     }
     ( _, int participate_since, int participate_until, _, int next_round_until, int stake_held_for ) = get_times();
+    int t = now();
 
     throw_unless(err::unable_to_participate, state == participation::open);
-    throw_unless(err::too_soon_to_participate, now() >= participate_since);
+    throw_unless(err::too_soon_to_participate, (t >= participate_since) | (t >= round_since));
 
     accept_message();
 
@@ -770,9 +770,14 @@ builder pack_extension
     ( _, cell state_init, _ ) = create_loan_address(my_address(), my_address().to_builder(), round_since, loan_code);
     int fee = request_loan_fee(state_init);
     int ton_balance = get_balance().pair_first();
-    int available = ton_balance - fee::treasury_storage - total_validators_stake - requests_size * fee - reserved_amount;
+    int available =
+        ton_balance - fee::treasury_storage - total_validators_stake - requests_size * fee - reserved_amount;
+    int too_late? = (t > participate_until) | (t >= round_since);
 
-    ( requests, cell accepted, int accepted_size ) = decide_on_requests(sorted, requests, participate_until, available);
+    ( requests
+    , cell accepted
+    , int accepted_size
+    ) = decide_on_requests(sorted, requests, too_late?, available);
     int current_vset_hash = config_param(config::current_validators).cell_hash();
     int stake_held_until = next_round_until + stake_held_for + 60;
     builder pb = pack_participation(
