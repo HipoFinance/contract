@@ -173,7 +173,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: treasury.address,
-            value: between('1.6', '1.7'),
+            value: between('699999', '700000'),
             body: bodyOp(op.processLoanRequests),
             success: true,
             outMessagesCount: 3,

@@ -757,12 +757,13 @@ builder pack_extension
     int t = now();
 
     throw_unless(err::unable_to_participate, state == participation::open);
-    throw_unless(err::too_soon_to_participate, (t >= participate_since) | (t >= round_since));
+    throw_unless(err::too_soon_to_participate, t >= min(participate_since, round_since));
 
     accept_message();
 
     state = participation::distribution;
 
+    int too_late? = t >= min(participate_until, round_since);
     int reserved_amount = total_unstaking;
     if (total_tokens > 0) {
         reserved_amount = muldiv(total_unstaking, total_coins, total_tokens);
@@ -771,8 +772,7 @@ builder pack_extension
     int fee = request_loan_fee(state_init);
     int ton_balance = get_balance().pair_first();
     int available =
-        ton_balance - fee::treasury_storage - total_validators_stake - requests_size * fee - reserved_amount;
-    int too_late? = (t > participate_until) | (t >= round_since);
+        max(0, ton_balance - fee::treasury_storage - total_validators_stake - requests_size * fee - reserved_amount);
 
     ( requests
     , cell accepted
@@ -790,7 +790,7 @@ builder pack_extension
         .store_uint(op::process_loan_requests, 32)
         .store_uint(query_id, 64)
         .store_uint(round_since, 32);
-    send_msg(false, my_address().to_builder(), null(), body, fee, send::pay_gas_separately);
+    send_msg(false, my_address().to_builder(), null(), body, available, send::pay_gas_separately);
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
