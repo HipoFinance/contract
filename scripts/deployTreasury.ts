@@ -1,6 +1,6 @@
-import { beginCell, Cell, Dictionary, fromNano, toNano } from 'ton-core'
+import { beginCell, Cell, Dictionary, toNano } from 'ton-core'
 import { participationDictionaryValue, rewardDictionaryValue, Treasury } from '../wrappers/Treasury'
-import { compile, NetworkProvider, sleep } from '@ton-community/blueprint'
+import { compile, NetworkProvider } from '@ton-community/blueprint'
 import { sha256_sync } from 'ton-crypto'
 
 export async function run(provider: NetworkProvider) {

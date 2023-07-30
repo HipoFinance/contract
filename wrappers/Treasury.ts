@@ -1,4 +1,4 @@
-import { Address, beginCell, Builder, Cell, Contract, contractAddress, ContractProvider, Dictionary, DictionaryValue, Sender, SendMode, Slice, TupleBuilder } from 'ton-core'
+import { Address, beginCell, Builder, Cell, Contract, contractAddress, ContractProvider, ContractState, Dictionary, DictionaryValue, Sender, SendMode, Slice, TupleBuilder } from 'ton-core'
 import { op, tonValue } from './common'
 
 export type Times = {
@@ -634,5 +634,9 @@ export class Treasury implements Contract {
     async getBalance(provider: ContractProvider): Promise<bigint> {
         const state = await provider.getState()
         return state.balance
+    }
+
+    async getState(provider: ContractProvider): Promise<ContractState> {
+        return await provider.getState()
     }
 }

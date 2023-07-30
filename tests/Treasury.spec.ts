@@ -381,7 +381,7 @@ describe('Treasury', () => {
     })
 
     it('should upgrade code', async () => {
-        const oldTreasuryState = await treasury.getTreasuryState()
+        const oldState = await treasury.getState()
         const someone = await blockchain.treasury('someone')
         const onlyUpgradeCode = await compile('upgrade-code-test/OnlyUpgradeCode')
         const result1 = await treasury.sendUpgradeCode(governor.getSender(), {
@@ -475,15 +475,12 @@ describe('Treasury', () => {
         })
         expect(result5.transactions).toHaveLength(3)
 
-        const newTreasuryState = await treasury.getTreasuryState()
-        expect(newTreasuryState.governor.toString() == oldTreasuryState.governor.toString()).toBeTruthy()
-        expect(newTreasuryState.loanCode.toString() == oldTreasuryState.loanCode.toString()).toBeTruthy()
-        expect(newTreasuryState.walletCode.toString() == oldTreasuryState.walletCode.toString()).toBeTruthy()
-        expect(newTreasuryState.totalCoins.toString() == oldTreasuryState.totalCoins.toString()).toBeTruthy()
-        expect(newTreasuryState.totalTokens.toString() == oldTreasuryState.totalTokens.toString()).toBeTruthy()
-        expect(newTreasuryState.content.toString() == oldTreasuryState.content.toString()).toBeTruthy()
-        expect(newTreasuryState.participations.toString() == oldTreasuryState.participations.toString()).toBeTruthy()
-        expect(newTreasuryState.rewardsHistory.toString() == oldTreasuryState.rewardsHistory.toString()).toBeTruthy()
+        const newState = await treasury.getState()
+        expect(oldState.state.type === 'active').toBeTruthy()
+        expect(oldState.state.type == newState.state.type).toBeTruthy()
+        if (oldState.state.type === 'active' && newState.state.type === 'active') {
+            expect(oldState.state.data?.toString() === newState.state.data?.toString()).toBeTruthy()
+        }
     })
 
     it('should withdraw surplus', async () => {

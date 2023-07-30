@@ -1,7 +1,6 @@
-import { Address, beginCell, Cell, Dictionary } from 'ton-core'
+import { Address } from 'ton-core'
 import { Treasury } from '../wrappers/Treasury'
 import { NetworkProvider } from '@ton-community/blueprint'
-import { sha256_sync } from 'ton-crypto'
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui();

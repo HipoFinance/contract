@@ -1,4 +1,4 @@
-import { Address, beginCell, toNano } from 'ton-core'
+import { Address } from 'ton-core'
 import { Treasury } from '../wrappers/Treasury'
 import { NetworkProvider } from '@ton-community/blueprint'
 
