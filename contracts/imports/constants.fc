@@ -82,6 +82,7 @@ const int op::set_driver = 0x7e7da841;
 const int op::set_content = 0x471dad93;
 const int op::set_reward_share = 0x51df41a6;
 const int op::send_message_to_loan = 0x2b93b447;
+const int op::upgrade_code = 0x282600ff;
 
 const int op::withdraw_surplus = 0x302b2fea;
 const int op::top_up = 0x5372158c;

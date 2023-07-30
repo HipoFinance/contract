@@ -306,6 +306,11 @@ send_message_to_loan#2b93b447
     message:^Cell
         = InternalMsgBody;
 
+upgrade_code#282600ff
+    query_id:uint64
+    new_code:^Cell
+        = InternalMsgBody;
+
 //
 // General Ops
 //

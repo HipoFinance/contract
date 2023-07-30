@@ -1,0 +1,18 @@
+digraph {
+    label="the current governor upgrades the code of the treasury"
+    node [ colorscheme=pastel19 style=filled ]
+
+    /* Entities */
+    external [ shape=point ]
+    governor [ color=2 ]
+    treasury [ color=4 ]
+
+    /* Relationships */
+    external -> governor [ label="1" ]
+    governor -> treasury [ label="2\l op::upgrade_code\l 0.10 TON\l" ]
+    treasury -> governor [ label="3\l op::gas_excess\l 0.09 TON\l" ]
+
+    /* Ranks */
+    { rank=min external governor }
+    { rank=max treasury }
+}

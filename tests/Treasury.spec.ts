@@ -380,6 +380,112 @@ describe('Treasury', () => {
         expect(result.transactions).toHaveLength(3)
     })
 
+    it('should upgrade code', async () => {
+        const oldTreasuryState = await treasury.getTreasuryState()
+        const someone = await blockchain.treasury('someone')
+        const onlyUpgradeCode = await compile('upgrade-code-test/OnlyUpgradeCode')
+        const result1 = await treasury.sendUpgradeCode(governor.getSender(), {
+            value: '0.1',
+            newCode: onlyUpgradeCode,
+            rest: beginCell().storeAddress(someone.address)
+        })
+
+        expect(result1.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.upgradeCode),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: governor.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result1.transactions).toHaveLength(3)
+
+        const result2 = await treasury.sendDepositCoins(someone.getSender(), { value: '10' })
+        expect(result2.transactions).toHaveTransaction({
+            from: someone.address,
+            to: treasury.address,
+            value: toNano('10'),
+            body: bodyOp(op.depositCoins),
+            success: false,
+            outMessagesCount: 1,
+        })
+
+        const resetData = await compile('upgrade-code-test/ResetData')
+        const result3 = await treasury.sendUpgradeCode(someone.getSender(), {
+            value: '0.1',
+            newCode: resetData,
+        })
+
+        expect(result3.transactions).toHaveTransaction({
+            from: someone.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.upgradeCode),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: someone.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result3.transactions).toHaveLength(3)
+
+        const result4 = await treasury.sendDepositCoins(someone.getSender(), { value: '10' })
+        expect(result4.transactions).toHaveTransaction({
+            from: someone.address,
+            to: treasury.address,
+            value: toNano('10'),
+            body: bodyOp(op.depositCoins),
+            success: false,
+            outMessagesCount: 1,
+        })
+
+        const result5 = await treasury.sendUpgradeCode(governor.getSender(), {
+            value: '0.1',
+            newCode: treasuryCode,
+        })
+
+        expect(result5.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.upgradeCode),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result5.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: governor.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result5.transactions).toHaveLength(3)
+
+        const newTreasuryState = await treasury.getTreasuryState()
+        expect(newTreasuryState.governor.toString() == oldTreasuryState.governor.toString()).toBeTruthy()
+        expect(newTreasuryState.loanCode.toString() == oldTreasuryState.loanCode.toString()).toBeTruthy()
+        expect(newTreasuryState.walletCode.toString() == oldTreasuryState.walletCode.toString()).toBeTruthy()
+        expect(newTreasuryState.totalCoins.toString() == oldTreasuryState.totalCoins.toString()).toBeTruthy()
+        expect(newTreasuryState.totalTokens.toString() == oldTreasuryState.totalTokens.toString()).toBeTruthy()
+        expect(newTreasuryState.content.toString() == oldTreasuryState.content.toString()).toBeTruthy()
+        expect(newTreasuryState.participations.toString() == oldTreasuryState.participations.toString()).toBeTruthy()
+        expect(newTreasuryState.rewardsHistory.toString() == oldTreasuryState.rewardsHistory.toString()).toBeTruthy()
+    })
+
     it('should withdraw surplus', async () => {
         const state = await treasury.getTreasuryState()
         const participation1 = {

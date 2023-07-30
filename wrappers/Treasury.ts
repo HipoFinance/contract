@@ -493,6 +493,27 @@ export class Treasury implements Contract {
         })
     }
 
+    async sendUpgradeCode(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+        newCode: Cell
+        rest?: Builder
+    }) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.upgradeCode, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .storeRef(opts.newCode)
+                .storeBuilder(opts.rest || beginCell())
+                .endCell()
+        })
+    }
+
     async sendWithdrawSurplus(provider: ContractProvider, via: Sender, opts: {
         value: bigint | string
         bounce?: boolean
