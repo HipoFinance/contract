@@ -1702,7 +1702,7 @@ builder pack_extension
     throw(0);
 }
 
-() withdraw_surplus(slice src, slice s) impure {
+() withdraw_surplus(int msg_ton, slice src, slice s) impure {
     ( int total_coins
     , int total_tokens
     , int total_staking
@@ -1753,7 +1753,9 @@ builder pack_extension
     } until (~ f?);
 
     int ton_balance = get_balance().pair_first();
-    int available = max(0, ton_balance - fee::treasury_storage - total_validators_stake - total_staking - total_coins);
+    int ton_balance_before_msg = ton_balance - msg_ton;
+    int available =
+        max(0, ton_balance_before_msg - fee::treasury_storage - total_validators_stake - total_staking - total_coins);
 
     raw_reserve(available, reserve::all_but_amount);
 
@@ -1919,7 +1921,7 @@ builder pack_extension
     }
 
     if (op == op::withdraw_surplus) {
-        return withdraw_surplus(src, in_msg_body);
+        return withdraw_surplus(msg_ton, src, in_msg_body);
     }
 
     if (op == op::top_up) {
