@@ -902,6 +902,28 @@ builder pack_extension
     );
 }
 
+cell update_rewards_history(cell rewards_history, int round_since, int total_staked, int total_recovered) impure {
+    builder reward = begin_cell()
+        .store_coins(total_staked)
+        .store_coins(total_recovered);
+    rewards_history~udict_set_builder(32, round_since, reward);
+
+    ;; remove history older than a year
+    int t-1y = now() - 60 * 60 * 24 * 366;
+    int k = -1;
+    do {
+        ( k, slice v, int f? ) = rewards_history.udict_get_next?(32, k);
+        if (f?) {
+            if (k < t-1y) {
+                rewards_history~udict_delete?(32, k);
+            } else {
+                f? = false;
+            }
+        }
+    } until (~ f?);
+    return rewards_history;
+}
+
 () new_stake_rejected(int msg_ton, slice src, slice s) impure {
     ( int total_coins
     , int total_tokens
@@ -914,6 +936,14 @@ builder pack_extension
     , cell loan_code
     , cell extension
     ) = load_data();
+    ( slice driver
+    , slice halter
+    , slice governor
+    , cell proposed_governor
+    , int reward_share
+    , cell rewards_history
+    , cell content
+    ) = unpack_extension(extension.begin_parse());
 
     int query_id = s~load_uint(64);
     int reason = s~load_uint(32);
@@ -952,6 +982,7 @@ builder pack_extension
             ( int min_payment, _, int loan_amount, int accrue_amount, int stake_amount, _ ) = unpack_request(request);
 
             if (msg_ton >= loan_amount + accrue_amount + min_payment) {
+                total_coins += min_payment;
                 total_recovered += loan_amount + accrue_amount + min_payment;
                 int amount = min(stake_amount - min_payment, msg_ton - loan_amount - accrue_amount - min_payment);
 
@@ -960,17 +991,24 @@ builder pack_extension
                     .store_uint(query_id, 64);
                 send_msg(false, validator.to_builder(), null(), body, amount, send::ignore_errors);
             } else {
+                total_coins += msg_ton - loan_amount - accrue_amount;
                 total_recovered += msg_ton;
             }
-        } else {
-            total_recovered += msg_ton;
         }
 
-        builder pb = pack_participation(
-            state, new_dict(), requests_size, requests, accepted, staked, recovering, total_staked, total_recovered,
-            current_vset_hash, stake_held_for, stake_held_until
-        );
-        participations~udict_set_builder(32, round_since, pb);
+        if (dict_empty?(staked) & dict_empty?(recovering)) {
+            _ = participations~udict_delete?(32, round_since);
+            rewards_history = update_rewards_history(rewards_history, round_since, total_staked, total_recovered);
+            extension = pack_extension(
+                driver, halter, governor, proposed_governor, reward_share, rewards_history, content
+            ).end_cell();
+        } else {
+            builder pb = pack_participation(
+                state, new_dict(), requests_size, requests, accepted, staked, recovering, total_staked, total_recovered,
+                current_vset_hash, stake_held_for, stake_held_until
+            );
+            participations~udict_set_builder(32, round_since, pb);
+        }
     }
 
     save_data(
@@ -1140,18 +1178,16 @@ builder pack_extension
 
     ;; send recover stake message from each given loan
     while ((~ dict_empty?(staked)) & (remain > 0)) {
-        ( int validator_addr, slice request, int f? ) = staked~udict_delete_get_min?(256);
-        if (f?) {
-            remain -= 1;
-            recovering~udict_set(256, validator_addr, request);
-            builder validator = create_address(chain::base, validator_addr);
-            ( builder loan, _, _ ) = create_loan_address(my_address(), validator, round_since, loan_code);
+        remain -= 1;
+        ( int validator_addr, slice request, _ ) = staked~udict_delete_get_min?(256);
+        recovering~udict_set(256, validator_addr, request);
+        builder validator = create_address(chain::base, validator_addr);
+        ( builder loan, _, _ ) = create_loan_address(my_address(), validator, round_since, loan_code);
 
-            builder body = begin_cell()
-                .store_uint(op::send_recover_stake, 32)
-                .store_uint(query_id, 64);
-            send_msg(true, loan, null(), body, fee, send::pay_gas_separately);
-        }
+        builder body = begin_cell()
+            .store_uint(op::send_recover_stake, 32)
+            .store_uint(query_id, 64);
+        send_msg(true, loan, null(), body, fee, send::pay_gas_separately);
     }
 
     ifnot (dict_empty?(staked)) {
@@ -1263,25 +1299,7 @@ builder pack_extension
 
             if (dict_empty?(recovering)) {
                 _ = participations~udict_delete?(32, round_since);
-                builder reward = begin_cell()
-                    .store_coins(total_staked)
-                    .store_coins(total_recovered);
-                rewards_history~udict_set_builder(32, round_since, reward);
-
-                ;; remove history older than a year
-                int k = -1;
-                do {
-                    ( k, slice v, int x? ) = rewards_history.udict_get_next?(32, k);
-                    if (x?) {
-                        int old? = k < now() - 60 * 60 * 24 * 365;
-                        if (old?) {
-                            rewards_history~udict_delete?(32, k);
-                        } else {
-                            x? = false;
-                        }
-                    }
-                } until (~ x?);
-
+                rewards_history = update_rewards_history(rewards_history, round_since, total_staked, total_recovered);
                 extension = pack_extension(
                     driver, halter, governor, proposed_governor, reward_share, rewards_history, content
                 ).end_cell();

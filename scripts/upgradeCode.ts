@@ -13,7 +13,7 @@ export async function run(provider: NetworkProvider) {
     console.log("==============")
     console.log("1. Check upgrade_code in treasury.fc before proceeding\n")
     console.log("2. Check upgrade_data in treasury.fc before proceeding\n")
-    console.log("3. Check additional data to be sent alongside the upgrade in this deployer script")
+    console.log("3. Check additional data to be sent alongside the upgrade in this script")
     console.log("==============")
     console.log()
 

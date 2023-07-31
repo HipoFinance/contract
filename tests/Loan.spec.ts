@@ -1,22 +1,25 @@
 import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
-import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
-import { between, bodyOp, createVset, emptyNewStakeMsg, getElector, setConfig } from './helper'
+import { Address, Cell, Dictionary, beginCell, toNano } from 'ton-core'
+import { between, bodyOp, createNewStakeMsg, createVset, emptyNewStakeMsg, getElector, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
-import { Loan, loanConfigToCell } from '../wrappers/Loan'
+import { Loan } from '../wrappers/Loan'
 import { Fees, Treasury, participationDictionaryValue, rewardDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
+import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-test/Elector'
 
 describe('Loan', () => {
     let treasuryCode: Cell
     let walletCode: Cell
     let loanCode: Cell
+    let electorCode: Cell
 
     beforeAll(async () => {
         treasuryCode = await compile('Treasury')
         walletCode = await compile('Wallet')
         loanCode = await compile('Loan')
+        electorCode = await compile('elector-test/Elector')
     })
 
     let blockchain: Blockchain
@@ -25,6 +28,7 @@ describe('Loan', () => {
     let halter: SandboxContract<TreasuryContract>
     let governor: SandboxContract<TreasuryContract>
     let fees: Fees
+    let electorAddress: Address
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
@@ -67,6 +71,8 @@ describe('Loan', () => {
         fees = await treasury.getFees()
 
         await treasury.sendTopUp(deployer.getSender(), { value: fees.treasuryStorage })
+
+        electorAddress = getElector(blockchain)
     })
 
     it('should deploy treasury', async () => {
@@ -124,21 +130,33 @@ describe('Loan', () => {
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
 
+        await blockchain.setShardAccount(electorAddress, createShardAccount({
+            workchain: -1,
+            address: electorAddress,
+            code: electorCode,
+            data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: until1 }) }),
+            balance: toNano('1'),
+        }))
+
         const validator1 = await blockchain.treasury('validator1')
         const validator2 = await blockchain.treasury('validator2')
         const validator3 = await blockchain.treasury('validator3')
-        const loan2Address = await treasury.getLoanAddress(validator2.address, until1)
-        const loan3Address = await treasury.getLoanAddress(validator3.address, until1)
-        const loan2 = blockchain.openContract(Loan.createFromAddress(loan2Address))
-        const loan3 = blockchain.openContract(Loan.createFromAddress(loan3Address))
-        const electorAddress = getElector(blockchain)
+        const loanAddress1 = await treasury.getLoanAddress(validator1.address, until1)
+        const loanAddress2 = await treasury.getLoanAddress(validator2.address, until1)
+        const loanAddress3 = await treasury.getLoanAddress(validator3.address, until1)
+        const loan1 = blockchain.openContract(Loan.createFromAddress(loanAddress1))
+        const loan2 = blockchain.openContract(Loan.createFromAddress(loanAddress2))
+        const loan3 = blockchain.openContract(Loan.createFromAddress(loanAddress3))
+        const newStakeMsg1 = await createNewStakeMsg(loan1.address, until1)
+        const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
+        const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
             value: '152.7', // 101 (max punishment) + 50 (min payment) + 1.7 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
             validatorRewardShare: 102n, // 40%
-            newStakeMsg: emptyNewStakeMsg,
+            newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
             value: '162.7', // 101 (max punishment) + 60 (min payment) + 1.7 (fee)
@@ -146,7 +164,7 @@ describe('Loan', () => {
             loanAmount: '300000',
             minPayment: '60',
             validatorRewardShare: 102n, // 40%
-            newStakeMsg: emptyNewStakeMsg,
+            newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
             value: '172.7', // 101 (max punishment) + 70 (min payment) + 1.7 (fee)
@@ -154,7 +172,7 @@ describe('Loan', () => {
             loanAmount: '300000',
             minPayment: '70',
             validatorRewardShare: 102n, // 40%
-            newStakeMsg: emptyNewStakeMsg,
+            newStakeMsg: newStakeMsg3,
         })
 
         const since2 = BigInt(Math.floor(Date.now() / 1000)) - times.participateSince + times.currentRoundSince
@@ -209,7 +227,7 @@ describe('Loan', () => {
             to: electorAddress,
             value: between('350161', '350162'),
             body: bodyOp(op.newStake),
-            success: false, // elector smart contract is not available on sandbox
+            success: true,
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
@@ -217,63 +235,36 @@ describe('Loan', () => {
             to: electorAddress,
             value: between('350171', '350172'),
             body: bodyOp(op.newStake),
-            success: false, // elector smart contract is not available on sandbox
+            success: true,
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
             from: electorAddress,
             to: loan2.address,
-            success: true, // this is the bounce message from elector instead of new_stake_ok
-            outMessagesCount: 1, // rejects new stake
+            value: toNano('1'),
+            body: bodyOp(op.newStakeOk),
+            success: true,
+            outMessagesCount: 0,
         })
         expect(result.transactions).toHaveTransaction({
             from: electorAddress,
             to: loan3.address,
-            success: true, // this is the bounce message from elector instead of new_stake_ok
-            outMessagesCount: 1, // rejects new stake
-        })
-        expect(result.transactions).toHaveTransaction({
-            from: loan2.address,
-            to: treasury.address,
-            value: between('350161', '350162'),
-            body: bodyOp(op.newStakeRejected),
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(result.transactions).toHaveTransaction({
-            from: loan3.address,
-            to: treasury.address,
-            value: between('350171', '350172'),
-            body: bodyOp(op.newStakeRejected),
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(result.transactions).toHaveTransaction({
-            from: treasury.address,
-            to: validator2.address,
-            value: between('101', '102'),
-            body: bodyOp(op.loanResult),
+            value: toNano('1'),
+            body: bodyOp(op.newStakeOk),
             success: true,
             outMessagesCount: 0,
         })
-        expect(result.transactions).toHaveTransaction({
-            from: treasury.address,
-            to: validator3.address,
-            value: between('101', '102'),
-            body: bodyOp(op.loanResult),
-            success: true,
-            outMessagesCount: 0,
-        })
-        expect(result.transactions).toHaveLength(13)
+        expect(result.transactions).toHaveLength(9)
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('700143', '700144')
+        expect(treasuryBalance).toBeBetween('13', '14')
         expect(treasuryState.totalCoins).toBeBetween('699999', '700000')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalTokens)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.participations.size === 1).toBeTruthy()
     })
 
     it('should change vset', async () => {
@@ -290,16 +281,33 @@ describe('Loan', () => {
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
 
+        await blockchain.setShardAccount(electorAddress, createShardAccount({
+            workchain: -1,
+            address: electorAddress,
+            code: electorCode,
+            data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: until1 }) }),
+            balance: toNano('1'),
+        }))
+
         const validator1 = await blockchain.treasury('validator1')
         const validator2 = await blockchain.treasury('validator2')
         const validator3 = await blockchain.treasury('validator3')
+        const loanAddress1 = await treasury.getLoanAddress(validator1.address, until1)
+        const loanAddress2 = await treasury.getLoanAddress(validator2.address, until1)
+        const loanAddress3 = await treasury.getLoanAddress(validator3.address, until1)
+        const loan1 = blockchain.openContract(Loan.createFromAddress(loanAddress1))
+        const loan2 = blockchain.openContract(Loan.createFromAddress(loanAddress2))
+        const loan3 = blockchain.openContract(Loan.createFromAddress(loanAddress3))
+        const newStakeMsg1 = await createNewStakeMsg(loan1.address, until1)
+        const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
+        const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
             value: '152.7', // 101 (max punishment) + 50 (min payment) + 1.7 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
             validatorRewardShare: 102n, // 40%
-            newStakeMsg: emptyNewStakeMsg,
+            newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
             value: '162.7', // 101 (max punishment) + 60 (min payment) + 1.7 (fee)
@@ -307,7 +315,7 @@ describe('Loan', () => {
             loanAmount: '300000',
             minPayment: '60',
             validatorRewardShare: 102n, // 40%
-            newStakeMsg: emptyNewStakeMsg,
+            newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
             value: '172.7', // 101 (max punishment) + 70 (min payment) + 1.7 (fee)
@@ -315,7 +323,7 @@ describe('Loan', () => {
             loanAmount: '300000',
             minPayment: '70',
             validatorRewardShare: 102n, // 40%
-            newStakeMsg: emptyNewStakeMsg,
+            newStakeMsg: newStakeMsg3,
         })
 
         const since2 = BigInt(Math.floor(Date.now() / 1000)) - times.participateSince + times.currentRoundSince
@@ -369,7 +377,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('700143', '700144')
+        expect(treasuryBalance).toBeBetween('13', '14')
         expect(treasuryState.totalCoins).toBeBetween('699999', '700000')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalTokens)
         expect(treasuryState.totalStaking).toBeTonValue('0')
@@ -391,21 +399,33 @@ describe('Loan', () => {
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
 
+        await blockchain.setShardAccount(electorAddress, createShardAccount({
+            workchain: -1,
+            address: electorAddress,
+            code: electorCode,
+            data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: until1 }) }),
+            balance: toNano('1'),
+        }))
+
         const validator1 = await blockchain.treasury('validator1')
         const validator2 = await blockchain.treasury('validator2')
         const validator3 = await blockchain.treasury('validator3')
-        const loan2Address = await treasury.getLoanAddress(validator2.address, until1)
-        const loan3Address = await treasury.getLoanAddress(validator3.address, until1)
-        const loan2 = blockchain.openContract(Loan.createFromAddress(loan2Address))
-        const loan3 = blockchain.openContract(Loan.createFromAddress(loan3Address))
-        const electorAddress = getElector(blockchain)
+        const loanAddress1 = await treasury.getLoanAddress(validator1.address, until1)
+        const loanAddress2 = await treasury.getLoanAddress(validator2.address, until1)
+        const loanAddress3 = await treasury.getLoanAddress(validator3.address, until1)
+        const loan1 = blockchain.openContract(Loan.createFromAddress(loanAddress1))
+        const loan2 = blockchain.openContract(Loan.createFromAddress(loanAddress2))
+        const loan3 = blockchain.openContract(Loan.createFromAddress(loanAddress3))
+        const newStakeMsg1 = await createNewStakeMsg(loan1.address, until1)
+        const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
+        const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
             value: '152.7', // 101 (max punishment) + 50 (min payment) + 1.7 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
             validatorRewardShare: 102n, // 40%
-            newStakeMsg: emptyNewStakeMsg,
+            newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
             value: '162.7', // 101 (max punishment) + 60 (min payment) + 1.7 (fee)
@@ -413,7 +433,7 @@ describe('Loan', () => {
             loanAmount: '300000',
             minPayment: '60',
             validatorRewardShare: 102n, // 40%
-            newStakeMsg: emptyNewStakeMsg,
+            newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
             value: '172.7', // 101 (max punishment) + 70 (min payment) + 1.7 (fee)
@@ -421,7 +441,7 @@ describe('Loan', () => {
             loanAmount: '300000',
             minPayment: '70',
             validatorRewardShare: 102n, // 40%
-            newStakeMsg: emptyNewStakeMsg,
+            newStakeMsg: newStakeMsg3,
         })
 
         const since2 = BigInt(Math.floor(Date.now() / 1000)) - times.participateSince + times.currentRoundSince
@@ -429,6 +449,17 @@ describe('Loan', () => {
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
         await treasury.sendParticipateInElection({ roundSince: until1 })
+
+        const credits = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.BigVarUint(4))
+        credits.set(BigInt('0x' + loan2.address.toRawString().split(':')[1]), toNano('350260'))
+        credits.set(BigInt('0x' + loan3.address.toRawString().split(':')[1]), toNano('350270'))
+        await blockchain.setShardAccount(electorAddress, createShardAccount({
+            workchain: -1,
+            address: electorAddress,
+            code: electorCode,
+            data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: until1 }), credits }),
+            balance: toNano('350260') + toNano('350270') + toNano('1'),
+        }))
 
         const vset3 = createVset(0n, 1n)
         setConfig(blockchain, config.currentValidators, vset3)
@@ -441,25 +472,6 @@ describe('Loan', () => {
         const state = await treasury.getTreasuryState()
         const participation = state.participations.get(until1) || {}
         participation.stakeHeldUntil = 0n // set stake_held_until to zero
-        const fakeLoan2 = {
-            minPayment: toNano('60'),
-            validatorRewardShare: 102n,
-            loanAmount: toNano('300000'),
-            accrueAmount: toNano('50000'),
-            stakeAmount: toNano('161'),
-            newStakeMsg: Cell.EMPTY,
-        }
-        const fakeLoan3 = {
-            minPayment: toNano('70'),
-            validatorRewardShare: 102n,
-            loanAmount: toNano('300000'),
-            accrueAmount: toNano('50000'),
-            stakeAmount: toNano('171'),
-            newStakeMsg: Cell.EMPTY,
-        }
-        participation.staked?.set(BigInt('0x' + validator2.address.toRawString().split(':')[1]), fakeLoan2)
-        participation.staked?.set(BigInt('0x' + validator3.address.toRawString().split(':')[1]), fakeLoan3)
-        participation.totalRecovered = 0n
         state.participations.set(until1, participation)
         const fakeData = treasuryConfigToCell(state)
         await blockchain.setShardAccount(treasury.address, createShardAccount({
@@ -468,32 +480,6 @@ describe('Loan', () => {
             code: treasuryCode,
             data: fakeData,
             balance: toNano('10'),
-        }))
-        const loan2Data = loanConfigToCell({
-            elector: electorAddress,
-            treasury: treasury.address,
-            validator: validator2.address,
-            roundSince: until1,
-        })
-        const loan3Data = loanConfigToCell({
-            elector: electorAddress,
-            treasury: treasury.address,
-            validator: validator3.address,
-            roundSince: until1,
-        })
-        await blockchain.setShardAccount(loan2.address, createShardAccount({
-            workchain: -1,
-            address: loan2.address,
-            code: loanCode,
-            data: loan2Data,
-            balance: toNano('350261.5'),
-        }))
-        await blockchain.setShardAccount(loan3.address, createShardAccount({
-            workchain: -1,
-            address: loan3.address,
-            code: loanCode,
-            data: loan3Data,
-            balance: toNano('350271.5'),
         }))
         const result = await treasury.sendFinishParticipation({ roundSince: until1 })
 
@@ -533,7 +519,7 @@ describe('Loan', () => {
             to: electorAddress,
             value: between('0.4', '0.5'),
             body: bodyOp(op.recoverStake),
-            success: false, // elector smart contract is not available on sandbox
+            success: true,
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
@@ -541,19 +527,23 @@ describe('Loan', () => {
             to: electorAddress,
             value: between('0.4', '0.5'),
             body: bodyOp(op.recoverStake),
-            success: false, // elector smart contract is not available on sandbox
+            success: true,
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
             from: electorAddress,
             to: loan2.address,
-            success: true, // this is the bounce message from elector instead of recover_stake_ok
+            value: between('350260', '350261'),
+            body: bodyOp(op.recoverStakeOk),
+            success: true,
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
             from: electorAddress,
             to: loan3.address,
-            success: true, // this is the bounce message from elector instead of recover_stake_ok
+            value: between('350270', '350271'),
+            body: bodyOp(op.recoverStakeOk),
+            success: true,
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
@@ -608,7 +598,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('700131', '700132')
+        expect(treasuryBalance).toBeBetween('700130', '700131')
         expect(treasuryState.totalCoins).toBeBetween('700122', '700123')
         expect(treasuryState.totalTokens).toBeBetween('699999', '700000')
         expect(treasuryState.totalStaking).toBeTonValue('0')
@@ -618,6 +608,192 @@ describe('Loan', () => {
         const reward = treasuryState.rewardsHistory.get(until1)
         expect(treasuryState.rewardsHistory.size).toBe(1)
         expect(reward?.staked).toBeBetween('699999', '700000')
-        expect(reward?.recovered).toBeBetween('700122', '700123')
+        expect(reward?.recovered).toBeBetween('700121', '700122')
+    })
+
+    it('should remove participation when all loan requests are rejected', async () => {
+        const times = await treasury.getTimes()
+        const electedFor = times.nextRoundSince - times.currentRoundSince
+        const since1 = BigInt(Math.floor(Date.now() / 1000))
+        const until1 = since1 + electedFor
+        const vset1 = createVset(since1, until1)
+        setConfig(blockchain, config.currentValidators, vset1)
+
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: '700000.1' })
+        const walletAddress = await treasury.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+
+        await blockchain.setShardAccount(electorAddress, createShardAccount({
+            workchain: -1,
+            address: electorAddress,
+            code: electorCode,
+            data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: 0n }) }),
+            balance: toNano('1'),
+        }))
+
+        const validator1 = await blockchain.treasury('validator1')
+        const validator2 = await blockchain.treasury('validator2')
+        const validator3 = await blockchain.treasury('validator3')
+        const loanAddress1 = await treasury.getLoanAddress(validator1.address, until1)
+        const loanAddress2 = await treasury.getLoanAddress(validator2.address, until1)
+        const loanAddress3 = await treasury.getLoanAddress(validator3.address, until1)
+        const loan1 = blockchain.openContract(Loan.createFromAddress(loanAddress1))
+        const loan2 = blockchain.openContract(Loan.createFromAddress(loanAddress2))
+        const loan3 = blockchain.openContract(Loan.createFromAddress(loanAddress3))
+        const newStakeMsg1 = await createNewStakeMsg(loan1.address, until1)
+        const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
+        const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
+        await treasury.sendRequestLoan(validator1.getSender(), {
+            value: '152.7', // 101 (max punishment) + 50 (min payment) + 1.7 (fee)
+            roundSince: until1,
+            loanAmount: '300000',
+            minPayment: '50',
+            validatorRewardShare: 102n, // 40%
+            newStakeMsg: newStakeMsg1,
+        })
+        await treasury.sendRequestLoan(validator2.getSender(), {
+            value: '162.7', // 101 (max punishment) + 60 (min payment) + 1.7 (fee)
+            roundSince: until1,
+            loanAmount: '300000',
+            minPayment: '60',
+            validatorRewardShare: 102n, // 40%
+            newStakeMsg: newStakeMsg2,
+        })
+        await treasury.sendRequestLoan(validator3.getSender(), {
+            value: '172.7', // 101 (max punishment) + 70 (min payment) + 1.7 (fee)
+            roundSince: until1,
+            loanAmount: '300000',
+            minPayment: '70',
+            validatorRewardShare: 102n, // 40%
+            newStakeMsg: newStakeMsg3,
+        })
+
+        const since2 = BigInt(Math.floor(Date.now() / 1000)) - times.participateSince + times.currentRoundSince
+        const until2 = since2 + electedFor
+        const vset2 = createVset(since2, until2)
+        setConfig(blockchain, config.currentValidators, vset2)
+        const result = await treasury.sendParticipateInElection({ roundSince: until1 })
+
+        expect(result.transactions).toHaveTransaction({
+            from: undefined,
+            to: treasury.address,
+            body: bodyOp(op.participateInElection),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: treasury.address,
+            value: between('699999', '700000'),
+            body: bodyOp(op.processLoanRequests),
+            success: true,
+            outMessagesCount: 3,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: validator1.address,
+            value: between('151', '151.1'),
+            body: bodyOp(op.requestRejected),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: loan2.address,
+            value: between('350161', '350162'),
+            body: bodyOp(op.sendNewStake),
+            deploy: true,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: loan3.address,
+            value: between('350171', '350172'),
+            body: bodyOp(op.sendNewStake),
+            deploy: true,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: loan2.address,
+            to: electorAddress,
+            value: between('350161', '350162'),
+            body: bodyOp(op.newStake),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: loan3.address,
+            to: electorAddress,
+            value: between('350171', '350172'),
+            body: bodyOp(op.newStake),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: electorAddress,
+            to: loan2.address,
+            value: between('350161', '350162'),
+            body: bodyOp(op.newStakeError),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: electorAddress,
+            to: loan3.address,
+            value: between('350171', '350172'),
+            body: bodyOp(op.newStakeError),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: loan2.address,
+            to: treasury.address,
+            value: between('350161', '350162'),
+            body: bodyOp(op.newStakeRejected),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: loan3.address,
+            to: treasury.address,
+            value: between('350171', '350172'),
+            body: bodyOp(op.newStakeRejected),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: validator2.address,
+            value: between('101', '101.1'),
+            body: bodyOp(op.loanResult),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: validator3.address,
+            value: between('101', '101.1'),
+            body: bodyOp(op.loanResult),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(13)
+
+        const treasuryBalance = await treasury.getBalance()
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryBalance).toBeBetween('700143', '700144')
+        expect(treasuryState.totalCoins).toBeBetween('700129', '700130')
+        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalTokens)
+        expect(treasuryState.totalStaking).toBeTonValue('0')
+        expect(treasuryState.totalUnstaking).toBeTonValue('0')
+        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.participations.size === 0).toBeTruthy()
+        expect(treasuryState.rewardsHistory.size === 1).toBeTruthy()
+        expect(treasuryState.rewardsHistory.get(until1)?.staked).toBeBetween('699999', '700000')
+        expect(treasuryState.rewardsHistory.get(until1)?.recovered).toBeBetween('700129', '700130')
     })
 })

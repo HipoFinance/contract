@@ -2,6 +2,7 @@ import { expect } from '@jest/globals'
 import { Blockchain } from '@ton-community/sandbox'
 import type { MatcherFunction } from 'expect'
 import { Address, Builder, Cell, Dictionary, beginCell, toNano } from 'ton-core'
+import { mnemonicNew, mnemonicToPrivateKey, sign } from 'ton-crypto'
 
 export function bodyOp(op: number): (body: Cell) => boolean {
     return (body: Cell): boolean => {
@@ -98,6 +99,27 @@ export const emptyNewStakeMsg = beginCell()
     .storeUint(0, 256)
     .storeRef(beginCell().storeUint(0, 256).storeUint(0, 256))
     .endCell()
+
+export async function createNewStakeMsg(loanAddress: Address, roundSince: bigint): Promise<Cell> {
+    const maxFactor = 0x10000n
+    const keypair = await mnemonicToPrivateKey(await mnemonicNew())
+    const adnl = await mnemonicToPrivateKey(await mnemonicNew())
+    const confirmation = beginCell()
+        .storeUint(0x654c5074, 32)
+        .storeUint(roundSince, 32)
+        .storeUint(maxFactor, 32)
+        .storeBuffer(loanAddress.hash, 32) // 256 bits
+        .storeBuffer(adnl.publicKey, 32) // 256 bits
+        .endCell()
+    const signature = sign(confirmation.bits.subbuffer(0, 608) || Buffer.from(''), keypair.secretKey)
+    return beginCell()
+        .storeBuffer(keypair.publicKey, 32) // 256 bits
+        .storeUint(roundSince, 32)
+        .storeUint(maxFactor, 32)
+        .storeBuffer(adnl.publicKey, 32) // 256 bits
+        .storeRef(beginCell().storeBuffer(signature, 64)) // 512 bits
+        .endCell()
+}
 
 export function createVset(since: bigint, until: bigint, total?: bigint, main?: bigint, list?: Builder | Cell): Cell {
     return beginCell()

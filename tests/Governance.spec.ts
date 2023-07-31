@@ -11,11 +11,15 @@ describe('Treasury', () => {
     let treasuryCode: Cell
     let walletCode: Cell
     let loanCode: Cell
+    let onlyUpgradeCode : Cell
+    let resetDataCode: Cell
 
     beforeAll(async () => {
         treasuryCode = await compile('Treasury')
         walletCode = await compile('Wallet')
         loanCode = await compile('Loan')
+        onlyUpgradeCode = await compile('upgrade-code-test/OnlyUpgrade')
+        resetDataCode = await compile('upgrade-code-test/ResetData')
     })
 
     let blockchain: Blockchain
@@ -383,7 +387,6 @@ describe('Treasury', () => {
     it('should upgrade code', async () => {
         const oldState = await treasury.getState()
         const someone = await blockchain.treasury('someone')
-        const onlyUpgradeCode = await compile('upgrade-code-test/OnlyUpgradeCode')
         const result1 = await treasury.sendUpgradeCode(governor.getSender(), {
             value: '0.1',
             newCode: onlyUpgradeCode,
@@ -418,10 +421,9 @@ describe('Treasury', () => {
             outMessagesCount: 1,
         })
 
-        const resetData = await compile('upgrade-code-test/ResetData')
         const result3 = await treasury.sendUpgradeCode(someone.getSender(), {
             value: '0.1',
-            newCode: resetData,
+            newCode: resetDataCode,
         })
 
         expect(result3.transactions).toHaveTransaction({
