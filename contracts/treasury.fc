@@ -1678,6 +1678,47 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     send_msg(false, loan, null(), message.begin_parse().to_builder(), 0, send::remaining_value);
 }
 
+() send_process_loan_requests(slice src, slice s) impure {
+    ( int total_coins
+    , int total_tokens
+    , int total_staking
+    , int total_unstaking
+    , int total_validators_stake
+    , cell participations
+    , int stopped?
+    , cell wallet_code
+    , cell loan_code
+    , cell extension
+    ) = load_data();
+    ( slice driver
+    , slice halter
+    , slice governor
+    , cell proposed_governor
+    , int reward_share
+    , cell rewards_history
+    , cell content
+    ) = unpack_extension(extension.begin_parse());
+
+    int query_id = s~load_uint(64);
+    int round_since = s~load_uint(32);
+    s.end_parse();
+
+    int state = -1;
+    ( slice ps, int f? ) = participations.udict_get?(32, round_since);
+    if (f?) {
+        ( state, _, _, _, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
+    }
+
+    throw_unless(err::access_denied, equal_slices(src, governor) | equal_slices(src, halter));
+    throw_unless(err::unable_to_participate, state == participation::distribution);
+
+    builder body = begin_cell()
+        .store_uint(op::process_loan_requests, 32)
+        .store_uint(query_id, 64)
+        .store_uint(round_since, 32);
+    send_msg(false, my_address().to_builder(), null(), body, 0, send::remaining_value);
+}
+
 () upgrade_data(slice src, int query_id, slice s) impure method_id {
     ;; This is just a template, and will only run after upgrade_code, and with new code, not this one.
 
@@ -1932,6 +1973,10 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     if (op == op::send_message_to_loan) {
         return send_message_to_loan(src, in_msg_body);
+    }
+
+    if (op == op::send_process_loan_requests) {
+        return send_process_loan_requests(src, in_msg_body);
     }
 
     if (op == op::upgrade_code) {

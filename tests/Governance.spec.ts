@@ -4,7 +4,7 @@ import '@ton-community/test-utils'
 import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
 import { between, bodyOp, createVset, emptyNewStakeMsg, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
-import { Fees, Treasury, participationDictionaryValue, rewardDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
+import { Fees, ParticipationState, Treasury, participationDictionaryValue, rewardDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
 
 describe('Treasury', () => {
@@ -382,6 +382,40 @@ describe('Treasury', () => {
             outMessagesCount: 0,
         })
         expect(result.transactions).toHaveLength(3)
+    })
+
+    it('should send process loan requests', async () => {
+        const state = await treasury.getTreasuryState()
+        const participation = {
+            state: ParticipationState.Distribution,
+        }
+        state.participations.set(0n, participation)
+        const fakeData = treasuryConfigToCell(state)
+        await blockchain.setShardAccount(treasury.address, createShardAccount({
+            workchain: 0,
+            address: treasury.address,
+            code: treasuryCode,
+            data: fakeData,
+            balance: toNano('10'),
+        }))
+
+        const result = await treasury.sendSendProcessLoanRequests(halter.getSender(), {
+            value: '1',
+            roundSince: 0n,
+        })
+
+        expect(result.transactions).toHaveTransaction({
+            from: halter.address,
+            to: treasury.address,
+            value: toNano('1'),
+            body: bodyOp(op.sendProcessLoanRequests),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveLength(3)
+
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryState.participations.size === 0).toBeTruthy()
     })
 
     it('should upgrade code', async () => {

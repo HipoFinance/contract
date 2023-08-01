@@ -306,6 +306,11 @@ send_message_to_loan#2b93b447
     message:^Cell
         = InternalMsgBody;
 
+send_process_loan_requests#06cbff48
+    query_id:uint64
+    round_since:uint32
+        = InternalMsgBody;
+
 upgrade_code#282600ff
     query_id:uint64
     new_code:^Cell

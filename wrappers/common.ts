@@ -51,6 +51,7 @@ export const op = {
     setContent: 0x471dad93,
     setRewardShare: 0x51df41a6,
     sendMessageToLoan: 0x2b93b447,
+    sendProcessLoanRequests: 0x06cbff48,
     upgradeCode: 0x282600ff,
 
     withdrawSurplus: 0x302b2fea,
