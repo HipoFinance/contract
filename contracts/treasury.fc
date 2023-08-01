@@ -790,7 +790,7 @@ builder pack_extension
         .store_uint(op::process_loan_requests, 32)
         .store_uint(query_id, 64)
         .store_uint(round_since, 32);
-    send_msg(false, my_address().to_builder(), null(), body, available, send::pay_gas_separately);
+    send_msg(false, my_address().to_builder(), null(), body, max(fee, available), send::pay_gas_separately);
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
