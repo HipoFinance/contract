@@ -206,20 +206,19 @@ builder pack_extension
     throw_unless(err::insufficient_fee, stake_amount > 0);
     throw_unless(err::stopped, ~ stopped?);
 
-    int round_since = 1 << 32;
+    int round_since = 0;
+    int k = 1 << 32;
     do {
-        ( round_since, slice v, int f? ) = participations.udict_get_prev?(32, round_since);
+        ( k, slice v, int f? ) = participations.udict_get_prev?(32, k);
         if (f?) {
             int state = v~load_uint(3);
             if (state > participation::open) {
                 ;; stake after rewards for this round has been distributed
+                round_since = k;
                 f? = false;
             }
         }
     } until (~ f?);
-    if (round_since.null?()) {
-        round_since = 0;
-    }
 
     total_staking += stake_amount;
 
@@ -1720,7 +1719,9 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 }
 
 () upgrade_data(slice src, int query_id, slice s) impure method_id {
-    ;; This is just a template, and will only run after upgrade_code, and with new code, not this one.
+    ;; This is just a template, and will only run after upgrade_code.
+    ;; If data is upgraded, remember to reset this code,
+    ;; so that the next upgrade won't change data by mistake.
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
