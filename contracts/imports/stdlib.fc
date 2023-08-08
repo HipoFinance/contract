@@ -620,7 +620,6 @@ int get_seed() impure asm "RANDSEED";
 
 ;;; Checks whether the data parts of two slices coinside
 int equal_slice_bits(slice a, slice b) asm "SDEQ";
-int equal_slices(slice a, slice b) asm "SDEQ";
 
 ;;; Concatenates two builders
 builder store_builder(builder to, builder from) asm "STBR";

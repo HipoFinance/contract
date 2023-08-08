@@ -46,7 +46,7 @@
     slice driver = s~load_msg_addr();
     s.end_parse();
 
-    throw_unless(err::access_denied, equal_slices(src, treasury));
+    throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
     ( slice v, int f? ) = staking.udict_get?(32, round_since);
     if (f?) {
@@ -156,7 +156,7 @@
     int forward_ton_amount = s~load_coins();
     slice forward_payload = s;
 
-    int allowed? = equal_slices(src, treasury);
+    int allowed? = equal_slice_bits(src, treasury);
     ifnot (allowed?) {
         ( _, _, int wallet_addr ) = create_wallet_address(sender.to_builder(), treasury, wallet_code);
         ( int src_wc, int src_addr ) = parse_std_addr(src);
@@ -216,9 +216,9 @@
     ( builder wallet, cell state_init, _ ) = create_wallet_address(recipient.to_builder(), treasury, wallet_code);
     int min_ton = forward_ton_amount + send_tokens_fee(state_init);
 
-    throw_unless(err::access_denied, equal_slices(src, owner));
+    throw_unless(err::access_denied, equal_slice_bits(src, owner));
     throw_unless(err::only_basechain_allowed, recipient_wc == chain::base);
-    throw_unless(err::receiver_is_sender, ~ equal_slices(recipient, owner));
+    throw_unless(err::receiver_is_sender, ~ equal_slice_bits(recipient, owner));
     throw_unless(err::insufficient_fee, msg_ton >= min_ton);
     throw_unless(err::insufficient_funds, (amount > 0) & (amount <= tokens));
 
@@ -258,7 +258,7 @@
 
     int min_ton = unstake_tokens_fee();
 
-    throw_unless(err::access_denied, equal_slices(src, owner));
+    throw_unless(err::access_denied, equal_slice_bits(src, owner));
     throw_unless(err::insufficient_fee, msg_ton >= min_ton);
     throw_unless(err::insufficient_funds, (amount > 0) & (amount <= tokens));
 
@@ -300,7 +300,7 @@
 
     int min_ton = unstake_all_tokens_fee() + unstake_tokens_fee();
 
-    throw_unless(err::access_denied, equal_slices(src, treasury));
+    throw_unless(err::access_denied, equal_slice_bits(src, treasury));
     throw_unless(err::insufficient_fee, msg_ton >= min_ton);
 
     slice s = begin_cell()
@@ -361,7 +361,7 @@
     slice return_excess = s~load_msg_addr();
     s.end_parse();
 
-    throw_unless(err::access_denied, equal_slices(src, treasury));
+    throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
     unstaking += amount;
 
@@ -390,7 +390,7 @@
     int query_id = s~load_uint(64);
     s.end_parse();
 
-    throw_unless(err::access_denied, equal_slices(src, owner));
+    throw_unless(err::access_denied, equal_slice_bits(src, owner));
 
     raw_reserve(wallet_storage_fee(), reserve::exact);
 

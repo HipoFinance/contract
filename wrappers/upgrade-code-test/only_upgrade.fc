@@ -22,7 +22,7 @@
     cell new_code = s~load_ref();
     ;; no s.end_parse(), allow additional data in message body
 
-    throw_unless(err::access_denied, equal_slices(src, governor));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     set_code(new_code);
     set_c3(new_code.begin_parse().bless());

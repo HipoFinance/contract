@@ -829,7 +829,7 @@ builder pack_extension
     , int stake_held_until
     ) = unpack_participation(ps);
 
-    throw_unless(err::access_denied, equal_slices(src, my_address()));
+    throw_unless(err::access_denied, equal_slice_bits(src, my_address()));
 
     accept_message();
 
@@ -1169,7 +1169,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     int fee = recover_stake_fee();
 
-    throw_unless(err::access_denied, equal_slices(src, my_address()));
+    throw_unless(err::access_denied, equal_slice_bits(src, my_address()));
 
     accept_message();
 
@@ -1359,7 +1359,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     parse_std_addr(new_governor); ;; just check it to be a valid standard address
 
-    throw_unless(err::access_denied, equal_slices(src, governor));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     cell proposed_governor = begin_cell()
         .store_slice(new_governor)
@@ -1407,7 +1407,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     slice new_governor = gs~load_msg_addr();
     gs.end_parse();
 
-    throw_unless(err::access_denied, equal_slices(src, new_governor));
+    throw_unless(err::access_denied, equal_slice_bits(src, new_governor));
 
     extension = pack_extension(driver, halter, new_governor, null(), reward_share, rewards_history, content).end_cell();
 
@@ -1449,7 +1449,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     parse_std_addr(new_halter); ;; just check it to be a valid standard address
 
-    throw_unless(err::access_denied, equal_slices(src, governor) | equal_slices(src, halter));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
 
     extension = pack_extension(
         driver, new_halter, governor, proposed_governor, reward_share, rewards_history, content
@@ -1491,7 +1491,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     int new_stopped? = s~load_int(1);
     s.end_parse();
 
-    throw_unless(err::access_denied, equal_slices(src, governor) | equal_slices(src, halter));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
@@ -1531,7 +1531,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     ( int driver_wc, _ ) = parse_std_addr(new_driver); ;; just check it to be a valid standard address
 
-    throw_unless(err::access_denied, equal_slices(src, governor) | equal_slices(src, halter));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
     throw_unless(err::only_basechain_allowed, driver_wc == chain::base);
 
     extension = pack_extension(
@@ -1574,7 +1574,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     cell new_content = s~load_ref();
     s.end_parse();
 
-    throw_unless(err::access_denied, equal_slices(src, governor));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     extension = pack_extension(
         driver, halter, governor, proposed_governor, reward_share, rewards_history, new_content
@@ -1616,7 +1616,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     int new_reward_share = s~load_uint(16);
     s.end_parse();
 
-    throw_unless(err::access_denied, equal_slices(src, governor));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     extension = pack_extension(
         driver, halter, governor, proposed_governor, new_reward_share, rewards_history, content
@@ -1670,7 +1670,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     int previous = config_param(config::previous_validators).cell_hash();
     int current = config_param(config::current_validators).cell_hash();
 
-    throw_unless(err::access_denied, equal_slices(src, governor) | equal_slices(src, halter));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
     throw_unless(err::vset_not_changed, (vset_hash != current) & (vset_hash != previous));
     throw_unless(err::not_ready_to_finish_participation, now() >= stake_held_until);
 
@@ -1708,7 +1708,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
         ( state, _, _, _, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
     }
 
-    throw_unless(err::access_denied, equal_slices(src, governor) | equal_slices(src, halter));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
     throw_unless(err::unable_to_participate, state == participation::distribution);
 
     builder body = begin_cell()
@@ -1754,7 +1754,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     cell new_code = s~load_ref();
     ;; no s.end_parse(), allow additional data in message body
 
-    throw_unless(err::access_denied, equal_slices(src, governor));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     set_code(new_code);
     set_c3(new_code.begin_parse().bless());
@@ -1786,7 +1786,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     int query_id = s~load_uint(64);
     s.end_parse();
 
-    throw_unless(err::access_denied, equal_slices(src, governor));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     ( _, cell state_init, _ ) = create_loan_address(my_address(), my_address().to_builder(), now(), loan_code);
     int fee = request_loan_fee(state_init);

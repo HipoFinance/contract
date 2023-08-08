@@ -279,7 +279,7 @@ int wallet_storage_fee() impure {
     ;; 1 round validation, 1 round participation and stake held, 1 round for prolonged rounds, 1 round to be safe
     ( int validators_elected_for, _, _, _ ) = get_election_config();
     int duration = 4 * validators_elected_for;
-    return ( pps1 * duration >> 16, pps2 * duration >> 16);
+    return ( pps1 * duration >> 16, pps2 * duration >> 16); ;; currently near 0.005 TON
 }
 
 int msg_fwd_fee(int lump_price, int bit_price, int cell_price, int rest_bits, int rest_cells) {

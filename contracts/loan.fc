@@ -27,7 +27,7 @@
     cell new_stake_msg = s~load_ref();
     s.end_parse();
 
-    throw_unless(err::access_denied, equal_slices(src, treasury));
+    throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
     ( int loan_storage, _ ) = loan_storage_fee();
     raw_reserve(loan_storage, reserve::at_most);
@@ -52,7 +52,7 @@
         reason = s~load_uint(32);
     }
 
-    throw_unless(err::access_denied, equal_slices(src, elector));
+    throw_unless(err::access_denied, equal_slice_bits(src, elector));
 
     accept_message();
 
@@ -71,7 +71,7 @@
     int query_id = s~load_uint(64);
     s.end_parse();
 
-    throw_unless(err::access_denied, equal_slices(src, treasury));
+    throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
     builder body = begin_cell()
         .store_uint(op::recover_stake, 32)
@@ -89,7 +89,7 @@
 
     int ok? = op == op::recover_stake_ok;
 
-    throw_unless(err::access_denied, equal_slices(src, elector));
+    throw_unless(err::access_denied, equal_slice_bits(src, elector));
 
     accept_message();
 
@@ -106,7 +106,7 @@ int src_is_elector?(slice src) {
     ( slice elector, slice treasury, slice validator, int round_since ) = load_data();
     builder current_elector = create_address(get_elector());
 
-    return equal_slices(src, elector) | equal_slices(src, current_elector.end_cell().begin_parse());
+    return equal_slice_bits(src, elector) | equal_slice_bits(src, current_elector.end_cell().begin_parse());
 }
 
 () on_bounce(slice src, slice s) impure {
