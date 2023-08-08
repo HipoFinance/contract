@@ -122,6 +122,58 @@ describe('Wallet', () => {
         expect(unstaking).toBeTonValue('0')
     })
 
+    it('should deposit coins with a referrer field', async () => {
+        const referrer = await blockchain.treasury('referrer')
+        const staker = await blockchain.treasury('staker')
+        const walletAddress = await treasury.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const result = await treasury.sendDepositCoins(staker.getSender(), { value: '10', referrer: referrer.address })
+
+        expect(result.transactions).toHaveTransaction({
+            from: staker.address,
+            to: treasury.address,
+            value: toNano('10'),
+            body: bodyOp(op.depositCoins),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: wallet.address,
+            value: between(fees.walletStorage, '0.2'),
+            body: bodyOp(op.saveCoins),
+            deploy: true,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: driver.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(4)
+
+        const treasuryBalance = await treasury.getBalance()
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryBalance).toBeBetween('19.8', '19.9')
+        expect(treasuryState.totalCoins).toBeTonValue('0')
+        expect(treasuryState.totalTokens).toBeTonValue('0')
+        expect(treasuryState.totalStaking).toBeBetween('9.8', '9.9')
+        expect(treasuryState.totalUnstaking).toBeTonValue('0')
+        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+
+        const walletBalance = await wallet.getBalance()
+        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        expect(walletBalance).toBeBetween(fees.walletStorage, '0.1')
+        expect(tokens).toBeTonValue('0')
+        expect(staking.keys()).toHaveLength(1)
+        expect(staking.get(0n)).toBeTonValue(treasuryState.totalStaking)
+        expect(unstaking).toBeTonValue('0')
+    })
+
     it('should stake coins', async () => {
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: '10' })

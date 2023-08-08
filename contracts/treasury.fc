@@ -194,7 +194,7 @@ builder pack_extension
     ( slice driver, _, _, _, _, _, _ ) = unpack_extension(extension.begin_parse());
 
     int query_id = s~load_uint(64);
-    s.end_parse();
+    ;; no s.end_parse() since referrer might be provided, which is used externally, not by this function
 
     ( builder wallet, cell state_init, _ ) = create_wallet_address(src.to_builder(), my_address(), wallet_code);
     ( int src_wc, _ ) = parse_std_addr(src);

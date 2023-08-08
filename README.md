@@ -1,6 +1,6 @@
 # hTON
 
-hTON is a **decentralized**, **permission-less**, **open-source** liquid staking protocol on the TON blockchain. Visit [Hipo.Finance](https://hipo.finance) for more information or read the [docs](https://docs.hipo.finance).
+hTON is a **decentralized**, **permission-less**, **open-source** liquid staking protocol on TON blockchain. Visit [Hipo.Finance](https://hipo.finance) for more information or read the [docs](https://docs.hipo.finance).
 
 hTON consists of these components:
 
@@ -21,7 +21,7 @@ There are two groups of users who would be interested in using hTON: stakers and
 
 Stakers are users who have some TON and want to earn staking rewards on their TON. In normal staking, a staker must have a large sum of TON (like at-least 300,000 TON) before being able to participate in validation. Most users don't have access to such a big amount, but with a liquid staking protocol like hTON, they can earn rewards on any TON amount.
 
-When stakers deposit their TON, they will receive hTON jettons (a token in the TON blockchain) as a receipt. Stakers can keep it or send it to other users or use it in other DeFi protocols. Whoever brings it back to the protocol, can receive the corresponding amount in TON by burning it.
+When stakers deposit their TON, they will receive hTON jettons (a token in TON blockchain) as a receipt. Stakers can keep it or send it to other users or use it in other DeFi protocols. Whoever brings it back to the protocol, can receive the corresponding amount in TON by burning it.
 
 Meanwhile, protocol puts staked TON from all stakers to use and will give it as a loan to validators. In turn they'll receive a reward and share it with the protocol and stakers. So over time, each hTON will have more TON value, and stakers can burn their hTON jetton to receive TON.
 
@@ -29,7 +29,7 @@ Meanwhile, protocol puts staked TON from all stakers to use and will give it as 
 
 Validators are node operators who have the technical knowledge of running a validator server, and have access to such a server. However, they might not have access to the minimum amount required for staking. They can ask for a loan from the hTON protocol, to receive a loan and participate in validation and earn rewards. After earning rewards, they share it with the protocol and stakers.
 
-Loans are given to validators in a safe way. Validators can't withdraw the loan. They can only use it for staking in the TON blockchain. Any punishment will be deducted from the validator's staked amount, so they'll pay for their own misbehavior.
+Loans are given to validators in a safe way. Validators can't withdraw the loan. They can only use it for staking in TON blockchain. Any punishment will be deducted from the validator's staked amount, so they'll pay for their own misbehavior.
 
 ## Smart Contracts
 
