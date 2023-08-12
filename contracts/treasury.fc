@@ -133,6 +133,7 @@ builder pack_extension
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -145,6 +146,7 @@ builder pack_extension
         .store_coins(total_unstaking)
         .store_coins(total_validators_stake)
         .store_dict(participations)
+        .store_int(balanced_rounds?, 1)
         .store_int(stopped?, 1)
         .store_ref(wallet_code)
         .store_ref(loan_code)
@@ -153,7 +155,7 @@ builder pack_extension
         .set_data();
 }
 
-(int, int, int, int, int, cell, int, cell, cell, cell) load_data() impure {
+(int, int, int, int, int, cell, int, int, cell, cell, cell) load_data() impure {
     slice ds = get_data().begin_parse();
     int total_coins = ds~load_coins();
     int total_tokens = ds~load_coins();
@@ -161,6 +163,7 @@ builder pack_extension
     int total_unstaking = ds~load_coins();
     int total_validators_stake = ds~load_coins();
     cell participations = ds~load_dict();
+    int balanced_rounds? = ds~load_int(1);
     int stopped? = ds~load_int(1);
     cell wallet_code = ds~load_ref();
     cell loan_code = ds~load_ref();
@@ -172,6 +175,7 @@ builder pack_extension
         , total_unstaking
         , total_validators_stake
         , participations
+        , balanced_rounds?
         , stopped?
         , wallet_code
         , loan_code
@@ -186,6 +190,7 @@ builder pack_extension
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -234,7 +239,7 @@ builder pack_extension
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -245,6 +250,7 @@ builder pack_extension
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -298,7 +304,7 @@ builder pack_extension
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -309,6 +315,7 @@ builder pack_extension
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -343,7 +350,7 @@ builder pack_extension
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -354,6 +361,7 @@ builder pack_extension
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -414,7 +422,7 @@ builder pack_extension
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -425,6 +433,7 @@ builder pack_extension
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -450,6 +459,7 @@ builder pack_extension
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -475,6 +485,7 @@ builder pack_extension
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -500,6 +511,7 @@ builder pack_extension
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -558,6 +570,7 @@ builder pack_extension
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -657,7 +670,7 @@ builder pack_extension
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -730,6 +743,7 @@ builder pack_extension
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -770,8 +784,18 @@ builder pack_extension
     ( _, cell state_init, _ ) = create_loan_address(my_address(), my_address().to_builder(), round_since, loan_code);
     int fee = request_loan_fee(state_init);
     int ton_balance = get_balance().pair_first();
-    int available =
+    int available_now =
         max(0, ton_balance - fee::treasury_storage - total_validators_stake - requests_size * fee - reserved_amount);
+
+    int last_total_staked = 0;
+    int available = available_now;
+    if (balanced_rounds?) {
+        ( _, ps, f? ) = participations.udict_get_prev?(32, round_since);
+        if (f?) {
+            ( _, _, _, _, _, _, _, last_total_staked, _, _, _, _ ) = unpack_participation(ps);
+        }
+        available = min(available_now, (available_now + last_total_staked) / 2);
+    }
 
     ( requests
     , cell accepted
@@ -793,7 +817,7 @@ builder pack_extension
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -804,6 +828,7 @@ builder pack_extension
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -897,7 +922,7 @@ builder pack_extension
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -930,6 +955,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1012,7 +1038,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -1023,6 +1049,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1071,7 +1098,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -1082,6 +1109,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1131,7 +1159,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -1142,6 +1170,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1206,7 +1235,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -1217,6 +1246,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1328,7 +1358,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -1339,6 +1369,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1375,7 +1406,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -1386,6 +1417,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1418,7 +1450,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -1429,6 +1461,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1462,7 +1495,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -1473,6 +1506,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , _
     , cell wallet_code
     , cell loan_code
@@ -1500,7 +1534,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, new_stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, new_stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -1511,6 +1545,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1545,7 +1580,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -1556,6 +1591,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1587,7 +1623,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -1598,6 +1634,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1629,7 +1666,46 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
     save_data(
         total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, stopped?, wallet_code, loan_code, extension
+        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
+    );
+}
+
+() set_balanced_rounds(slice src, slice s) impure {
+    ( int total_coins
+    , int total_tokens
+    , int total_staking
+    , int total_unstaking
+    , int total_validators_stake
+    , cell participations
+    , _
+    , int stopped?
+    , cell wallet_code
+    , cell loan_code
+    , cell extension
+    ) = load_data();
+    ( slice driver
+    , slice halter
+    , slice governor
+    , cell proposed_governor
+    , int reward_share
+    , cell rewards_history
+    , cell content
+    ) = unpack_extension(extension.begin_parse());
+
+    int query_id = s~load_uint(64);
+    int new_balanced_rounds? = s~load_int(1);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+
+    save_data(
+        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
+        participations, new_balanced_rounds?, stopped?, wallet_code, loan_code, extension
     );
 }
 
@@ -1640,6 +1716,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1684,6 +1761,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1736,6 +1814,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1769,6 +1848,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -1972,6 +2052,10 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
         return set_reward_share(src, in_msg_body);
     }
 
+    if (op == op::set_balanced_rounds) {
+        return set_balanced_rounds(src, in_msg_body);
+    }
+
     if (op == op::send_message_to_loan) {
         return send_message_to_loan(src, in_msg_body);
     }
@@ -2027,6 +2111,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -2044,6 +2129,7 @@ slice get_wallet_address(slice owner) method_id {
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -2066,6 +2152,7 @@ slice get_loan_address(slice validator, int round_since) method_id {
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -2081,7 +2168,7 @@ slice get_loan_address(slice validator, int round_since) method_id {
     return loan.end_cell().begin_parse();
 }
 
-(int, int, int, int, int, cell, int, cell, cell, slice, slice, slice, cell, int, cell, cell) get_treasury_state()
+(int, int, int, int, int, cell, int, int, cell, cell, slice, slice, slice, cell, int, cell, cell) get_treasury_state()
     method_id {
     ( int total_coins
     , int total_tokens
@@ -2089,6 +2176,7 @@ slice get_loan_address(slice validator, int round_since) method_id {
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -2110,6 +2198,7 @@ slice get_loan_address(slice validator, int round_since) method_id {
         , total_unstaking
         , total_validators_stake
         , participations
+        , balanced_rounds?
         , stopped?
         , wallet_code
         , loan_code
@@ -2130,6 +2219,7 @@ slice get_loan_address(slice validator, int round_since) method_id {
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -2190,6 +2280,7 @@ slice get_loan_address(slice validator, int round_since) method_id {
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code
@@ -2224,6 +2315,7 @@ int get_max_burnable_tokens() method_id {
     , int total_unstaking
     , int total_validators_stake
     , cell participations
+    , int balanced_rounds?
     , int stopped?
     , cell wallet_code
     , cell loan_code

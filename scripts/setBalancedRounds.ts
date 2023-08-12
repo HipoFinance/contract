@@ -5,15 +5,15 @@ import { NetworkProvider } from '@ton-community/blueprint'
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui();
 
-    console.log('Setting stopped')
+    console.log('Setting balanced-rounds')
 
     const addressString = await ui.input('Enter the friendly address of the treasury')
     const treasuryAddress = Address.parse(addressString)
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
-    const stopped = await ui.choose('Should this treasury be stopped?', [false, true], f => f ? 'Yes' : 'No')
+    const balancedRounds = await ui.choose('Should this treasury use balanced rounds?', [false, true], f => f ? 'Yes' : 'No')
 
-    await treasury.sendSetStopped(provider.sender(), { value: '0.1', newStopped: stopped })
+    await treasury.sendSetBalancedRounds(provider.sender(), { value: '0.1', newBalancedRounds: balancedRounds })
 
     ui.write('Done');
 }

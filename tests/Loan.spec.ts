@@ -42,6 +42,7 @@ describe('Loan', () => {
             totalUnstaking: 0n,
             totalValidatorsStake: 0n,
             participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
+            balancedRounds: false,
             stopped: false,
             walletCode,
             loanCode,
@@ -907,5 +908,141 @@ describe('Loan', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
         expect(treasuryState.participations.size === 0).toBeTruthy()
         expect(treasuryState.rewardsHistory.size === 0).toBeTruthy()
+    })
+
+    it('should participate in election with balanced rounds', async () => {
+        const times = await treasury.getTimes()
+        const electedFor = times.nextRoundSince - times.currentRoundSince
+        const since1 = BigInt(Math.floor(Date.now() / 1000))
+        const until1 = since1 + electedFor
+        const vset1 = createVset(since1, until1)
+        setConfig(blockchain, config.currentValidators, vset1)
+
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: '700000.1' })
+        const walletAddress = await treasury.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+
+        await treasury.sendSetBalancedRounds(halter.getSender(), { value: '0.1', newBalancedRounds: true })
+
+        await blockchain.setShardAccount(electorAddress, createShardAccount({
+            workchain: -1,
+            address: electorAddress,
+            code: electorCode,
+            data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: until1 }) }),
+            balance: toNano('1'),
+        }))
+
+        const validator1 = await blockchain.treasury('validator1')
+        const validator2 = await blockchain.treasury('validator2')
+        const validator3 = await blockchain.treasury('validator3')
+        const loanAddress1 = await treasury.getLoanAddress(validator1.address, until1)
+        const loanAddress2 = await treasury.getLoanAddress(validator2.address, until1)
+        const loanAddress3 = await treasury.getLoanAddress(validator3.address, until1)
+        const loan1 = blockchain.openContract(Loan.createFromAddress(loanAddress1))
+        const loan2 = blockchain.openContract(Loan.createFromAddress(loanAddress2))
+        const loan3 = blockchain.openContract(Loan.createFromAddress(loanAddress3))
+        const newStakeMsg1 = await createNewStakeMsg(loan1.address, until1)
+        const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
+        const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
+        await treasury.sendRequestLoan(validator1.getSender(), {
+            value: '152.7', // 101 (max punishment) + 50 (min payment) + 1.7 (fee)
+            roundSince: until1,
+            loanAmount: '300000',
+            minPayment: '50',
+            validatorRewardShare: 102n, // 40%
+            newStakeMsg: newStakeMsg1,
+        })
+        await treasury.sendRequestLoan(validator2.getSender(), {
+            value: '162.7', // 101 (max punishment) + 60 (min payment) + 1.7 (fee)
+            roundSince: until1,
+            loanAmount: '300000',
+            minPayment: '60',
+            validatorRewardShare: 102n, // 40%
+            newStakeMsg: newStakeMsg2,
+        })
+        await treasury.sendRequestLoan(validator3.getSender(), {
+            value: '172.7', // 101 (max punishment) + 70 (min payment) + 1.7 (fee)
+            roundSince: until1,
+            loanAmount: '300000',
+            minPayment: '70',
+            validatorRewardShare: 102n, // 40%
+            newStakeMsg: newStakeMsg3,
+        })
+
+        const since2 = BigInt(Math.floor(Date.now() / 1000)) - times.participateSince + times.currentRoundSince
+        const until2 = since2 + electedFor
+        const vset2 = createVset(since2, until2)
+        setConfig(blockchain, config.currentValidators, vset2)
+        const result = await treasury.sendParticipateInElection({ roundSince: until1 })
+
+        expect(result.transactions).toHaveTransaction({
+            from: undefined,
+            to: treasury.address,
+            body: bodyOp(op.participateInElection),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: treasury.address,
+            value: between('349999', '350000'),
+            body: bodyOp(op.processLoanRequests),
+            success: true,
+            outMessagesCount: 3,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: validator1.address,
+            value: between('151', '151.1'),
+            body: bodyOp(op.requestRejected),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: validator2.address,
+            value: between('161', '161.1'),
+            body: bodyOp(op.requestRejected),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: loan3.address,
+            value: between('350171', '350172'),
+            body: bodyOp(op.sendNewStake),
+            deploy: true,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: loan3.address,
+            to: electorAddress,
+            value: between('350171', '350172'),
+            body: bodyOp(op.newStake),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: electorAddress,
+            to: loan3.address,
+            value: toNano('1'),
+            body: bodyOp(op.newStakeOk),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(7)
+
+        const treasuryBalance = await treasury.getBalance()
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryBalance).toBeBetween('350013', '350014')
+        expect(treasuryState.totalCoins).toBeBetween('699999', '700000')
+        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalTokens)
+        expect(treasuryState.totalStaking).toBeTonValue('0')
+        expect(treasuryState.totalUnstaking).toBeTonValue('0')
+        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.participations.size === 1).toBeTruthy()
     })
 })

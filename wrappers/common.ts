@@ -50,6 +50,7 @@ export const op = {
     setDriver: 0x7e7da841,
     setContent: 0x471dad93,
     setRewardShare: 0x51df41a6,
+    setBalancedRounds: 0x230e906a,
     sendMessageToLoan: 0x2b93b447,
     sendProcessLoanRequests: 0x06cbff48,
     upgradeCode: 0x282600ff,

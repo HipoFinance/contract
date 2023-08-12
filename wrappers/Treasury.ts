@@ -67,6 +67,7 @@ export type TreasuryConfig = {
     totalUnstaking: bigint
     totalValidatorsStake: bigint
     participations: Dictionary<bigint, Participation>
+    balancedRounds: boolean
     stopped: boolean
     walletCode: Cell
     loanCode: Cell
@@ -95,6 +96,7 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeCoins(config.totalUnstaking || 0)
         .storeCoins(config.totalValidatorsStake || 0)
         .storeDict(config.participations)
+        .storeBit(config.balancedRounds)
         .storeBit(config.stopped)
         .storeRef(config.walletCode)
         .storeRef(config.loanCode)
@@ -474,6 +476,25 @@ export class Treasury implements Contract {
         })
     }
 
+    async sendSetBalancedRounds(provider: ContractProvider, via: Sender, opts: {
+        value: bigint | string
+        bounce?: boolean
+        sendMode?: SendMode
+        queryId?: bigint
+        newBalancedRounds: boolean
+    }) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.setBalancedRounds, 32)
+                .storeUint(opts.queryId || 0, 64)
+                .storeBit(opts.newBalancedRounds)
+                .endCell()
+        })
+    }
+
     async sendSendMessageToLoan(provider: ContractProvider, via: Sender, opts: {
         value: bigint | string
         bounce?: boolean
@@ -602,6 +623,7 @@ export class Treasury implements Contract {
             totalValidatorsStake: stack.readBigNumber(),
             participations: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), participationDictionaryValue,
                 stack.readCellOpt()),
+            balancedRounds: stack.readBoolean(),
             stopped: stack.readBoolean(),
             walletCode: stack.readCell(),
             loanCode: stack.readCell(),

@@ -41,6 +41,7 @@ describe('Treasury', () => {
             totalUnstaking: 0n,
             totalValidatorsStake: 0n,
             participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
+            balancedRounds: false,
             stopped: false,
             walletCode,
             loanCode,
@@ -349,6 +350,34 @@ describe('Treasury', () => {
 
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryState.rewardShare).toBe(8192n)
+    })
+
+    it('should set balanced-rounds', async () => {
+        const result = await treasury.sendSetBalancedRounds(governor.getSender(), {
+            value: '0.1',
+            newBalancedRounds: true
+        })
+
+        expect(result.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.setBalancedRounds),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: governor.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(3)
+
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryState.balancedRounds).toBe(true)
     })
 
     it('should send message to loan', async () => {
