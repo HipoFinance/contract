@@ -11,7 +11,7 @@ hTON consists of these components:
 
 Last deployed contract on testnet:
 
-> [kQAcH7it996XJ_8orOBALJpawbYJv6-zmu-9fP7enU4f7qnF](https://testnet.tonviewer.com/kQAcH7it996XJ_8orOBALJpawbYJv6-zmu-9fP7enU4f7qnF)
+> [kQAjvBlA6Gt0BZhvM9_PgBDVv1_EkRuMYZ3XxdaXlKRyCeaI](https://testnet.tonviewer.com/kQAjvBlA6Gt0BZhvM9_PgBDVv1_EkRuMYZ3XxdaXlKRyCeaI)
 
 ## Users
 
