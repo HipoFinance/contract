@@ -341,6 +341,11 @@ top_up#5372158c
 
 reward#_ staked:Coins recovered:Coins = Reward;
 
+proposed_governor#_
+    accept_after:uint32
+    new_governor:MsgAddress
+        = ProposedGovernor;
+
 request#_
     min_payment:Coins
     validator_reward_share:uint8
@@ -369,7 +374,7 @@ extension#_
     driver:MsgAddress
     halter:MsgAddress
     governor:MsgAddress
-    proposed_governor:(Maybe ^MsgAddress)
+    proposed_governor:(Maybe ^ProposedGovernor)
     governance_fee:uint16
     rewards_history:(HashmapE 32 Reward)
     content:^FullContent

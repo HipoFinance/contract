@@ -106,8 +106,10 @@ describe('Treasury', () => {
         expect(result.transactions).toHaveLength(3)
 
         const treasuryState = await treasury.getTreasuryState()
-        const proposedGovernorCell = beginCell().storeAddress(newGovernor.address).endCell()
-        expect((treasuryState.proposedGovernor || Cell.EMPTY).equals(proposedGovernorCell)).toBeTruthy()
+        const proposedGovernor = (treasuryState.proposedGovernor || Cell.EMPTY).beginParse()
+        const after = Math.floor(Date.now() / 1000) + 60 * 60 * 24
+        expect(Math.abs(proposedGovernor.loadUint(32) - after) <= 1).toBeTruthy()
+        expect(proposedGovernor.loadAddress().equals(newGovernor.address)).toBeTruthy()
         expect(treasuryState.governor.equals(governor.address)).toBeTruthy()
 
         printFees(result.transactions)
@@ -116,6 +118,20 @@ describe('Treasury', () => {
     it('should accept governance', async () => {
         const newGovernor = await blockchain.treasury('newGovernor')
         await treasury.sendProposeGovernor(governor.getSender(), { value: '0.1', newGovernor: newGovernor.address })
+        const before = Math.floor(Date.now() / 1000) - 60 * 60 * 24
+        const state = await treasury.getTreasuryState()
+        state.proposedGovernor = beginCell()
+            .storeUint(before, 32)
+            .storeAddress(newGovernor.address)
+            .endCell()
+        const fakeData = treasuryConfigToCell(state)
+        await blockchain.setShardAccount(treasury.address, createShardAccount({
+            workchain: 0,
+            address: treasury.address,
+            code: treasuryCode,
+            data: fakeData,
+            balance: toNano('10'),
+        }))
         const result = await treasury.sendAcceptGovernance(newGovernor.getSender(), { value: '0.1' })
 
         expect(result.transactions).toHaveTransaction({

@@ -1092,7 +1092,9 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     s.end_parse();
 
     ( int new_governor_wc, _ ) = parse_std_addr(new_governor);
+    int accept_after = now() + 60 * 60 * 24;
     proposed_governor = begin_cell()
+        .store_uint(accept_after, 32)
         .store_slice(new_governor)
         .end_cell();
 
@@ -1115,11 +1117,13 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     s.end_parse();
 
     slice gs = proposed_governor.begin_parse();
+    int accept_after = gs~load_uint(32);
     governor = gs~load_msg_addr();
     gs.end_parse();
     proposed_governor = null();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
+    throw_unless(err::access_denied, now() >= accept_after);
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
