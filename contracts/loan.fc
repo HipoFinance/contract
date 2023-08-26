@@ -5,9 +5,9 @@ global slice treasury;
 global slice validator;
 global int round_since;
 
-() save_data() impure {
+() save_data(builder current_elector) impure {
     begin_cell()
-        .store_slice(elector)
+        .store_builder(current_elector)
         .store_slice(treasury)
         .store_slice(validator)
         .store_uint(round_since, 32)
@@ -35,7 +35,6 @@ global int round_since;
     raw_reserve(loan_storage, reserve::at_most);
 
     builder current_elector = create_address(get_elector());
-    elector = current_elector.end_cell().begin_parse();
 
     builder body = begin_cell()
         .store_uint(op::new_stake, 32)
@@ -43,7 +42,7 @@ global int round_since;
         .store_slice(new_stake_msg.begin_parse());
     send_msg(true, current_elector, null(), body, 0, send::remaining_balance);
 
-    save_data();
+    save_data(current_elector);
 }
 
 () new_stake_error(slice src, slice s) impure {
