@@ -295,9 +295,9 @@ set_content#471dad93
     new_content:^FullContent
         = InternalMsgBody;
 
-set_reward_share#51df41a6
+set_governance_fee#470fe5f6
     query_id:uint64
-    new_reward_share:uint16
+    new_governance_fee:uint16
         = InternalMsgBody;
 
 set_balanced_rounds#230e906a
@@ -370,7 +370,7 @@ extension#_
     halter:MsgAddress
     governor:MsgAddress
     proposed_governor:(Maybe ^MsgAddress)
-    reward_share:uint16
+    governance_fee:uint16
     rewards_history:(HashmapE 32 Reward)
     content:^FullContent
         = Extension;

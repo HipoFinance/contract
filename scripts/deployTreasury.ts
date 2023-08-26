@@ -27,7 +27,7 @@ export async function run(provider: NetworkProvider) {
             halter: governor,
             governor: governor,
             proposedGovernor: null,
-            rewardShare: 4096n,
+            governanceFee: 4096n,
             rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
             content,
         }, await compile('Treasury'))

@@ -16,7 +16,7 @@ global slice driver;
 global slice halter;
 global slice governor;
 global cell proposed_governor;
-global int reward_share;
+global int governance_fee;
 global cell rewards_history;
 global cell content;
 
@@ -58,7 +58,7 @@ global cell content;
         .store_slice(halter)
         .store_slice(governor)
         .store_maybe_ref(proposed_governor)
-        .store_uint(reward_share, 16)
+        .store_uint(governance_fee, 16)
         .store_dict(rewards_history)
         .store_ref(content)
         .end_cell();
@@ -70,7 +70,7 @@ global cell content;
     halter = s~load_msg_addr();
     governor = s~load_msg_addr();
     proposed_governor = s~load_maybe_ref();
-    reward_share = s~load_uint(16);
+    governance_fee = s~load_uint(16);
     rewards_history = s~load_dict();
     content = s~load_ref();
     s.end_parse();
@@ -1036,7 +1036,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
                 int treasury_reward = max(min_payment, muldiv(reward, treasury_reward_share, 255));
                 int validator_reward = reward - treasury_reward;
                 stake_amount += validator_reward;
-                int new_coins = treasury_reward - muldiv(treasury_reward, reward_share, 65535);
+                int new_coins = treasury_reward - muldiv(treasury_reward, governance_fee, 65535);
                 total_coins += new_coins;
                 reserve_amount = loan_amount + accrue_amount + new_coins;
                 total_recovered += reserve_amount;
@@ -1047,7 +1047,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
                 ;; then try to take at most min_payment
                 int treasury_reward = min(stake_amount, min_payment);
                 stake_amount -= treasury_reward;
-                int new_coins = treasury_reward - muldiv(max(0, treasury_reward), reward_share, 65535);
+                int new_coins = treasury_reward - muldiv(max(0, treasury_reward), governance_fee, 65535);
                 total_coins += reward + compensation + new_coins;
                 reserve_amount = msg_ton - stake_amount + new_coins;
                 total_recovered += reserve_amount;
@@ -1207,11 +1207,11 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     save_data();
 }
 
-() set_reward_share(slice src, slice s) impure {
+() set_governance_fee(slice src, slice s) impure {
     unpack_extension();
 
     int query_id = s~load_uint(64);
-    reward_share = s~load_uint(16);
+    governance_fee = s~load_uint(16);
     s.end_parse();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
@@ -1508,8 +1508,8 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
         return set_content(src, in_msg_body);
     }
 
-    if (op == op::set_reward_share) {
-        return set_reward_share(src, in_msg_body);
+    if (op == op::set_governance_fee) {
+        return set_governance_fee(src, in_msg_body);
     }
 
     if (op == op::set_balanced_rounds) {
@@ -1614,7 +1614,7 @@ slice get_loan_address(slice validator, int round_since) method_id {
         , halter
         , governor
         , proposed_governor
-        , reward_share
+        , governance_fee
         , rewards_history
         , content
         );

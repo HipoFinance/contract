@@ -49,7 +49,7 @@ export const op = {
     setStopped: 0x700d5e50,
     setDriver: 0x7e7da841,
     setContent: 0x471dad93,
-    setRewardShare: 0x51df41a6,
+    setGovernanceFee: 0x470fe5f6,
     setBalancedRounds: 0x230e906a,
     sendMessageToLoan: 0x2b93b447,
     sendProcessLoanRequests: 0x06cbff48,

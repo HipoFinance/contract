@@ -75,7 +75,7 @@ export type TreasuryConfig = {
     halter: Address
     governor: Address
     proposedGovernor: Cell | null
-    rewardShare: bigint
+    governanceFee: bigint
     rewardsHistory: Dictionary<bigint, Reward>
     content: Cell
 }
@@ -86,7 +86,7 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeAddress(config.halter)
         .storeAddress(config.governor)
         .storeMaybeRef(config.proposedGovernor)
-        .storeUint(config.rewardShare, 16)
+        .storeUint(config.governanceFee, 16)
         .storeDict(config.rewardsHistory)
         .storeRef(config.content || Cell.EMPTY)
     return beginCell()
@@ -457,21 +457,21 @@ export class Treasury implements Contract {
         })
     }
 
-    async sendSetRewardShare(provider: ContractProvider, via: Sender, opts: {
+    async sendSetGovernanceFee(provider: ContractProvider, via: Sender, opts: {
         value: bigint | string
         bounce?: boolean
         sendMode?: SendMode
         queryId?: bigint
-        newRewardShare: bigint
+        newGovernanceFee: bigint
     }) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
             sendMode: opts.sendMode,
             body: beginCell()
-                .storeUint(op.setRewardShare, 32)
+                .storeUint(op.setGovernanceFee, 32)
                 .storeUint(opts.queryId || 0, 64)
-                .storeUint(opts.newRewardShare, 16)
+                .storeUint(opts.newGovernanceFee, 16)
                 .endCell()
         })
     }
@@ -631,7 +631,7 @@ export class Treasury implements Contract {
             halter: stack.readAddress(),
             governor: stack.readAddress(),
             proposedGovernor: stack.readCellOpt(),
-            rewardShare: stack.readBigNumber(),
+            governanceFee: stack.readBigNumber(),
             rewardsHistory: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), rewardDictionaryValue,
                 stack.readCellOpt()),
             content: stack.readCell(),

@@ -53,7 +53,7 @@ describe('Treasury', () => {
             halter: halter.address,
             governor: governor.address,
             proposedGovernor: null,
-            rewardShare: 4096n,
+            governanceFee: 4096n,
             rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
             content: Cell.EMPTY,
         }, treasuryCode))
@@ -347,13 +347,16 @@ describe('Treasury', () => {
     })
 
     it('should set reward share', async () => {
-        const result = await treasury.sendSetRewardShare(governor.getSender(), { value: '0.1', newRewardShare: 8192n })
+        const result = await treasury.sendSetGovernanceFee(governor.getSender(), {
+            value: '0.1',
+            newGovernanceFee: 8192n,
+        })
 
         expect(result.transactions).toHaveTransaction({
             from: governor.address,
             to: treasury.address,
             value: toNano('0.1'),
-            body: bodyOp(op.setRewardShare),
+            body: bodyOp(op.setGovernanceFee),
             success: true,
             outMessagesCount: 1,
         })
@@ -368,7 +371,7 @@ describe('Treasury', () => {
         expect(result.transactions).toHaveLength(3)
 
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryState.rewardShare).toBe(8192n)
+        expect(treasuryState.governanceFee).toBe(8192n)
 
         printFees(result.transactions)
     })

@@ -1,49 +1,50 @@
 #include "../../contracts/imports/utils.fc";
 
-(slice, slice, slice, cell, int, cell, cell) unpack_extension(slice s) {
-    slice driver = s~load_msg_addr();
-    slice halter = s~load_msg_addr();
-    slice governor = s~load_msg_addr();
-    cell proposed_governor = s~load_maybe_ref();
-    int reward_share = s~load_uint(16);
-    cell rewards_history = s~load_dict();
-    cell content = s~load_ref();
-    s.end_parse();
-    return
-        ( driver
-        , halter
-        , governor
-        , proposed_governor
-        , reward_share
-        , rewards_history
-        , content
-        );
+global int total_coins;
+global int total_tokens;
+global int total_staking;
+global int total_unstaking;
+global int total_validators_stake;
+global cell participations;
+global int balanced_rounds?;
+global int stopped?;
+global cell wallet_code;
+global cell loan_code;
+global cell extension;
+
+global slice driver;
+global slice halter;
+global slice governor;
+global cell proposed_governor;
+global int governance_fee;
+global cell rewards_history;
+global cell content;
+
+() load_data() impure {
+    slice ds = get_data().begin_parse();
+    total_coins = ds~load_coins();
+    total_tokens = ds~load_coins();
+    total_staking = ds~load_coins();
+    total_unstaking = ds~load_coins();
+    total_validators_stake = ds~load_coins();
+    participations = ds~load_dict();
+    balanced_rounds? = ds~load_int(1);
+    stopped? = ds~load_int(1);
+    wallet_code = ds~load_ref();
+    loan_code = ds~load_ref();
+    extension = ds~load_ref();
 }
 
-(int, int, int, int, int, cell, int, cell, cell, cell) load_data() impure {
-    slice ds = get_data().begin_parse();
-    int total_coins = ds~load_coins();
-    int total_tokens = ds~load_coins();
-    int total_staking = ds~load_coins();
-    int total_unstaking = ds~load_coins();
-    int total_validators_stake = ds~load_coins();
-    cell participations = ds~load_dict();
-    int stopped? = ds~load_int(1);
-    cell wallet_code = ds~load_ref();
-    cell loan_code = ds~load_ref();
-    cell extension = ds~load_ref();
-    return
-        ( total_coins
-        , total_tokens
-        , total_staking
-        , total_unstaking
-        , total_validators_stake
-        , participations
-        , stopped?
-        , wallet_code
-        , loan_code
-        , extension
-        );
+() unpack_extension() impure {
+    slice s = extension.begin_parse();
+    driver = s~load_msg_addr();
+    halter = s~load_msg_addr();
+    governor = s~load_msg_addr();
+    proposed_governor = s~load_maybe_ref();
+    governance_fee = s~load_uint(16);
+    rewards_history = s~load_dict();
+    content = s~load_ref();
+    s.end_parse();
 }
 
 () upgrade_data(slice src, int query_id, slice s) impure method_id {
@@ -59,25 +60,7 @@
 }
 
 () upgrade_code(slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
     cell new_code = s~load_ref();
@@ -92,6 +75,8 @@
 }
 
 () recv_internal(cell in_msg_full, slice in_msg_body) impure {
+    load_data();
+
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
     slice src = cs~load_msg_addr();

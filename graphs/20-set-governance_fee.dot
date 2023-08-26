@@ -9,7 +9,7 @@ digraph {
 
     /* Relationships */
     external -> governor [ label="1" ]
-    governor -> treasury [ label="2\l op::set_reward_share\l 0.10 TON\l" ]
+    governor -> treasury [ label="2\l op::set_governance_fee\l 0.10 TON\l" ]
     treasury -> governor [ label="3\l op::gas_excess\l 0.09 TON\l" ]
 
     /* Ranks */
