@@ -1,8 +1,8 @@
 import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
-import { Address, Cell, Dictionary, beginCell, toNano } from 'ton-core'
-import { between, bodyOp, createNewStakeMsg, createVset, emptyNewStakeMsg, getElector, setConfig } from './helper'
+import { Address, Cell, Dictionary, beginCell, fromNano, toNano } from 'ton-core'
+import { between, bodyOp, createNewStakeMsg, createVset, emptyNewStakeMsg, getElector, printFees, setConfig, totalFees } from './helper'
 import { config, op } from '../wrappers/common'
 import { Loan } from '../wrappers/Loan'
 import { Fees, Treasury, participationDictionaryValue, rewardDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
@@ -14,6 +14,10 @@ describe('Loan', () => {
     let walletCode: Cell
     let loanCode: Cell
     let electorCode: Cell
+
+    afterAll(async () => {
+        console.log(fromNano(totalFees))
+    })
 
     beforeAll(async () => {
         treasuryCode = await compile('Treasury')
@@ -115,6 +119,8 @@ describe('Loan', () => {
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeBetween('151', '151.1')
+
+        printFees(result.transactions)
     })
 
     it('should participate in election', async () => {
@@ -266,6 +272,8 @@ describe('Loan', () => {
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
         expect(treasuryState.participations.size === 1).toBeTruthy()
+
+        printFees(result.transactions)
     })
 
     it('should change vset', async () => {
@@ -384,6 +392,9 @@ describe('Loan', () => {
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+
+        printFees(result1.transactions)
+        printFees(result2.transactions)
     })
 
     it('should finish participation', async () => {
@@ -610,6 +621,8 @@ describe('Loan', () => {
         expect(treasuryState.rewardsHistory.size).toBe(1)
         expect(reward?.staked).toBeBetween('699999', '700000')
         expect(reward?.recovered).toBeBetween('700121', '700122')
+
+        printFees(result.transactions)
     })
 
     it('should remove participation when all loan requests are rejected', async () => {
@@ -796,6 +809,8 @@ describe('Loan', () => {
         expect(treasuryState.rewardsHistory.size === 1).toBeTruthy()
         expect(treasuryState.rewardsHistory.get(until1)?.staked).toBeBetween('699999', '700000')
         expect(treasuryState.rewardsHistory.get(until1)?.recovered).toBeBetween('700129', '700130')
+
+        printFees(result.transactions)
     })
 
     it('should remove participation when there is no funds available to give loans', async () => {
@@ -908,6 +923,8 @@ describe('Loan', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
         expect(treasuryState.participations.size === 0).toBeTruthy()
         expect(treasuryState.rewardsHistory.size === 0).toBeTruthy()
+
+        printFees(result.transactions)
     })
 
     it('should participate in election with balanced rounds', async () => {
@@ -1044,5 +1061,7 @@ describe('Loan', () => {
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
         expect(treasuryState.participations.size === 1).toBeTruthy()
+
+        printFees(result.transactions)
     })
 })

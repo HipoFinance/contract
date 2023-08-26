@@ -1,5 +1,81 @@
 #include "imports/utils.fc";
 
+global int total_coins;
+global int total_tokens;
+global int total_staking;
+global int total_unstaking;
+global int total_validators_stake;
+global cell participations;
+global int balanced_rounds?;
+global int stopped?;
+global cell wallet_code;
+global cell loan_code;
+global cell extension;
+
+global slice driver;
+global slice halter;
+global slice governor;
+global cell proposed_governor;
+global int reward_share;
+global cell rewards_history;
+global cell content;
+
+() save_data() impure {
+    begin_cell()
+        .store_coins(total_coins)
+        .store_coins(total_tokens)
+        .store_coins(total_staking)
+        .store_coins(total_unstaking)
+        .store_coins(total_validators_stake)
+        .store_dict(participations)
+        .store_int(balanced_rounds?, 1)
+        .store_int(stopped?, 1)
+        .store_ref(wallet_code)
+        .store_ref(loan_code)
+        .store_ref(extension)
+        .end_cell()
+        .set_data();
+}
+
+() load_data() impure {
+    slice ds = get_data().begin_parse();
+    total_coins = ds~load_coins();
+    total_tokens = ds~load_coins();
+    total_staking = ds~load_coins();
+    total_unstaking = ds~load_coins();
+    total_validators_stake = ds~load_coins();
+    participations = ds~load_dict();
+    balanced_rounds? = ds~load_int(1);
+    stopped? = ds~load_int(1);
+    wallet_code = ds~load_ref();
+    loan_code = ds~load_ref();
+    extension = ds~load_ref();
+}
+
+() pack_extension() impure {
+    extension = begin_cell()
+        .store_slice(driver)
+        .store_slice(halter)
+        .store_slice(governor)
+        .store_maybe_ref(proposed_governor)
+        .store_uint(reward_share, 16)
+        .store_dict(rewards_history)
+        .store_ref(content)
+        .end_cell();
+}
+
+() unpack_extension() impure {
+    slice s = extension.begin_parse();
+    driver = s~load_msg_addr();
+    halter = s~load_msg_addr();
+    governor = s~load_msg_addr();
+    proposed_governor = s~load_maybe_ref();
+    reward_share = s~load_uint(16);
+    rewards_history = s~load_dict();
+    content = s~load_ref();
+    s.end_parse();
+}
+
 builder pack_request
     ( int min_payment
     , int validator_reward_share
@@ -87,116 +163,8 @@ builder pack_participation
         );
 }
 
-builder pack_extension
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) {
-    return begin_cell()
-        .store_slice(driver)
-        .store_slice(halter)
-        .store_slice(governor)
-        .store_maybe_ref(proposed_governor)
-        .store_uint(reward_share, 16)
-        .store_dict(rewards_history)
-        .store_ref(content);
-}
-
-(slice, slice, slice, cell, int, cell, cell) unpack_extension(slice s) {
-    slice driver = s~load_msg_addr();
-    slice halter = s~load_msg_addr();
-    slice governor = s~load_msg_addr();
-    cell proposed_governor = s~load_maybe_ref();
-    int reward_share = s~load_uint(16);
-    cell rewards_history = s~load_dict();
-    cell content = s~load_ref();
-    s.end_parse();
-    return
-        ( driver
-        , halter
-        , governor
-        , proposed_governor
-        , reward_share
-        , rewards_history
-        , content
-        );
-}
-
-() save_data
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) impure {
-    begin_cell()
-        .store_coins(total_coins)
-        .store_coins(total_tokens)
-        .store_coins(total_staking)
-        .store_coins(total_unstaking)
-        .store_coins(total_validators_stake)
-        .store_dict(participations)
-        .store_int(balanced_rounds?, 1)
-        .store_int(stopped?, 1)
-        .store_ref(wallet_code)
-        .store_ref(loan_code)
-        .store_ref(extension)
-        .end_cell()
-        .set_data();
-}
-
-(int, int, int, int, int, cell, int, int, cell, cell, cell) load_data() impure {
-    slice ds = get_data().begin_parse();
-    int total_coins = ds~load_coins();
-    int total_tokens = ds~load_coins();
-    int total_staking = ds~load_coins();
-    int total_unstaking = ds~load_coins();
-    int total_validators_stake = ds~load_coins();
-    cell participations = ds~load_dict();
-    int balanced_rounds? = ds~load_int(1);
-    int stopped? = ds~load_int(1);
-    cell wallet_code = ds~load_ref();
-    cell loan_code = ds~load_ref();
-    cell extension = ds~load_ref();
-    return
-        ( total_coins
-        , total_tokens
-        , total_staking
-        , total_unstaking
-        , total_validators_stake
-        , participations
-        , balanced_rounds?
-        , stopped?
-        , wallet_code
-        , loan_code
-        , extension
-        );
-}
-
 () deposit_coins(int msg_ton, slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver, _, _, _, _, _, _ ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
     ;; no s.end_parse() since referrer might be provided, which is used externally, not by this function
@@ -237,26 +205,10 @@ builder pack_extension
         .store_slice(driver);
     send_msg(true, wallet, state_init, body, 0, send::remaining_balance);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    save_data();
 }
 
 () mint_tokens(int msg_ton, slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     int stake_amount = s~load_coins();
     int round_since = s~load_uint(32);
@@ -302,26 +254,11 @@ builder pack_extension
         .store_uint(0, 1); ;; empty forward_payload
     send_msg(false, wallet, null(), body, 0, send::remaining_value);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    save_data();
 }
 
 () reserve_tokens(int msg_ton, slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver, _, _, _, _, _, _ ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
     int amount = s~load_coins();
@@ -348,26 +285,10 @@ builder pack_extension
         .store_uint(query_id, 64);
     send_msg(false, return_excess.to_builder(), null(), excess, 0, send::remaining_balance + send::ignore_errors);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    save_data();
 }
 
 () burn_tokens(int msg_ton, slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     int tokens = s~load_coins();
     slice owner = s~load_msg_addr();
@@ -420,26 +341,10 @@ builder pack_extension
         .store_uint(query_id, 64);
     send_msg(false, return_excess.to_builder(), null(), excess, 0, send::remaining_balance + send::ignore_errors);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    save_data();
 }
 
 () send_stake_first_coins(slice src) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-
     ( builder wallet, _, _ ) = create_wallet_address(src.to_builder(), my_address(), wallet_code);
     ( int src_wc, _ ) = parse_std_addr(src);
 
@@ -453,19 +358,6 @@ builder pack_extension
 }
 
 () send_unstake_all_tokens(slice src) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-
     ( builder wallet, _, _ ) = create_wallet_address(src.to_builder(), my_address(), wallet_code);
     ( int src_wc, _ ) = parse_std_addr(src);
 
@@ -479,19 +371,6 @@ builder pack_extension
 }
 
 () send_withdraw_tokens(slice src) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-
     ( builder wallet, _, _ ) = create_wallet_address(src.to_builder(), my_address(), wallet_code);
     ( int src_wc, _ ) = parse_std_addr(src);
 
@@ -505,19 +384,6 @@ builder pack_extension
 }
 
 () provide_wallet_address(slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     slice owner = s~load_msg_addr();
     int include_address? = s~load_int(1);
@@ -564,19 +430,6 @@ builder pack_extension
 }
 
 () request_loan(int msg_ton, slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     int loan_amount = s~load_coins();
@@ -668,10 +521,7 @@ builder pack_extension
     );
     participations~udict_set_builder(32, next_round_since, pb);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    save_data();
 }
 
 (cell, cell, int) decide_on_requests(cell sorted, cell requests, int too_late?, int available) impure {
@@ -737,19 +587,6 @@ builder pack_extension
 }
 
 () participate_in_election(slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
@@ -815,26 +652,10 @@ builder pack_extension
         .store_uint(round_since, 32);
     send_msg(false, my_address().to_builder(), null(), body, max(fee, available), send::pay_gas_separately);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    save_data();
 }
 
 () process_loan_requests(int msg_ton, slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
@@ -920,10 +741,7 @@ builder pack_extension
         participations~udict_set_builder(32, round_since, pb);
     }
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    save_data();
 }
 
 cell update_rewards_history(cell rewards_history, int round_since, int total_staked, int total_recovered) impure {
@@ -949,26 +767,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 }
 
 () new_stake_rejected(int msg_ton, slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
     int reason = s~load_uint(32);
@@ -1024,9 +823,6 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
         if (dict_empty?(staked) & dict_empty?(recovering)) {
             _ = participations~udict_delete?(32, round_since);
             rewards_history = update_rewards_history(rewards_history, round_since, total_staked, total_recovered);
-            extension = pack_extension(
-                driver, halter, governor, proposed_governor, reward_share, rewards_history, content
-            ).end_cell();
         } else {
             builder pb = pack_participation(
                 state, new_dict(), requests_size, requests, accepted, staked, recovering, total_staked, total_recovered,
@@ -1036,26 +832,11 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
         }
     }
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    pack_extension();
+    save_data();
 }
 
 () vset_changed(slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
@@ -1096,26 +877,10 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     );
     participations~udict_set_builder(32, round_since, pb);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    save_data();
 }
 
 () finish_participation(slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
@@ -1157,26 +922,10 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
         .store_uint(round_since, 32);
     send_msg(false, my_address().to_builder(), null(), body, fee, send::pay_gas_separately);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    save_data();
 }
 
 () recover_stakes(int msg_ton, slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
@@ -1233,33 +982,11 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     );
     participations~udict_set_builder(32, round_since, pb);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    save_data();
 }
 
 () recover_stake_result(int msg_ton, slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
     int ok? = s~load_int(1);
@@ -1329,9 +1056,6 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
             if (dict_empty?(recovering)) {
                 _ = participations~udict_delete?(32, round_since);
                 rewards_history = update_rewards_history(rewards_history, round_since, total_staked, total_recovered);
-                extension = pack_extension(
-                    driver, halter, governor, proposed_governor, reward_share, rewards_history, content
-                ).end_cell();
             } else {
                 builder pb = pack_participation(
                     state, new_dict(), requests_size, requests, accepted, staked, recovering, total_staked, total_recovered,
@@ -1356,173 +1080,80 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
         .store_uint(query_id, 64);
     send_msg(false, governor.to_builder(), null(), profit, 0, send::remaining_balance + send::ignore_errors);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    pack_extension();
+    save_data();
 }
 
 () propose_governor(slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , _
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
     slice new_governor = s~load_msg_addr();
     s.end_parse();
 
     parse_std_addr(new_governor); ;; just check it to be a valid standard address
-
-    throw_unless(err::access_denied, equal_slice_bits(src, governor));
-
-    cell proposed_governor = begin_cell()
+    proposed_governor = begin_cell()
         .store_slice(new_governor)
         .end_cell();
-    extension = pack_extension(
-        driver, halter, governor, proposed_governor, reward_share, rewards_history, content
-    ).end_cell();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    pack_extension();
+    save_data();
 }
 
 () accept_governance(slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
     s.end_parse();
 
     slice gs = proposed_governor.begin_parse();
-    slice new_governor = gs~load_msg_addr();
+    governor = gs~load_msg_addr();
     gs.end_parse();
+    proposed_governor = null();
 
-    throw_unless(err::access_denied, equal_slice_bits(src, new_governor));
-
-    extension = pack_extension(driver, halter, new_governor, null(), reward_share, rewards_history, content).end_cell();
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    pack_extension();
+    save_data();
 }
 
 () set_halter(slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
-    slice new_halter = s~load_msg_addr();
+    halter = s~load_msg_addr();
     s.end_parse();
 
-    parse_std_addr(new_halter); ;; just check it to be a valid standard address
+    parse_std_addr(halter); ;; just check it to be a valid standard address
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
-
-    extension = pack_extension(
-        driver, new_halter, governor, proposed_governor, reward_share, rewards_history, content
-    ).end_cell();
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    pack_extension();
+    save_data();
 }
 
 () set_stopped(slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , _
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
-    int new_stopped? = s~load_int(1);
+    stopped? = s~load_int(1);
     s.end_parse();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
@@ -1532,168 +1163,71 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, new_stopped?, wallet_code, loan_code, extension
-    );
+    save_data();
 }
 
 () set_driver(slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( _
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
-    slice new_driver = s~load_msg_addr();
+    driver = s~load_msg_addr();
     s.end_parse();
 
-    ( int driver_wc, _ ) = parse_std_addr(new_driver); ;; just check it to be a valid standard address
+    ( int driver_wc, _ ) = parse_std_addr(driver); ;; just check it to be a valid standard address
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
     throw_unless(err::only_basechain_allowed, driver_wc == chain::base);
 
-    extension = pack_extension(
-        new_driver, halter, governor, proposed_governor, reward_share, rewards_history, content
-    ).end_cell();
-
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    pack_extension();
+    save_data();
 }
 
 () set_content(slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , _
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
-    cell new_content = s~load_ref();
+    content = s~load_ref();
     s.end_parse();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
-
-    extension = pack_extension(
-        driver, halter, governor, proposed_governor, reward_share, rewards_history, new_content
-    ).end_cell();
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    pack_extension();
+    save_data();
 }
 
 () set_reward_share(slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , _
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
-    int new_reward_share = s~load_uint(16);
+    reward_share = s~load_uint(16);
     s.end_parse();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
-
-    extension = pack_extension(
-        driver, halter, governor, proposed_governor, new_reward_share, rewards_history, content
-    ).end_cell();
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    pack_extension();
+    save_data();
 }
 
 () set_balanced_rounds(slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , _
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
-    int new_balanced_rounds? = s~load_int(1);
+    balanced_rounds? = s~load_int(1);
     s.end_parse();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
@@ -1703,33 +1237,12 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
-    save_data(
-        total_coins, total_tokens, total_staking, total_unstaking, total_validators_stake,
-        participations, new_balanced_rounds?, stopped?, wallet_code, loan_code, extension
-    );
+    pack_extension();
+    save_data();
 }
 
 () send_message_to_loan(slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
     slice validator = s~load_msg_addr();
@@ -1755,26 +1268,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 }
 
 () send_process_loan_requests(slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
@@ -1808,26 +1302,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 }
 
 () upgrade_code(slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
     cell new_code = s~load_ref();
@@ -1842,26 +1317,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 }
 
 () withdraw_surplus(int msg_ton, slice src, slice s) impure {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    unpack_extension();
 
     int query_id = s~load_uint(64);
     s.end_parse();
@@ -1936,6 +1392,8 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 }
 
 () recv_internal(int msg_ton, cell in_msg_full, slice in_msg_body) impure {
+    load_data();
+
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
     slice src = cs~load_msg_addr();
@@ -2080,21 +1538,20 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 }
 
 () recv_external(slice in_msg_body) impure {
+    load_data();
+
     int op = in_msg_body~load_uint(32);
 
     if (op == op::participate_in_election) {
-        participate_in_election(in_msg_body);
-        return ();
+        return participate_in_election(in_msg_body);
     }
 
     if (op == op::vset_changed) {
-        vset_changed(in_msg_body);
-        return ();
+        return vset_changed(in_msg_body);
     }
 
     if (op == op::finish_participation) {
-        finish_participation(in_msg_body);
-        return ();
+        return finish_participation(in_msg_body);
     }
 
     throw(err::invalid_op);
@@ -2105,36 +1562,14 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 ;;
 
 (int, int, slice, cell, cell) get_jetton_data() method_id {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( _, _, _, _, _, _, cell content ) = unpack_extension(extension.begin_parse());
+    load_data();
+    unpack_extension();
 
     return ( total_tokens, true, address::empty, content, wallet_code );
 }
 
 slice get_wallet_address(slice owner) method_id {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
+    load_data();
 
     ( int owner_wc, _ ) = parse_std_addr(owner);
 
@@ -2146,18 +1581,7 @@ slice get_wallet_address(slice owner) method_id {
 }
 
 slice get_loan_address(slice validator, int round_since) method_id {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
+    load_data();
 
     ( int validator_wc, _ ) = parse_std_addr(validator);
 
@@ -2170,26 +1594,8 @@ slice get_loan_address(slice validator, int round_since) method_id {
 
 (int, int, int, int, int, cell, int, int, cell, cell, slice, slice, slice, cell, int, cell, cell) get_treasury_state()
     method_id {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
-    ( slice driver
-    , slice halter
-    , slice governor
-    , cell proposed_governor
-    , int reward_share
-    , cell rewards_history
-    , cell content
-    ) = unpack_extension(extension.begin_parse());
+    load_data();
+    unpack_extension();
 
     return
         ( total_coins
@@ -2213,18 +1619,7 @@ slice get_loan_address(slice validator, int round_since) method_id {
 }
 
 (int, cell, int, cell, cell, cell, cell, int, int, int, int, int, int) get_participation(int round_since) method_id {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
+    load_data();
 
     int state = participation::open;
     cell sorted = new_dict();
@@ -2274,27 +1669,10 @@ slice get_loan_address(slice validator, int round_since) method_id {
 }
 
 (int, int, int, int, int, int, int) get_fees() method_id {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
+    load_data();
 
-    ( _
-    , cell wallet_state_init
-    , _
-    ) = create_wallet_address(my_address().to_builder(), my_address(), wallet_code);
-    ( _
-    , cell loan_state_init
-    , _
-    ) = create_loan_address(my_address(), my_address().to_builder(), 0, loan_code);
+    ( _, cell wallet_state_init, _ ) = create_wallet_address(my_address().to_builder(), my_address(), wallet_code);
+    ( _, cell loan_state_init, _ ) = create_loan_address(my_address(), my_address().to_builder(), 0, loan_code);
     int wallet_storage = wallet_storage_fee();
     ( int loan_storage, _ ) = loan_storage_fee();
     return
@@ -2309,18 +1687,7 @@ slice get_loan_address(slice validator, int round_since) method_id {
 }
 
 int get_max_burnable_tokens() method_id {
-    ( int total_coins
-    , int total_tokens
-    , int total_staking
-    , int total_unstaking
-    , int total_validators_stake
-    , cell participations
-    , int balanced_rounds?
-    , int stopped?
-    , cell wallet_code
-    , cell loan_code
-    , cell extension
-    ) = load_data();
+    load_data();
 
     int ton_balance = get_balance().pair_first();
     int available_ton = ton_balance - fee::treasury_storage - total_validators_stake;

@@ -1,8 +1,8 @@
 import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
-import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
-import { between, bodyOp } from './helper'
+import { Cell, Dictionary, beginCell, fromNano, toNano } from 'ton-core'
+import { between, bodyOp, printFees, totalFees } from './helper'
 import { op } from '../wrappers/common'
 import { Fees, ParticipationState, Treasury, participationDictionaryValue, rewardDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
@@ -11,6 +11,10 @@ describe('Wallet', () => {
     let treasuryCode: Cell
     let walletCode: Cell
     let loanCode: Cell
+
+    afterAll(async () => {
+        console.log(fromNano(totalFees))
+    })
 
     beforeAll(async () => {
         treasuryCode = await compile('Treasury')
@@ -121,6 +125,8 @@ describe('Wallet', () => {
         expect(staking.keys()).toHaveLength(1)
         expect(staking.get(0n)).toBeTonValue(treasuryState.totalStaking)
         expect(unstaking).toBeTonValue('0')
+
+        printFees(result.transactions)
     })
 
     it('should deposit coins with a referrer field', async () => {
@@ -173,6 +179,8 @@ describe('Wallet', () => {
         expect(staking.keys()).toHaveLength(1)
         expect(staking.get(0n)).toBeTonValue(treasuryState.totalStaking)
         expect(unstaking).toBeTonValue('0')
+
+        printFees(result.transactions)
     })
 
     it('should stake coins', async () => {
@@ -239,6 +247,8 @@ describe('Wallet', () => {
         expect(tokens).toBeTonValue(treasuryState.totalTokens)
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('0')
+
+        printFees(result.transactions)
     })
 
     it('should send tokens to another new wallet', async () => {
@@ -315,6 +325,8 @@ describe('Wallet', () => {
         expect(tokens2).toBeTonValue('9')
         expect(staking2.keys()).toHaveLength(0)
         expect(unstaking2).toBeTonValue('0')
+
+        printFees(result.transactions)
     })
 
     it('should send tokens to another existing wallet', async () => {
@@ -394,6 +406,8 @@ describe('Wallet', () => {
         expect(tokens2).toBeBetween('13.8', '13.9')
         expect(staking2.keys()).toHaveLength(0)
         expect(unstaking2).toBeTonValue('0')
+
+        printFees(result.transactions)
     })
 
     it('should unstake tokens', async () => {
@@ -453,6 +467,8 @@ describe('Wallet', () => {
         expect(tokens).toBeBetween('2.8', '2.9')
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('7')
+
+        printFees(result.transactions)
     })
 
     it('should withdraw tokens', async () => {
@@ -513,6 +529,8 @@ describe('Wallet', () => {
         expect(tokens).toBeTonValue(treasuryState.totalTokens)
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('0')
+
+        printFees(result.transactions)
     })
 
     it('should respond with wallet address', async () => {
@@ -550,6 +568,8 @@ describe('Wallet', () => {
             outMessagesCount: 0,
         })
         expect(result.transactions).toHaveLength(3)
+
+        printFees(result.transactions)
     })
 
     it('should reject staking coins', async () => {
@@ -622,6 +642,8 @@ describe('Wallet', () => {
         expect(staking.keys()).toHaveLength(1)
         expect(staking.get(roundSince)).toBeTonValue(treasuryState.totalStaking)
         expect(unstaking).toBeTonValue('0')
+
+        printFees(result.transactions)
     })
 
     it('should reject withdrawing tokens', async () => {
@@ -691,6 +713,8 @@ describe('Wallet', () => {
         expect(tokens).toBeBetween('2.8', '2.9')
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('7')
+
+        printFees(result.transactions)
     })
 
     it('should withdraw surplus', async () => {
@@ -718,5 +742,7 @@ describe('Wallet', () => {
             outMessagesCount: 0,
         })
         expect(result.transactions).toHaveLength(3)
+
+        printFees(result.transactions)
     })
 })

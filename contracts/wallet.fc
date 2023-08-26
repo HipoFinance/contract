@@ -1,13 +1,13 @@
 #include "imports/utils.fc";
 
-() save_data
-    ( slice owner
-    , slice treasury
-    , int tokens
-    , cell staking
-    , int unstaking
-    , cell wallet_code
-    ) impure {
+global slice owner;
+global slice treasury;
+global int tokens;
+global cell staking;
+global int unstaking;
+global cell wallet_code;
+
+() save_data() impure {
     begin_cell()
         .store_slice(owner)
         .store_slice(treasury)
@@ -19,27 +19,18 @@
         .set_data();
 }
 
-(slice, slice, int, cell, int, cell) load_data() impure {
+() load_data() impure {
     slice ds = get_data().begin_parse();
-    slice owner = ds~load_msg_addr();
-    slice treasury = ds~load_msg_addr();
-    int tokens = ds~load_coins();
-    cell staking = ds~load_dict();
-    int unstaking = ds~load_coins();
-    cell wallet_code = ds~load_ref();
+    owner = ds~load_msg_addr();
+    treasury = ds~load_msg_addr();
+    tokens = ds~load_coins();
+    staking = ds~load_dict();
+    unstaking = ds~load_coins();
+    wallet_code = ds~load_ref();
     ds.end_parse();
-    return ( owner, treasury, tokens, staking, unstaking, wallet_code );
 }
 
 () save_coins(int msg_ton, slice src, slice s) impure {
-    ( slice owner
-    , slice treasury
-    , int tokens
-    , cell staking
-    , int unstaking
-    , cell wallet_code
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     int stake_amount = s~load_coins();
     int round_since = s~load_uint(32);
@@ -65,18 +56,10 @@
         .store_uint(query_id, 64);
     send_msg(false, driver.to_builder(), null(), excess, 0, send::remaining_balance + send::ignore_errors);
 
-    save_data(owner, treasury, tokens, staking, unstaking, wallet_code);
+    save_data();
 }
 
 () stake_coins(int msg_ton, slice src, slice s) impure {
-    ( slice owner
-    , slice treasury
-    , int tokens
-    , cell staking
-    , int unstaking
-    , cell wallet_code
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     slice return_excess = s~load_msg_addr();
@@ -106,18 +89,10 @@
         .store_slice(return_excess);
     send_msg(true, treasury.to_builder(), null(), body, 0, send::remaining_value);
 
-    save_data(owner, treasury, tokens, staking, unstaking, wallet_code);
+    save_data();
 }
 
 () stake_first_coins(int msg_ton, slice s) impure {
-    ( slice owner
-    , slice treasury
-    , int tokens
-    , cell staking
-    , int unstaking
-    , cell wallet_code
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     slice return_excess = s~load_msg_addr();
     s.end_parse();
@@ -141,14 +116,6 @@
 }
 
 () receive_tokens(int msg_ton, slice src, slice s) impure {
-    ( slice owner
-    , slice treasury
-    , int tokens
-    , cell staking
-    , int unstaking
-    , cell wallet_code
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     int amount = s~load_coins();
     slice sender = s~load_msg_addr();
@@ -187,18 +154,10 @@
         .store_uint(query_id, 64);
     send_msg(false, return_excess.to_builder(), null(), excess, 0, send::remaining_balance + send::ignore_errors);
 
-    save_data(owner, treasury, tokens, staking, unstaking, wallet_code);
+    save_data();
 }
 
 () send_tokens(int msg_ton, slice src, slice s) impure {
-    ( slice owner
-    , slice treasury
-    , int tokens
-    , cell staking
-    , int unstaking
-    , cell wallet_code
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     int amount = s~load_coins();
     slice recipient = s~load_msg_addr();
@@ -234,18 +193,10 @@
         .store_slice(forward_payload);
     send_msg(true, wallet, state_init, body, 0, send::remaining_value);
 
-    save_data(owner, treasury, tokens, staking, unstaking, wallet_code);
+    save_data();
 }
 
 () unstake_tokens(int msg_ton, slice src, slice s) impure {
-    ( slice owner
-    , slice treasury
-    , int tokens
-    , cell staking
-    , int unstaking
-    , cell wallet_code
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     int amount = s~load_coins();
     slice return_excess = s~load_msg_addr();
@@ -278,18 +229,10 @@
         .store_slice(return_excess);
     send_msg(true, treasury.to_builder(), null(), body, 0, send::remaining_balance);
 
-    save_data(owner, treasury, tokens, staking, unstaking, wallet_code);
+    save_data();
 }
 
 () unstake_all_tokens(int msg_ton, slice src, slice s) impure {
-    ( slice owner
-    , slice treasury
-    , int tokens
-    , cell staking
-    , int unstaking
-    , cell wallet_code
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     slice return_excess = s~load_msg_addr();
     s.end_parse();
@@ -315,14 +258,6 @@
 }
 
 () withdraw_tokens(int msg_ton, slice src, slice s) impure {
-    ( slice owner
-    , slice treasury
-    , int tokens
-    , cell staking
-    , int unstaking
-    , cell wallet_code
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     slice return_excess = s~load_msg_addr();
     s.end_parse();
@@ -344,18 +279,11 @@
         .store_slice(return_excess);
     send_msg(true, treasury.to_builder(), null(), body, 0, send::remaining_value);
 
-    save_data(owner, treasury, tokens, staking, 0, wallet_code);
+    unstaking = 0;
+    save_data();
 }
 
 () burn_failed(int msg_ton, slice src, slice s) impure {
-    ( slice owner
-    , slice treasury
-    , int tokens
-    , cell staking
-    , int unstaking
-    , cell wallet_code
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     int amount = s~load_coins();
     slice return_excess = s~load_msg_addr();
@@ -375,18 +303,10 @@
         .store_uint(query_id, 64);
     send_msg(false, return_excess.to_builder(), null(), excess, 0, send::remaining_balance + send::ignore_errors);
 
-    save_data(owner, treasury, tokens, staking, unstaking, wallet_code);
+    save_data();
 }
 
 () withdraw_surplus(slice src, slice s) impure {
-    ( slice owner
-    , slice treasury
-    , int tokens
-    , cell staking
-    , int unstaking
-    , cell wallet_code
-    ) = load_data();
-
     int query_id = s~load_uint(64);
     s.end_parse();
 
@@ -402,14 +322,6 @@
 
 () on_bounce(slice s) impure {
     ;; this should not happen but in a rare case of a bounce (e.g. a frozen account), at least recover tokens
-
-    ( slice owner
-    , slice treasury
-    , int tokens
-    , cell staking
-    , int unstaking
-    , cell wallet_code
-    ) = load_data();
 
     s~load_uint(32); ;; skip bounced op
     int op = s~load_uint(32);
@@ -451,10 +363,12 @@
         .store_uint(query_id, 64);
     send_msg(false, owner.to_builder(), null(), body, 0, send::remaining_value + send::ignore_errors);
 
-    save_data(owner, treasury, tokens, staking, unstaking, wallet_code);
+    save_data();
 }
 
 () recv_internal(int msg_ton, cell in_msg_full, slice in_msg_body) impure {
+    load_data();
+
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
     slice src = cs~load_msg_addr();
@@ -520,25 +434,11 @@
 ;;
 
 (int, slice, slice, cell) get_wallet_data() method_id {
-    ( slice owner
-    , slice treasury
-    , int tokens
-    , _
-    , _
-    , cell wallet_code
-    ) = load_data();
-
+    load_data();
     return ( tokens, owner, treasury, wallet_code );
 }
 
 (int, cell, int) get_wallet_state() method_id {
-    ( _
-    , _
-    , int tokens
-    , cell staking
-    , int unstaking
-    , _
-    ) = load_data();
-
+    load_data();
     return ( tokens, staking, unstaking );
 }

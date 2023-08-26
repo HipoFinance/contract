@@ -1,8 +1,6 @@
 #include "stdlib.fc";
 #include "constants.fc";
 
-int ubitsize(int x) asm "UBITSIZE";
-
 builder to_builder(slice s) {
     return begin_cell().store_slice(s);
 }

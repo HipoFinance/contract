@@ -1,8 +1,13 @@
 #include "imports/utils.fc";
 
-() save_data(builder elector, slice treasury, slice validator, int round_since) impure {
+global slice elector;
+global slice treasury;
+global slice validator;
+global int round_since;
+
+() save_data() impure {
     begin_cell()
-        .store_builder(elector)
+        .store_slice(elector)
         .store_slice(treasury)
         .store_slice(validator)
         .store_uint(round_since, 32)
@@ -10,19 +15,16 @@
         .set_data();
 }
 
-(slice, slice, slice, int) load_data() impure {
+() load_data() impure {
     slice ds = get_data().begin_parse();
-    slice elector = ds~load_msg_addr();
-    slice treasury = ds~load_msg_addr();
-    slice validator = ds~load_msg_addr();
-    int round_since = ds~load_uint(32);
+    elector = ds~load_msg_addr();
+    treasury = ds~load_msg_addr();
+    validator = ds~load_msg_addr();
+    round_since = ds~load_uint(32);
     ds.end_parse();
-    return ( elector, treasury, validator, round_since );
 }
 
 () send_new_stake(slice src, slice s) impure {
-    ( _, slice treasury, slice validator, int round_since ) = load_data();
-
     int query_id = s~load_uint(64); ;; must be non-zero to receive success response
     cell new_stake_msg = s~load_ref();
     s.end_parse();
@@ -32,19 +34,19 @@
     ( int loan_storage, _ ) = loan_storage_fee();
     raw_reserve(loan_storage, reserve::at_most);
 
-    builder elector = create_address(get_elector());
+    builder current_elector = create_address(get_elector());
+    elector = current_elector.end_cell().begin_parse();
+
     builder body = begin_cell()
         .store_uint(op::new_stake, 32)
         .store_uint(query_id, 64)
         .store_slice(new_stake_msg.begin_parse());
-    send_msg(true, elector, null(), body, 0, send::remaining_balance);
+    send_msg(true, current_elector, null(), body, 0, send::remaining_balance);
 
-    save_data(elector, treasury, validator, round_since);
+    save_data();
 }
 
 () new_stake_error(slice src, slice s) impure {
-    ( slice elector, slice treasury, slice validator, int round_since ) = load_data();
-
     int query_id = 0;
     int reason = 0;
     if (s.slice_bits() >= 64 + 32) { ;; in case the elector's behavior changed, don't throw
@@ -66,8 +68,6 @@
 }
 
 () send_recover_stake(slice src, slice s) impure {
-    ( slice elector, slice treasury, slice validator, int round_since ) = load_data();
-
     int query_id = s~load_uint(64);
     s.end_parse();
 
@@ -80,8 +80,6 @@
 }
 
 () recover_stake_result(slice src, int op, slice s) impure {
-    ( slice elector, slice treasury, slice validator, int round_since ) = load_data();
-
     int query_id = 0;
     if (s.slice_bits() >= 64) { ;; in case the elector's behavior changed, don't throw
         query_id = s~load_uint(64);
@@ -103,7 +101,6 @@
 }
 
 int src_is_elector?(slice src) {
-    ( slice elector, slice treasury, slice validator, int round_since ) = load_data();
     builder current_elector = create_address(get_elector());
 
     return equal_slice_bits(src, elector) | equal_slice_bits(src, current_elector.end_cell().begin_parse());
@@ -126,6 +123,8 @@ int src_is_elector?(slice src) {
 }
 
 () recv_internal(cell in_msg_full, slice in_msg_body) impure {
+    load_data();
+
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
     slice src = cs~load_msg_addr();

@@ -1,5 +1,5 @@
 import { expect } from '@jest/globals'
-import { Blockchain } from '@ton-community/sandbox'
+import { Blockchain, BlockchainTransaction, printTransactionFees } from '@ton-community/sandbox'
 import type { MatcherFunction } from 'expect'
 import { Address, Builder, Cell, Dictionary, beginCell, toNano } from 'ton-core'
 import { mnemonicNew, mnemonicToPrivateKey, sign } from 'ton-crypto'
@@ -145,4 +145,11 @@ export function getElector(blockchain: Blockchain): Address {
     const config = Dictionary.loadDirect(Dictionary.Keys.BigInt(32), Dictionary.Values.Cell(), blockchain.config)
     const electorAddr = config.get(1n)?.beginParse().loadUintBig(256) || 0n
     return Address.parseRaw('-1:' + electorAddr.toString(16))
+}
+
+export let totalFees: bigint = 0n
+
+export function printFees(transactions: BlockchainTransaction[]) {
+    totalFees = transactions.reduce((acc, tx) => acc + tx.totalFees.coins, totalFees)
+    // printTransactionFees(transactions)
 }

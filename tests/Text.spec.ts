@@ -1,8 +1,8 @@
 import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
-import { Cell, Dictionary, toNano } from 'ton-core'
-import { between, bodyOp } from './helper'
+import { Cell, Dictionary, fromNano, toNano } from 'ton-core'
+import { between, bodyOp, printFees, totalFees } from './helper'
 import { op } from '../wrappers/common'
 import { Fees, Treasury, participationDictionaryValue, rewardDictionaryValue } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
@@ -11,6 +11,10 @@ describe('Text Interface', () => {
     let treasuryCode: Cell
     let walletCode: Cell
     let loanCode: Cell
+
+    afterAll(async () => {
+        console.log(fromNano(totalFees))
+    })
 
     beforeAll(async () => {
         treasuryCode = await compile('Treasury')
@@ -121,6 +125,8 @@ describe('Text Interface', () => {
         expect(staking.keys()).toHaveLength(1)
         expect(staking.get(0n)).toBeTonValue(treasuryState.totalStaking)
         expect(unstaking).toBeTonValue('0')
+
+        printFees(result.transactions)
     })
 
     it('should stake coins for comment s', async () => {
@@ -195,6 +201,8 @@ describe('Text Interface', () => {
         expect(tokens).toBeTonValue(treasuryState.totalTokens)
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('0')
+
+        printFees(result.transactions)
     })
 
     it('should unstake all tokens for comment w', async () => {
@@ -262,6 +270,8 @@ describe('Text Interface', () => {
         expect(tokens).toBeTonValue('0')
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue(treasuryState.totalTokens)
+
+        printFees(result.transactions)
     })
 
     it('should withdraw tokens for comment u', async () => {
@@ -330,5 +340,7 @@ describe('Text Interface', () => {
         expect(tokens).toBeBetween('2.8', '2.9')
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('0')
+
+        printFees(result.transactions)
     })
 })
