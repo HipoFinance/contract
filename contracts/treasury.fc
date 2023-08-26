@@ -1091,12 +1091,13 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     slice new_governor = s~load_msg_addr();
     s.end_parse();
 
-    parse_std_addr(new_governor); ;; just check it to be a valid standard address
+    ( int new_governor_wc, _ ) = parse_std_addr(new_governor);
     proposed_governor = begin_cell()
         .store_slice(new_governor)
         .end_cell();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
+    throw_unless(err::only_basechain_allowed, new_governor_wc == chain::base);
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
@@ -1136,9 +1137,10 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
     halter = s~load_msg_addr();
     s.end_parse();
 
-    parse_std_addr(halter); ;; just check it to be a valid standard address
+    ( int halter_wc, _ ) = parse_std_addr(halter);
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
+    throw_unless(err::only_basechain_allowed, halter_wc == chain::base);
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
