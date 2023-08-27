@@ -744,7 +744,7 @@ builder pack_participation
     save_data();
 }
 
-cell update_rewards_history(cell rewards_history, int round_since, int total_staked, int total_recovered) impure {
+() update_rewards_history(int round_since, int total_staked, int total_recovered) impure {
     builder reward = begin_cell()
         .store_coins(total_staked)
         .store_coins(total_recovered);
@@ -763,7 +763,6 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
             }
         }
     } until (~ f?);
-    return rewards_history;
 }
 
 () new_stake_rejected(int msg_ton, slice src, slice s) impure {
@@ -822,7 +821,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
         if (dict_empty?(staked) & dict_empty?(recovering)) {
             _ = participations~udict_delete?(32, round_since);
-            rewards_history = update_rewards_history(rewards_history, round_since, total_staked, total_recovered);
+            update_rewards_history(round_since, total_staked, total_recovered);
         } else {
             builder pb = pack_participation(
                 state, new_dict(), requests_size, requests, accepted, staked, recovering, total_staked, total_recovered,
@@ -1055,7 +1054,7 @@ cell update_rewards_history(cell rewards_history, int round_since, int total_sta
 
             if (dict_empty?(recovering)) {
                 _ = participations~udict_delete?(32, round_since);
-                rewards_history = update_rewards_history(rewards_history, round_since, total_staked, total_recovered);
+                update_rewards_history(round_since, total_staked, total_recovered);
             } else {
                 builder pb = pack_participation(
                     state, new_dict(), requests_size, requests, accepted, staked, recovering, total_staked, total_recovered,
