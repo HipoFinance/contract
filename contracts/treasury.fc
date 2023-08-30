@@ -615,7 +615,7 @@ builder pack_participation
     save_data();
 }
 
-() decide_loan_requests(int msg_ton, slice src, slice s) impure {
+() decide_loan_requests(slice src, slice s) impure {
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
@@ -762,7 +762,7 @@ builder pack_participation
         total_staked += loan_amount + accrue_amount;
         staked~udict_set(256, validator_addr, request);
         total_validators_stake -= stake_amount;
-        msg_ton -= ton_amount - fee;
+        msg_ton -= ton_amount;
 
         builder body = begin_cell()
             .store_uint(op::send_new_stake, 32)
@@ -1545,7 +1545,7 @@ builder pack_participation
     }
 
     if (op == op::decide_loan_requests) {
-        return decide_loan_requests(msg_ton, src, in_msg_body);
+        return decide_loan_requests(src, in_msg_body);
     }
 
     if (op == op::process_loan_requests) {

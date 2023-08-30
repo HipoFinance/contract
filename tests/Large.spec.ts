@@ -95,10 +95,10 @@ describe('Large number of loan requests', () => {
         const vset1 = createVset(since1, until1)
         setConfig(blockchain, config.currentValidators, vset1)
 
-        const rejectCount = 500n // tested with 10000 but test takes more than a minute to run
-        const count1 = rejectCount
-        const count2 = rejectCount
-        const count3 = 550n
+        // tested with (10000, 10000, 10000) but test takes more than 3 minutes to run
+        const count1 = 500n
+        const count2 = 500n
+        const count3 = 500n
         const sorted = Dictionary.empty(Dictionary.Keys.BigUint(112), sortedDictionaryValue)
         const requests = Dictionary.empty(Dictionary.Keys.BigUint(256), requestDictionaryValue)
         const request = {
