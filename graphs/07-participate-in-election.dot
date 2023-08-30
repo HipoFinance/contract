@@ -1,27 +1,30 @@
 digraph {
-    label="anyone sends a message to participate in election"
+    label="anyone sends a message to start the process of participation in election"
     node [ colorscheme=pastel19 style=filled ]
 
     /* Entities */
     external [ shape=point ]
     treasury [ color=4 ]
-    loan1, loan2 [ color=5 ]
+    loan2, loan3 [ color=5 ]
     elector [ color=1 ]
-    validatorN [ color=2 ]
+    validator1, validator2, validator3 [ color=2 ]
 
     /* Relationships */
+    validator2 -> loan2 [ arrowhead=inv style=dotted ]
+    validator3 -> loan3 [ arrowhead=inv style=dotted ]
     external -> treasury [ label="1\l op::participate_in_election\l" ]
-    treasury -> treasury [ label="2\l op::process_loan_requests\l" ]
-    treasury -> loan1 [ label="3\l op::send_new_stake\l 300002 TON\l" ]
-    loan1 -> elector [ label="4\l op::new_stake\l 300001 TON\l" ]
-    elector -> loan1 [ label="5\l op::new_stake_ok\l 1 TON\l" ]
-    treasury -> loan2 [ label="6\l op::send_new_stake\l 300002 TON\l" ]
-    loan2 -> elector [ label="7\l op::new_stake\l 300001 TON\l" ]
-    elector -> loan2 [ label="8\l op::new_stake_ok\l 1 TON\l" ]
-    treasury -> validatorN [ label="9\l 301 TON\l" ]
+    treasury -> treasury [ label="\l2\l op::decide_loan_requests    \l\l" ]
+    treasury -> treasury [ label="\l3\l op::process_loan_requests\l\l" ]
+    treasury -> loan2 [ label="4\l op::send_new_stake\l 300002 TON\l" ]
+    loan2 -> elector [ label="5\l op::new_stake\l 300001 TON\l" ]
+    elector -> loan2 [ label="6\l op::new_stake_ok\l 1 TON\l" ]
+    treasury -> loan3 [ label="7\l op::send_new_stake\l 300002 TON\l" ]
+    loan3 -> elector [ label="8\l op::new_stake\l 300001 TON\l" ]
+    elector -> loan3 [ label="9\l op::new_stake_ok\l 1 TON\l" ]
+    treasury -> validator1 [ label="10\l op::request_rejected\l 301 TON\l" ]
 
     /* Ranks */
-    { rank=min validatorN }
+    { rank=min validator1 validator2 validator3 }
     { rank=same external treasury }
     { rank=max elector }
 }

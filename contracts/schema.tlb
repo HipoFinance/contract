@@ -207,6 +207,11 @@ participate_in_election#574a297b
     round_since:uint32
         = InternalMsgBody;
 
+decide_loan_requests#6a31d344
+    query_id:uint64
+    round_since:uint32
+        = InternalMsgBody;
+
 process_loan_requests#071d07cc
     query_id:uint64
     round_since:uint32
@@ -357,12 +362,14 @@ request#_
 
 participation#_
     state:uint3
+    size:uint16
     sorted:(HashmapE 112 (Hashmap 256 True))
-    requests_size:uint16
     requests:(HashmapE 256 Request)
+    rejected:(HashmapE 256 Request)
     accepted:(HashmapE 256 Request)
+    accrued:(HashmapE 256 Request) // no refs overflow since there are always some empty dicts
     staked:(HashmapE 256 Request)
-    recovering:(HashmapE 256 Request) // no refs overflow since there are always some empty dicts
+    recovering:(HashmapE 256 Request)
     total_staked:Coins
     total_recovered:Coins
     current_vset_hash:bits256

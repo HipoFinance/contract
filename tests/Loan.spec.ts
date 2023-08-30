@@ -16,7 +16,7 @@ describe('Loan', () => {
     let electorCode: Cell
 
     afterAll(async () => {
-        console.log(fromNano(totalFees))
+        console.log('total fees: %s', fromNano(totalFees))
     })
 
     beforeAll(async () => {
@@ -93,7 +93,7 @@ describe('Loan', () => {
 
         const validator = await blockchain.treasury('validator')
         const result = await treasury.sendRequestLoan(validator.getSender(), {
-            value: '152.7', // 101 (max punishment) + 50 (min payment) + 1.7 (fee)
+            value: '152.8', // 101 (max punishment) + 50 (min payment) + 1.8 (fee)
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
@@ -104,7 +104,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: validator.address,
             to: treasury.address,
-            value: toNano('152.7'),
+            value: toNano('152.8'),
             body: bodyOp(op.requestLoan),
             success: true,
             outMessagesCount: 0,
@@ -113,7 +113,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('162.6', '162.7')
+        expect(treasuryBalance).toBeBetween('162.7', '162.8')
         expect(treasuryState.totalCoins).toBeTonValue('0')
         expect(treasuryState.totalTokens).toBeTonValue('0')
         expect(treasuryState.totalStaking).toBeTonValue('0')
@@ -158,7 +158,7 @@ describe('Loan', () => {
         const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
         const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
-            value: '152.7', // 101 (max punishment) + 50 (min payment) + 1.7 (fee)
+            value: '152.8', // 101 (max punishment) + 50 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
@@ -166,7 +166,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
-            value: '162.7', // 101 (max punishment) + 60 (min payment) + 1.7 (fee)
+            value: '162.8', // 101 (max punishment) + 60 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
@@ -174,7 +174,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
-            value: '172.7', // 101 (max punishment) + 70 (min payment) + 1.7 (fee)
+            value: '172.8', // 101 (max punishment) + 70 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
@@ -192,6 +192,14 @@ describe('Loan', () => {
             from: undefined,
             to: treasury.address,
             body: bodyOp(op.participateInElection),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: treasury.address,
+            value: between('699999', '700000'),
+            body: bodyOp(op.decideLoanRequests),
             success: true,
             outMessagesCount: 1,
         })
@@ -261,7 +269,7 @@ describe('Loan', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(result.transactions).toHaveLength(9)
+        expect(result.transactions).toHaveLength(10)
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
@@ -311,7 +319,7 @@ describe('Loan', () => {
         const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
         const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
-            value: '152.7', // 101 (max punishment) + 50 (min payment) + 1.7 (fee)
+            value: '152.8', // 101 (max punishment) + 50 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
@@ -319,7 +327,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
-            value: '162.7', // 101 (max punishment) + 60 (min payment) + 1.7 (fee)
+            value: '162.8', // 101 (max punishment) + 60 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
@@ -327,7 +335,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
-            value: '172.7', // 101 (max punishment) + 70 (min payment) + 1.7 (fee)
+            value: '172.8', // 101 (max punishment) + 70 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
@@ -432,7 +440,7 @@ describe('Loan', () => {
         const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
         const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
-            value: '152.7', // 101 (max punishment) + 50 (min payment) + 1.7 (fee)
+            value: '152.8', // 101 (max punishment) + 50 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
@@ -440,7 +448,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
-            value: '162.7', // 101 (max punishment) + 60 (min payment) + 1.7 (fee)
+            value: '162.8', // 101 (max punishment) + 60 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
@@ -448,7 +456,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
-            value: '172.7', // 101 (max punishment) + 70 (min payment) + 1.7 (fee)
+            value: '172.8', // 101 (max punishment) + 70 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
@@ -505,7 +513,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: treasury.address,
-            value: between('1.6', '1.7'),
+            value: between('1.7', '1.8'),
             body: bodyOp(op.recoverStakes),
             success: true,
             outMessagesCount: 2,
@@ -660,7 +668,7 @@ describe('Loan', () => {
         const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
         const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
-            value: '152.7', // 101 (max punishment) + 50 (min payment) + 1.7 (fee)
+            value: '152.8', // 101 (max punishment) + 50 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
@@ -668,7 +676,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
-            value: '162.7', // 101 (max punishment) + 60 (min payment) + 1.7 (fee)
+            value: '162.8', // 101 (max punishment) + 60 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
@@ -676,7 +684,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
-            value: '172.7', // 101 (max punishment) + 70 (min payment) + 1.7 (fee)
+            value: '172.8', // 101 (max punishment) + 70 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
@@ -694,6 +702,14 @@ describe('Loan', () => {
             from: undefined,
             to: treasury.address,
             body: bodyOp(op.participateInElection),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: treasury.address,
+            value: between('699999', '700000'),
+            body: bodyOp(op.decideLoanRequests),
             success: true,
             outMessagesCount: 1,
         })
@@ -795,7 +811,7 @@ describe('Loan', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(result.transactions).toHaveLength(13)
+        expect(result.transactions).toHaveLength(14)
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
@@ -842,7 +858,7 @@ describe('Loan', () => {
         const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
         const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
-            value: '152.7', // 101 (max punishment) + 50 (min payment) + 1.7 (fee)
+            value: '152.8', // 101 (max punishment) + 50 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
@@ -850,7 +866,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
-            value: '162.7', // 101 (max punishment) + 60 (min payment) + 1.7 (fee)
+            value: '162.8', // 101 (max punishment) + 60 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
@@ -858,7 +874,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
-            value: '172.7', // 101 (max punishment) + 70 (min payment) + 1.7 (fee)
+            value: '172.8', // 101 (max punishment) + 70 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
@@ -882,7 +898,15 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: treasury.address,
-            value: fees.requestLoanFee,
+            value: fees.requestLoanFee * 3n,
+            body: bodyOp(op.decideLoanRequests),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: treasury.address,
+            value: between(fees.requestLoanFee * 2n, fees.requestLoanFee * 3n),
             body: bodyOp(op.processLoanRequests),
             success: true,
             outMessagesCount: 3,
@@ -911,7 +935,7 @@ describe('Loan', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(result.transactions).toHaveLength(5)
+        expect(result.transactions).toHaveLength(6)
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
@@ -964,7 +988,7 @@ describe('Loan', () => {
         const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
         const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
-            value: '152.7', // 101 (max punishment) + 50 (min payment) + 1.7 (fee)
+            value: '152.8', // 101 (max punishment) + 50 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
@@ -972,7 +996,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
-            value: '162.7', // 101 (max punishment) + 60 (min payment) + 1.7 (fee)
+            value: '162.8', // 101 (max punishment) + 60 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
@@ -980,7 +1004,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
-            value: '172.7', // 101 (max punishment) + 70 (min payment) + 1.7 (fee)
+            value: '172.8', // 101 (max punishment) + 70 (min payment) + 1.8 (fee)
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
@@ -998,6 +1022,14 @@ describe('Loan', () => {
             from: undefined,
             to: treasury.address,
             body: bodyOp(op.participateInElection),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: treasury.address,
+            value: between('349999', '350000'),
+            body: bodyOp(op.decideLoanRequests),
             success: true,
             outMessagesCount: 1,
         })
@@ -1050,11 +1082,11 @@ describe('Loan', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(result.transactions).toHaveLength(7)
+        expect(result.transactions).toHaveLength(8)
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('350013', '350014')
+        expect(treasuryBalance).toBeBetween('350014', '350015')
         expect(treasuryState.totalCoins).toBeBetween('699999', '700000')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalTokens)
         expect(treasuryState.totalStaking).toBeTonValue('0')

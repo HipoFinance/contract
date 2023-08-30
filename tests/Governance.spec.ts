@@ -4,7 +4,7 @@ import '@ton-community/test-utils'
 import { Cell, Dictionary, beginCell, fromNano, toNano } from 'ton-core'
 import { between, bodyOp, createVset, emptyNewStakeMsg, printFees, setConfig, totalFees } from './helper'
 import { config, op } from '../wrappers/common'
-import { Fees, ParticipationState, Treasury, participationDictionaryValue, rewardDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
+import { Fees, Participation, ParticipationState, Treasury, participationDictionaryValue, rewardDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
 
 describe('Treasury', () => {
@@ -15,7 +15,7 @@ describe('Treasury', () => {
     let resetDataCode: Cell
 
     afterAll(async () => {
-        console.log(fromNano(totalFees))
+        console.log('total fees: %s', fromNano(totalFees))
     })
 
     beforeAll(async () => {
@@ -602,18 +602,18 @@ describe('Treasury', () => {
 
     it('should withdraw surplus', async () => {
         const state = await treasury.getTreasuryState()
-        const participation1 = {
-            requestsSize: 5n,
+        const participation1: Participation = {
+            size: 5n,
             totalStaked: toNano('1000000'),
             totalRecovered: toNano('1001000'),
         }
-        const participation2 = {
-            requestsSize: 10n,
+        const participation2: Participation = {
+            size: 10n,
             totalStaked: toNano('500000'),
             totalRecovered: 0n,
         }
-        const participation3 = {
-            requestsSize: 1n,
+        const participation3: Participation = {
+            size: 1n,
             totalStaked: 0n,
             totalRecovered: 0n,
         }
@@ -646,7 +646,7 @@ describe('Treasury', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: governor.address,
-            value: between('20', '21'),
+            value: between('19', '20'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,

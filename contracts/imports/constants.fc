@@ -62,6 +62,7 @@ const int op::withdrawal_notification = 0x2ec2a5a0;
 
 const int op::request_loan = 0x12b808d3;
 const int op::participate_in_election = 0x574a297b;
+const int op::decide_loan_requests = 0x6a31d344;
 const int op::process_loan_requests = 0x071d07cc;
 const int op::request_rejected = 0x4d0f2116;
 const int op::send_new_stake = 0x77a897f2;
@@ -110,6 +111,7 @@ const int gas::gas_excess = 1000;
 
 const int gas::request_loan = 75000;
 const int gas::participate_in_election = 60000;
+const int gas::decide_loan_requests = 25000;
 const int gas::process_loan_requests = 65000;
 const int gas::send_new_stake = 20000;
 const int gas::new_stake_rejected = 25000;
@@ -145,6 +147,7 @@ const int config::next_validators = 36;
 const int config::misbehaviour_punishment = 40;
 
 
+const int send::regular = 0;
 const int send::pay_gas_separately = 1;
 const int send::ignore_errors = 2;
 const int send::destroy_if_zero = 32;

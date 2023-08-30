@@ -1,5 +1,5 @@
 digraph {
-    label="the current governor sets the reward share"
+    label="the current governor sets the governance fee"
     node [ colorscheme=pastel19 style=filled ]
 
     /* Entities */

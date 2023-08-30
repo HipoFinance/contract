@@ -31,6 +31,7 @@ export const op = {
 
     requestLoan: 0x12b808d3,
     participateInElection: 0x574a297b,
+    decideLoanRequests: 0x6a31d344,
     processLoanRequests: 0x071d07cc,
     requestRejected: 0x4d0f2116,
     sendNewStake: 0x77a897f2,
@@ -60,7 +61,8 @@ export const op = {
 }
 
 export const config = {
-    currentValidators: 34n
+    validators: 16n,
+    currentValidators: 34n,
 }
 
 export function tonValue(value: bigint | string): bigint {

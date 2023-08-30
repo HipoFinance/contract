@@ -13,7 +13,7 @@ describe('Wallet', () => {
     let loanCode: Cell
 
     afterAll(async () => {
-        console.log(fromNano(totalFees))
+        console.log('total fees: %s', fromNano(totalFees))
     })
 
     beforeAll(async () => {

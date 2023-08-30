@@ -457,6 +457,7 @@ int request_loan_fee(cell loan_state_init) impure {
     int computation_gas =
         gas::request_loan +
         gas::participate_in_election +
+        gas::decide_loan_requests +
         gas::process_loan_requests +
         gas::new_stake_rejected +
         gas::vset_changed +
@@ -489,6 +490,7 @@ int request_loan_fee(cell loan_state_init) impure {
     int fwd_fee =
         m_fwd_fee + ;; request_loan
         s_fwd_fee + ;; participate_in_election
+        s_fwd_fee + ;; decide_loan_requests
         s_fwd_fee + ;; process_loan_requests
         mc_l_fwd_fee + ;; send_new_stake
         mc_m_fwd_fee + ;; new_stake

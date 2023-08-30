@@ -47,10 +47,12 @@ export type Request = {
 
 export type Participation = {
     state?: ParticipationState
+    size?: bigint
     sorted?: Dictionary<bigint, Dictionary<bigint, True>>
-    requestsSize?: bigint
     requests?: Dictionary<bigint, Request>
+    rejected?: Dictionary<bigint, Request>
     accepted?: Dictionary<bigint, Request>
+    accrued?: Dictionary<bigint, Request>
     staked?: Dictionary<bigint, Request>
     recovering?: Dictionary<bigint, Request>
     totalStaked?: bigint
@@ -162,10 +164,12 @@ export const participationDictionaryValue: DictionaryValue<Participation> = {
     serialize: function(src: Participation, builder: Builder) {
         builder
             .storeUint(src.state || 0, 3)
+            .storeUint(src.size || 0, 16)
             .storeDict(src.sorted)
-            .storeUint(src.requestsSize || 0, 16)
             .storeDict(src.requests)
+            .storeDict(src.rejected)
             .storeDict(src.accepted)
+            .storeDict(src.accrued)
             .storeDict(src.staked)
             .storeDict(src.recovering)
             .storeCoins(src.totalStaked || 0)
@@ -177,10 +181,12 @@ export const participationDictionaryValue: DictionaryValue<Participation> = {
     parse: function(src: Slice): Participation {
         return {
             state: src.loadUint(3),
+            size: src.loadUintBig(16),
             sorted: src.loadDict(Dictionary.Keys.BigUint(112), sortedDictionaryValue),
-            requestsSize: src.loadUintBig(16),
             requests: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
+            rejected: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
             accepted: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
+            accrued: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
             staked: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
             recovering: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
             totalStaked: src.loadCoins(),
@@ -638,14 +644,18 @@ export class Treasury implements Contract {
         }
     }
 
-    async getParticipation(provider: ContractProvider): Promise<Participation> {
-        const { stack } = await provider.get('get_participation', [])
+    async getParticipation(provider: ContractProvider, roundSince: bigint): Promise<Participation> {
+        const tb = new TupleBuilder()
+        tb.writeNumber(roundSince)
+        const { stack } = await provider.get('get_participation', tb.build())
         return {
             state: stack.readNumber(),
+            size: stack.readBigNumber(),
             sorted: Dictionary.loadDirect(Dictionary.Keys.BigUint(112), sortedDictionaryValue, stack.readCellOpt()),
-            requestsSize: stack.readBigNumber(),
             requests: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
+            rejected: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
             accepted: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
+            accrued: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
             staked: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
             recovering: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
             totalStaked: stack.readBigNumber(),
