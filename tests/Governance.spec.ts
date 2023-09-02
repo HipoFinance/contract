@@ -1,8 +1,8 @@
 import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
-import { Cell, Dictionary, beginCell, fromNano, toNano } from 'ton-core'
-import { between, bodyOp, createVset, emptyNewStakeMsg, printFees, setConfig, totalFees } from './helper'
+import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
+import { between, bodyOp, createVset, emptyNewStakeMsg, logTotalFees, accumulateFees, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
 import { Fees, Participation, ParticipationState, Treasury, participationDictionaryValue, rewardDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
@@ -15,7 +15,7 @@ describe('Treasury', () => {
     let resetDataCode: Cell
 
     afterAll(async () => {
-        console.log('total fees: %s', fromNano(totalFees))
+        logTotalFees()
     })
 
     beforeAll(async () => {
@@ -112,7 +112,7 @@ describe('Treasury', () => {
         expect(proposedGovernor.loadAddress().equals(newGovernor.address)).toBeTruthy()
         expect(treasuryState.governor.equals(governor.address)).toBeTruthy()
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 
     it('should accept governance', async () => {
@@ -156,7 +156,7 @@ describe('Treasury', () => {
         expect(treasuryState.governor.equals(newGovernor.address)).toBeTruthy()
         expect(treasuryState.proposedGovernor == null).toBeTruthy()
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 
     it('should set halter', async () => {
@@ -187,7 +187,7 @@ describe('Treasury', () => {
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryState.halter.equals(newHalter.address)).toBeTruthy()
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 
     it('should set stopped', async () => {
@@ -244,7 +244,7 @@ describe('Treasury', () => {
 
         const validator = await blockchain.treasury('validator')
         const result3 = await treasury.sendRequestLoan(validator.getSender(), {
-            value: '152.7', // 101 (max punishment) + 50 (min payment) + 1.7 (fee)
+            value: '151.9', // 101 (max punishment) + 50 (min payment) + 0.9 (fee)
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
@@ -255,7 +255,7 @@ describe('Treasury', () => {
         expect(result3.transactions).toHaveTransaction({
             from: validator.address,
             to: treasury.address,
-            value: toNano('152.7'),
+            value: toNano('151.9'),
             body: bodyOp(op.requestLoan),
             success: false,
             outMessagesCount: 1,
@@ -263,7 +263,7 @@ describe('Treasury', () => {
         expect(result3.transactions).toHaveTransaction({
             from: treasury.address,
             to: validator.address,
-            value: between('152.6', '152.7'),
+            value: between('151.8', '151.9'),
             body: bodyOp(0xffffffff),
             success: true,
             outMessagesCount: 0,
@@ -302,10 +302,10 @@ describe('Treasury', () => {
         })
         expect(result4.transactions).toHaveLength(4)
 
-        printFees(result1.transactions)
-        printFees(result2.transactions)
-        printFees(result3.transactions)
-        printFees(result4.transactions)
+        accumulateFees(result1.transactions)
+        accumulateFees(result2.transactions)
+        accumulateFees(result3.transactions)
+        accumulateFees(result4.transactions)
     })
 
     it('should set driver', async () => {
@@ -332,7 +332,7 @@ describe('Treasury', () => {
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryState.driver.equals(newDriver.address)).toBeTruthy()
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 
     it('should set content', async () => {
@@ -359,7 +359,7 @@ describe('Treasury', () => {
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryState.content.equals(newContent)).toBeTruthy()
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 
     it('should set reward share', async () => {
@@ -389,7 +389,7 @@ describe('Treasury', () => {
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryState.governanceFee).toBe(8192n)
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 
     it('should set balanced-rounds', async () => {
@@ -419,7 +419,7 @@ describe('Treasury', () => {
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryState.balancedRounds).toBe(true)
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 
     it('should send message to loan', async () => {
@@ -454,7 +454,7 @@ describe('Treasury', () => {
         })
         expect(result.transactions).toHaveLength(3)
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 
     it('should send process loan requests', async () => {
@@ -490,7 +490,7 @@ describe('Treasury', () => {
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryState.participations.size === 0).toBeTruthy()
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 
     it('should upgrade code', async () => {
@@ -593,11 +593,11 @@ describe('Treasury', () => {
             expect(oldState.state.data?.toString() === newState.state.data?.toString()).toBeTruthy()
         }
 
-        printFees(result1.transactions)
-        printFees(result2.transactions)
-        printFees(result3.transactions)
-        printFees(result4.transactions)
-        printFees(result5.transactions)
+        accumulateFees(result1.transactions)
+        accumulateFees(result2.transactions)
+        accumulateFees(result3.transactions)
+        accumulateFees(result4.transactions)
+        accumulateFees(result5.transactions)
     })
 
     it('should withdraw surplus', async () => {
@@ -631,7 +631,7 @@ describe('Treasury', () => {
             address: treasury.address,
             code: treasuryCode,
             data: fakeData,
-            balance: toNano('10') + toNano('801000') + 16n * toNano('1.7') + toNano('20'),
+            balance: toNano('10') + toNano('801000') + 16n * toNano('0.9') + toNano('20'),
         }))
         const result = await treasury.sendWithdrawSurplus(governor.getSender(), { value: '0.1' })
 
@@ -646,13 +646,13 @@ describe('Treasury', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: governor.address,
-            value: between('19', '20'),
+            value: between('20', '20.1'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
         })
         expect(result.transactions).toHaveLength(3)
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 })

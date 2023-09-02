@@ -1,10 +1,13 @@
 import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
-import { Address, Cell, Dictionary, beginCell, fromNano, toNano } from 'ton-core'
-import { bodyOp, createVset, emptyNewStakeMsg, getElector, printFees, setConfig, totalFees } from './helper'
+import { Address, Cell, Dictionary, beginCell, toNano } from 'ton-core'
+import { bodyOp, createVset, emptyNewStakeMsg, getElector, logTotalFees, accumulateFees, setConfig, between, logComputeGas, createNewStakeMsg } from './helper'
 import { config, op } from '../wrappers/common'
 import { Fees, Participation, ParticipationState, Treasury, participationDictionaryValue, requestDictionaryValue, rewardDictionaryValue, sortedDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
+import { Loan } from '../wrappers/Loan'
+import { Wallet } from '../wrappers/Wallet'
+import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-test/Elector'
 
 describe('Large number of loan requests', () => {
     let treasuryCode: Cell
@@ -13,7 +16,7 @@ describe('Large number of loan requests', () => {
     let electorCode: Cell
 
     afterAll(async () => {
-        console.log('total fees: %s', fromNano(totalFees))
+        logTotalFees()
     })
 
     beforeAll(async () => {
@@ -80,6 +83,57 @@ describe('Large number of loan requests', () => {
     it('should deploy treasury', async () => {
     })
 
+    it('should send a big batch of messages to recover stakes', async () => {
+        const times = await treasury.getTimes()
+        const electedFor = times.nextRoundSince - times.currentRoundSince
+        const since1 = BigInt(Math.floor(Date.now() / 1000)) - electedFor / 2n
+        const until1 = since1 + electedFor
+        const vset1 = createVset(since1, until1)
+        setConfig(blockchain, config.currentValidators, vset1)
+
+        const count = 100n
+        const request = {
+            minPayment: toNano('50'),
+            validatorRewardShare: 102n,
+            loanAmount: toNano('300000'),
+            accrueAmount: 0n,
+            stakeAmount: toNano('1000'),
+            newStakeMsg: emptyNewStakeMsg,
+        }
+        const staked = Dictionary.empty(Dictionary.Keys.BigUint(256), requestDictionaryValue)
+        for (let i = 0n; i < count; i += 1n) {
+            staked.set(i, request)
+        }
+        const participation: Participation = {
+            state: ParticipationState.Held,
+            size: count,
+            staked,
+            stakeHeldUntil: 0n,
+        }
+        const state = await treasury.getTreasuryState()
+        state.participations.set(until1, participation)
+        const fakeData = treasuryConfigToCell(state)
+        await blockchain.setShardAccount(treasury.address, createShardAccount({
+            workchain: 0,
+            address: treasury.address,
+            code: treasuryCode,
+            data: fakeData,
+            balance: toNano('10') + toNano('1') * count,
+        }))
+
+        const result = await treasury.sendFinishParticipation({ roundSince: until1 })
+
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: treasury.address,
+            body: bodyOp(op.recoverStakes),
+            success: true,
+            outMessagesCount: 80,
+        })
+
+        accumulateFees(result.transactions)
+    })
+
     it('should handle large number of loan requests', async () => {
         const maxValidators = beginCell()
             .storeUint(65535, 16)
@@ -141,7 +195,7 @@ describe('Large number of loan requests', () => {
             address: treasury.address,
             code: treasuryCode,
             data: fakeData,
-            balance: toNano('1001.72') * (count1 + count2 + count3) + toNano('300000') * count3,
+            balance: toNano('10') + toNano('1001.72') * (count1 + count2 + count3) + toNano('300000') * count3,
         }))
 
         const since2 = BigInt(Math.floor(Date.now() / 1000)) - times.participateSince + times.currentRoundSince
@@ -206,6 +260,6 @@ describe('Large number of loan requests', () => {
         expect(p.staked?.size === 0).toBeTruthy()
         expect(p.recovering?.size === 0).toBeTruthy()
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 })

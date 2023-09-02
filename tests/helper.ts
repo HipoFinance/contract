@@ -1,8 +1,12 @@
 import { expect } from '@jest/globals'
 import { Blockchain, BlockchainTransaction, printTransactionFees } from '@ton-community/sandbox'
 import type { MatcherFunction } from 'expect'
-import { Address, Builder, Cell, Dictionary, beginCell, toNano } from 'ton-core'
+import { Address, Builder, Cell, Dictionary, beginCell, fromNano, toNano } from 'ton-core'
 import { mnemonicNew, mnemonicToPrivateKey, sign } from 'ton-crypto'
+
+const muteLogTotalFees = true
+const muteLogCodeSizes = true
+const muteLogComputeGas = true
 
 export function bodyOp(op: number): (body: Cell) => boolean {
     return (body: Cell): boolean => {
@@ -149,7 +153,38 @@ export function getElector(blockchain: Blockchain): Address {
 
 export let totalFees: bigint = 0n
 
-export function printFees(transactions: BlockchainTransaction[]) {
+export function accumulateFees(transactions: BlockchainTransaction[]) {
     totalFees = transactions.reduce((acc, tx) => acc + tx.totalFees.coins, totalFees)
-    // printTransactionFees(transactions)
+}
+
+export function logTotalFees() {
+    if (!muteLogTotalFees) {
+        console.info('total fees: %s', fromNano(totalFees))
+    }
+}
+
+export function logCodeSizes(treasuryCode: Cell, walletCode: Cell, loanCode: Cell) {
+    if (!muteLogCodeSizes) {
+        const t = treasuryCode.toBoc().length
+        const w = walletCode.toBoc().length
+        const l = loanCode.toBoc().length
+        console.info('treasury code size: %d\nwallet code size:   %d\nloan code size:     %d', t, w, l)
+    }
+}
+
+export function logComputeGas(opLabel: string, opCode: number, tx: BlockchainTransaction) {
+    if (! bodyOp(opCode)(tx.inMessage?.body || Cell.EMPTY)) {
+        throw 'invalida transaction to log compute gas for op ' + opLabel
+    }
+    const logs = tx.blockchainLogs
+    const usedIndex = logs.indexOf('used=')
+    const commaIndex = logs.indexOf(',', usedIndex)
+    const usedGas = logs.substring(usedIndex + 5, commaIndex)
+    const roundedGas = Math.ceil(parseInt(usedGas, 10) / 1000 * 1.2) * 1000
+    if (logs.lastIndexOf('used=') !== usedIndex) {
+        throw 'unexpected second "used" field in calculating gas'
+    }
+    if (!muteLogComputeGas) {
+        console.info('compute gas for   gas::%s:   used: %s   rounded up: %s', opLabel, usedGas, roundedGas)
+    }
 }

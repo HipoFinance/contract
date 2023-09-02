@@ -20,7 +20,7 @@ global int governance_fee;
 global cell rewards_history;
 global cell content;
 
-() save_data() impure {
+() save_data() impure inline_ref {
     begin_cell()
         .store_coins(total_coins)
         .store_coins(total_tokens)
@@ -37,7 +37,7 @@ global cell content;
         .set_data();
 }
 
-() load_data() impure {
+() load_data() impure inline_ref {
     slice ds = get_data().begin_parse();
     total_coins = ds~load_coins();
     total_tokens = ds~load_coins();
@@ -52,7 +52,7 @@ global cell content;
     extension = ds~load_ref();
 }
 
-() pack_extension() impure {
+() pack_extension() impure inline_ref {
     extension = begin_cell()
         .store_slice(driver)
         .store_slice(halter)
@@ -64,7 +64,7 @@ global cell content;
         .end_cell();
 }
 
-() unpack_extension() impure {
+() unpack_extension() impure inline_ref {
     slice s = extension.begin_parse();
     driver = s~load_msg_addr();
     halter = s~load_msg_addr();
@@ -83,7 +83,7 @@ builder pack_request
     , int accrue_amount
     , int stake_amount
     , cell new_stake_msg
-    ) {
+    ) inline_ref {
     return begin_cell()
         .store_coins(min_payment)
         .store_uint(validator_reward_share, 8)
@@ -93,7 +93,7 @@ builder pack_request
         .store_ref(new_stake_msg);
 }
 
-(int, int, int, int, int, cell) unpack_request(slice s) {
+(int, int, int, int, int, cell) unpack_request(slice s) inline_ref {
     int min_payment = s~load_coins();
     int validator_reward_share = s~load_uint(8);
     int loan_amount = s~load_coins();
@@ -119,7 +119,7 @@ builder pack_participation
     , int current_vset_hash
     , int stake_held_for
     , int stake_held_until
-    ) {
+    ) inline_ref {
     return begin_cell()
         .store_uint(state, 3)
         .store_uint(size, 16)
@@ -137,7 +137,7 @@ builder pack_participation
         .store_uint(stake_held_until, 32);
 }
 
-(int, int, cell, cell, cell, cell, cell, cell, cell, int, int, int, int, int) unpack_participation(slice s) {
+(int, int, cell, cell, cell, cell, cell, cell, cell, int, int, int, int, int) unpack_participation(slice s) inline_ref {
     int state = s~load_uint(3);
     int size = s~load_uint(16);
     cell sorted = s~load_dict();
@@ -171,7 +171,7 @@ builder pack_participation
         );
 }
 
-() deposit_coins(int msg_ton, slice src, slice s) impure {
+() deposit_coins(int msg_ton, slice src, slice s) impure inline_ref {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -216,7 +216,7 @@ builder pack_participation
     save_data();
 }
 
-() mint_tokens(int msg_ton, slice src, slice s) impure {
+() mint_tokens(int msg_ton, slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int stake_amount = s~load_coins();
     int round_since = s~load_uint(32);
@@ -265,7 +265,7 @@ builder pack_participation
     save_data();
 }
 
-() reserve_tokens(int msg_ton, slice src, slice s) impure {
+() reserve_tokens(int msg_ton, slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -296,7 +296,7 @@ builder pack_participation
     save_data();
 }
 
-() burn_tokens(int msg_ton, slice src, slice s) impure {
+() burn_tokens(int msg_ton, slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int tokens = s~load_coins();
     slice owner = s~load_msg_addr();
@@ -352,7 +352,7 @@ builder pack_participation
     save_data();
 }
 
-() send_stake_first_coins(slice src) impure {
+() send_stake_first_coins(slice src) impure inline {
     ( builder wallet, _, _ ) = create_wallet_address(src.to_builder(), my_address(), wallet_code);
     ( int src_wc, _ ) = parse_std_addr(src);
 
@@ -365,7 +365,7 @@ builder pack_participation
     send_msg(false, wallet, null(), body, 0, send::remaining_value);
 }
 
-() send_unstake_all_tokens(slice src) impure {
+() send_unstake_all_tokens(slice src) impure inline {
     ( builder wallet, _, _ ) = create_wallet_address(src.to_builder(), my_address(), wallet_code);
     ( int src_wc, _ ) = parse_std_addr(src);
 
@@ -378,7 +378,7 @@ builder pack_participation
     send_msg(false, wallet, null(), body, 0, send::remaining_value);
 }
 
-() send_withdraw_tokens(slice src) impure {
+() send_withdraw_tokens(slice src) impure inline {
     ( builder wallet, _, _ ) = create_wallet_address(src.to_builder(), my_address(), wallet_code);
     ( int src_wc, _ ) = parse_std_addr(src);
 
@@ -391,7 +391,7 @@ builder pack_participation
     send_msg(false, wallet, null(), body, 0, send::remaining_value);
 }
 
-() provide_wallet_address(slice src, slice s) impure {
+() provide_wallet_address(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     slice owner = s~load_msg_addr();
     int include_address? = s~load_int(1);
@@ -415,7 +415,7 @@ builder pack_participation
     send_msg(false, src.to_builder(), null(), body, 0, send::remaining_value);
 }
 
-(int, int, int, int, int, int) get_times() impure method_id {
+(int, int, int, int, int, int) get_times() impure inline_ref method_id {
     ( int current_round_since, int next_round_since ) = get_vset_times(config::current_validators);
     ( int validators_elected_for
     , int elections_start_before
@@ -437,7 +437,7 @@ builder pack_participation
         );
 }
 
-() request_loan(int msg_ton, slice src, slice s) impure {
+() request_loan(int msg_ton, slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     int loan_amount = s~load_coins();
@@ -532,23 +532,17 @@ builder pack_participation
     save_data();
 }
 
-() participate_in_election(slice s) impure {
+() participate_in_election(slice s) impure inline_ref {
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
 
     ifnot (query_id) {
         ;; force reply from elector when staking
-        query_id = now() << 32;
+        query_id = now();
     }
-    int state = -1;
-    int size = 0;
-    cell sorted = new_dict();
-    cell requests = new_dict();
-    ( slice ps, int f? ) = participations.udict_get?(32, round_since);
-    if (f?) {
-        ( state, size, sorted, requests, _, _, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
-    }
+    ( slice ps, _ ) = participations.udict_get?(32, round_since);
+    ( int state, int size, cell sorted, cell requests, _, _, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
     ( _, int participate_since, int participate_until, _, int next_round_until, int stake_held_for ) = get_times();
     int t = now();
 
@@ -575,7 +569,7 @@ builder pack_participation
     int last_total_staked = 0;
     int available = available_now;
     if (balanced_rounds?) {
-        ( _, ps, f? ) = participations.udict_get_prev?(32, round_since);
+        ( _, ps, int f? ) = participations.udict_get_prev?(32, round_since);
         if (f?) {
             ( _, _, _, _, _, _, _, _, _, last_total_staked, _, _, _, _ ) = unpack_participation(ps);
         }
@@ -615,7 +609,7 @@ builder pack_participation
     save_data();
 }
 
-() decide_loan_requests(slice src, slice s) impure {
+() decide_loan_requests(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
@@ -723,7 +717,7 @@ builder pack_participation
     save_data();
 }
 
-() process_loan_requests(int msg_ton, slice src, slice s) impure {
+() process_loan_requests(int msg_ton, slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
@@ -813,7 +807,7 @@ builder pack_participation
     save_data();
 }
 
-() update_rewards_history(int round_since, int total_staked, int total_recovered) impure {
+() update_rewards_history(int round_since, int total_staked, int total_recovered) impure inline_ref {
     builder reward = begin_cell()
         .store_coins(total_staked)
         .store_coins(total_recovered);
@@ -834,7 +828,7 @@ builder pack_participation
     } until (~ f?);
 }
 
-() new_stake_rejected(int msg_ton, slice src, slice s) impure {
+() new_stake_rejected(int msg_ton, slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -906,7 +900,7 @@ builder pack_participation
     save_data();
 }
 
-() vset_changed(slice s) impure {
+() vset_changed(slice s) impure inline_ref {
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
@@ -952,7 +946,7 @@ builder pack_participation
     save_data();
 }
 
-() finish_participation(slice s) impure {
+() finish_participation(slice s) impure inline_ref {
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
@@ -999,7 +993,7 @@ builder pack_participation
     save_data();
 }
 
-() recover_stakes(int msg_ton, slice src, slice s) impure {
+() recover_stakes(int msg_ton, slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
@@ -1027,7 +1021,8 @@ builder pack_participation
 
     accept_message();
 
-    int remain = 255 - 1; ;; keep the last one for continue message
+    ;; todo: set it to 255 and in addition use GASCONSUMED
+    int remain = 80 - 1; ;; keep the last one for continue message
 
     ;; send recover stake message from each given loan
     while ((~ dict_empty?(staked)) & (remain > 0)) {
@@ -1061,7 +1056,7 @@ builder pack_participation
     save_data();
 }
 
-() recover_stake_result(int msg_ton, slice src, slice s) impure {
+() recover_stake_result(int msg_ton, slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1162,7 +1157,7 @@ builder pack_participation
     save_data();
 }
 
-() propose_governor(slice src, slice s) impure {
+() propose_governor(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1188,7 +1183,7 @@ builder pack_participation
     save_data();
 }
 
-() accept_governance(slice src, slice s) impure {
+() accept_governance(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1212,7 +1207,7 @@ builder pack_participation
     save_data();
 }
 
-() set_halter(slice src, slice s) impure {
+() set_halter(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1233,7 +1228,7 @@ builder pack_participation
     save_data();
 }
 
-() set_stopped(slice src, slice s) impure {
+() set_stopped(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1250,7 +1245,7 @@ builder pack_participation
     save_data();
 }
 
-() set_driver(slice src, slice s) impure {
+() set_driver(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1271,7 +1266,7 @@ builder pack_participation
     save_data();
 }
 
-() set_content(slice src, slice s) impure {
+() set_content(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1289,7 +1284,7 @@ builder pack_participation
     save_data();
 }
 
-() set_governance_fee(slice src, slice s) impure {
+() set_governance_fee(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1307,7 +1302,7 @@ builder pack_participation
     save_data();
 }
 
-() set_balanced_rounds(slice src, slice s) impure {
+() set_balanced_rounds(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1325,7 +1320,7 @@ builder pack_participation
     save_data();
 }
 
-() send_message_to_loan(slice src, slice s) impure {
+() send_message_to_loan(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1351,7 +1346,7 @@ builder pack_participation
     send_msg(false, loan, null(), message.begin_parse().to_builder(), 0, send::remaining_value);
 }
 
-() send_process_loan_requests(slice src, slice s) impure {
+() send_process_loan_requests(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1385,7 +1380,7 @@ builder pack_participation
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 }
 
-() upgrade_code(slice src, slice s) impure {
+() upgrade_code(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1400,7 +1395,7 @@ builder pack_participation
     throw(0);
 }
 
-() withdraw_surplus(int msg_ton, slice src, slice s) impure {
+() withdraw_surplus(int msg_ton, slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);

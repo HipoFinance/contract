@@ -1,8 +1,8 @@
 import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
-import { Cell, Dictionary, fromNano, toNano } from 'ton-core'
-import { between, bodyOp, printFees, totalFees } from './helper'
+import { Cell, Dictionary, toNano } from 'ton-core'
+import { between, bodyOp, logTotalFees, accumulateFees, logComputeGas, logCodeSizes } from './helper'
 import { op } from '../wrappers/common'
 import { Fees, Treasury, participationDictionaryValue, rewardDictionaryValue } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
@@ -13,7 +13,8 @@ describe('Text Interface', () => {
     let loanCode: Cell
 
     afterAll(async () => {
-        console.log('total fees: %s', fromNano(totalFees))
+        logCodeSizes(treasuryCode, walletCode, loanCode)
+        logTotalFees()
     })
 
     beforeAll(async () => {
@@ -126,7 +127,7 @@ describe('Text Interface', () => {
         expect(staking.get(0n)).toBeTonValue(treasuryState.totalStaking)
         expect(unstaking).toBeTonValue('0')
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 
     it('should stake coins for comment s', async () => {
@@ -202,7 +203,8 @@ describe('Text Interface', () => {
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('0')
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
+        logComputeGas('stake_first_coins', op.stakeFirstCoins, result.transactions[2])
     })
 
     it('should unstake all tokens for comment w', async () => {
@@ -271,7 +273,8 @@ describe('Text Interface', () => {
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue(treasuryState.totalTokens)
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
+        logComputeGas('unstake_all_tokens', op.unstakeAllTokens, result.transactions[2])
     })
 
     it('should withdraw tokens for comment u', async () => {
@@ -341,6 +344,6 @@ describe('Text Interface', () => {
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('0')
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 })

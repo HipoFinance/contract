@@ -16,7 +16,7 @@ export async function run(provider: NetworkProvider) {
     }
 
     const loanAddress = await treasury.getLoanAddress(validatorAddress, roundSince)
-    console.log('Loan Address:\n  Raw: %s\n  Friendly: %s\n', loanAddress.toRawString(), loanAddress.toString({ urlSafe: true, bounceable: true, testOnly: true }))
+    console.info('Loan Address:\n  Raw: %s\n  Friendly: %s\n', loanAddress.toRawString(), loanAddress.toString({ urlSafe: true, bounceable: true, testOnly: true }))
 
     ui.write('Done');
 }

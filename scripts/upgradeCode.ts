@@ -8,14 +8,14 @@ export async function run(provider: NetworkProvider) {
     const newCode = await compile('Treasury')
     const additionalData = beginCell()
 
-    console.log()
-    console.log('UPGRADING CODE')
-    console.log("==============")
-    console.log("1. Check upgrade_code in treasury.fc before proceeding\n")
-    console.log("2. Check upgrade_data in treasury.fc before proceeding\n")
-    console.log("3. Check additional data to be sent alongside the upgrade in this script")
-    console.log("==============")
-    console.log()
+    console.info()
+    console.info('UPGRADING CODE')
+    console.info("==============")
+    console.info("1. Check upgrade_code in treasury.fc before proceeding\n")
+    console.info("2. Check upgrade_data in treasury.fc before proceeding\n")
+    console.info("3. Check additional data to be sent alongside the upgrade in this script")
+    console.info("==============")
+    console.info()
 
     const addressString = await ui.input('Enter the friendly address of the treasury')
     const treasuryAddress = Address.parse(addressString)
@@ -23,15 +23,15 @@ export async function run(provider: NetworkProvider) {
 
     const state = await treasury.getState()
     if (state.state.type != 'active') {
-        console.log('Treasury account is not active')
+        console.info('Treasury account is not active')
         return
     }
-    console.log('  current code bytes: %s', state.state.code?.byteLength)
-    console.log('  upgrade code bytes: %s', newCode.toBoc().byteLength)
+    console.info('  current code bytes: %s', state.state.code?.byteLength)
+    console.info('  upgrade code bytes: %s', newCode.toBoc().byteLength)
 
     const confirm = await ui.input('\n\nTo confirm the upgrade, enter yes in capital case')
     if (confirm !== 'YES') {
-        console.log('Aborted')
+        console.info('Aborted')
         return
     }
 

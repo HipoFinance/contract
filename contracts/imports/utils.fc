@@ -1,23 +1,23 @@
 #include "stdlib.fc";
 #include "constants.fc";
 
-builder to_builder(slice s) {
+builder to_builder(slice s) inline {
     return begin_cell().store_slice(s);
 }
 
-builder store_state_init(builder b, cell state_init) {
+builder store_state_init(builder b, cell state_init) inline {
     return state_init.null?()
         ? b.store_uint(0, 1)
         : b.store_uint(2 + 1, 1 + 1).store_ref(state_init);
 }
 
-builder store_body(builder b, builder body) {
+builder store_body(builder b, builder body) inline {
     return body.builder_bits() <= 518
         ? b.store_uint(0, 1).store_builder(body)
         : b.store_maybe_ref(body.end_cell());
 }
 
-() send_msg(int bounceable?, builder dst, cell state_init, builder body, int coins, int mode) impure {
+() send_msg(int bounceable?, builder dst, cell state_init, builder body, int coins, int mode) impure inline_ref {
     ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
     ;;   src:MsgAddress dest:MsgAddressInt
     ;;   value:CurrencyCollection ihr_fee:Grams fwd_fee:Grams
@@ -36,12 +36,12 @@ builder store_body(builder b, builder body) {
     send_raw_message(msg, mode);
 }
 
-(int, int) get_elector() {
+(int, int) get_elector() inline {
     ;; _ elector_addr:bits256 = ConfigParam 1;
     return ( chain::main, config_param(config::elector_address).begin_parse().preload_uint(256) );
 }
 
-(int, int, int, int) get_election_config() impure {
+(int, int, int, int) get_election_config() impure inline {
     ;; _ validators_elected_for:uint32 elections_start_before:uint32
     ;;   elections_end_before:uint32 stake_held_for:uint32
     ;;   = ConfigParam 15;
@@ -49,7 +49,7 @@ builder store_body(builder b, builder body) {
     return ( cs~load_uint(32), cs~load_uint(32), cs~load_uint(32), cs~load_uint(32) );
 }
 
-(int, int, int) get_validators_config() impure {
+(int, int, int) get_validators_config() impure inline {
     ;; _ max_validators:(## 16) max_main_validators:(## 16) min_validators:(## 16)
     ;;   { max_validators >= max_main_validators }
     ;;   { max_main_validators >= min_validators }
@@ -59,13 +59,13 @@ builder store_body(builder b, builder body) {
     return ( cs~load_uint(16), cs~load_uint(16), cs~load_uint(16) );
 }
 
-(int, int, int, int) get_stake_config() impure {
+(int, int, int, int) get_stake_config() impure inline {
     ;; _ min_stake:Grams max_stake:Grams min_total_stake:Grams max_stake_factor:uint32 = ConfigParam 17;
     slice cs = config_param(config::stake).begin_parse();
     return ( cs~load_coins(), cs~load_coins(), cs~load_coins(), cs~load_uint(32) );
 }
 
-(int, int, int, int) get_storage_prices() impure {
+(int, int, int, int) get_storage_prices() impure inline {
     ;; _#cc utime_since:uint32 bit_price_ps:uint64 cell_price_ps:uint64
     ;;   mc_bit_price_ps:uint64 mc_cell_price_ps:uint64 = StoragePrices;
     ;; _ (Hashmap 32 StoragePrices) = ConfigParam 18;
@@ -76,7 +76,7 @@ builder store_body(builder b, builder body) {
     return ( v~load_uint(64), v~load_uint(64), v~load_uint(64), v~load_uint(64) );
 }
 
-(int, int) get_gas_prices(int i) impure {
+(int, int) get_gas_prices(int i) impure inline_ref {
     ;; gas_prices#dd gas_price:uint64 gas_limit:uint64 gas_credit:uint64
     ;;   block_gas_limit:uint64 freeze_due_limit:uint64 delete_due_limit:uint64
     ;;   = GasLimitsPrices;
@@ -100,7 +100,7 @@ builder store_body(builder b, builder body) {
     return ( cs~load_uint(64), cs~load_uint(64) );
 }
 
-(int, int, int) get_msg_forward_prices(int i) impure {
+(int, int, int) get_msg_forward_prices(int i) impure inline_ref {
     ;; msg_forward_prices#ea lump_price:uint64 bit_price:uint64 cell_price:uint64
     ;;   ihr_price_factor:uint32 first_frac:uint16 next_frac:uint16 = MsgForwardPrices;
 
@@ -114,7 +114,7 @@ builder store_body(builder b, builder body) {
     return ( cs~load_uint(64), cs~load_uint(64), cs~load_uint(64) );
 }
 
-(int, int) get_vset_times(int i) impure {
+(int, int) get_vset_times(int i) impure inline_ref {
     ;; validators_ext#12 utime_since:uint32 utime_until:uint32
     ;;   total:(## 16) main:(## 16) { main <= total } { main >= 1 }
     ;;   total_weight:uint64 list:(HashmapE 16 ValidatorDescr) = ValidatorSet;
@@ -123,7 +123,7 @@ builder store_body(builder b, builder body) {
     return ( cs~load_uint(32), cs~load_uint(32) );
 }
 
-cell create_state_init(cell code, cell data) {
+cell create_state_init(cell code, cell data) inline {
     ;; _ split_depth:(Maybe (## 5)) special:(Maybe TickTock)
     ;;   code:(Maybe ^Cell) data:(Maybe ^Cell)
     ;;   library:(HashmapE 256 SimpleLib) = StateInit;
@@ -134,7 +134,7 @@ cell create_state_init(cell code, cell data) {
         .end_cell();
 }
 
-builder create_address(int wc, int addr) {
+builder create_address(int wc, int addr) inline_ref {
     ;; addr_std$10 anycast:(Maybe Anycast)
     ;;   workchain_id:int8 address:bits256  = MsgAddressInt;
     return begin_cell()
@@ -143,7 +143,7 @@ builder create_address(int wc, int addr) {
         .store_uint(addr, 256);
 }
 
-cell create_wallet_data(builder owner, slice treasury, cell wallet_code) {
+cell create_wallet_data(builder owner, slice treasury, cell wallet_code) inline {
     return begin_cell()
         .store_builder(owner)
         .store_slice(treasury)
@@ -154,7 +154,7 @@ cell create_wallet_data(builder owner, slice treasury, cell wallet_code) {
         .end_cell();
 }
 
-cell create_loan_data(slice treasury, builder validator, int round_since) {
+cell create_loan_data(slice treasury, builder validator, int round_since) inline {
     return begin_cell()
         .store_uint(0, 2) ;; addr_none for elector
         .store_slice(treasury)
@@ -163,7 +163,7 @@ cell create_loan_data(slice treasury, builder validator, int round_since) {
         .end_cell();
 }
 
-(builder, cell, int) create_wallet_address(builder owner, slice treasury, cell wallet_code) {
+(builder, cell, int) create_wallet_address(builder owner, slice treasury, cell wallet_code) inline_ref {
     cell wallet_data = create_wallet_data(owner, treasury, wallet_code);
     cell state_init = create_state_init(wallet_code, wallet_data);
     int addr = state_init.cell_hash();
@@ -171,7 +171,7 @@ cell create_loan_data(slice treasury, builder validator, int round_since) {
     return (wallet, state_init, addr);
 }
 
-(builder, cell, int) create_loan_address(slice treasury, builder validator, int round_since, cell loan_code) {
+(builder, cell, int) create_loan_address(slice treasury, builder validator, int round_since, cell loan_code) inline_ref {
     cell loan_data = create_loan_data(treasury, validator, round_since);
     cell state_init = create_state_init(loan_code, loan_data);
     int addr = state_init.cell_hash();
@@ -179,7 +179,7 @@ cell create_loan_data(slice treasury, builder validator, int round_since) {
     return (loan, state_init, addr);
 }
 
-int request_sort_key(int min_payment, int validator_reward_share, int loan_amount) {
+int request_sort_key(int min_payment, int validator_reward_share, int loan_amount) inline_ref {
     ;; sort based on:
     ;;   1. efficieny
     ;;   2. treasury reward share
@@ -192,7 +192,7 @@ int request_sort_key(int min_payment, int validator_reward_share, int loan_amoun
     return (efficieny << (8 + 80)) + (treasury_reward_share << 80) + loan_amount_round_comp;
 }
 
-() check_new_stake_msg(slice cs) impure {
+() check_new_stake_msg(slice cs) impure inline {
     cs~skip_bits(256 + 32 + 32 + 256);
     slice ss = cs~load_ref().begin_parse();
     cs.end_parse();
@@ -249,7 +249,7 @@ int max_recommended_punishment_for_validator_misbehaviour(int stake) inline_ref 
     return min(stake, fine + muldiv(stake, fine_part, 1 << 32));
 }
 
-int wallet_storage_fee() impure {
+int wallet_storage_fee() impure inline_ref {
     ( int bit_price_ps, int cell_price_ps, _, _ ) = get_storage_prices();
     int bits = 267 + 267 + 124 + 1 + 124 + 2 * (32 + 124);
     int cells = 1 + 3; ;; 3 cells may be used by a dict holding 2 entries
@@ -258,7 +258,7 @@ int wallet_storage_fee() impure {
     return pps * duration >> 16; ;; currently near 0.003 TON
 }
 
-(int, int) loan_storage_fee() impure {
+(int, int) loan_storage_fee() impure inline_ref {
     ;; loan smart contract storage on main chain while validating
     ( int bit_price_ps, int cell_price_ps, int mc_bit_price_ps, int mc_cell_price_ps ) = get_storage_prices();
     int bits1 = 267 + 267 + 267 + 32;
@@ -280,7 +280,7 @@ int wallet_storage_fee() impure {
     return ( pps1 * duration >> 16, pps2 * duration >> 16); ;; currently near 0.005 TON
 }
 
-int msg_fwd_fee(int lump_price, int bit_price, int cell_price, int rest_bits, int rest_cells) {
+int msg_fwd_fee(int lump_price, int bit_price, int cell_price, int rest_bits, int rest_cells) inline_ref {
     ;; // msg_fwd_fees = (lump_price + ceil((bit_price * msg.bits + cell_price * msg.cells)/2^16)) nanograms
     ;; // ihr_fwd_fees = ceil((msg_fwd_fees * ihr_price_factor)/2^16) nanograms
     ;; // bits in the root cell of a message are not included in msg.bits (lump_price pays for them)
@@ -472,7 +472,6 @@ int request_loan_fee(cell loan_state_init) impure {
         gas::new_stake_ok +
         gas::send_recover_stake +
         gas::recover_stake +
-        gas::recover_stake_error +
         gas::recover_stake_ok;
     int computation_fee = (computation_gas * gas_price >> 16) + (mc_computation_gas * mc_gas_price >> 16);
 
@@ -554,7 +553,6 @@ int recover_stake_fee() impure {
     int mc_computation_gas =
         gas::send_recover_stake +
         gas::recover_stake +
-        gas::recover_stake_error +
         gas::recover_stake_ok;
     int computation_fee = (computation_gas * gas_price >> 16) + (mc_computation_gas * mc_gas_price >> 16);
 

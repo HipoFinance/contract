@@ -7,7 +7,7 @@ global cell staking;
 global int unstaking;
 global cell wallet_code;
 
-() save_data() impure {
+() save_data() impure inline_ref {
     begin_cell()
         .store_slice(owner)
         .store_slice(treasury)
@@ -19,7 +19,7 @@ global cell wallet_code;
         .set_data();
 }
 
-() load_data() impure {
+() load_data() impure inline_ref {
     slice ds = get_data().begin_parse();
     owner = ds~load_msg_addr();
     treasury = ds~load_msg_addr();
@@ -30,7 +30,7 @@ global cell wallet_code;
     ds.end_parse();
 }
 
-() save_coins(int msg_ton, slice src, slice s) impure {
+() save_coins(int msg_ton, slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int stake_amount = s~load_coins();
     int round_since = s~load_uint(32);
@@ -59,7 +59,7 @@ global cell wallet_code;
     save_data();
 }
 
-() stake_coins(int msg_ton, slice src, slice s) impure {
+() stake_coins(int msg_ton, slice src, slice s) impure inline_ref {
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     slice return_excess = s~load_msg_addr();
@@ -92,7 +92,7 @@ global cell wallet_code;
     save_data();
 }
 
-() stake_first_coins(int msg_ton, slice s) impure {
+() stake_first_coins(int msg_ton, slice s) impure inline {
     int query_id = s~load_uint(64);
     slice return_excess = s~load_msg_addr();
     s.end_parse();
@@ -115,7 +115,7 @@ global cell wallet_code;
     stake_coins(msg_ton, owner, s);
 }
 
-() receive_tokens(int msg_ton, slice src, slice s) impure {
+() receive_tokens(int msg_ton, slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int amount = s~load_coins();
     slice sender = s~load_msg_addr();
@@ -157,7 +157,7 @@ global cell wallet_code;
     save_data();
 }
 
-() send_tokens(int msg_ton, slice src, slice s) impure {
+() send_tokens(int msg_ton, slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int amount = s~load_coins();
     slice recipient = s~load_msg_addr();
@@ -196,7 +196,7 @@ global cell wallet_code;
     save_data();
 }
 
-() unstake_tokens(int msg_ton, slice src, slice s) impure {
+() unstake_tokens(int msg_ton, slice src, slice s) impure inline_ref {
     int query_id = s~load_uint(64);
     int amount = s~load_coins();
     slice return_excess = s~load_msg_addr();
@@ -232,7 +232,7 @@ global cell wallet_code;
     save_data();
 }
 
-() unstake_all_tokens(int msg_ton, slice src, slice s) impure {
+() unstake_all_tokens(int msg_ton, slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     slice return_excess = s~load_msg_addr();
     s.end_parse();
@@ -257,7 +257,7 @@ global cell wallet_code;
     unstake_tokens(msg_ton, owner, s);
 }
 
-() withdraw_tokens(int msg_ton, slice src, slice s) impure {
+() withdraw_tokens(int msg_ton, slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     slice return_excess = s~load_msg_addr();
     s.end_parse();
@@ -283,7 +283,7 @@ global cell wallet_code;
     save_data();
 }
 
-() burn_failed(int msg_ton, slice src, slice s) impure {
+() burn_failed(int msg_ton, slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int amount = s~load_coins();
     slice return_excess = s~load_msg_addr();
@@ -306,7 +306,7 @@ global cell wallet_code;
     save_data();
 }
 
-() withdraw_surplus(slice src, slice s) impure {
+() withdraw_surplus(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     s.end_parse();
 

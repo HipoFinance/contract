@@ -5,7 +5,7 @@ global slice treasury;
 global slice validator;
 global int round_since;
 
-() save_data(builder current_elector) impure {
+() save_data(builder current_elector) impure inline {
     begin_cell()
         .store_builder(current_elector)
         .store_slice(treasury)
@@ -15,7 +15,7 @@ global int round_since;
         .set_data();
 }
 
-() load_data() impure {
+() load_data() impure inline {
     slice ds = get_data().begin_parse();
     elector = ds~load_msg_addr();
     treasury = ds~load_msg_addr();
@@ -24,7 +24,7 @@ global int round_since;
     ds.end_parse();
 }
 
-() send_new_stake(slice src, slice s) impure {
+() send_new_stake(slice src, slice s) impure inline {
     int query_id = s~load_uint(64); ;; must be non-zero to receive success response
     cell new_stake_msg = s~load_ref();
     s.end_parse();
@@ -45,7 +45,7 @@ global int round_since;
     save_data(current_elector);
 }
 
-() new_stake_error(slice src, slice s) impure {
+() new_stake_error(slice src, slice s) impure inline_ref {
     int query_id = 0;
     int reason = 0;
     if (s.slice_bits() >= 64 + 32) { ;; in case the elector's behavior changed, don't throw
@@ -66,7 +66,7 @@ global int round_since;
     send_msg(false, treasury.to_builder(), null(), body, 0, send::remaining_balance);
 }
 
-() send_recover_stake(slice src, slice s) impure {
+() send_recover_stake(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     s.end_parse();
 
@@ -78,7 +78,7 @@ global int round_since;
     send_msg(true, elector.to_builder(), null(), body, 0, send::remaining_value);
 }
 
-() recover_stake_result(slice src, int op, slice s) impure {
+() recover_stake_result(slice src, int op, slice s) impure inline_ref {
     int query_id = 0;
     if (s.slice_bits() >= 64) { ;; in case the elector's behavior changed, don't throw
         query_id = s~load_uint(64);
@@ -99,7 +99,7 @@ global int round_since;
     send_msg(false, treasury.to_builder(), null(), body, 0, send::remaining_balance);
 }
 
-int src_is_elector?(slice src) {
+int src_is_elector?(slice src) inline {
     builder current_elector = create_address(get_elector());
 
     return equal_slice_bits(src, elector) | equal_slice_bits(src, current_elector.end_cell().begin_parse());

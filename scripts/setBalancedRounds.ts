@@ -5,7 +5,7 @@ import { NetworkProvider } from '@ton-community/blueprint'
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui();
 
-    console.log('Setting balanced-rounds')
+    console.info('Setting balanced-rounds')
 
     const addressString = await ui.input('Enter the friendly address of the treasury')
     const treasuryAddress = Address.parse(addressString)

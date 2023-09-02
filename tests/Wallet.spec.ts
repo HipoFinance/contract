@@ -1,8 +1,8 @@
 import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
-import { Cell, Dictionary, beginCell, fromNano, toNano } from 'ton-core'
-import { between, bodyOp, printFees, totalFees } from './helper'
+import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
+import { between, bodyOp, logComputeGas, logTotalFees, accumulateFees } from './helper'
 import { op } from '../wrappers/common'
 import { Fees, ParticipationState, Treasury, participationDictionaryValue, rewardDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
@@ -13,7 +13,7 @@ describe('Wallet', () => {
     let loanCode: Cell
 
     afterAll(async () => {
-        console.log('total fees: %s', fromNano(totalFees))
+        logTotalFees()
     })
 
     beforeAll(async () => {
@@ -126,7 +126,62 @@ describe('Wallet', () => {
         expect(staking.get(0n)).toBeTonValue(treasuryState.totalStaking)
         expect(unstaking).toBeTonValue('0')
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
+        logComputeGas('deposit_coins', op.depositCoins, result.transactions[1])
+    })
+
+    it('should deposit coins in addition to previous ongoing staking', async () => {
+        const staker = await blockchain.treasury('staker')
+        const walletAddress = await treasury.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        await treasury.sendDepositCoins(staker.getSender(), { value: '5' })
+        const result = await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
+
+        expect(result.transactions).toHaveTransaction({
+            from: staker.address,
+            to: treasury.address,
+            value: toNano('10'),
+            body: bodyOp(op.depositCoins),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: wallet.address,
+            value: between(fees.walletStorage, '0.2'),
+            body: bodyOp(op.saveCoins),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: driver.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(4)
+
+        const treasuryBalance = await treasury.getBalance()
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryBalance).toBeBetween('24.7', '24.9')
+        expect(treasuryState.totalCoins).toBeTonValue('0')
+        expect(treasuryState.totalTokens).toBeTonValue('0')
+        expect(treasuryState.totalStaking).toBeBetween('14.7', '14.9')
+        expect(treasuryState.totalUnstaking).toBeTonValue('0')
+        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+
+        const walletBalance = await wallet.getBalance()
+        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        expect(walletBalance).toBeBetween(fees.walletStorage, '0.1')
+        expect(tokens).toBeTonValue('0')
+        expect(staking.keys()).toHaveLength(1)
+        expect(staking.get(0n)).toBeTonValue(treasuryState.totalStaking)
+        expect(unstaking).toBeTonValue('0')
+
+        accumulateFees(result.transactions)
+        logComputeGas('save_coins', op.saveCoins, result.transactions[2])
     })
 
     it('should deposit coins with a referrer field', async () => {
@@ -180,7 +235,7 @@ describe('Wallet', () => {
         expect(staking.get(0n)).toBeTonValue(treasuryState.totalStaking)
         expect(unstaking).toBeTonValue('0')
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 
     it('should stake coins', async () => {
@@ -248,7 +303,9 @@ describe('Wallet', () => {
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('0')
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
+        logComputeGas('stake_coins', op.stakeCoins, result.transactions[1])
+        logComputeGas('mint_tokens', op.mintTokens, result.transactions[2])
     })
 
     it('should send tokens to another new wallet', async () => {
@@ -326,7 +383,7 @@ describe('Wallet', () => {
         expect(staking2.keys()).toHaveLength(0)
         expect(unstaking2).toBeTonValue('0')
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 
     it('should send tokens to another existing wallet', async () => {
@@ -386,8 +443,8 @@ describe('Wallet', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('24.6', '24.7')
-        expect(treasuryState.totalCoins).toBeBetween('14.6', '14.7')
+        expect(treasuryBalance).toBeBetween('24.7', '24.8')
+        expect(treasuryState.totalCoins).toBeBetween('14.7', '14.8')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -407,7 +464,10 @@ describe('Wallet', () => {
         expect(staking2.keys()).toHaveLength(0)
         expect(unstaking2).toBeTonValue('0')
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
+        logComputeGas('receive_tokens', op.receiveTokens, result.transactions[2])
+        logComputeGas('send_tokens', op.sendTokens, result.transactions[1])
+        logComputeGas('transfer_notification', op.transferNotification, result.transactions[3])
     })
 
     it('should unstake tokens', async () => {
@@ -468,7 +528,9 @@ describe('Wallet', () => {
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('7')
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
+        logComputeGas('unstake_tokens', op.unstakeTokens, result.transactions[1])
+        logComputeGas('reserve_tokens', op.reserveTokens, result.transactions[2])
     })
 
     it('should withdraw tokens', async () => {
@@ -530,7 +592,11 @@ describe('Wallet', () => {
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('0')
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
+        logComputeGas('withdraw_tokens', op.withdrawTokens, result.transactions[1])
+        logComputeGas('burn_tokens', op.burnTokens, result.transactions[2])
+        logComputeGas('withdrawal_notification', op.withdrawalNotification, result.transactions[3])
+        logComputeGas('gas_excess', op.gasExcess, result.transactions[4])
     })
 
     it('should respond with wallet address', async () => {
@@ -569,7 +635,7 @@ describe('Wallet', () => {
         })
         expect(result.transactions).toHaveLength(3)
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 
     it('should reject staking coins', async () => {
@@ -643,7 +709,7 @@ describe('Wallet', () => {
         expect(staking.get(roundSince)).toBeTonValue(treasuryState.totalStaking)
         expect(unstaking).toBeTonValue('0')
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 
     it('should reject withdrawing tokens', async () => {
@@ -714,7 +780,9 @@ describe('Wallet', () => {
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('7')
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
+        logComputeGas('burn_failed', op.burnFailed, result.transactions[3])
+        logComputeGas('withdraw_failed', op.withdrawFailed, result.transactions[4])
     })
 
     it('should withdraw surplus', async () => {
@@ -743,6 +811,6 @@ describe('Wallet', () => {
         })
         expect(result.transactions).toHaveLength(3)
 
-        printFees(result.transactions)
+        accumulateFees(result.transactions)
     })
 })
