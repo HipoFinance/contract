@@ -7,5 +7,5 @@ fi
 for file in *.dot
 do
     echo "Generating image from $file"
-    dot -Tpng $file -o img/${file%.*}.png
+    dot -Tsvg $file -o img/${file%.*}.svg
 done
