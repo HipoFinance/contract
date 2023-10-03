@@ -147,6 +147,18 @@ There are 3 roles in the governance of the protocol:
 - Deploy: `yarn blueprint run`
 - Test: `yarn test`
 
+### Graphs
+
+Requirements:
+
+1. [Docker](https://docs.docker.com/get-docker/)
+2. make
+
+How to generate:
+
+1. `make build_graphviz`
+2. `make graphs`
+
 ## License
 
 MIT
