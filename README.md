@@ -161,4 +161,4 @@ How to generate:
 
 ## License
 
-MIT
+[MIT](./LICENSE)
