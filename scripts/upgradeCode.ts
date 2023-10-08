@@ -38,4 +38,6 @@ export async function run(provider: NetworkProvider) {
     await treasury.sendUpgradeCode(provider.sender(), { value: '0.1', newCode, rest: additionalData })
 
     ui.write('Done')
+
+    ui.write('\n Remember to log the upgrade date and time: ' + new Date().toISOString())
 }

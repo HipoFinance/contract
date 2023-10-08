@@ -32,9 +32,13 @@ export async function run(provider: NetworkProvider) {
                 rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
                 content,
             },
-            await compile('Treasury')
-        )
+            await compile('Treasury'),
+        ),
     )
+    const confirm = await ui.input('\n\nDeploy new contract? [yN]')
+    if (confirm.toLowerCase() !== 'y') {
+        return
+    }
     await treasury.sendDeploy(provider.sender(), { value: toNano('10.01') })
     await provider.waitForDeploy(treasury.address)
 
