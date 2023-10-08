@@ -1,5 +1,5 @@
-import { expect } from '@jest/globals'
-import { Blockchain, BlockchainTransaction, printTransactionFees } from '@ton-community/sandbox'
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
+import { Blockchain, BlockchainTransaction } from '@ton-community/sandbox'
 import type { MatcherFunction } from 'expect'
 import { Address, Builder, Cell, Dictionary, beginCell, fromNano, toNano } from 'ton-core'
 import { mnemonicNew, mnemonicToPrivateKey, sign } from 'ton-crypto'
@@ -42,7 +42,7 @@ export const toBeBetween: MatcherFunction<[a: unknown, b: unknown]> = function (
         return {
             message: () =>
                 `expected ${this.utils.printReceived(actual)} not to be between ${this.utils.printExpected(
-                    `[${a}, ${b}]`
+                    `[${a}, ${b}]`,
                 )}`,
             pass: true,
         }
@@ -50,7 +50,7 @@ export const toBeBetween: MatcherFunction<[a: unknown, b: unknown]> = function (
         return {
             message: () =>
                 `expected ${this.utils.printReceived(actual)} to be between ${this.utils.printExpected(
-                    `[${a}, ${b}]`
+                    `[${a}, ${b}]`,
                 )}`,
             pass: false,
         }
@@ -77,22 +77,6 @@ export const toBeTonValue: MatcherFunction<[v: unknown]> = function (actual, v) 
     }
 }
 
-expect.extend({
-    toBeBetween,
-    toBeTonValue,
-})
-
-declare module 'expect' {
-    interface AsymmetricMatchers {
-        toBeBetween(a: bigint | string, b: bigint | string): void
-        toBeTonValue(v: bigint | string): void
-    }
-    interface Matchers<R> {
-        toBeBetween(a: bigint | string, b: bigint | string): R
-        toBeTonValue(v: bigint | string): R
-    }
-}
-
 export const emptyNewStakeMsg = beginCell()
     .storeUint(0, 256)
     .storeUint(0, 32)
@@ -112,7 +96,7 @@ export async function createNewStakeMsg(loanAddress: Address, roundSince: bigint
         .storeBuffer(loanAddress.hash, 32) // 256 bits
         .storeBuffer(adnl.publicKey, 32) // 256 bits
         .endCell()
-    const signature = sign(confirmation.bits.subbuffer(0, 608) || Buffer.from(''), keypair.secretKey)
+    const signature = sign(confirmation.bits.subbuffer(0, 608) ?? Buffer.from(''), keypair.secretKey)
     return beginCell()
         .storeBuffer(keypair.publicKey, 32) // 256 bits
         .storeUint(roundSince, 32)
@@ -127,8 +111,8 @@ export function createVset(since: bigint, until: bigint, total?: bigint, main?: 
         .storeUint(0x12, 8)
         .storeUint(since, 32)
         .storeUint(until, 32)
-        .storeUint(total || 1n, 16)
-        .storeUint(main || 1n, 16)
+        .storeUint(total ?? 1n, 16)
+        .storeUint(main ?? 1n, 16)
         .storeMaybeRef(list)
         .endCell()
 }
@@ -144,11 +128,11 @@ export function setConfig(blockchain: Blockchain, index: bigint, value: Cell) {
 
 export function getElector(blockchain: Blockchain): Address {
     const config = Dictionary.loadDirect(Dictionary.Keys.BigInt(32), Dictionary.Values.Cell(), blockchain.config)
-    const electorAddr = config.get(1n)?.beginParse().loadUintBig(256) || 0n
+    const electorAddr = config.get(1n)?.beginParse().loadUintBig(256) ?? 0n
     return Address.parseRaw('-1:' + electorAddr.toString(16))
 }
 
-export let totalFees: bigint = 0n
+export let totalFees = 0n
 
 export function accumulateFees(transactions: BlockchainTransaction[]) {
     totalFees = transactions.reduce((acc, tx) => acc + tx.totalFees.coins, totalFees)
@@ -170,8 +154,8 @@ export function logCodeSizes(treasuryCode: Cell, walletCode: Cell, loanCode: Cel
 }
 
 export function logComputeGas(opLabel: string, opCode: number, tx: BlockchainTransaction) {
-    if (!bodyOp(opCode)(tx.inMessage?.body || Cell.EMPTY)) {
-        throw 'invalida transaction to log compute gas for op ' + opLabel
+    if (!bodyOp(opCode)(tx.inMessage?.body ?? Cell.EMPTY)) {
+        throw new Error('invalida transaction to log compute gas for op ' + opLabel)
     }
     const logs = tx.blockchainLogs
     const usedIndex = logs.indexOf('used=')
@@ -179,7 +163,7 @@ export function logComputeGas(opLabel: string, opCode: number, tx: BlockchainTra
     const usedGas = logs.substring(usedIndex + 5, commaIndex)
     const roundedGas = Math.ceil((parseInt(usedGas, 10) / 1000) * 1.2) * 1000
     if (logs.lastIndexOf('used=') !== usedIndex) {
-        throw 'unexpected second "used" field in calculating gas'
+        throw new Error('unexpected second "used" field in calculating gas')
     }
     if (!muteLogComputeGas) {
         console.info('compute gas for   gas::%s:   used: %s   rounded up: %s', opLabel, usedGas, roundedGas)

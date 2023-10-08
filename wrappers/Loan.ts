@@ -1,6 +1,6 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider } from 'ton-core'
 
-export type LoanConfig = {
+export interface LoanConfig {
     elector?: Address
     treasury: Address
     validator: Address

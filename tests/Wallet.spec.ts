@@ -19,7 +19,7 @@ describe('Wallet', () => {
     let walletCode: Cell
     let loanCode: Cell
 
-    afterAll(async () => {
+    afterAll(() => {
         logTotalFees()
     })
 
@@ -62,8 +62,8 @@ describe('Wallet', () => {
                     rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
                     content: Cell.EMPTY,
                 },
-                treasuryCode
-            )
+                treasuryCode,
+            ),
         )
 
         const deployer = await blockchain.treasury('deployer')
@@ -85,7 +85,9 @@ describe('Wallet', () => {
         await treasury.sendTopUp(deployer.getSender(), { value: fees.treasuryStorage })
     })
 
-    it('should deploy treasury', async () => {})
+    it('should deploy treasury', () => {
+        return
+    })
 
     it('should deposit coins', async () => {
         const staker = await blockchain.treasury('staker')
@@ -664,7 +666,7 @@ describe('Wallet', () => {
                 code: treasuryCode,
                 data: fakeData,
                 balance: await treasury.getBalance(),
-            })
+            }),
         )
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
@@ -743,7 +745,7 @@ describe('Wallet', () => {
                 code: treasuryCode,
                 data: fakeData,
                 balance: toNano('5') + toNano('10'),
-            })
+            }),
         )
         const result = await wallet.sendWithdrawTokens(staker.getSender(), { value: '0.1' })
 

@@ -9,7 +9,7 @@ import {
     TupleBuilder,
 } from 'ton-core'
 
-export type ElectorConfig = {
+export interface ElectorConfig {
     currentElection?: Cell
     credits?: Dictionary<bigint, bigint>
     pastElections?: Cell
@@ -23,13 +23,13 @@ export function electorConfigToCell(config: ElectorConfig): Cell {
         .storeMaybeRef(config.currentElection)
         .storeDict(config.credits)
         .storeMaybeRef(config.pastElections)
-        .storeCoins(config.coins || 0)
-        .storeUint(config.activeId || 0, 32)
-        .storeUint(config.activeHash || 0, 256)
+        .storeCoins(config.coins ?? 0)
+        .storeUint(config.activeId ?? 0, 32)
+        .storeUint(config.activeHash ?? 0, 256)
         .endCell()
 }
 
-export type ElectionConfig = {
+export interface ElectionConfig {
     electAt?: bigint
     electClose?: bigint
     minStake?: bigint
@@ -41,13 +41,13 @@ export type ElectionConfig = {
 
 export function createElectionConfig(config: ElectionConfig): Cell {
     return beginCell()
-        .storeUint(config.electAt || 0, 32)
-        .storeUint(config.electClose || 0, 32)
-        .storeCoins(config.minStake || 0)
-        .storeCoins(config.totalStake || 0)
+        .storeUint(config.electAt ?? 0, 32)
+        .storeUint(config.electClose ?? 0, 32)
+        .storeCoins(config.minStake ?? 0)
+        .storeCoins(config.totalStake ?? 0)
         .storeMaybeRef(config.members)
-        .storeBit(config.failed || false)
-        .storeBit(config.finished || false)
+        .storeBit(config.failed ?? false)
+        .storeBit(config.finished ?? false)
         .endCell()
 }
 
