@@ -16,7 +16,7 @@ import {
 } from 'ton-core'
 import { op, tonValue } from './common'
 
-export type Times = {
+export interface Times {
     currentRoundSince: bigint
     participateSince: bigint
     participateUntil: bigint
@@ -25,7 +25,7 @@ export type Times = {
     stakeHeldFor: bigint
 }
 
-export type Fees = {
+export interface Fees {
     depositCoinsFee: bigint
     unstakeTokensFee: bigint
     sendTokensFee: bigint
@@ -35,9 +35,7 @@ export type Fees = {
     loanStorage: bigint
 }
 
-export type True = {}
-
-export type Reward = {
+export interface Reward {
     staked: bigint
     recovered: bigint
 }
@@ -51,7 +49,7 @@ export enum ParticipationState {
     Recovering,
 }
 
-export type Request = {
+export interface Request {
     minPayment: bigint
     validatorRewardShare: bigint
     loanAmount: bigint
@@ -60,10 +58,10 @@ export type Request = {
     newStakeMsg: Cell
 }
 
-export type Participation = {
+export interface Participation {
     state?: ParticipationState
     size?: bigint
-    sorted?: Dictionary<bigint, Dictionary<bigint, True>>
+    sorted?: Dictionary<bigint, Dictionary<bigint, unknown>>
     requests?: Dictionary<bigint, Request>
     rejected?: Dictionary<bigint, Request>
     accepted?: Dictionary<bigint, Request>
@@ -77,7 +75,7 @@ export type Participation = {
     stakeHeldUntil?: bigint
 }
 
-export type TreasuryConfig = {
+export interface TreasuryConfig {
     totalCoins: bigint
     totalTokens: bigint
     totalStaking: bigint
@@ -105,13 +103,13 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeMaybeRef(config.proposedGovernor)
         .storeUint(config.governanceFee, 16)
         .storeDict(config.rewardsHistory)
-        .storeRef(config.content || Cell.EMPTY)
+        .storeRef(config.content)
     return beginCell()
-        .storeCoins(config.totalCoins || 0)
-        .storeCoins(config.totalTokens || 0)
-        .storeCoins(config.totalStaking || 0)
-        .storeCoins(config.totalUnstaking || 0)
-        .storeCoins(config.totalValidatorsStake || 0)
+        .storeCoins(config.totalCoins)
+        .storeCoins(config.totalTokens)
+        .storeCoins(config.totalStaking)
+        .storeCoins(config.totalUnstaking)
+        .storeCoins(config.totalValidatorsStake)
         .storeDict(config.participations)
         .storeBit(config.balancedRounds)
         .storeBit(config.stopped)
@@ -121,9 +119,11 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .endCell()
 }
 
-export const trueDictionaryValue: DictionaryValue<True> = {
-    serialize: function (src: True, builder: Builder) {},
-    parse: function (src: Slice): True {
+export const emptyDictionaryValue: DictionaryValue<unknown> = {
+    serialize: function () {
+        return
+    },
+    parse: function (): unknown {
         return {}
     },
 }
@@ -140,12 +140,12 @@ export const rewardDictionaryValue: DictionaryValue<Reward> = {
     },
 }
 
-export const sortedDictionaryValue: DictionaryValue<Dictionary<bigint, True>> = {
-    serialize: function (src: Dictionary<bigint, True>, builder: Builder) {
+export const sortedDictionaryValue: DictionaryValue<Dictionary<bigint, unknown>> = {
+    serialize: function (src: Dictionary<bigint, unknown>, builder: Builder) {
         builder.storeRef(beginCell().storeDictDirect(src))
     },
-    parse: function (src: Slice): Dictionary<bigint, True> {
-        return src.loadRef().beginParse().loadDictDirect(Dictionary.Keys.BigUint(256), trueDictionaryValue)
+    parse: function (src: Slice): Dictionary<bigint, unknown> {
+        return src.loadRef().beginParse().loadDictDirect(Dictionary.Keys.BigUint(256), emptyDictionaryValue)
     },
 }
 
@@ -174,8 +174,8 @@ export const requestDictionaryValue: DictionaryValue<Request> = {
 export const participationDictionaryValue: DictionaryValue<Participation> = {
     serialize: function (src: Participation, builder: Builder) {
         builder
-            .storeUint(src.state || 0, 3)
-            .storeUint(src.size || 0, 16)
+            .storeUint(src.state ?? 0, 3)
+            .storeUint(src.size ?? 0, 16)
             .storeDict(src.sorted)
             .storeDict(src.requests)
             .storeDict(src.rejected)
@@ -183,11 +183,11 @@ export const participationDictionaryValue: DictionaryValue<Participation> = {
             .storeDict(src.accrued)
             .storeDict(src.staked)
             .storeDict(src.recovering)
-            .storeCoins(src.totalStaked || 0)
-            .storeCoins(src.totalRecovered || 0)
-            .storeUint(src.currentVsetHash || 0, 256)
-            .storeUint(src.stakeHeldFor || 0, 32)
-            .storeUint(src.stakeHeldUntil || 0, 32)
+            .storeCoins(src.totalStaked ?? 0)
+            .storeCoins(src.totalRecovered ?? 0)
+            .storeUint(src.currentVsetHash ?? 0, 256)
+            .storeUint(src.stakeHeldFor ?? 0, 32)
+            .storeUint(src.stakeHeldUntil ?? 0, 32)
     },
     parse: function (src: Slice): Participation {
         return {
@@ -230,7 +230,7 @@ export class Treasury implements Contract {
             bounce?: boolean
             sendMode?: SendMode
             body?: Cell | string
-        }
+        },
     ) {
         await provider.internal(via, opts)
     }
@@ -243,7 +243,7 @@ export class Treasury implements Contract {
             bounce?: boolean
             sendMode?: SendMode
             queryId?: bigint
-        }
+        },
     ) {
         await this.sendTopUp(provider, via, opts)
     }
@@ -256,7 +256,7 @@ export class Treasury implements Contract {
             bounce?: boolean
             sendMode?: SendMode
             queryId?: bigint
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -264,7 +264,7 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.topUp, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .endCell(),
         })
     }
@@ -278,11 +278,11 @@ export class Treasury implements Contract {
             sendMode?: SendMode
             queryId?: bigint
             referrer?: Address
-        }
+        },
     ) {
         const builder = beginCell()
             .storeUint(op.depositCoins, 32)
-            .storeUint(opts.queryId || 0, 64)
+            .storeUint(opts.queryId ?? 0, 64)
         if (opts.referrer != undefined) {
             builder.storeAddress(opts.referrer)
         }
@@ -304,7 +304,7 @@ export class Treasury implements Contract {
             queryId?: bigint
             owner: Address
             includeAddress?: boolean
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -312,9 +312,9 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.provideWalletAddress, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .storeAddress(opts.owner)
-                .storeBit(opts.includeAddress || false)
+                .storeBit(opts.includeAddress ?? false)
                 .endCell(),
         })
     }
@@ -332,7 +332,7 @@ export class Treasury implements Contract {
             minPayment: bigint | string
             validatorRewardShare: bigint
             newStakeMsg: Cell
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -340,7 +340,7 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.requestLoan, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .storeUint(opts.roundSince, 32)
                 .storeCoins(tonValue(opts.loanAmount))
                 .storeCoins(tonValue(opts.minPayment))
@@ -355,11 +355,11 @@ export class Treasury implements Contract {
         opts: {
             queryId?: bigint
             roundSince: bigint
-        }
+        },
     ) {
         const message = beginCell()
             .storeUint(op.participateInElection, 32)
-            .storeUint(opts.queryId || 0, 64)
+            .storeUint(opts.queryId ?? 0, 64)
             .storeUint(opts.roundSince, 32)
             .endCell()
         await provider.external(message)
@@ -370,11 +370,11 @@ export class Treasury implements Contract {
         opts: {
             queryId?: bigint
             roundSince: bigint
-        }
+        },
     ) {
         const message = beginCell()
             .storeUint(op.vsetChanged, 32)
-            .storeUint(opts.queryId || 0, 64)
+            .storeUint(opts.queryId ?? 0, 64)
             .storeUint(opts.roundSince, 32)
             .endCell()
         await provider.external(message)
@@ -385,11 +385,11 @@ export class Treasury implements Contract {
         opts: {
             queryId?: bigint
             roundSince: bigint
-        }
+        },
     ) {
         const message = beginCell()
             .storeUint(op.finishParticipation, 32)
-            .storeUint(opts.queryId || 0, 64)
+            .storeUint(opts.queryId ?? 0, 64)
             .storeUint(opts.roundSince, 32)
             .endCell()
         await provider.external(message)
@@ -404,7 +404,7 @@ export class Treasury implements Contract {
             sendMode?: SendMode
             queryId?: bigint
             newGovernor: Address
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -412,7 +412,7 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.proposeGovernor, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .storeAddress(opts.newGovernor)
                 .endCell(),
         })
@@ -426,7 +426,7 @@ export class Treasury implements Contract {
             bounce?: boolean
             sendMode?: SendMode
             queryId?: bigint
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -434,7 +434,7 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.acceptGovernance, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .endCell(),
         })
     }
@@ -448,7 +448,7 @@ export class Treasury implements Contract {
             sendMode?: SendMode
             queryId?: bigint
             newHalter: Address
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -456,7 +456,7 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.setHalter, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .storeAddress(opts.newHalter)
                 .endCell(),
         })
@@ -471,7 +471,7 @@ export class Treasury implements Contract {
             sendMode?: SendMode
             queryId?: bigint
             newStopped: boolean
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -479,7 +479,7 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.setStopped, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .storeBit(opts.newStopped)
                 .endCell(),
         })
@@ -494,7 +494,7 @@ export class Treasury implements Contract {
             sendMode?: SendMode
             queryId?: bigint
             newDriver: Address
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -502,7 +502,7 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.setDriver, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .storeAddress(opts.newDriver)
                 .endCell(),
         })
@@ -517,7 +517,7 @@ export class Treasury implements Contract {
             sendMode?: SendMode
             queryId?: bigint
             newContent: Cell
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -525,7 +525,7 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.setContent, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .storeRef(opts.newContent)
                 .endCell(),
         })
@@ -540,7 +540,7 @@ export class Treasury implements Contract {
             sendMode?: SendMode
             queryId?: bigint
             newGovernanceFee: bigint
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -548,7 +548,7 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.setGovernanceFee, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .storeUint(opts.newGovernanceFee, 16)
                 .endCell(),
         })
@@ -563,7 +563,7 @@ export class Treasury implements Contract {
             sendMode?: SendMode
             queryId?: bigint
             newBalancedRounds: boolean
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -571,7 +571,7 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.setBalancedRounds, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .storeBit(opts.newBalancedRounds)
                 .endCell(),
         })
@@ -588,7 +588,7 @@ export class Treasury implements Contract {
             validator: Address
             roundSince: bigint
             message: Cell
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -596,7 +596,7 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.sendMessageToLoan, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .storeAddress(opts.validator)
                 .storeUint(opts.roundSince, 32)
                 .storeRef(opts.message)
@@ -613,7 +613,7 @@ export class Treasury implements Contract {
             sendMode?: SendMode
             queryId?: bigint
             roundSince: bigint
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -621,7 +621,7 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.sendProcessLoanRequests, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .storeUint(opts.roundSince, 32)
                 .endCell(),
         })
@@ -637,7 +637,7 @@ export class Treasury implements Contract {
             queryId?: bigint
             newCode: Cell
             rest?: Builder
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -645,9 +645,9 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.upgradeCode, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .storeRef(opts.newCode)
-                .storeBuilder(opts.rest || beginCell())
+                .storeBuilder(opts.rest ?? beginCell())
                 .endCell(),
         })
     }
@@ -660,7 +660,7 @@ export class Treasury implements Contract {
             bounce?: boolean
             sendMode?: SendMode
             queryId?: bigint
-        }
+        },
     ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
@@ -668,7 +668,7 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.withdrawSurplus, 32)
-                .storeUint(opts.queryId || 0, 64)
+                .storeUint(opts.queryId ?? 0, 64)
                 .endCell(),
         })
     }
@@ -716,7 +716,7 @@ export class Treasury implements Contract {
             participations: Dictionary.loadDirect(
                 Dictionary.Keys.BigUint(32),
                 participationDictionaryValue,
-                stack.readCellOpt()
+                stack.readCellOpt(),
             ),
             balancedRounds: stack.readBoolean(),
             stopped: stack.readBoolean(),
@@ -730,7 +730,7 @@ export class Treasury implements Contract {
             rewardsHistory: Dictionary.loadDirect(
                 Dictionary.Keys.BigUint(32),
                 rewardDictionaryValue,
-                stack.readCellOpt()
+                stack.readCellOpt(),
             ),
             content: stack.readCell(),
         }
@@ -752,7 +752,7 @@ export class Treasury implements Contract {
             recovering: Dictionary.loadDirect(
                 Dictionary.Keys.BigUint(256),
                 requestDictionaryValue,
-                stack.readCellOpt()
+                stack.readCellOpt(),
             ),
             totalStaked: stack.readBigNumber(),
             totalRecovered: stack.readBigNumber(),

@@ -1,6 +1,5 @@
 import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton-community/sandbox'
-import '@ton-community/test-utils'
 import { Address, Cell, Dictionary, beginCell, toNano } from 'ton-core'
 import {
     between,
@@ -36,7 +35,7 @@ describe('Loan', () => {
     let loanCode: Cell
     let electorCode: Cell
 
-    afterAll(async () => {
+    afterAll(() => {
         logTotalFees()
     })
 
@@ -81,8 +80,8 @@ describe('Loan', () => {
                     rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
                     content: Cell.EMPTY,
                 },
-                treasuryCode
-            )
+                treasuryCode,
+            ),
         )
 
         const deployer = await blockchain.treasury('deployer')
@@ -106,7 +105,9 @@ describe('Loan', () => {
         electorAddress = getElector(blockchain)
     })
 
-    it('should deploy treasury', async () => {})
+    it('should deploy treasury', () => {
+        return
+    })
 
     it('should save a loan request', async () => {
         const times = await treasury.getTimes()
@@ -170,7 +171,7 @@ describe('Loan', () => {
                 code: electorCode,
                 data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: until1 }) }),
                 balance: toNano('1'),
-            })
+            }),
         )
 
         const validator1 = await blockchain.treasury('validator1')
@@ -334,7 +335,7 @@ describe('Loan', () => {
                 code: electorCode,
                 data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: until1 }) }),
                 balance: toNano('1'),
-            })
+            }),
         )
 
         const validator1 = await blockchain.treasury('validator1')
@@ -455,7 +456,7 @@ describe('Loan', () => {
                 code: electorCode,
                 data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: until1 }) }),
                 balance: toNano('1'),
-            })
+            }),
         )
 
         const validator1 = await blockchain.treasury('validator1')
@@ -512,7 +513,7 @@ describe('Loan', () => {
                 code: electorCode,
                 data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: until1 }), credits }),
                 balance: toNano('350260') + toNano('350270') + toNano('1'),
-            })
+            }),
         )
 
         const vset3 = createVset(0n, 1n)
@@ -524,7 +525,7 @@ describe('Loan', () => {
         await treasury.sendVsetChanged({ roundSince: until1 })
 
         const state = await treasury.getTreasuryState()
-        const participation = state.participations.get(until1) || {}
+        const participation = state.participations.get(until1) ?? {}
         participation.stakeHeldUntil = 0n // set stake_held_until to zero
         state.participations.set(until1, participation)
         const fakeData = treasuryConfigToCell(state)
@@ -536,7 +537,7 @@ describe('Loan', () => {
                 code: treasuryCode,
                 data: fakeData,
                 balance: toNano('10'),
-            })
+            }),
         )
         const result = await treasury.sendFinishParticipation({ roundSince: until1 })
 
@@ -692,7 +693,7 @@ describe('Loan', () => {
                 code: electorCode,
                 data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: 0n }) }),
                 balance: toNano('1'),
-            })
+            }),
         )
 
         const validator1 = await blockchain.treasury('validator1')
@@ -887,7 +888,7 @@ describe('Loan', () => {
                 code: electorCode,
                 data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: 0n }) }),
                 balance: toNano('1'),
-            })
+            }),
         )
 
         const validator1 = await blockchain.treasury('validator1')
@@ -1020,7 +1021,7 @@ describe('Loan', () => {
                 code: electorCode,
                 data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: until1 }) }),
                 balance: toNano('1'),
-            })
+            }),
         )
 
         const validator1 = await blockchain.treasury('validator1')
@@ -1167,7 +1168,7 @@ describe('Loan', () => {
                 code: electorCode,
                 data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: until1 }) }),
                 balance: toNano('1'),
-            })
+            }),
         )
 
         const validator = await blockchain.treasury('validator')
@@ -1209,7 +1210,7 @@ describe('Loan', () => {
                 code: electorCode,
                 data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: until1 }), credits }),
                 balance: toNano('350260') + toNano('350270') + toNano('1'),
-            })
+            }),
         )
 
         const vset3 = createVset(0n, 1n)
@@ -1225,7 +1226,7 @@ describe('Loan', () => {
         expect(result4.transactions).toHaveLength(1)
 
         const state = await treasury.getTreasuryState()
-        const participation = state.participations.get(until1) || {}
+        const participation = state.participations.get(until1) ?? {}
         participation.stakeHeldUntil = 0n // set stake_held_until to zero
         state.participations.set(until1, participation)
         const fakeData = treasuryConfigToCell(state)
@@ -1237,7 +1238,7 @@ describe('Loan', () => {
                 code: treasuryCode,
                 data: fakeData,
                 balance: toNano('10'),
-            })
+            }),
         )
         const result5 = await treasury.sendFinishParticipation({ roundSince: until1 })
 
@@ -1312,7 +1313,7 @@ describe('Loan', () => {
                 code: treasuryCode,
                 data: fakeData1,
                 balance: toNano('10') + toNano('1001.72') * count,
-            })
+            }),
         )
 
         const validator = await blockchain.treasury('validator')

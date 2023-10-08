@@ -1,19 +1,7 @@
 import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton-community/sandbox'
-import '@ton-community/test-utils'
-import { Address, Cell, Dictionary, beginCell, toNano } from 'ton-core'
-import {
-    bodyOp,
-    createVset,
-    emptyNewStakeMsg,
-    getElector,
-    logTotalFees,
-    accumulateFees,
-    setConfig,
-    between,
-    logComputeGas,
-    createNewStakeMsg,
-} from './helper'
+import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
+import { bodyOp, createVset, emptyNewStakeMsg, logTotalFees, accumulateFees, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
 import {
     Fees,
@@ -26,17 +14,13 @@ import {
     sortedDictionaryValue,
     treasuryConfigToCell,
 } from '../wrappers/Treasury'
-import { Loan } from '../wrappers/Loan'
-import { Wallet } from '../wrappers/Wallet'
-import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-test/Elector'
 
 describe('Large number of loan requests', () => {
     let treasuryCode: Cell
     let walletCode: Cell
     let loanCode: Cell
-    let electorCode: Cell
 
-    afterAll(async () => {
+    afterAll(() => {
         logTotalFees()
     })
 
@@ -44,7 +28,6 @@ describe('Large number of loan requests', () => {
         treasuryCode = await compile('Treasury')
         walletCode = await compile('Wallet')
         loanCode = await compile('Loan')
-        electorCode = await compile('elector-test/Elector')
     })
 
     let blockchain: Blockchain
@@ -53,7 +36,6 @@ describe('Large number of loan requests', () => {
     let halter: SandboxContract<TreasuryContract>
     let governor: SandboxContract<TreasuryContract>
     let fees: Fees
-    let electorAddress: Address
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
@@ -81,8 +63,8 @@ describe('Large number of loan requests', () => {
                     rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
                     content: Cell.EMPTY,
                 },
-                treasuryCode
-            )
+                treasuryCode,
+            ),
         )
 
         const deployer = await blockchain.treasury('deployer')
@@ -102,11 +84,11 @@ describe('Large number of loan requests', () => {
         fees = await treasury.getFees()
 
         await treasury.sendTopUp(deployer.getSender(), { value: fees.treasuryStorage })
-
-        electorAddress = getElector(blockchain)
     })
 
-    it('should deploy treasury', async () => {})
+    it('should deploy treasury', () => {
+        return
+    })
 
     it('should send a big batch of messages to recover stakes', async () => {
         const times = await treasury.getTimes()
@@ -146,7 +128,7 @@ describe('Large number of loan requests', () => {
                 code: treasuryCode,
                 data: fakeData,
                 balance: toNano('10') + toNano('1') * count,
-            })
+            }),
         )
 
         const result = await treasury.sendFinishParticipation({ roundSince: until1 })
@@ -222,7 +204,7 @@ describe('Large number of loan requests', () => {
                 code: treasuryCode,
                 data: fakeData,
                 balance: toNano('10') + toNano('1001.72') * (count1 + count2 + count3) + toNano('300000') * count3,
-            })
+            }),
         )
 
         const since2 = BigInt(Math.floor(Date.now() / 1000)) - times.participateSince + times.currentRoundSince
@@ -233,8 +215,8 @@ describe('Large number of loan requests', () => {
 
         let sendNewStakeCount = 0n
         let requestRejectedCount = 0n
-        for (let i = 0; i < result.transactions.length; i += 1) {
-            const bodyOp = result.transactions[i].inMessage?.body.beginParse().loadUint(32)
+        for (const transaction of result.transactions) {
+            const bodyOp = transaction.inMessage?.body.beginParse().loadUint(32)
             if (bodyOp === op.sendNewStake) {
                 sendNewStakeCount += 1n
             } else if (bodyOp === op.requestRejected) {

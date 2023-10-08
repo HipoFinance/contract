@@ -12,7 +12,7 @@ describe('Text Interface', () => {
     let walletCode: Cell
     let loanCode: Cell
 
-    afterAll(async () => {
+    afterAll(() => {
         logCodeSizes(treasuryCode, walletCode, loanCode)
         logTotalFees()
     })
@@ -56,8 +56,8 @@ describe('Text Interface', () => {
                     rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
                     content: Cell.EMPTY,
                 },
-                treasuryCode
-            )
+                treasuryCode,
+            ),
         )
 
         const deployer = await blockchain.treasury('deployer')
@@ -79,7 +79,9 @@ describe('Text Interface', () => {
         await treasury.sendTopUp(deployer.getSender(), { value: fees.treasuryStorage })
     })
 
-    it('should deploy treasury', async () => {})
+    it('should deploy treasury', () => {
+        return
+    })
 
     it('should deposit coins for comment d', async () => {
         const staker = await blockchain.treasury('staker')

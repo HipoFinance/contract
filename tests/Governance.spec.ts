@@ -1,6 +1,5 @@
 import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton-community/sandbox'
-import '@ton-community/test-utils'
 import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
 import { between, bodyOp, createVset, emptyNewStakeMsg, logTotalFees, accumulateFees, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
@@ -22,7 +21,7 @@ describe('Treasury', () => {
     let onlyUpgradeCode: Cell
     let resetDataCode: Cell
 
-    afterAll(async () => {
+    afterAll(() => {
         logTotalFees()
     })
 
@@ -67,8 +66,8 @@ describe('Treasury', () => {
                     rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
                     content: Cell.EMPTY,
                 },
-                treasuryCode
-            )
+                treasuryCode,
+            ),
         )
 
         const deployer = await blockchain.treasury('deployer')
@@ -90,7 +89,9 @@ describe('Treasury', () => {
         await treasury.sendTopUp(deployer.getSender(), { value: fees.treasuryStorage })
     })
 
-    it('should deploy treasury', async () => {})
+    it('should deploy treasury', () => {
+        return
+    })
 
     it('should propose governor', async () => {
         const newGovernor = await blockchain.treasury('newGovernor')
@@ -118,7 +119,7 @@ describe('Treasury', () => {
         expect(result.transactions).toHaveLength(3)
 
         const treasuryState = await treasury.getTreasuryState()
-        const proposedGovernor = (treasuryState.proposedGovernor || Cell.EMPTY).beginParse()
+        const proposedGovernor = (treasuryState.proposedGovernor ?? Cell.EMPTY).beginParse()
         const after = Math.floor(Date.now() / 1000) + 60 * 60 * 24
         expect(Math.abs(proposedGovernor.loadUint(32) - after) <= 1).toBeTruthy()
         expect(proposedGovernor.loadAddress().equals(newGovernor.address)).toBeTruthy()
@@ -142,7 +143,7 @@ describe('Treasury', () => {
                 code: treasuryCode,
                 data: fakeData,
                 balance: toNano('10'),
-            })
+            }),
         )
         const result = await treasury.sendAcceptGovernance(newGovernor.getSender(), { value: '0.1' })
 
@@ -481,7 +482,7 @@ describe('Treasury', () => {
                 code: treasuryCode,
                 data: fakeData,
                 balance: toNano('10'),
-            })
+            }),
         )
 
         const result = await treasury.sendSendProcessLoanRequests(halter.getSender(), {
@@ -677,7 +678,7 @@ describe('Treasury', () => {
                 code: treasuryCode,
                 data: fakeData,
                 balance: toNano('10') + toNano('801000') + 16n * toNano('0.9') + toNano('20'),
-            })
+            }),
         )
         const result = await treasury.sendWithdrawSurplus(governor.getSender(), { value: '0.1' })
 
