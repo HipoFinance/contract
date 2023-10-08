@@ -1,4 +1,15 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Dictionary, Sender, SendMode, Slice } from 'ton-core'
+import {
+    Address,
+    beginCell,
+    Cell,
+    Contract,
+    contractAddress,
+    ContractProvider,
+    Dictionary,
+    Sender,
+    SendMode,
+    Slice,
+} from 'ton-core'
 import { op, tonValue } from './common'
 
 type WalletConfig = {
@@ -26,7 +37,7 @@ function toStakingDict(dict: Cell | null): Dictionary<bigint, bigint> {
 }
 
 export class Wallet implements Contract {
-    constructor(readonly address: Address, readonly init?: { code: Cell, data: Cell }) {}
+    constructor(readonly address: Address, readonly init?: { code: Cell; data: Cell }) {}
 
     static createFromAddress(address: Address) {
         return new Wallet(address)
@@ -38,21 +49,29 @@ export class Wallet implements Contract {
         return new Wallet(contractAddress(workchain, init), init)
     }
 
-    async sendMessage(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        body?: Cell | string
-    }) {
+    async sendMessage(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            body?: Cell | string
+        }
+    ) {
         await provider.internal(via, opts)
     }
 
-    async sendTopUp(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-    }) {
+    async sendTopUp(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -60,18 +79,22 @@ export class Wallet implements Contract {
             body: beginCell()
                 .storeUint(op.topUp, 32)
                 .storeUint(opts.queryId || 0, 64)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendStakeCoins(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        roundSince: bigint
-        returnExcess?: Address
-    }) {
+    async sendStakeCoins(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            roundSince: bigint
+            returnExcess?: Address
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -81,22 +104,26 @@ export class Wallet implements Contract {
                 .storeUint(opts.queryId || 0, 64)
                 .storeUint(opts.roundSince, 32)
                 .storeAddress(opts.returnExcess)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendSendTokens(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        tokens: bigint | string
-        recipient: Address
-        returnExcess?: Address
-        customPayload?: Cell
-        forwardTonAmount?: bigint | string
-        forwardPayload?: Slice
-    }) {
+    async sendSendTokens(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            tokens: bigint | string
+            recipient: Address
+            returnExcess?: Address
+            customPayload?: Cell
+            forwardTonAmount?: bigint | string
+            forwardPayload?: Slice
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -110,19 +137,23 @@ export class Wallet implements Contract {
                 .storeMaybeRef(opts.customPayload)
                 .storeCoins(tonValue(opts.forwardTonAmount || 0n))
                 .storeSlice(opts.forwardPayload || beginCell().storeUint(0, 1).endCell().beginParse())
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendUnstakeTokens(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        tokens: bigint | string
-        returnExcess?: Address
-        customPayload?: Cell
-    }) {
+    async sendUnstakeTokens(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            tokens: bigint | string
+            returnExcess?: Address
+            customPayload?: Cell
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -133,17 +164,21 @@ export class Wallet implements Contract {
                 .storeCoins(tonValue(opts.tokens))
                 .storeAddress(opts.returnExcess)
                 .storeMaybeRef(opts.customPayload)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendWithdrawTokens(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        returnExcess?: Address
-    }) {
+    async sendWithdrawTokens(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            returnExcess?: Address
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -152,16 +187,20 @@ export class Wallet implements Contract {
                 .storeUint(op.withdrawTokens, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeAddress(opts.returnExcess)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendWithdrawSurplus(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-    }) {
+    async sendWithdrawSurplus(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -169,18 +208,18 @@ export class Wallet implements Contract {
             body: beginCell()
                 .storeUint(op.withdrawSurplus, 32)
                 .storeUint(opts.queryId || 0, 64)
-                .endCell()
+                .endCell(),
         })
     }
 
     async getWalletData(provider: ContractProvider): Promise<[bigint, Address, Address, Cell]> {
         const { stack } = await provider.get('get_wallet_data', [])
-        return [ stack.readBigNumber(), stack.readAddress(), stack.readAddress(), stack.readCell() ]
+        return [stack.readBigNumber(), stack.readAddress(), stack.readAddress(), stack.readCell()]
     }
 
     async getWalletState(provider: ContractProvider): Promise<[bigint, Dictionary<bigint, bigint>, bigint]> {
         const { stack } = await provider.get('get_wallet_state', [])
-        return [ stack.readBigNumber(), toStakingDict(stack.readCellOpt()), stack.readBigNumber() ]
+        return [stack.readBigNumber(), toStakingDict(stack.readCellOpt()), stack.readBigNumber()]
     }
 
     async getBalance(provider: ContractProvider): Promise<bigint> {

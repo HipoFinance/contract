@@ -3,7 +3,7 @@ import { Treasury } from '../wrappers/Treasury'
 import { NetworkProvider } from '@ton-community/blueprint'
 
 export async function run(provider: NetworkProvider) {
-    const ui = provider.ui();
+    const ui = provider.ui()
 
     console.info('Setting driver')
 
@@ -16,5 +16,5 @@ export async function run(provider: NetworkProvider) {
 
     await treasury.sendSetDriver(provider.sender(), { value: '0.1', newDriver: driverAddress })
 
-    ui.write('Done');
+    ui.write('Done')
 }

@@ -3,18 +3,18 @@ import { Treasury } from '../wrappers/Treasury'
 import { NetworkProvider, compile } from '@ton-community/blueprint'
 
 export async function run(provider: NetworkProvider) {
-    const ui = provider.ui();
+    const ui = provider.ui()
 
     const newCode = await compile('Treasury')
     const additionalData = beginCell()
 
     console.info()
     console.info('UPGRADING CODE')
-    console.info("==============")
-    console.info("1. Check upgrade_code in treasury.fc before proceeding\n")
-    console.info("2. Check upgrade_data in treasury.fc before proceeding\n")
-    console.info("3. Check additional data to be sent alongside the upgrade in this script")
-    console.info("==============")
+    console.info('==============')
+    console.info('1. Check upgrade_code in treasury.fc before proceeding\n')
+    console.info('2. Check upgrade_data in treasury.fc before proceeding\n')
+    console.info('3. Check additional data to be sent alongside the upgrade in this script')
+    console.info('==============')
     console.info()
 
     const addressString = await ui.input('Enter the friendly address of the treasury')
@@ -37,5 +37,5 @@ export async function run(provider: NetworkProvider) {
 
     await treasury.sendUpgradeCode(provider.sender(), { value: '0.1', newCode, rest: additionalData })
 
-    ui.write('Done');
+    ui.write('Done')
 }

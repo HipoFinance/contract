@@ -1,4 +1,4 @@
-import { toNano } from "ton-core"
+import { toNano } from 'ton-core'
 
 export const op = {
     newStake: 0x4e73744b,

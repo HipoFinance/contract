@@ -35,25 +35,30 @@ describe('Text Interface', () => {
         driver = await blockchain.treasury('driver')
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
-        treasury = blockchain.openContract(Treasury.createFromConfig({
-            totalCoins: 0n,
-            totalTokens: 0n,
-            totalStaking: 0n,
-            totalUnstaking: 0n,
-            totalValidatorsStake: 0n,
-            participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
-            balancedRounds: false,
-            stopped: false,
-            walletCode,
-            loanCode,
-            driver: driver.address,
-            halter: halter.address,
-            governor: governor.address,
-            proposedGovernor: null,
-            governanceFee: 4096n,
-            rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
-            content: Cell.EMPTY,
-        }, treasuryCode))
+        treasury = blockchain.openContract(
+            Treasury.createFromConfig(
+                {
+                    totalCoins: 0n,
+                    totalTokens: 0n,
+                    totalStaking: 0n,
+                    totalUnstaking: 0n,
+                    totalValidatorsStake: 0n,
+                    participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
+                    balancedRounds: false,
+                    stopped: false,
+                    walletCode,
+                    loanCode,
+                    driver: driver.address,
+                    halter: halter.address,
+                    governor: governor.address,
+                    proposedGovernor: null,
+                    governanceFee: 4096n,
+                    rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
+                    content: Cell.EMPTY,
+                },
+                treasuryCode
+            )
+        )
 
         const deployer = await blockchain.treasury('deployer')
         const deployResult = await treasury.sendDeploy(deployer.getSender(), { value: '0.01' })
@@ -67,15 +72,14 @@ describe('Text Interface', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(deployResult.transactions).toHaveLength(2);
+        expect(deployResult.transactions).toHaveLength(2)
 
         fees = await treasury.getFees()
 
         await treasury.sendTopUp(deployer.getSender(), { value: fees.treasuryStorage })
     })
 
-    it('should deploy treasury', async () => {
-    })
+    it('should deploy treasury', async () => {})
 
     it('should deposit coins for comment d', async () => {
         const staker = await blockchain.treasury('staker')
@@ -120,7 +124,7 @@ describe('Text Interface', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(fees.walletStorage, '0.1')
         expect(tokens).toBeTonValue('0')
         expect(staking.keys()).toHaveLength(1)
@@ -197,7 +201,7 @@ describe('Text Interface', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
         expect(tokens).toBeTonValue(treasuryState.totalTokens)
         expect(staking.keys()).toHaveLength(0)
@@ -267,7 +271,7 @@ describe('Text Interface', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
         expect(tokens).toBeTonValue('0')
         expect(staking.keys()).toHaveLength(0)
@@ -338,7 +342,7 @@ describe('Text Interface', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
         expect(tokens).toBeBetween('2.8', '2.9')
         expect(staking.keys()).toHaveLength(0)

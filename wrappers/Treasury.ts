@@ -1,4 +1,19 @@
-import { Address, beginCell, Builder, Cell, Contract, contractAddress, ContractProvider, ContractState, Dictionary, DictionaryValue, Sender, SendMode, Slice, TupleBuilder } from 'ton-core'
+import {
+    Address,
+    beginCell,
+    Builder,
+    Cell,
+    Contract,
+    contractAddress,
+    ContractProvider,
+    ContractState,
+    Dictionary,
+    DictionaryValue,
+    Sender,
+    SendMode,
+    Slice,
+    TupleBuilder,
+} from 'ton-core'
 import { op, tonValue } from './common'
 
 export type Times = {
@@ -107,39 +122,35 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
 }
 
 export const trueDictionaryValue: DictionaryValue<True> = {
-    serialize: function(src: True, builder: Builder) {
-    },
-    parse: function(src: Slice): True {
+    serialize: function (src: True, builder: Builder) {},
+    parse: function (src: Slice): True {
         return {}
-    }
+    },
 }
 
 export const rewardDictionaryValue: DictionaryValue<Reward> = {
-    serialize: function(src: Reward, builder: Builder) {
-        builder
-            .storeCoins(src.staked)
-            .storeCoins(src.recovered)
+    serialize: function (src: Reward, builder: Builder) {
+        builder.storeCoins(src.staked).storeCoins(src.recovered)
     },
-    parse: function(src: Slice): Reward {
+    parse: function (src: Slice): Reward {
         return {
             staked: src.loadCoins(),
             recovered: src.loadCoins(),
         }
-    }
+    },
 }
 
 export const sortedDictionaryValue: DictionaryValue<Dictionary<bigint, True>> = {
-    serialize: function(src: Dictionary<bigint, True>, builder: Builder) {
-        builder
-            .storeRef(beginCell().storeDictDirect(src))
+    serialize: function (src: Dictionary<bigint, True>, builder: Builder) {
+        builder.storeRef(beginCell().storeDictDirect(src))
     },
-    parse: function(src: Slice): Dictionary<bigint, True> {
+    parse: function (src: Slice): Dictionary<bigint, True> {
         return src.loadRef().beginParse().loadDictDirect(Dictionary.Keys.BigUint(256), trueDictionaryValue)
-    }
+    },
 }
 
 export const requestDictionaryValue: DictionaryValue<Request> = {
-    serialize: function(src: Request, builder: Builder) {
+    serialize: function (src: Request, builder: Builder) {
         builder
             .storeCoins(src.minPayment)
             .storeUint(src.validatorRewardShare, 8)
@@ -148,7 +159,7 @@ export const requestDictionaryValue: DictionaryValue<Request> = {
             .storeCoins(src.stakeAmount)
             .storeRef(src.newStakeMsg)
     },
-    parse: function(src: Slice): Request {
+    parse: function (src: Slice): Request {
         return {
             minPayment: src.loadCoins(),
             validatorRewardShare: src.loadUintBig(8),
@@ -157,11 +168,11 @@ export const requestDictionaryValue: DictionaryValue<Request> = {
             stakeAmount: src.loadCoins(),
             newStakeMsg: src.loadRef(),
         }
-    }
+    },
 }
 
 export const participationDictionaryValue: DictionaryValue<Participation> = {
-    serialize: function(src: Participation, builder: Builder) {
+    serialize: function (src: Participation, builder: Builder) {
         builder
             .storeUint(src.state || 0, 3)
             .storeUint(src.size || 0, 16)
@@ -178,7 +189,7 @@ export const participationDictionaryValue: DictionaryValue<Participation> = {
             .storeUint(src.stakeHeldFor || 0, 32)
             .storeUint(src.stakeHeldUntil || 0, 32)
     },
-    parse: function(src: Slice): Participation {
+    parse: function (src: Slice): Participation {
         return {
             state: src.loadUint(3),
             size: src.loadUintBig(16),
@@ -195,11 +206,11 @@ export const participationDictionaryValue: DictionaryValue<Participation> = {
             stakeHeldFor: src.loadUintBig(32),
             stakeHeldUntil: src.loadUintBig(32),
         }
-    }
+    },
 }
 
 export class Treasury implements Contract {
-    constructor(readonly address: Address, readonly init?: { code: Cell, data: Cell }) {}
+    constructor(readonly address: Address, readonly init?: { code: Cell; data: Cell }) {}
 
     static createFromAddress(address: Address) {
         return new Treasury(address)
@@ -211,30 +222,42 @@ export class Treasury implements Contract {
         return new Treasury(contractAddress(workchain, init), init)
     }
 
-    async sendMessage(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        body?: Cell | string
-    }) {
+    async sendMessage(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            body?: Cell | string
+        }
+    ) {
         await provider.internal(via, opts)
     }
 
-    async sendDeploy(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-    }) {
+    async sendDeploy(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+        }
+    ) {
         await this.sendTopUp(provider, via, opts)
     }
 
-    async sendTopUp(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-    }) {
+    async sendTopUp(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -246,13 +269,17 @@ export class Treasury implements Contract {
         })
     }
 
-    async sendDepositCoins(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        referrer?: Address
-    }) {
+    async sendDepositCoins(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            referrer?: Address
+        }
+    ) {
         const builder = beginCell()
             .storeUint(op.depositCoins, 32)
             .storeUint(opts.queryId || 0, 64)
@@ -263,18 +290,22 @@ export class Treasury implements Contract {
             value: opts.value,
             bounce: opts.bounce,
             sendMode: opts.sendMode,
-            body: builder.endCell()
+            body: builder.endCell(),
         })
     }
 
-    async sendProvideWalletAddress(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        owner: Address
-        includeAddress?: boolean
-    }) {
+    async sendProvideWalletAddress(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            owner: Address
+            includeAddress?: boolean
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -284,21 +315,25 @@ export class Treasury implements Contract {
                 .storeUint(opts.queryId || 0, 64)
                 .storeAddress(opts.owner)
                 .storeBit(opts.includeAddress || false)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendRequestLoan(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        roundSince: bigint
-        loanAmount: bigint | string
-        minPayment: bigint | string
-        validatorRewardShare: bigint
-        newStakeMsg: Cell
-    }) {
+    async sendRequestLoan(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            roundSince: bigint
+            loanAmount: bigint | string
+            minPayment: bigint | string
+            validatorRewardShare: bigint
+            newStakeMsg: Cell
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -311,14 +346,17 @@ export class Treasury implements Contract {
                 .storeCoins(tonValue(opts.minPayment))
                 .storeUint(opts.validatorRewardShare, 8)
                 .storeRef(opts.newStakeMsg)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendParticipateInElection(provider: ContractProvider, opts: {
-        queryId?: bigint
-        roundSince: bigint
-    }) {
+    async sendParticipateInElection(
+        provider: ContractProvider,
+        opts: {
+            queryId?: bigint
+            roundSince: bigint
+        }
+    ) {
         const message = beginCell()
             .storeUint(op.participateInElection, 32)
             .storeUint(opts.queryId || 0, 64)
@@ -327,10 +365,13 @@ export class Treasury implements Contract {
         await provider.external(message)
     }
 
-    async sendVsetChanged(provider: ContractProvider, opts: {
-        queryId?: bigint
-        roundSince: bigint
-    }) {
+    async sendVsetChanged(
+        provider: ContractProvider,
+        opts: {
+            queryId?: bigint
+            roundSince: bigint
+        }
+    ) {
         const message = beginCell()
             .storeUint(op.vsetChanged, 32)
             .storeUint(opts.queryId || 0, 64)
@@ -339,10 +380,13 @@ export class Treasury implements Contract {
         await provider.external(message)
     }
 
-    async sendFinishParticipation(provider: ContractProvider, opts: {
-        queryId?: bigint
-        roundSince: bigint
-    }) {
+    async sendFinishParticipation(
+        provider: ContractProvider,
+        opts: {
+            queryId?: bigint
+            roundSince: bigint
+        }
+    ) {
         const message = beginCell()
             .storeUint(op.finishParticipation, 32)
             .storeUint(opts.queryId || 0, 64)
@@ -351,13 +395,17 @@ export class Treasury implements Contract {
         await provider.external(message)
     }
 
-    async sendProposeGovernor(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        newGovernor: Address
-    }) {
+    async sendProposeGovernor(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            newGovernor: Address
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -366,16 +414,20 @@ export class Treasury implements Contract {
                 .storeUint(op.proposeGovernor, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeAddress(opts.newGovernor)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendAcceptGovernance(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-    }) {
+    async sendAcceptGovernance(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -383,17 +435,21 @@ export class Treasury implements Contract {
             body: beginCell()
                 .storeUint(op.acceptGovernance, 32)
                 .storeUint(opts.queryId || 0, 64)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendSetHalter(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        newHalter: Address
-    }) {
+    async sendSetHalter(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            newHalter: Address
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -402,17 +458,21 @@ export class Treasury implements Contract {
                 .storeUint(op.setHalter, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeAddress(opts.newHalter)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendSetStopped(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        newStopped: boolean
-    }) {
+    async sendSetStopped(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            newStopped: boolean
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -421,17 +481,21 @@ export class Treasury implements Contract {
                 .storeUint(op.setStopped, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeBit(opts.newStopped)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendSetDriver(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        newDriver: Address
-    }) {
+    async sendSetDriver(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            newDriver: Address
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -440,17 +504,21 @@ export class Treasury implements Contract {
                 .storeUint(op.setDriver, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeAddress(opts.newDriver)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendSetContent(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        newContent: Cell
-    }) {
+    async sendSetContent(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            newContent: Cell
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -459,17 +527,21 @@ export class Treasury implements Contract {
                 .storeUint(op.setContent, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeRef(opts.newContent)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendSetGovernanceFee(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        newGovernanceFee: bigint
-    }) {
+    async sendSetGovernanceFee(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            newGovernanceFee: bigint
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -478,17 +550,21 @@ export class Treasury implements Contract {
                 .storeUint(op.setGovernanceFee, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeUint(opts.newGovernanceFee, 16)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendSetBalancedRounds(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        newBalancedRounds: boolean
-    }) {
+    async sendSetBalancedRounds(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            newBalancedRounds: boolean
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -497,19 +573,23 @@ export class Treasury implements Contract {
                 .storeUint(op.setBalancedRounds, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeBit(opts.newBalancedRounds)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendSendMessageToLoan(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        validator: Address
-        roundSince: bigint
-        message: Cell
-    }) {
+    async sendSendMessageToLoan(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            validator: Address
+            roundSince: bigint
+            message: Cell
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -520,17 +600,21 @@ export class Treasury implements Contract {
                 .storeAddress(opts.validator)
                 .storeUint(opts.roundSince, 32)
                 .storeRef(opts.message)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendSendProcessLoanRequests(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        roundSince: bigint
-    }) {
+    async sendSendProcessLoanRequests(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            roundSince: bigint
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -539,18 +623,22 @@ export class Treasury implements Contract {
                 .storeUint(op.sendProcessLoanRequests, 32)
                 .storeUint(opts.queryId || 0, 64)
                 .storeUint(opts.roundSince, 32)
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendUpgradeCode(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-        newCode: Cell
-        rest?: Builder
-    }) {
+    async sendUpgradeCode(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            newCode: Cell
+            rest?: Builder
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -560,16 +648,20 @@ export class Treasury implements Contract {
                 .storeUint(opts.queryId || 0, 64)
                 .storeRef(opts.newCode)
                 .storeBuilder(opts.rest || beginCell())
-                .endCell()
+                .endCell(),
         })
     }
 
-    async sendWithdrawSurplus(provider: ContractProvider, via: Sender, opts: {
-        value: bigint | string
-        bounce?: boolean
-        sendMode?: SendMode
-        queryId?: bigint
-    }) {
+    async sendWithdrawSurplus(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+        }
+    ) {
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -577,7 +669,7 @@ export class Treasury implements Contract {
             body: beginCell()
                 .storeUint(op.withdrawSurplus, 32)
                 .storeUint(opts.queryId || 0, 64)
-                .endCell()
+                .endCell(),
         })
     }
 
@@ -595,13 +687,7 @@ export class Treasury implements Contract {
 
     async getJettonData(provider: ContractProvider): Promise<[bigint, boolean, Address, Cell, Cell]> {
         const { stack } = await provider.get('get_jetton_data', [])
-        return [
-            stack.readBigNumber(),
-            stack.readBoolean(),
-            stack.readAddress(),
-            stack.readCell(),
-            stack.readCell(),
-        ]
+        return [stack.readBigNumber(), stack.readBoolean(), stack.readAddress(), stack.readCell(), stack.readCell()]
     }
 
     async getWalletAddress(provider: ContractProvider, owner: Address): Promise<Address> {
@@ -627,8 +713,11 @@ export class Treasury implements Contract {
             totalStaking: stack.readBigNumber(),
             totalUnstaking: stack.readBigNumber(),
             totalValidatorsStake: stack.readBigNumber(),
-            participations: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), participationDictionaryValue,
-                stack.readCellOpt()),
+            participations: Dictionary.loadDirect(
+                Dictionary.Keys.BigUint(32),
+                participationDictionaryValue,
+                stack.readCellOpt()
+            ),
             balancedRounds: stack.readBoolean(),
             stopped: stack.readBoolean(),
             walletCode: stack.readCell(),
@@ -638,8 +727,11 @@ export class Treasury implements Contract {
             governor: stack.readAddress(),
             proposedGovernor: stack.readCellOpt(),
             governanceFee: stack.readBigNumber(),
-            rewardsHistory: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), rewardDictionaryValue,
-                stack.readCellOpt()),
+            rewardsHistory: Dictionary.loadDirect(
+                Dictionary.Keys.BigUint(32),
+                rewardDictionaryValue,
+                stack.readCellOpt()
+            ),
             content: stack.readCell(),
         }
     }
@@ -657,7 +749,11 @@ export class Treasury implements Contract {
             accepted: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
             accrued: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
             staked: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
-            recovering: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
+            recovering: Dictionary.loadDirect(
+                Dictionary.Keys.BigUint(256),
+                requestDictionaryValue,
+                stack.readCellOpt()
+            ),
             totalStaked: stack.readBigNumber(),
             totalRecovered: stack.readBigNumber(),
             currentVsetHash: stack.readBigNumber(),

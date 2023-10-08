@@ -3,7 +3,7 @@ import { Treasury } from '../wrappers/Treasury'
 import { NetworkProvider } from '@ton-community/blueprint'
 
 export async function run(provider: NetworkProvider) {
-    const ui = provider.ui();
+    const ui = provider.ui()
 
     console.info('Withdraw surplus of treasury')
 
@@ -13,5 +13,5 @@ export async function run(provider: NetworkProvider) {
 
     await treasury.sendWithdrawSurplus(provider.sender(), { value: '0.1' })
 
-    ui.write('Done');
+    ui.write('Done')
 }

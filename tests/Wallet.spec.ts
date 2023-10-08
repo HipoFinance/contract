@@ -4,7 +4,14 @@ import '@ton-community/test-utils'
 import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
 import { between, bodyOp, logComputeGas, logTotalFees, accumulateFees } from './helper'
 import { op } from '../wrappers/common'
-import { Fees, ParticipationState, Treasury, participationDictionaryValue, rewardDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
+import {
+    Fees,
+    ParticipationState,
+    Treasury,
+    participationDictionaryValue,
+    rewardDictionaryValue,
+    treasuryConfigToCell,
+} from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
 
 describe('Wallet', () => {
@@ -34,25 +41,30 @@ describe('Wallet', () => {
         driver = await blockchain.treasury('driver')
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
-        treasury = blockchain.openContract(Treasury.createFromConfig({
-            totalCoins: 0n,
-            totalTokens: 0n,
-            totalStaking: 0n,
-            totalUnstaking: 0n,
-            totalValidatorsStake: 0n,
-            participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
-            balancedRounds: false,
-            stopped: false,
-            walletCode,
-            loanCode,
-            driver: driver.address,
-            halter: halter.address,
-            governor: governor.address,
-            proposedGovernor: null,
-            governanceFee: 4096n,
-            rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
-            content: Cell.EMPTY,
-        }, treasuryCode))
+        treasury = blockchain.openContract(
+            Treasury.createFromConfig(
+                {
+                    totalCoins: 0n,
+                    totalTokens: 0n,
+                    totalStaking: 0n,
+                    totalUnstaking: 0n,
+                    totalValidatorsStake: 0n,
+                    participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
+                    balancedRounds: false,
+                    stopped: false,
+                    walletCode,
+                    loanCode,
+                    driver: driver.address,
+                    halter: halter.address,
+                    governor: governor.address,
+                    proposedGovernor: null,
+                    governanceFee: 4096n,
+                    rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
+                    content: Cell.EMPTY,
+                },
+                treasuryCode
+            )
+        )
 
         const deployer = await blockchain.treasury('deployer')
         const deployResult = await treasury.sendDeploy(deployer.getSender(), { value: '0.01' })
@@ -66,15 +78,14 @@ describe('Wallet', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(deployResult.transactions).toHaveLength(2);
+        expect(deployResult.transactions).toHaveLength(2)
 
         fees = await treasury.getFees()
 
         await treasury.sendTopUp(deployer.getSender(), { value: fees.treasuryStorage })
     })
 
-    it('should deploy treasury', async () => {
-    })
+    it('should deploy treasury', async () => {})
 
     it('should deposit coins', async () => {
         const staker = await blockchain.treasury('staker')
@@ -119,7 +130,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(fees.walletStorage, '0.1')
         expect(tokens).toBeTonValue('0')
         expect(staking.keys()).toHaveLength(1)
@@ -173,7 +184,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(fees.walletStorage, '0.1')
         expect(tokens).toBeTonValue('0')
         expect(staking.keys()).toHaveLength(1)
@@ -228,7 +239,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(fees.walletStorage, '0.1')
         expect(tokens).toBeTonValue('0')
         expect(staking.keys()).toHaveLength(1)
@@ -297,7 +308,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
         expect(tokens).toBeTonValue(treasuryState.totalTokens)
         expect(staking.keys()).toHaveLength(0)
@@ -370,14 +381,14 @@ describe('Wallet', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const wallet1Balance = await wallet1.getBalance()
-        const [ tokens1, staking1, unstaking1 ] = await wallet1.getWalletState()
+        const [tokens1, staking1, unstaking1] = await wallet1.getWalletState()
         expect(wallet1Balance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
         expect(tokens1).toBeBetween('0.8', '0.9')
         expect(staking1.keys()).toHaveLength(0)
         expect(unstaking1).toBeTonValue('0')
 
         const wallet2Balance = await wallet2.getBalance()
-        const [ tokens2, staking2, unstaking2 ] = await wallet2.getWalletState()
+        const [tokens2, staking2, unstaking2] = await wallet2.getWalletState()
         expect(wallet2Balance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
         expect(tokens2).toBeTonValue('9')
         expect(staking2.keys()).toHaveLength(0)
@@ -451,14 +462,14 @@ describe('Wallet', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const wallet1Balance = await wallet1.getBalance()
-        const [ tokens1, staking1, unstaking1 ] = await wallet1.getWalletState()
+        const [tokens1, staking1, unstaking1] = await wallet1.getWalletState()
         expect(wallet1Balance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
         expect(tokens1).toBeBetween('0.8', '0.9')
         expect(staking1.keys()).toHaveLength(0)
         expect(unstaking1).toBeTonValue('0')
 
         const wallet2Balance = await wallet2.getBalance()
-        const [ tokens2, staking2, unstaking2 ] = await wallet2.getWalletState()
+        const [tokens2, staking2, unstaking2] = await wallet2.getWalletState()
         expect(wallet2Balance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
         expect(tokens2).toBeBetween('13.8', '13.9')
         expect(staking2.keys()).toHaveLength(0)
@@ -522,7 +533,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
         expect(tokens).toBeBetween('2.8', '2.9')
         expect(staking.keys()).toHaveLength(0)
@@ -586,7 +597,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
         expect(tokens).toBeTonValue(treasuryState.totalTokens)
         expect(staking.keys()).toHaveLength(0)
@@ -645,13 +656,16 @@ describe('Wallet', () => {
         const fakeParticipation = { state: ParticipationState.Staked }
         state.participations.set(roundSince, fakeParticipation)
         const fakeData = treasuryConfigToCell(state)
-        await blockchain.setShardAccount(treasury.address, createShardAccount({
-            workchain: 0,
-            address: treasury.address,
-            code: treasuryCode,
-            data: fakeData,
-            balance: await treasury.getBalance(),
-        }))
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData,
+                balance: await treasury.getBalance(),
+            })
+        )
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
         const walletAddress = await treasury.getWalletAddress(staker.address)
@@ -702,7 +716,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
         expect(tokens).toBeTonValue(treasuryState.totalTokens)
         expect(staking.keys()).toHaveLength(1)
@@ -721,13 +735,16 @@ describe('Wallet', () => {
         await wallet.sendUnstakeTokens(staker.getSender(), { value: '0.2', tokens: '7' })
         const state = await treasury.getTreasuryState()
         const fakeData = treasuryConfigToCell(state)
-        await blockchain.setShardAccount(treasury.address, createShardAccount({
-            workchain: 0,
-            address: treasury.address,
-            code: treasuryCode,
-            data: fakeData,
-            balance: toNano('5') + toNano('10'),
-        }))
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData,
+                balance: toNano('5') + toNano('10'),
+            })
+        )
         const result = await wallet.sendWithdrawTokens(staker.getSender(), { value: '0.1' })
 
         expect(result.transactions).toHaveTransaction({
@@ -774,7 +791,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const [ tokens, staking, unstaking ] = await wallet.getWalletState()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(fees.walletStorage - 1n, fees.walletStorage)
         expect(tokens).toBeBetween('2.8', '2.9')
         expect(staking.keys()).toHaveLength(0)

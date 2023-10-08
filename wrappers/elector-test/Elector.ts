@@ -1,4 +1,13 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Dictionary, TupleBuilder } from 'ton-core'
+import {
+    Address,
+    beginCell,
+    Cell,
+    Contract,
+    contractAddress,
+    ContractProvider,
+    Dictionary,
+    TupleBuilder,
+} from 'ton-core'
 
 export type ElectorConfig = {
     currentElection?: Cell
@@ -43,7 +52,7 @@ export function createElectionConfig(config: ElectionConfig): Cell {
 }
 
 export class Elector implements Contract {
-    constructor(readonly address: Address, readonly init?: { code: Cell, data: Cell }) {}
+    constructor(readonly address: Address, readonly init?: { code: Cell; data: Cell }) {}
 
     static createFromAddress(address: Address) {
         return new Elector(address)

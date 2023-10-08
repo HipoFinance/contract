@@ -3,7 +3,7 @@ import { Treasury } from '../wrappers/Treasury'
 import { NetworkProvider } from '@ton-community/blueprint'
 
 export async function run(provider: NetworkProvider) {
-    const ui = provider.ui();
+    const ui = provider.ui()
 
     console.info('Sending process-loan-requests')
 
@@ -11,9 +11,9 @@ export async function run(provider: NetworkProvider) {
     const treasuryAddress = Address.parse(addressString)
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
-    const roundSince = BigInt((await ui.input("Enter round since")))
+    const roundSince = BigInt(await ui.input('Enter round since'))
 
     await treasury.sendSendProcessLoanRequests(provider.sender(), { value: '0.1', roundSince })
 
-    ui.write('Done');
+    ui.write('Done')
 }
