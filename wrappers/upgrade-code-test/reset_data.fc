@@ -48,15 +48,25 @@ global cell content;
 }
 
 () upgrade_data(slice src, int query_id, slice s) impure method_id {
+    ;; Add code for upgrading date here.
+
     ;; This just resets data back to its previous state.
     slice ds = get_data().begin_parse();
     ds~load_msg_addr();
     ds~load_ref().set_data();
 
+    ;; Do not change the following code.
+    load_data();
+    unpack_extension();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
+
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+
+    throw(0);
 }
 
 () upgrade_code(slice src, slice s) impure {
@@ -71,7 +81,6 @@ global cell content;
     set_code(new_code);
     set_c3(new_code.begin_parse().bless());
     upgrade_data(src, query_id, s);
-    throw(0);
 }
 
 () recv_internal(cell in_msg_full, slice in_msg_body) impure {
