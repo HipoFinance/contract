@@ -496,13 +496,43 @@ describe('Treasury', () => {
     it('should upgrade code', async () => {
         const oldState = await treasury.getState()
         const someone = await blockchain.treasury('someone')
-        const result1 = await treasury.sendUpgradeCode(governor.getSender(), {
+
+        // Reject upgrade since not sent by governor
+        const result1 = await treasury.sendUpgradeCode(someone.getSender(), {
             value: '0.1',
             newCode: onlyUpgradeCode,
-            rest: beginCell().storeAddress(someone.address)
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: someone.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.upgradeCode),
+            success: false,
+            outMessagesCount: 1,
         })
 
-        expect(result1.transactions).toHaveTransaction({
+        // Reject upgrade since governor is not the same after upgrade
+        const result2 = await treasury.sendUpgradeCode(governor.getSender(), {
+            value: '0.1',
+            newCode: onlyUpgradeCode,
+            rest: beginCell().storeAddress(someone.address),
+        })
+        expect(result2.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.upgradeCode),
+            success: false,
+            outMessagesCount: 1,
+        })
+
+        const result3 = await treasury.sendUpgradeCode(governor.getSender(), {
+            value: '0.1',
+            newCode: onlyUpgradeCode,
+            rest: beginCell().storeAddress(governor.address)
+        })
+
+        expect(result3.transactions).toHaveTransaction({
             from: governor.address,
             to: treasury.address,
             value: toNano('0.1'),
@@ -510,7 +540,7 @@ describe('Treasury', () => {
             success: true,
             outMessagesCount: 1,
         })
-        expect(result1.transactions).toHaveTransaction({
+        expect(result3.transactions).toHaveTransaction({
             from: treasury.address,
             to: governor.address,
             value: between('0', '0.1'),
@@ -518,44 +548,11 @@ describe('Treasury', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(result1.transactions).toHaveLength(3)
-
-        const result2 = await treasury.sendDepositCoins(someone.getSender(), { value: '10' })
-        expect(result2.transactions).toHaveTransaction({
-            from: someone.address,
-            to: treasury.address,
-            value: toNano('10'),
-            body: bodyOp(op.depositCoins),
-            success: false,
-            outMessagesCount: 1,
-        })
-
-        const result3 = await treasury.sendUpgradeCode(someone.getSender(), {
-            value: '0.1',
-            newCode: resetDataCode,
-        })
-
-        expect(result3.transactions).toHaveTransaction({
-            from: someone.address,
-            to: treasury.address,
-            value: toNano('0.1'),
-            body: bodyOp(op.upgradeCode),
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(result3.transactions).toHaveTransaction({
-            from: treasury.address,
-            to: someone.address,
-            value: between('0', '0.1'),
-            body: bodyOp(op.gasExcess),
-            success: true,
-            outMessagesCount: 0,
-        })
         expect(result3.transactions).toHaveLength(3)
 
-        const result4 = await treasury.sendDepositCoins(someone.getSender(), { value: '10' })
+        const result4 = await treasury.sendDepositCoins(governor.getSender(), { value: '10' })
         expect(result4.transactions).toHaveTransaction({
-            from: someone.address,
+            from: governor.address,
             to: treasury.address,
             value: toNano('10'),
             body: bodyOp(op.depositCoins),
@@ -565,7 +562,7 @@ describe('Treasury', () => {
 
         const result5 = await treasury.sendUpgradeCode(governor.getSender(), {
             value: '0.1',
-            newCode: treasuryCode,
+            newCode: resetDataCode,
         })
 
         expect(result5.transactions).toHaveTransaction({
@@ -586,18 +583,52 @@ describe('Treasury', () => {
         })
         expect(result5.transactions).toHaveLength(3)
 
+        const result6 = await treasury.sendDepositCoins(governor.getSender(), { value: '10' })
+        expect(result6.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            value: toNano('10'),
+            body: bodyOp(op.depositCoins),
+            success: false,
+            outMessagesCount: 1,
+        })
+
+        const result7 = await treasury.sendUpgradeCode(governor.getSender(), {
+            value: '0.1',
+            newCode: treasuryCode,
+        })
+
+        expect(result7.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.upgradeCode),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result7.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: governor.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result7.transactions).toHaveLength(3)
+
         const newState = await treasury.getState()
         expect(oldState.state.type === 'active').toBeTruthy()
         expect(oldState.state.type == newState.state.type).toBeTruthy()
         if (oldState.state.type === 'active' && newState.state.type === 'active') {
-            expect(oldState.state.data?.toString() === newState.state.data?.toString()).toBeTruthy()
+            expect(oldState.state.data?.toString('base64') === newState.state.data?.toString('base64')).toBeTruthy()
         }
 
         accumulateFees(result1.transactions)
-        accumulateFees(result2.transactions)
         accumulateFees(result3.transactions)
         accumulateFees(result4.transactions)
         accumulateFees(result5.transactions)
+        accumulateFees(result6.transactions)
+        accumulateFees(result7.transactions)
     })
 
     it('should withdraw surplus', async () => {
