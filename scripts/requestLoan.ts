@@ -3,21 +3,21 @@ import { Treasury } from '../wrappers/Treasury'
 import { NetworkProvider } from '@ton-community/blueprint'
 
 export async function run(provider: NetworkProvider) {
-    const ui = provider.ui();
+    const ui = provider.ui()
 
-    const addressString = await ui.input('treasury\'s friendly address')
+    const addressString = await ui.input("treasury's friendly address")
     const treasuryAddress = Address.parse(addressString)
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
     const roundSince = BigInt(await ui.input('participation round'))
     const value = toNano(await ui.input('value'))
     const loanAmount = toNano(await ui.input('loan amount'))
-    const minPayment = toNano(await ui.input('min payment (default: 0)') || '0')
-    const validatorRewardShare = BigInt(await ui.input('validator reward share [0-255] (default: 102)') || '102')
-    const maxFactor = BigInt(await ui.input('max factor (default: 65536)') || '65536')
-    const adnlAddress = BigInt('0x' + await ui.input('adnl address'))
-    const validatorPubkey = BigInt('0x' + await ui.input('validator pubkey'))
-    const signature = BigInt('0x' + await ui.input('signature'))
+    const minPayment = toNano((await ui.input('min payment (default: 0)')) || '0')
+    const validatorRewardShare = BigInt((await ui.input('validator reward share [0-255] (default: 102)')) || '102')
+    const maxFactor = BigInt((await ui.input('max factor (default: 65536)')) || '65536')
+    const adnlAddress = BigInt('0x' + (await ui.input('adnl address')))
+    const validatorPubkey = BigInt('0x' + (await ui.input('validator pubkey')))
+    const signature = BigInt('0x' + (await ui.input('signature')))
 
     await treasury.sendRequestLoan(provider.sender(), {
         value,
@@ -31,8 +31,8 @@ export async function run(provider: NetworkProvider) {
             .storeUint(maxFactor, 32)
             .storeUint(adnlAddress, 256)
             .storeRef(beginCell().storeUint(signature, 512))
-            .endCell()
+            .endCell(),
     })
 
-    ui.write('Done');
+    ui.write('Done')
 }

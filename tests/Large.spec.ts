@@ -2,9 +2,30 @@ import { compile } from '@ton-community/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton-community/sandbox'
 import '@ton-community/test-utils'
 import { Address, Cell, Dictionary, beginCell, toNano } from 'ton-core'
-import { bodyOp, createVset, emptyNewStakeMsg, getElector, logTotalFees, accumulateFees, setConfig, between, logComputeGas, createNewStakeMsg } from './helper'
+import {
+    bodyOp,
+    createVset,
+    emptyNewStakeMsg,
+    getElector,
+    logTotalFees,
+    accumulateFees,
+    setConfig,
+    between,
+    logComputeGas,
+    createNewStakeMsg,
+} from './helper'
 import { config, op } from '../wrappers/common'
-import { Fees, Participation, ParticipationState, Treasury, participationDictionaryValue, requestDictionaryValue, rewardDictionaryValue, sortedDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
+import {
+    Fees,
+    Participation,
+    ParticipationState,
+    Treasury,
+    participationDictionaryValue,
+    requestDictionaryValue,
+    rewardDictionaryValue,
+    sortedDictionaryValue,
+    treasuryConfigToCell,
+} from '../wrappers/Treasury'
 import { Loan } from '../wrappers/Loan'
 import { Wallet } from '../wrappers/Wallet'
 import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-test/Elector'
@@ -39,25 +60,30 @@ describe('Large number of loan requests', () => {
         driver = await blockchain.treasury('driver')
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
-        treasury = blockchain.openContract(Treasury.createFromConfig({
-            totalCoins: 0n,
-            totalTokens: 0n,
-            totalStaking: 0n,
-            totalUnstaking: 0n,
-            totalValidatorsStake: 0n,
-            participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
-            balancedRounds: false,
-            stopped: false,
-            walletCode,
-            loanCode,
-            driver: driver.address,
-            halter: halter.address,
-            governor: governor.address,
-            proposedGovernor: null,
-            governanceFee: 4096n,
-            rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
-            content: Cell.EMPTY,
-        }, treasuryCode))
+        treasury = blockchain.openContract(
+            Treasury.createFromConfig(
+                {
+                    totalCoins: 0n,
+                    totalTokens: 0n,
+                    totalStaking: 0n,
+                    totalUnstaking: 0n,
+                    totalValidatorsStake: 0n,
+                    participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
+                    balancedRounds: false,
+                    stopped: false,
+                    walletCode,
+                    loanCode,
+                    driver: driver.address,
+                    halter: halter.address,
+                    governor: governor.address,
+                    proposedGovernor: null,
+                    governanceFee: 4096n,
+                    rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
+                    content: Cell.EMPTY,
+                },
+                treasuryCode
+            )
+        )
 
         const deployer = await blockchain.treasury('deployer')
         const deployResult = await treasury.sendDeploy(deployer.getSender(), { value: '0.01' })
@@ -71,7 +97,7 @@ describe('Large number of loan requests', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(deployResult.transactions).toHaveLength(2);
+        expect(deployResult.transactions).toHaveLength(2)
 
         fees = await treasury.getFees()
 
@@ -80,8 +106,7 @@ describe('Large number of loan requests', () => {
         electorAddress = getElector(blockchain)
     })
 
-    it('should deploy treasury', async () => {
-    })
+    it('should deploy treasury', async () => {})
 
     it('should send a big batch of messages to recover stakes', async () => {
         const times = await treasury.getTimes()
@@ -113,13 +138,16 @@ describe('Large number of loan requests', () => {
         const state = await treasury.getTreasuryState()
         state.participations.set(until1, participation)
         const fakeData = treasuryConfigToCell(state)
-        await blockchain.setShardAccount(treasury.address, createShardAccount({
-            workchain: 0,
-            address: treasury.address,
-            code: treasuryCode,
-            data: fakeData,
-            balance: toNano('10') + toNano('1') * count,
-        }))
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData,
+                balance: toNano('10') + toNano('1') * count,
+            })
+        )
 
         const result = await treasury.sendFinishParticipation({ roundSince: until1 })
 
@@ -135,11 +163,7 @@ describe('Large number of loan requests', () => {
     })
 
     it('should handle large number of loan requests', async () => {
-        const maxValidators = beginCell()
-            .storeUint(65535, 16)
-            .storeUint(65535, 16)
-            .storeUint(65535, 16)
-            .endCell()
+        const maxValidators = beginCell().storeUint(65535, 16).storeUint(65535, 16).storeUint(65535, 16).endCell()
         setConfig(blockchain, config.validators, maxValidators)
 
         const times = await treasury.getTimes()
@@ -190,13 +214,16 @@ describe('Large number of loan requests', () => {
         state.participations.set(until1, participation)
         state.totalValidatorsStake = toNano('1000') * (count1 + count2 + count3)
         const fakeData = treasuryConfigToCell(state)
-        await blockchain.setShardAccount(treasury.address, createShardAccount({
-            workchain: 0,
-            address: treasury.address,
-            code: treasuryCode,
-            data: fakeData,
-            balance: toNano('10') + toNano('1001.72') * (count1 + count2 + count3) + toNano('300000') * count3,
-        }))
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData,
+                balance: toNano('10') + toNano('1001.72') * (count1 + count2 + count3) + toNano('300000') * count3,
+            })
+        )
 
         const since2 = BigInt(Math.floor(Date.now() / 1000)) - times.participateSince + times.currentRoundSince
         const until2 = since2 + electedFor

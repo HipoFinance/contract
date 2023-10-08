@@ -290,7 +290,7 @@ slice begin_parse(cell c) asm "CTOS";
 ;;; Preloads the first reference from the slice.
 cell preload_ref(slice s) asm "PLDREF";
 
-  {- Functions below are commented because are implemented on compilator level for optimisation -}
+{- Functions below are commented because are implemented on compilator level for optimisation -}
 
 ;;; Loads a signed [len]-bit integer from a slice [s].
 ;; (slice, int) ~load_int(slice s, int len) asm(s len -> 1 0) "LDIX";

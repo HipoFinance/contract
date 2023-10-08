@@ -3,7 +3,7 @@ import { Treasury } from '../wrappers/Treasury'
 import { NetworkProvider } from '@ton-community/blueprint'
 
 export async function run(provider: NetworkProvider) {
-    const ui = provider.ui();
+    const ui = provider.ui()
 
     console.info('Setting balanced-rounds')
 
@@ -11,9 +11,11 @@ export async function run(provider: NetworkProvider) {
     const treasuryAddress = Address.parse(addressString)
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
-    const balancedRounds = await ui.choose('Should this treasury use balanced rounds?', [false, true], f => f ? 'Yes' : 'No')
+    const balancedRounds = await ui.choose('Should this treasury use balanced rounds?', [false, true], (f) =>
+        f ? 'Yes' : 'No'
+    )
 
     await treasury.sendSetBalancedRounds(provider.sender(), { value: '0.1', newBalancedRounds: balancedRounds })
 
-    ui.write('Done');
+    ui.write('Done')
 }

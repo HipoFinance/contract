@@ -3,9 +3,9 @@ import { Treasury } from '../wrappers/Treasury'
 import { NetworkProvider } from '@ton-community/blueprint'
 
 export async function run(provider: NetworkProvider) {
-    const ui = provider.ui();
+    const ui = provider.ui()
 
-    const addressString = await ui.input('treasury\'s friendly address')
+    const addressString = await ui.input("treasury's friendly address")
     const treasuryAddress = Address.parse(addressString)
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
@@ -13,5 +13,5 @@ export async function run(provider: NetworkProvider) {
 
     await treasury.sendParticipateInElection({ roundSince })
 
-    ui.write('Done');
+    ui.write('Done')
 }

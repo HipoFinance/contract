@@ -4,14 +4,22 @@ import '@ton-community/test-utils'
 import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
 import { between, bodyOp, createVset, emptyNewStakeMsg, logTotalFees, accumulateFees, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
-import { Fees, Participation, ParticipationState, Treasury, participationDictionaryValue, rewardDictionaryValue, treasuryConfigToCell } from '../wrappers/Treasury'
+import {
+    Fees,
+    Participation,
+    ParticipationState,
+    Treasury,
+    participationDictionaryValue,
+    rewardDictionaryValue,
+    treasuryConfigToCell,
+} from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
 
 describe('Treasury', () => {
     let treasuryCode: Cell
     let walletCode: Cell
     let loanCode: Cell
-    let onlyUpgradeCode : Cell
+    let onlyUpgradeCode: Cell
     let resetDataCode: Cell
 
     afterAll(async () => {
@@ -38,25 +46,30 @@ describe('Treasury', () => {
         driver = await blockchain.treasury('driver')
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
-        treasury = blockchain.openContract(Treasury.createFromConfig({
-            totalCoins: 0n,
-            totalTokens: 0n,
-            totalStaking: 0n,
-            totalUnstaking: 0n,
-            totalValidatorsStake: 0n,
-            participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
-            balancedRounds: false,
-            stopped: false,
-            walletCode,
-            loanCode,
-            driver: driver.address,
-            halter: halter.address,
-            governor: governor.address,
-            proposedGovernor: null,
-            governanceFee: 4096n,
-            rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
-            content: Cell.EMPTY,
-        }, treasuryCode))
+        treasury = blockchain.openContract(
+            Treasury.createFromConfig(
+                {
+                    totalCoins: 0n,
+                    totalTokens: 0n,
+                    totalStaking: 0n,
+                    totalUnstaking: 0n,
+                    totalValidatorsStake: 0n,
+                    participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
+                    balancedRounds: false,
+                    stopped: false,
+                    walletCode,
+                    loanCode,
+                    driver: driver.address,
+                    halter: halter.address,
+                    governor: governor.address,
+                    proposedGovernor: null,
+                    governanceFee: 4096n,
+                    rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
+                    content: Cell.EMPTY,
+                },
+                treasuryCode
+            )
+        )
 
         const deployer = await blockchain.treasury('deployer')
         const deployResult = await treasury.sendDeploy(deployer.getSender(), { value: '0.01' })
@@ -70,21 +83,20 @@ describe('Treasury', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(deployResult.transactions).toHaveLength(2);
+        expect(deployResult.transactions).toHaveLength(2)
 
         fees = await treasury.getFees()
 
         await treasury.sendTopUp(deployer.getSender(), { value: fees.treasuryStorage })
     })
 
-    it('should deploy treasury', async () => {
-    })
+    it('should deploy treasury', async () => {})
 
     it('should propose governor', async () => {
         const newGovernor = await blockchain.treasury('newGovernor')
         const result = await treasury.sendProposeGovernor(governor.getSender(), {
             value: '0.1',
-            newGovernor: newGovernor.address
+            newGovernor: newGovernor.address,
         })
 
         expect(result.transactions).toHaveTransaction({
@@ -120,18 +132,18 @@ describe('Treasury', () => {
         await treasury.sendProposeGovernor(governor.getSender(), { value: '0.1', newGovernor: newGovernor.address })
         const before = Math.floor(Date.now() / 1000) - 60 * 60 * 24
         const state = await treasury.getTreasuryState()
-        state.proposedGovernor = beginCell()
-            .storeUint(before, 32)
-            .storeAddress(newGovernor.address)
-            .endCell()
+        state.proposedGovernor = beginCell().storeUint(before, 32).storeAddress(newGovernor.address).endCell()
         const fakeData = treasuryConfigToCell(state)
-        await blockchain.setShardAccount(treasury.address, createShardAccount({
-            workchain: 0,
-            address: treasury.address,
-            code: treasuryCode,
-            data: fakeData,
-            balance: toNano('10'),
-        }))
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData,
+                balance: toNano('10'),
+            })
+        )
         const result = await treasury.sendAcceptGovernance(newGovernor.getSender(), { value: '0.1' })
 
         expect(result.transactions).toHaveTransaction({
@@ -163,7 +175,7 @@ describe('Treasury', () => {
         const newHalter = await blockchain.treasury('newHalter')
         const result = await treasury.sendSetHalter(governor.getSender(), {
             value: '0.1',
-            newHalter: newHalter.address
+            newHalter: newHalter.address,
         })
 
         expect(result.transactions).toHaveTransaction({
@@ -395,7 +407,7 @@ describe('Treasury', () => {
     it('should set balanced-rounds', async () => {
         const result = await treasury.sendSetBalancedRounds(governor.getSender(), {
             value: '0.1',
-            newBalancedRounds: true
+            newBalancedRounds: true,
         })
 
         expect(result.transactions).toHaveTransaction({
@@ -425,10 +437,7 @@ describe('Treasury', () => {
     it('should send message to loan', async () => {
         const validator = await blockchain.treasury('validator')
         const loanAddress = await treasury.getLoanAddress(validator.address, 0n)
-        const message = beginCell()
-            .storeUint(op.sendRecoverStake, 32)
-            .storeUint(1, 64)
-            .endCell()
+        const message = beginCell().storeUint(op.sendRecoverStake, 32).storeUint(1, 64).endCell()
         const result = await treasury.sendSendMessageToLoan(halter.getSender(), {
             value: '1',
             validator: validator.address,
@@ -464,13 +473,16 @@ describe('Treasury', () => {
         }
         state.participations.set(0n, participation)
         const fakeData = treasuryConfigToCell(state)
-        await blockchain.setShardAccount(treasury.address, createShardAccount({
-            workchain: 0,
-            address: treasury.address,
-            code: treasuryCode,
-            data: fakeData,
-            balance: toNano('10'),
-        }))
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData,
+                balance: toNano('10'),
+            })
+        )
 
         const result = await treasury.sendSendProcessLoanRequests(halter.getSender(), {
             value: '1',
@@ -529,7 +541,7 @@ describe('Treasury', () => {
         const result3 = await treasury.sendUpgradeCode(governor.getSender(), {
             value: '0.1',
             newCode: onlyUpgradeCode,
-            rest: beginCell().storeAddress(governor.address)
+            rest: beginCell().storeAddress(governor.address),
         })
 
         expect(result3.transactions).toHaveTransaction({
@@ -657,13 +669,16 @@ describe('Treasury', () => {
         state.totalUnstaking = toNano('200000')
         state.totalValidatorsStake = toNano('300000')
         const fakeData = treasuryConfigToCell(state)
-        await blockchain.setShardAccount(treasury.address, createShardAccount({
-            workchain: 0,
-            address: treasury.address,
-            code: treasuryCode,
-            data: fakeData,
-            balance: toNano('10') + toNano('801000') + 16n * toNano('0.9') + toNano('20'),
-        }))
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData,
+                balance: toNano('10') + toNano('801000') + 16n * toNano('0.9') + toNano('20'),
+            })
+        )
         const result = await treasury.sendWithdrawSurplus(governor.getSender(), { value: '0.1' })
 
         expect(result.transactions).toHaveTransaction({

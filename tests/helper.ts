@@ -28,57 +28,54 @@ export function between(a: bigint | string, b: bigint | string): (x?: bigint) =>
     }
 }
 
-export const toBeBetween: MatcherFunction<[a: unknown, b: unknown]> =
-    function (actual, a, b) {
-        if (
-            (typeof a !== 'bigint' && typeof a !== 'string') ||
-            (typeof b !== 'bigint' && typeof b !== 'string') ||
-            typeof actual !== 'bigint'
-        ) {
-            throw new Error('invalid type')
-        }
-
-        const pass = between(a, b)(actual)
-        if (pass) {
-            return {
-                message: () =>
-                    `expected ${this.utils.printReceived(actual)} not to be between ${this.utils.printExpected(
-                        `[${a}, ${b}]`
-                    )}`,
-                pass: true,
-            }
-        } else {
-            return {
-                message: () =>
-                    `expected ${this.utils.printReceived(actual)} to be between ${this.utils.printExpected(
-                        `[${a}, ${b}]`
-                    )}`,
-                pass: false,
-            }
-        }
+export const toBeBetween: MatcherFunction<[a: unknown, b: unknown]> = function (actual, a, b) {
+    if (
+        (typeof a !== 'bigint' && typeof a !== 'string') ||
+        (typeof b !== 'bigint' && typeof b !== 'string') ||
+        typeof actual !== 'bigint'
+    ) {
+        throw new Error('invalid type')
     }
 
-export const toBeTonValue: MatcherFunction<[v: unknown]> =
-    function (actual, v) {
-        v = typeof v === 'string' ? toNano(v) : v
-        if (typeof v !== 'bigint' || typeof actual !== 'bigint') {
-            throw new Error('invalid type')
+    const pass = between(a, b)(actual)
+    if (pass) {
+        return {
+            message: () =>
+                `expected ${this.utils.printReceived(actual)} not to be between ${this.utils.printExpected(
+                    `[${a}, ${b}]`
+                )}`,
+            pass: true,
         }
-        const pass = actual === v
-        if (pass) {
-            return {
-                message: () =>
-                    `expected ${this.utils.printReceived(actual)} not to be ${this.utils.printExpected(v)} nanoTON`,
-                pass: true,
-            }
-        } else {
-            return {
-                message: () =>
-                    `expected ${this.utils.printReceived(actual)} to be ${this.utils.printExpected(v)} nanoTON`,
-                pass: false,
-            }
+    } else {
+        return {
+            message: () =>
+                `expected ${this.utils.printReceived(actual)} to be between ${this.utils.printExpected(
+                    `[${a}, ${b}]`
+                )}`,
+            pass: false,
         }
     }
+}
+
+export const toBeTonValue: MatcherFunction<[v: unknown]> = function (actual, v) {
+    v = typeof v === 'string' ? toNano(v) : v
+    if (typeof v !== 'bigint' || typeof actual !== 'bigint') {
+        throw new Error('invalid type')
+    }
+    const pass = actual === v
+    if (pass) {
+        return {
+            message: () =>
+                `expected ${this.utils.printReceived(actual)} not to be ${this.utils.printExpected(v)} nanoTON`,
+            pass: true,
+        }
+    } else {
+        return {
+            message: () => `expected ${this.utils.printReceived(actual)} to be ${this.utils.printExpected(v)} nanoTON`,
+            pass: false,
+        }
+    }
+}
 
 expect.extend({
     toBeBetween,
@@ -173,14 +170,14 @@ export function logCodeSizes(treasuryCode: Cell, walletCode: Cell, loanCode: Cel
 }
 
 export function logComputeGas(opLabel: string, opCode: number, tx: BlockchainTransaction) {
-    if (! bodyOp(opCode)(tx.inMessage?.body || Cell.EMPTY)) {
+    if (!bodyOp(opCode)(tx.inMessage?.body || Cell.EMPTY)) {
         throw 'invalida transaction to log compute gas for op ' + opLabel
     }
     const logs = tx.blockchainLogs
     const usedIndex = logs.indexOf('used=')
     const commaIndex = logs.indexOf(',', usedIndex)
     const usedGas = logs.substring(usedIndex + 5, commaIndex)
-    const roundedGas = Math.ceil(parseInt(usedGas, 10) / 1000 * 1.2) * 1000
+    const roundedGas = Math.ceil((parseInt(usedGas, 10) / 1000) * 1.2) * 1000
     if (logs.lastIndexOf('used=') !== usedIndex) {
         throw 'unexpected second "used" field in calculating gas'
     }

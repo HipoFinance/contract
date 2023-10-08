@@ -8,9 +8,14 @@ const description = 'Hipo liquid staking protocol'
 const image = 'https://hipo.finance/hton.png'
 
 export async function run(provider: NetworkProvider) {
-    const ui = provider.ui();
+    const ui = provider.ui()
 
-    console.info('Setting metadata to:\n\tname: \t\t%s\n\tdescription: \t%s\n\timage: \t\t%s\n', name, description, image)
+    console.info(
+        'Setting metadata to:\n\tname: \t\t%s\n\tdescription: \t%s\n\timage: \t\t%s\n',
+        name,
+        description,
+        image
+    )
 
     const addressString = await ui.input('Enter the friendly address of the treasury')
     const treasuryAddress = Address.parse(addressString)
@@ -18,7 +23,7 @@ export async function run(provider: NetworkProvider) {
 
     await treasury.sendSetContent(provider.sender(), { value: '0.1', newContent: content })
 
-    ui.write('Done');
+    ui.write('Done')
 }
 
 const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())

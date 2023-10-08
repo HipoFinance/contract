@@ -229,7 +229,7 @@ int max_recommended_punishment_for_validator_misbehaviour(int stake) inline_ref 
         , cs~load_uint(16), cs~load_uint(16)
         , cs~load_uint(16)
         , cs~load_uint(16), cs~load_uint(16), cs~load_uint(16)
-        );
+    );
 
     ;; https://github.com/ton-blockchain/ton/blob/master/lite-client/lite-client.cpp#L3721
     int fine = default_flat_fine;

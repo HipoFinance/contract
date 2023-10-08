@@ -341,7 +341,7 @@ _ unfreeze_all(credits, past_elections, elect_id) inline_ref {
   var (unfreeze_at, stake_held, vset_hash, fdict, tot_stakes, bonuses, complaints) = fs.unpack_past_election();
   ;; tot_stakes = fdict.stakes_sum(); ;; TEMP BUGFIX
   var unused_prizes = (bonuses > 0) ?
-    credits~unfreeze_with_bonuses(fdict, tot_stakes, bonuses) :
+  credits~unfreeze_with_bonuses(fdict, tot_stakes, bonuses) :
     credits~unfreeze_without_bonuses(fdict, tot_stakes);
   return (credits, past_elections, unused_prizes);
 }
@@ -857,8 +857,8 @@ int conduct_elections(ds, elect, credits) impure {
   ;; add frozen to the dictionary of past elections
   var past_elections = ds~load_dict();
   past_elections~udict_set_builder(32, elect_at, pack_past_election(
-    start + elect_for + stake_held, stake_held, vset.cell_hash(),
-    frozen, total_stakes, 0, null()));
+      start + elect_for + stake_held, stake_held, vset.cell_hash(),
+      frozen, total_stakes, 0, null()));
   ;; store credits and frozen until end
   set_data(begin_cell()
     .store_dict(elect)

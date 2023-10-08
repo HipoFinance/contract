@@ -1,4 +1,4 @@
-import type { Config } from 'jest';
+import type { Config } from 'jest'
 
 const config: Config = {
     preset: 'ts-jest',
@@ -6,6 +6,6 @@ const config: Config = {
     testPathIgnorePatterns: ['/node_modules/', '/dist/'],
     slowTestThreshold: 20,
     workerThreads: true,
-};
+}
 
-export default config;
+export default config
