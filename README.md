@@ -45,7 +45,7 @@ Each staker will have a wallet that will store staker's jettons. Wallets receive
 
 ### Loan
 
-When a validator requests a loan and it's accepted, a loan smart contract is created for that validator, and only for that validation round. Loan amount is sent to this smart contract and it will automatically stake it for the validator. After the validation round finishes, the loan amount plus the reward is returned to the loan smart contract, which will forward it to the treasury. Then the treasury will calculate the reward share and distribute it between the validator and stakers.
+When a validator requests a loan and it's accepted, a loan smart contract is created for that validator, and only for that validation round. Loan amount is sent to this smart contract and it automatically stakes it for the validator. After the validation round finishes, the loan amount plus the reward is returned to the loan smart contract, which will forward it to the treasury. Then the treasury will calculate the reward share and distribute it between the validator and stakers.
 
 ## Flows
 
