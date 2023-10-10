@@ -53,7 +53,7 @@ Both stakers and validators use different flows for different tasks. Each flow i
 
 ## Staker Flows
 
-Usually stakers use the web application available at [https://app.hipo.finance](https://app.hipo.finance) to send messages and talk to the protocol, but there is also an alternative. A simple text based interface is available which makes talking with the protocol easier for stakers who don't want to use the web application, or are using cold wallets and don't want to connect them to apps.
+Usually stakers use the web application available at [app.hipo.finance](https://app.hipo.finance) to send messages and talk to the protocol, but there is also an alternative. A simple text based interface is available which makes talking with the protocol easier for stakers who don't want to use the web application, or are using cold wallets and don't want to connect them to apps.
 
 ### Deposit Coins
 
