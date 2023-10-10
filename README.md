@@ -61,7 +61,7 @@ When a staker wants to deposit some TON and receive hTON, he/she sends a `deposi
 
 > Alternatively a simple text message with the comment `d` may be sent to the treasury by the staker.
 
-After this, the staker has sent the coins but will not receive hTON jettons yet. The reason is that there might be another validation round in progress, and the staker has to wait for that round to finish. When the in-progress round finishes, the staker can receive hTON jettons.
+After this, the staker has sent the coins but will not receive the hTON jettons yet. The reason is that there might be another validation round in progress, and the staker has to wait for that round to finish. When the in-progress round finishes, the staker can receive hTON jettons.
 
 ### Stake Coins
 
