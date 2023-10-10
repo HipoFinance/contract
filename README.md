@@ -67,7 +67,7 @@ After this, the staker has sent the coins but will not receive the hTON jettons 
 
 This step is usually handled by the **Driver** automatically. When the previous in-progress validation round finishes, the driver will send the `stake_coins` message for pending deposits.
 
-> Alternatively a simple text message with the comment `s` may be sent to the treasury by the staker. Note that this most likely happens automatically, however it's available here to make the protocol permission-less: in the unlikely case that the driver doesn't work as expected, the user can drive the protocol forward.
+> Alternatively, a simple text message with the comment `s` may be sent to the treasury by the staker. Note that this most likely happens automatically, however it's available here to make the protocol permission-less: in the unlikely case that the driver doesn't work as expected, the user can drive the protocol forward.
 
 ### Send Tokens
 
