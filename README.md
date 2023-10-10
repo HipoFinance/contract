@@ -49,7 +49,7 @@ When a validator requests a loan and it's accepted, a loan smart contract is cre
 
 ## Flows
 
-Both stakers and validators use different flows for different tasks. Here, each flow is described in more detail. **There are Graphviz graphs available for each flow in the `graphs` folder**. It's recommended to first look at the graph of each flow to better understand them.
+Both stakers and validators use different flows for different tasks. Each flow is described in more detail below. **There are Graphviz graphs available for each flow in the `graphs` folder**. It's recommended to first look at the graph of each flow to better understand them.
 
 ## Staker Flows
 
