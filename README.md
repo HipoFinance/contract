@@ -19,7 +19,7 @@ There are two groups of users who would be interested in using hTON: stakers and
 
 ### Stakers
 
-Stakers are users who have some TON and want to earn staking rewards on their TON. In normal staking, a staker must have a large sum of TON (like at-least 300,000 TON) before being able to participate in validation. Most users don't have access to such a big amount, but with a liquid staking protocol like hTON, they can earn rewards on any TON amount.
+Stakers are users who have some TON and want to earn staking rewards on their TON. In normal staking, a staker must have a large sum of TON (like at least 300,000 TON) before being able to participate in validation. Most users don't have access to such a big amount, but with a liquid staking protocol like hTON, they can earn rewards on any TON amount.
 
 When stakers deposit their TON, they will receive hTON jettons (a token in TON blockchain) as a receipt. Stakers can keep it or send it to other users or use it in other DeFi protocols. Whoever brings it back to the protocol, can receive the corresponding amount in TON by burning it.
 
