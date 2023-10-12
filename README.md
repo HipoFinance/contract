@@ -19,11 +19,11 @@ There are two groups of users who would be interested in using hTON: stakers and
 
 ### Stakers
 
-Stakers are users who have some TON and want to earn staking rewards on their TON. In normal staking, a staker must have a large sum of TON (like at-least 300,000 TON) before being able to participate in validation. Most users don't have access to such a big amount, but with a liquid staking protocol like hTON, they can earn rewards on any TON amount.
+Stakers are users who have some TON and want to earn staking rewards on their TON. In normal staking, a staker must have a large sum of TON (like at least 300,000 TON) before being able to participate in validation. Most users don't have access to such a big amount, but with a liquid staking protocol like hTON, they can earn rewards on any TON amount.
 
 When stakers deposit their TON, they will receive hTON jettons (a token in TON blockchain) as a receipt. Stakers can keep it or send it to other users or use it in other DeFi protocols. Whoever brings it back to the protocol, can receive the corresponding amount in TON by burning it.
 
-Meanwhile, protocol puts staked TON from all stakers to use and will give it as a loan to validators. In turn they'll receive a reward and share it with the protocol and stakers. So over time, each hTON will have more TON value, and stakers can burn their hTON jetton to receive TON.
+Meanwhile, protocol puts staked TON from all stakers to use and will give it as a loan to validators. In turn they'll receive a reward and share it with the protocol and stakers. So over time, each hTON will have more TON value, and stakers can burn their hTON jettons to receive TON.
 
 ### Validators
 
@@ -37,23 +37,23 @@ There are 3 smart contracts in the hTON protocol: **Treasury**, **Wallet**, and 
 
 ### Treasury
 
-Treasury is the main smart contract which receives all stakers' TON, and lends it to interested validators. It's also the jetton minter, minting new hTON jetton for stakers. The jettons are stored in wallets.
+Treasury is the main smart contract which receives all stakers' TON, and lends it to interested validators. It's also the jettons minter, minting new hTON jettons for stakers. The jettons are stored in wallets.
 
 ### Wallet
 
-Each staker will have a wallet that will store staker's jetton. Wallets receive jettons only from the treasury or from other wallets. They can also send jetton only to other wallets, or they can burn jetton by sending a request to the treasury.
+Each staker will have a wallet that will store staker's jettons. Wallets receive jettons only from the treasury or from other wallets. They can also send jettons only to other wallets, or they can burn jettons by sending a request to the treasury.
 
 ### Loan
 
-When a validator requests a loan and it's accepted, a loan smart contract is created for that validator, and only for that validation round. Loan amount is sent to this smart contract and it will automatically stake it for the validator. After the validation round finishes, the loan amount plus the reward is returned to the loan smart contract, which will forward it to the treasury. Then the treasury will calculate the reward share and distribute it between the validator and stakers.
+When a validator requests a loan and it's accepted, a loan smart contract is created for that validator, and only for that validation round. Loan amount is sent to this smart contract and it automatically stakes it for the validator. After the validation round finishes, the loan amount plus the reward is returned to the loan smart contract, which will forward it to the treasury. Then the treasury will calculate the reward share and distribute it between the validator and stakers.
 
 ## Flows
 
-Both stakers and validators use different flows for different tasks. Here, each flow is described in more detail. **There are Graphviz graphs available for each flow in the `graphs` folder**. It's recommended to first look at the graph of each flow to better understand them.
+Both stakers and validators use different flows for different tasks. Each flow is described in more detail below. **There are Graphviz graphs available for each flow in the `graphs` folder**. It's recommended to first look at the graph of each flow to better understand them.
 
 ## Staker Flows
 
-Usually stakers use the web application available at [https://app.hipo.finance](https://app.hipo.finance) to send messages and talk to the protocol, but there is also an alternative. A simple text based interface is available which makes talking with the protocol easier for stakers who don't want to use the web application, or are using cold wallets and don't want to connect them to apps.
+Usually stakers use the web application available at [app.hipo.finance](https://app.hipo.finance) to send messages and talk to the protocol, but there is also an alternative. A simple text based interface is available which makes talking with the protocol easier for stakers who don't want to use the web application, or are using cold wallets and don't want to connect them to apps.
 
 ### Deposit Coins
 
@@ -61,21 +61,21 @@ When a staker wants to deposit some TON and receive hTON, he/she sends a `deposi
 
 > Alternatively a simple text message with the comment `d` may be sent to the treasury by the staker.
 
-After this, the staker has sent the coins but will not receive hTON jetton yet. The reason is that there might be another validation round in progress, and the staker has to wait for that round to finish. When the in-progress round finishes, the staker can receive hTON jetton.
+After this, the staker has sent the coins but will not receive the hTON jettons yet. The reason is that there might be another validation round in progress, and the staker has to wait for that round to finish. When the in-progress round finishes, the staker can receive hTON jettons.
 
 ### Stake Coins
 
 This step is usually handled by the **Driver** automatically. When the previous in-progress validation round finishes, the driver will send the `stake_coins` message for pending deposits.
 
-> Alternatively a simple text message with the comment `s` may be sent to the treasury by the staker. Note that this most likely happens automatically, however it's available here to make the protocol permission-less: in the unlikely case that the driver doesn't work as expected, the user can drive the protocol forward.
+> Alternatively, a simple text message with the comment `s` may be sent to the treasury by the staker. Note that this most likely happens automatically, however it's available here to make the protocol permission-less: in the unlikely case that the driver doesn't work as expected, the user can drive the protocol forward.
 
 ### Send Tokens
 
-Stakers can send hTON jetton to anyone. This is usually done through TON Wallet applications which send `send_tokens` message to the staker's hTON jetton wallet.
+Stakers can send hTON jettons to anyone. This is usually done through TON Wallet applications which send `send_tokens` message to the staker's hTON jettons wallet.
 
 ### Unstake Tokens
 
-When a staker wants to burn hTON and withdraw some TON, he/she sends an `unstake_tokens` message to the hTON jetton wallet.
+When a staker wants to burn hTON and withdraw some TON, he/she sends an `unstake_tokens` message to the hTON jettons wallet.
 
 > Alternatively a simple text message with the comment `w` may be sent to the treasury by the staker. The choice of 'w' is intentional to match other similar protocols in the ecosystem.
 
