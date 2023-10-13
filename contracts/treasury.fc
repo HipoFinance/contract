@@ -1373,26 +1373,6 @@ builder pack_participation
     ;; This is just a template, and will only run after upgrade_code.
     ;; If data is upgraded, remember to reset this code,
     ;; so that the next upgrade won't change data by mistake.
-    slice ds = get_data().begin_parse();
-    total_coins = ds~load_coins();
-    total_tokens = ds~load_coins();
-    total_staking = ds~load_coins();
-    total_unstaking = ds~load_coins();
-    total_validators_stake = ds~load_coins();
-    participations = ds~load_dict();
-    ds~load_int(1);
-
-    begin_cell()
-        .store_coins(total_coins)
-        .store_coins(total_tokens)
-        .store_coins(total_staking)
-        .store_coins(total_unstaking)
-        .store_coins(total_validators_stake)
-        .store_dict(participations)
-        .store_uint(255, 8)
-        .store_slice(ds)
-        .end_cell()
-        .set_data();
 
     ;; Do not change the following code.
     governor = null();

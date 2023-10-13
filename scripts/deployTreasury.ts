@@ -35,7 +35,7 @@ export async function run(provider: NetworkProvider) {
             await compile('Treasury'),
         ),
     )
-    const confirm = await ui.input('\n\nDeploy new contract? [yN]')
+    const confirm = await ui.input('\n\nDeploy a new contract? [yN]')
     if (confirm.toLowerCase() !== 'y') {
         return
     }

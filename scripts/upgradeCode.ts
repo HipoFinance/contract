@@ -14,6 +14,7 @@ export async function run(provider: NetworkProvider) {
     console.info('1. Check upgrade_code in treasury.fc before proceeding\n')
     console.info('2. Check upgrade_data in treasury.fc before proceeding\n')
     console.info('3. Check additional data to be sent alongside the upgrade in this script')
+    console.info('4. Update and rebase this repo before continuing to have the correct git hash after upgrade')
     console.info('==============')
     console.info()
 
