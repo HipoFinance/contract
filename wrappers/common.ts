@@ -51,7 +51,7 @@ export const op = {
     setDriver: 0x7e7da841,
     setContent: 0x471dad93,
     setGovernanceFee: 0x470fe5f6,
-    setBalancedRounds: 0x230e906a,
+    setRoundsImbalance: 0x4ea0efd0,
     sendMessageToLoan: 0x2b93b447,
     sendProcessLoanRequests: 0x06cbff48,
     upgradeCode: 0x282600ff,

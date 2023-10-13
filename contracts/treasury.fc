@@ -6,7 +6,7 @@ global int total_staking;
 global int total_unstaking;
 global int total_validators_stake;
 global cell participations;
-global int balanced_rounds?;
+global int rounds_imbalance;
 global int stopped?;
 global cell wallet_code;
 global cell loan_code;
@@ -28,7 +28,7 @@ global cell content;
         .store_coins(total_unstaking)
         .store_coins(total_validators_stake)
         .store_dict(participations)
-        .store_int(balanced_rounds?, 1)
+        .store_uint(rounds_imbalance, 8)
         .store_int(stopped?, 1)
         .store_ref(wallet_code)
         .store_ref(loan_code)
@@ -45,7 +45,7 @@ global cell content;
     total_unstaking = ds~load_coins();
     total_validators_stake = ds~load_coins();
     participations = ds~load_dict();
-    balanced_rounds? = ds~load_int(1);
+    rounds_imbalance = ds~load_uint(8);
     stopped? = ds~load_int(1);
     wallet_code = ds~load_ref();
     loan_code = ds~load_ref();
@@ -567,14 +567,12 @@ builder pack_participation
         max(0, ton_balance - fee::treasury_storage - total_validators_stake - size * fee - reserved_amount);
 
     int last_total_staked = 0;
-    int available = available_now;
-    if (balanced_rounds?) {
-        ( _, ps, int f? ) = participations.udict_get_prev?(32, round_since);
-        if (f?) {
-            ( _, _, _, _, _, _, _, _, _, last_total_staked, _, _, _, _ ) = unpack_participation(ps);
-        }
-        available = min(available_now, (available_now + last_total_staked) / 2);
+    ( _, ps, int f? ) = participations.udict_get_prev?(32, round_since);
+    if (f?) {
+        ( _, _, _, _, _, _, _, _, _, last_total_staked, _, _, _, _ ) = unpack_participation(ps);
     }
+    int available_max = muldiv((available_now + last_total_staked), rounds_imbalance + 1 + 256, 512);
+    int available = min(available_now, available_max);
 
     int elected? = ~ config_param(config::next_validators).null?();
     int too_late? = t >= min(participate_until, round_since);
@@ -1302,11 +1300,11 @@ builder pack_participation
     save_data();
 }
 
-() set_balanced_rounds(slice src, slice s) impure inline {
+() set_rounds_imbalance(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
-    balanced_rounds? = s~load_int(1);
+    rounds_imbalance = s~load_uint(8);
     s.end_parse();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
@@ -1370,13 +1368,34 @@ builder pack_participation
 }
 
 () upgrade_data(slice src, int query_id, slice s) impure method_id {
-    ;; Add code for upgrading date here.
+    ;; Add code for upgrading data here.
 
     ;; This is just a template, and will only run after upgrade_code.
     ;; If data is upgraded, remember to reset this code,
     ;; so that the next upgrade won't change data by mistake.
+    slice ds = get_data().begin_parse();
+    total_coins = ds~load_coins();
+    total_tokens = ds~load_coins();
+    total_staking = ds~load_coins();
+    total_unstaking = ds~load_coins();
+    total_validators_stake = ds~load_coins();
+    participations = ds~load_dict();
+    ds~load_int(1);
+
+    begin_cell()
+        .store_coins(total_coins)
+        .store_coins(total_tokens)
+        .store_coins(total_staking)
+        .store_coins(total_unstaking)
+        .store_coins(total_validators_stake)
+        .store_dict(participations)
+        .store_uint(255, 8)
+        .store_slice(ds)
+        .end_cell()
+        .set_data();
 
     ;; Do not change the following code.
+    governor = null();
     load_data();
     unpack_extension();
 
@@ -1604,8 +1623,8 @@ builder pack_participation
         return set_governance_fee(src, in_msg_body);
     }
 
-    if (op == op::set_balanced_rounds) {
-        return set_balanced_rounds(src, in_msg_body);
+    if (op == op::set_rounds_imbalance) {
+        return set_rounds_imbalance(src, in_msg_body);
     }
 
     if (op == op::send_message_to_loan) {
@@ -1698,7 +1717,7 @@ slice get_loan_address(slice validator, int round_since) method_id {
         , total_unstaking
         , total_validators_stake
         , participations
-        , balanced_rounds?
+        , rounds_imbalance
         , stopped?
         , wallet_code
         , loan_code

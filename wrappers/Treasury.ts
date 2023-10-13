@@ -82,7 +82,7 @@ export interface TreasuryConfig {
     totalUnstaking: bigint
     totalValidatorsStake: bigint
     participations: Dictionary<bigint, Participation>
-    balancedRounds: boolean
+    roundsImbalance: bigint
     stopped: boolean
     walletCode: Cell
     loanCode: Cell
@@ -111,7 +111,7 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeCoins(config.totalUnstaking)
         .storeCoins(config.totalValidatorsStake)
         .storeDict(config.participations)
-        .storeBit(config.balancedRounds)
+        .storeUint(config.roundsImbalance, 8)
         .storeBit(config.stopped)
         .storeRef(config.walletCode)
         .storeRef(config.loanCode)
@@ -554,7 +554,7 @@ export class Treasury implements Contract {
         })
     }
 
-    async sendSetBalancedRounds(
+    async sendSetRoundsImbalance(
         provider: ContractProvider,
         via: Sender,
         opts: {
@@ -562,7 +562,7 @@ export class Treasury implements Contract {
             bounce?: boolean
             sendMode?: SendMode
             queryId?: bigint
-            newBalancedRounds: boolean
+            newRoundsImbalance: bigint
         },
     ) {
         await this.sendMessage(provider, via, {
@@ -570,9 +570,9 @@ export class Treasury implements Contract {
             bounce: opts.bounce,
             sendMode: opts.sendMode,
             body: beginCell()
-                .storeUint(op.setBalancedRounds, 32)
+                .storeUint(op.setRoundsImbalance, 32)
                 .storeUint(opts.queryId ?? 0, 64)
-                .storeBit(opts.newBalancedRounds)
+                .storeUint(opts.newRoundsImbalance, 8)
                 .endCell(),
         })
     }
@@ -718,7 +718,7 @@ export class Treasury implements Contract {
                 participationDictionaryValue,
                 stack.readCellOpt(),
             ),
-            balancedRounds: stack.readBoolean(),
+            roundsImbalance: stack.readBigNumber(),
             stopped: stack.readBoolean(),
             walletCode: stack.readCell(),
             loanCode: stack.readCell(),

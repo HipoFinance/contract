@@ -68,7 +68,7 @@ describe('Loan', () => {
                     totalUnstaking: 0n,
                     totalValidatorsStake: 0n,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
-                    balancedRounds: false,
+                    roundsImbalance: 255n,
                     stopped: false,
                     walletCode,
                     loanCode,
@@ -1011,7 +1011,7 @@ describe('Loan', () => {
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
 
-        await treasury.sendSetBalancedRounds(halter.getSender(), { value: '0.1', newBalancedRounds: true })
+        await treasury.sendSetRoundsImbalance(halter.getSender(), { value: '0.1', newRoundsImbalance: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -1077,7 +1077,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: treasury.address,
-            value: between('349999', '350000'),
+            value: between('351000', '352000'),
             body: bodyOp(op.decideLoanRequests),
             success: true,
             outMessagesCount: 1,
@@ -1085,7 +1085,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: treasury.address,
-            value: between('349999', '350000'),
+            value: between('351000', '352000'),
             body: bodyOp(op.processLoanRequests),
             success: true,
             outMessagesCount: 3,
@@ -1109,7 +1109,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: loan3.address,
-            value: between('350171', '350172'),
+            value: between('351000', '352000'),
             body: bodyOp(op.sendNewStake),
             deploy: true,
             success: true,
@@ -1118,7 +1118,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: loan3.address,
             to: electorAddress,
-            value: between('350171', '350172'),
+            value: between('351000', '352000'),
             body: bodyOp(op.newStake),
             success: true,
             outMessagesCount: 1,
@@ -1135,7 +1135,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('350012', '350013')
+        expect(treasuryBalance).toBeBetween('348000', '349000')
         expect(treasuryState.totalCoins).toBeBetween('699999', '700000')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalTokens)
         expect(treasuryState.totalStaking).toBeTonValue('0')
@@ -1302,7 +1302,7 @@ describe('Loan', () => {
         const state1 = await treasury.getTreasuryState()
         state1.participations.set(until1, participation1)
         state1.participations.set(1n, { totalStaked: toNano('1000000') })
-        state1.balancedRounds = true
+        state1.roundsImbalance = 0n
         state1.totalValidatorsStake = toNano('1000') * count
         const fakeData1 = treasuryConfigToCell(state1)
         await blockchain.setShardAccount(

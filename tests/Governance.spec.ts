@@ -54,7 +54,7 @@ describe('Treasury', () => {
                     totalUnstaking: 0n,
                     totalValidatorsStake: 0n,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
-                    balancedRounds: false,
+                    roundsImbalance: 255n,
                     stopped: false,
                     walletCode,
                     loanCode,
@@ -405,17 +405,17 @@ describe('Treasury', () => {
         accumulateFees(result.transactions)
     })
 
-    it('should set balanced-rounds', async () => {
-        const result = await treasury.sendSetBalancedRounds(governor.getSender(), {
+    it('should set rounds imbalance', async () => {
+        const result = await treasury.sendSetRoundsImbalance(governor.getSender(), {
             value: '0.1',
-            newBalancedRounds: true,
+            newRoundsImbalance: 128n,
         })
 
         expect(result.transactions).toHaveTransaction({
             from: governor.address,
             to: treasury.address,
             value: toNano('0.1'),
-            body: bodyOp(op.setBalancedRounds),
+            body: bodyOp(op.setRoundsImbalance),
             success: true,
             outMessagesCount: 1,
         })
@@ -430,7 +430,7 @@ describe('Treasury', () => {
         expect(result.transactions).toHaveLength(3)
 
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryState.balancedRounds).toBe(true)
+        expect(treasuryState.roundsImbalance).toEqual(128n)
 
         accumulateFees(result.transactions)
     })

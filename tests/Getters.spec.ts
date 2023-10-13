@@ -43,7 +43,7 @@ describe('Getters', () => {
                     totalUnstaking: 0n,
                     totalValidatorsStake: 0n,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
-                    balancedRounds: false,
+                    roundsImbalance: 255n,
                     stopped: false,
                     walletCode,
                     loanCode,
@@ -137,7 +137,7 @@ describe('Getters', () => {
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
         expect(treasuryState.participations.keys()).toHaveLength(0)
-        expect(treasuryState.balancedRounds).toEqual(false)
+        expect(treasuryState.roundsImbalance).toEqual(255n)
         expect(treasuryState.stopped).toEqual(false)
         expect(treasuryState.walletCode.toBoc().toString('base64')).toEqual(walletCode.toBoc().toString('base64'))
         expect(treasuryState.loanCode.toBoc().toString('base64')).toEqual(loanCode.toBoc().toString('base64'))

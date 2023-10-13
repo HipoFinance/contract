@@ -1,5 +1,5 @@
 digraph {
-    label="the current halter sets the balanced-rounds flag"
+    label="the current halter sets the rounds imbalance"
     node [ colorscheme=pastel19 style=filled ]
 
     /* Entities */
@@ -9,7 +9,7 @@ digraph {
 
     /* Relationships */
     external -> halter [ label="1" ]
-    halter -> treasury [ label="2\l op::set_balanced_rounds\l 0.10 TON\l" ]
+    halter -> treasury [ label="2\l op::set_rounds_imbalance\l 0.10 TON\l" ]
     treasury -> halter [ label="3\l op::gas_excess\l 0.09 TON\l" ]
 
     /* Ranks */

@@ -20,7 +20,7 @@ export async function run(provider: NetworkProvider) {
                 totalUnstaking: 0n,
                 totalValidatorsStake: 0n,
                 participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
-                balancedRounds: false,
+                roundsImbalance: 255n,
                 stopped: false,
                 walletCode: await compile('Wallet'),
                 loanCode: await compile('Loan'),

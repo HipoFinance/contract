@@ -50,7 +50,7 @@ describe('Wallet', () => {
                     totalUnstaking: 0n,
                     totalValidatorsStake: 0n,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
-                    balancedRounds: false,
+                    roundsImbalance: 255n,
                     stopped: false,
                     walletCode,
                     loanCode,
