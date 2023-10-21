@@ -187,7 +187,7 @@ int request_sort_key(int min_payment, int validator_reward_share, int loan_amoun
     int treasury_reward_share = 255 - validator_reward_share;
     int min_payment_round = min_payment >> 30; ;; round to around 1 TON
     int loan_amount_round = max(1, loan_amount >> 40); ;; round to around 1100 TON
-    int loan_amount_round_comp = ~ loan_amount_round;
+    int loan_amount_round_comp = (1 << 80) - loan_amount_round;
     int efficieny = min((1 << 24) - 1, muldiv(min_payment_round, 1000, loan_amount_round));
     return (efficieny << (8 + 80)) + (treasury_reward_share << 80) + loan_amount_round_comp;
 }

@@ -1381,4 +1381,49 @@ describe('Loan', () => {
         expect(times.participateUntil).toBeLessThanOrEqual(since + electedFor - electionsEndBefore)
         expect(times.participateUntil).toBeGreaterThanOrEqual(times.participateSince)
     })
+
+    it('should correctly set sort keys', async () => {
+        const times = await treasury.getTimes()
+        const electedFor = times.nextRoundSince - times.currentRoundSince
+        const since = BigInt(Math.floor(Date.now() / 1000)) - electedFor / 2n
+        const until = since + electedFor
+        const vset = createVset(since, until)
+        setConfig(blockchain, config.currentValidators, vset)
+
+        const validator1 = await blockchain.treasury('validator1')
+        const validator2 = await blockchain.treasury('validator2')
+        const validator3 = await blockchain.treasury('validator3')
+        await treasury.sendRequestLoan(validator1.getSender(), {
+            value: '151.9', // 101 (max punishment) + 50 (min payment) + 0.9 (fee)
+            roundSince: until,
+            loanAmount: '300000',
+            minPayment: '50',
+            validatorRewardShare: 102n, // 40%
+            newStakeMsg: emptyNewStakeMsg,
+        })
+        await treasury.sendRequestLoan(validator2.getSender(), {
+            value: '102.9', // 101 (max punishment) + 1 (min payment) + 0.9 (fee)
+            roundSince: until,
+            loanAmount: '5000000000',
+            minPayment: '1',
+            validatorRewardShare: 255n, // 100%
+            newStakeMsg: emptyNewStakeMsg,
+        })
+        await treasury.sendRequestLoan(validator3.getSender(), {
+            value: '320101.9', // 101 (max punishment) + 20000 (min payment) + 0.9 (fee)
+            roundSince: until,
+            loanAmount: '1000',
+            minPayment: '20000',
+            validatorRewardShare: 0n, // 0%
+            newStakeMsg: emptyNewStakeMsg,
+        })
+
+        const participation = await treasury.getParticipation(until)
+        const sorted = participation.sorted ?? Dictionary.empty(Dictionary.Keys.BigUint(112), sortedDictionaryValue)
+        const keys = sorted.keys()
+        expect(keys).toHaveLength(3)
+        expect(keys[0]).toEqual((1n << 80n) - (toNano('5000000000') >> 40n))
+        expect(keys[1]).toEqual((169n << (80n + 8n)) + ((255n - 102n) << 80n) + ((1n << 80n) - 272n))
+        expect(keys[2]).toEqual((1n << 112n) - 1n)
+    })
 })
