@@ -1351,4 +1351,34 @@ describe('Loan', () => {
         accumulateFees(result1.transactions)
         accumulateFees(result2.transactions)
     })
+
+    it('should handle dense election spans', async () => {
+        const electedFor = 120n
+        const electionsStartBefore = 60n
+        const electionsEndBefore = 30n
+        const stakeHeldFor = 60n
+        const since = BigInt(Math.floor(Date.now() / 1000))
+        const until = since + electedFor
+
+        const election = beginCell()
+            .storeUint(electedFor, 32)
+            .storeUint(electionsStartBefore, 32)
+            .storeUint(electionsEndBefore, 32)
+            .storeUint(stakeHeldFor, 32)
+            .endCell()
+        setConfig(blockchain, config.election, election)
+
+        const vset = createVset(since, until)
+        setConfig(blockchain, config.currentValidators, vset)
+
+        const times = await treasury.getTimes()
+        expect(times.currentRoundSince).toEqual(since)
+        expect(times.nextRoundSince).toEqual(until)
+        expect(times.nextRoundUntil).toEqual(until + electedFor)
+        expect(times.stakeHeldFor).toEqual(stakeHeldFor)
+        expect(times.participateSince).toBeGreaterThanOrEqual(since + electedFor - electionsStartBefore)
+        expect(times.participateSince).toBeLessThanOrEqual(since + electedFor - electionsEndBefore)
+        expect(times.participateUntil).toBeLessThanOrEqual(since + electedFor - electionsEndBefore)
+        expect(times.participateUntil).toBeGreaterThanOrEqual(times.participateSince)
+    })
 })

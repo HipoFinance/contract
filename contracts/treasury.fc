@@ -423,9 +423,9 @@ builder pack_participation
     , int stake_held_for
     ) = get_election_config();
     int election_span = elections_start_before - elections_end_before;
-    int election_end = next_round_since - elections_end_before;
-    int participate_since = election_end - max(600, muldiv(election_span, 10, 100));
-    int participate_until = election_end - 300;
+    int gap = muldiv(election_span, 1, 4);
+    int participate_since = next_round_since - elections_start_before + gap;
+    int participate_until = next_round_since - elections_end_before - gap;
     int next_round_until = next_round_since + validators_elected_for;
     return
         ( current_round_since

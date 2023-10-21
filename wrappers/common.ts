@@ -61,6 +61,7 @@ export const op = {
 }
 
 export const config = {
+    election: 15n,
     validators: 16n,
     currentValidators: 34n,
 }
