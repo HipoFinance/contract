@@ -415,7 +415,7 @@ builder pack_participation
     send_msg(false, src.to_builder(), null(), body, 0, send::remaining_value);
 }
 
-(int, int, int, int, int, int) get_times() impure inline_ref method_id {
+(int, int, int, int, int, int) get_times() inline_ref method_id {
     ( int current_round_since, int next_round_since ) = get_vset_times(config::current_validators);
     ( int validators_elected_for
     , int elections_start_before

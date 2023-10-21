@@ -41,7 +41,7 @@ builder store_body(builder b, builder body) inline {
     return ( chain::main, config_param(config::elector_address).begin_parse().preload_uint(256) );
 }
 
-(int, int, int, int) get_election_config() impure inline {
+(int, int, int, int) get_election_config() inline {
     ;; _ validators_elected_for:uint32 elections_start_before:uint32
     ;;   elections_end_before:uint32 stake_held_for:uint32
     ;;   = ConfigParam 15;
@@ -49,7 +49,7 @@ builder store_body(builder b, builder body) inline {
     return ( cs~load_uint(32), cs~load_uint(32), cs~load_uint(32), cs~load_uint(32) );
 }
 
-(int, int, int) get_validators_config() impure inline {
+(int, int, int) get_validators_config() inline {
     ;; _ max_validators:(## 16) max_main_validators:(## 16) min_validators:(## 16)
     ;;   { max_validators >= max_main_validators }
     ;;   { max_main_validators >= min_validators }
@@ -59,13 +59,13 @@ builder store_body(builder b, builder body) inline {
     return ( cs~load_uint(16), cs~load_uint(16), cs~load_uint(16) );
 }
 
-(int, int, int, int) get_stake_config() impure inline {
+(int, int, int, int) get_stake_config() inline {
     ;; _ min_stake:Grams max_stake:Grams min_total_stake:Grams max_stake_factor:uint32 = ConfigParam 17;
     slice cs = config_param(config::stake).begin_parse();
     return ( cs~load_coins(), cs~load_coins(), cs~load_coins(), cs~load_uint(32) );
 }
 
-(int, int, int, int) get_storage_prices() impure inline {
+(int, int, int, int) get_storage_prices() inline {
     ;; _#cc utime_since:uint32 bit_price_ps:uint64 cell_price_ps:uint64
     ;;   mc_bit_price_ps:uint64 mc_cell_price_ps:uint64 = StoragePrices;
     ;; _ (Hashmap 32 StoragePrices) = ConfigParam 18;
@@ -76,7 +76,7 @@ builder store_body(builder b, builder body) inline {
     return ( v~load_uint(64), v~load_uint(64), v~load_uint(64), v~load_uint(64) );
 }
 
-(int, int) get_gas_prices(int i) impure inline_ref {
+(int, int) get_gas_prices(int i) inline_ref {
     ;; gas_prices#dd gas_price:uint64 gas_limit:uint64 gas_credit:uint64
     ;;   block_gas_limit:uint64 freeze_due_limit:uint64 delete_due_limit:uint64
     ;;   = GasLimitsPrices;
@@ -100,7 +100,7 @@ builder store_body(builder b, builder body) inline {
     return ( cs~load_uint(64), cs~load_uint(64) );
 }
 
-(int, int, int) get_msg_forward_prices(int i) impure inline_ref {
+(int, int, int) get_msg_forward_prices(int i) inline_ref {
     ;; msg_forward_prices#ea lump_price:uint64 bit_price:uint64 cell_price:uint64
     ;;   ihr_price_factor:uint32 first_frac:uint16 next_frac:uint16 = MsgForwardPrices;
 
@@ -114,7 +114,7 @@ builder store_body(builder b, builder body) inline {
     return ( cs~load_uint(64), cs~load_uint(64), cs~load_uint(64) );
 }
 
-(int, int) get_vset_times(int i) impure inline_ref {
+(int, int) get_vset_times(int i) inline_ref {
     ;; validators_ext#12 utime_since:uint32 utime_until:uint32
     ;;   total:(## 16) main:(## 16) { main <= total } { main >= 1 }
     ;;   total_weight:uint64 list:(HashmapE 16 ValidatorDescr) = ValidatorSet;
@@ -249,7 +249,7 @@ int max_recommended_punishment_for_validator_misbehaviour(int stake) inline_ref 
     return min(stake, fine + muldiv(stake, fine_part, 1 << 32));
 }
 
-int wallet_storage_fee() impure inline_ref {
+int wallet_storage_fee() inline_ref {
     ( int bit_price_ps, int cell_price_ps, _, _ ) = get_storage_prices();
     int bits = 267 + 267 + 124 + 1 + 124 + 2 * (32 + 124);
     int cells = 1 + 3; ;; 3 cells may be used by a dict holding 2 entries
@@ -258,7 +258,7 @@ int wallet_storage_fee() impure inline_ref {
     return pps * duration >> 16; ;; currently near 0.003 TON
 }
 
-(int, int) loan_storage_fee() impure inline_ref {
+(int, int) loan_storage_fee() inline_ref {
     ;; loan smart contract storage on main chain while validating
     ( int bit_price_ps, int cell_price_ps, int mc_bit_price_ps, int mc_cell_price_ps ) = get_storage_prices();
     int bits1 = 267 + 267 + 267 + 32;
@@ -287,7 +287,7 @@ int msg_fwd_fee(int lump_price, int bit_price, int cell_price, int rest_bits, in
     return lump_price + ((rest_bits * bit_price + rest_cells * cell_price + 65535) >> 16);
 }
 
-int deposit_coins_fee(cell wallet_state_init) impure {
+int deposit_coins_fee(cell wallet_state_init) {
     int storage_fee = wallet_storage_fee();
 
     ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
@@ -323,7 +323,7 @@ int deposit_coins_fee(cell wallet_state_init) impure {
     return storage_fee + computation_fee + fwd_fee;
 }
 
-int stake_coins_fee() impure {
+int stake_coins_fee() {
     int storage_fee = wallet_storage_fee();
 
     ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
@@ -349,12 +349,12 @@ int stake_coins_fee() impure {
     return storage_fee + computation_fee + fwd_fee;
 }
 
-int stake_first_coins_fee() impure {
+int stake_first_coins_fee() {
     ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
     return gas::stake_first_coins * gas_price >> 16;
 }
 
-int send_tokens_fee(cell wallet_state_init) impure {
+int send_tokens_fee(cell wallet_state_init) {
     int storage_fee = wallet_storage_fee();
 
     ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
@@ -382,7 +382,7 @@ int send_tokens_fee(cell wallet_state_init) impure {
     return storage_fee + computation_fee + fwd_fee;
 }
 
-int unstake_tokens_fee() impure {
+int unstake_tokens_fee() {
     int storage_fee = wallet_storage_fee();
 
     ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
@@ -414,17 +414,17 @@ int unstake_tokens_fee() impure {
     return storage_fee + computation_fee + fwd_fee;
 }
 
-int unstake_all_tokens_fee() impure {
+int unstake_all_tokens_fee() {
     ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
     return gas::unstake_all_tokens * gas_price >> 16;
 }
 
-int transfer_notification_fee() impure {
+int transfer_notification_fee() {
     ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
     return gas::transfer_notification * gas_price >> 16;
 }
 
-int withdraw_tokens_fee() impure {
+int withdraw_tokens_fee() {
     int storage_fee = wallet_storage_fee();
 
     ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
@@ -448,7 +448,7 @@ int withdraw_tokens_fee() impure {
     return storage_fee + computation_fee + fwd_fee;
 }
 
-int request_loan_fee(cell loan_state_init) impure {
+int request_loan_fee(cell loan_state_init) {
     ( int loan_storage_fee, int request_storage_fee ) = loan_storage_fee();
     int storage_fee = loan_storage_fee + request_storage_fee;
 
@@ -507,7 +507,7 @@ int request_loan_fee(cell loan_state_init) impure {
     return storage_fee + computation_fee + fwd_fee;
 }
 
-int send_new_stake_fee(cell loan_state_init) impure {
+int send_new_stake_fee(cell loan_state_init) {
     ( int loan_storage_fee, _ ) = loan_storage_fee();
     int storage_fee = loan_storage_fee;
 
@@ -542,7 +542,7 @@ int send_new_stake_fee(cell loan_state_init) impure {
     return storage_fee + computation_fee + fwd_fee;
 }
 
-int recover_stake_fee() impure {
+int recover_stake_fee() {
     ( int loan_storage_fee, _ ) = loan_storage_fee();
     int storage_fee = loan_storage_fee;
 
