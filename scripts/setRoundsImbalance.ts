@@ -11,7 +11,7 @@ export async function run(provider: NetworkProvider) {
     const treasuryAddress = Address.parse(addressString)
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
-    const roundsImbalance = await ui.input('What should be the rounds imbalance rate? [0-256]')
+    const roundsImbalance = await ui.input('What should be the rounds imbalance rate? [0-255]')
 
     await treasury.sendSetRoundsImbalance(provider.sender(), {
         value: '0.1',
