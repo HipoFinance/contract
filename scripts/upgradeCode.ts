@@ -6,7 +6,7 @@ export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
 
     const newCode = await compile('Treasury')
-    const additionalData = beginCell()
+    const additionalData = beginCell().storeRef(await compile('Loan'))
 
     console.info()
     console.info('UPGRADING CODE')

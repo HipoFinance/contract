@@ -1307,6 +1307,64 @@ builder pack_participation
     ;; This is just a template, and will only run after upgrade_code.
     ;; If data is upgraded, remember to reset this code,
     ;; so that the next upgrade won't change data by mistake.
+    cell new_loan_code = s~load_ref();
+    s.end_parse();
+    throw_unless(200, ~ null?(new_loan_code));
+
+    slice ds = get_data().begin_parse();
+    int old_total_coins = ds~load_coins();
+    int old_total_tokens = ds~load_coins();
+    int old_total_staking = ds~load_coins();
+    int old_total_unstaking = ds~load_coins();
+    int old_total_validators_stake = ds~load_coins();
+    cell old_participations = ds~load_dict();
+    int old_rounds_imbalance = ds~load_uint(8);
+    int old_stopped? = ds~load_int(1);
+    cell old_wallet_code = ds~load_ref();
+    ds~load_ref();
+    cell old_extension = ds~load_ref();
+
+    s = old_extension.begin_parse();
+    slice old_driver = s~load_msg_addr();
+    slice old_halter = s~load_msg_addr();
+    slice old_governor = s~load_msg_addr();
+    cell old_proposed_governor = s~load_maybe_ref();
+    int old_governance_fee = s~load_uint(16);
+    cell old_rewards_history = s~load_dict();
+    cell old_content = s~load_ref();
+    s.end_parse();
+
+    ( _, slice old_reward, int f? ) = old_rewards_history.udict_get_max?(32);
+    throw_unless(100, f?);
+    int new_last_staked = old_reward~load_coins();
+    int new_last_recovered = old_reward~load_coins();
+    old_reward.end_parse();
+
+    cell new_extension = begin_cell()
+        .store_slice(old_driver)
+        .store_slice(old_halter)
+        .store_slice(old_governor)
+        .store_maybe_ref(old_proposed_governor)
+        .store_uint(old_governance_fee, 16)
+        .store_ref(old_content)
+        .end_cell();
+
+    begin_cell()
+        .store_coins(old_total_coins)
+        .store_coins(old_total_tokens)
+        .store_coins(old_total_staking)
+        .store_coins(old_total_unstaking)
+        .store_coins(old_total_validators_stake)
+        .store_coins(new_last_staked)
+        .store_coins(new_last_recovered)
+        .store_dict(old_participations)
+        .store_uint(old_rounds_imbalance, 8)
+        .store_int(old_stopped?, 1)
+        .store_ref(old_wallet_code)
+        .store_ref(new_loan_code)
+        .store_ref(new_extension)
+        .end_cell()
+        .set_data();
 
     ;; Do not change the following code.
     governor = null();
