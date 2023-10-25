@@ -265,17 +265,15 @@ export class Treasury implements Contract {
             referrer?: Address
         },
     ) {
-        const builder = beginCell()
-            .storeUint(op.depositCoins, 32)
-            .storeUint(opts.queryId ?? 0, 64)
-        if (opts.referrer != undefined) {
-            builder.storeAddress(opts.referrer)
-        }
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
             sendMode: opts.sendMode,
-            body: builder.endCell(),
+            body: beginCell()
+                .storeUint(op.depositCoins, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .storeAddress(opts.referrer)
+                .endCell(),
         })
     }
 

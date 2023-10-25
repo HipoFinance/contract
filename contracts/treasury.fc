@@ -178,7 +178,8 @@ builder pack_participation
     unpack_extension();
 
     int query_id = s~load_uint(64);
-    ;; no s.end_parse() since referrer might be provided, which is used externally, not by this function
+    slice referrer = s~load_msg_addr(); ;; only used externally to know the referrer for this deposit
+    s.end_parse();
 
     ( builder wallet, cell state_init, _ ) = create_wallet_address(src.to_builder(), my_address(), wallet_code);
     ( int src_wc, _ ) = parse_std_addr(src);
@@ -1433,7 +1434,7 @@ builder pack_participation
         if ((in_msg_body.slice_bits() == 8) & (in_msg_body.slice_refs() == 0)) {
             int c = in_msg_body~load_uint(8);
             if (c == "d"u) {
-                return deposit_coins(msg_ton, src, query_id::zero);
+                return deposit_coins(msg_ton, src, "00000000000000000"s.skip_bits(2));
             }
 
             if (c == "s"u) {

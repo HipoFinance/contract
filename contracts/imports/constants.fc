@@ -169,4 +169,3 @@ const int chain::base = 0;
 
 
 const slice address::empty = "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"a;
-const slice query_id::zero = "0000000000000000"s;

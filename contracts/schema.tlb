@@ -121,7 +121,7 @@ take_wallet_address#d1735400
 
 deposit_coins#1375a585
     query_id:uint64
-    // referrer:MsgAddress // this may be optionally filled by referrer
+    referrer:MsgAddress
         = InternalMsgBody;
 
 save_coins#7f30ee55
