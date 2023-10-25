@@ -6,7 +6,7 @@ export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
 
     const newCode = await compile('Treasury')
-    const additionalData = beginCell().storeRef(await compile('Loan'))
+    const additionalData = beginCell()
 
     console.info()
     console.info('UPGRADING CODE')
@@ -36,7 +36,7 @@ export async function run(provider: NetworkProvider) {
         return
     }
 
-    await treasury.sendUpgradeCode(provider.sender(), { value: '0.1', newCode, rest: additionalData })
+    await treasury.sendUpgradeCode(provider.sender(), { value: '1', newCode, rest: additionalData })
 
     ui.write('Done')
 
