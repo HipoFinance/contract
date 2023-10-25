@@ -22,7 +22,6 @@ import {
     Treasury,
     participationDictionaryValue,
     requestDictionaryValue,
-    rewardDictionaryValue,
     sortedDictionaryValue,
     treasuryConfigToCell,
 } from '../wrappers/Treasury'
@@ -67,6 +66,8 @@ describe('Loan', () => {
                     totalStaking: 0n,
                     totalUnstaking: 0n,
                     totalValidatorsStake: 0n,
+                    lastStaked: 0n,
+                    lastRecovered: 0n,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                     roundsImbalance: 255n,
                     stopped: false,
@@ -77,7 +78,6 @@ describe('Loan', () => {
                     governor: governor.address,
                     proposedGovernor: null,
                     governanceFee: 4096n,
-                    rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
                     content: Cell.EMPTY,
                 },
                 treasuryCode,
@@ -238,7 +238,7 @@ describe('Loan', () => {
             value: between('699999', '700000'),
             body: bodyOp(op.processLoanRequests),
             success: true,
-            outMessagesCount: 3,
+            outMessagesCount: 3 + 2,
         })
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
@@ -299,12 +299,13 @@ describe('Loan', () => {
             outMessagesCount: 0,
         })
         expect(result.transactions).toHaveLength(10)
+        expect(result.externals).toHaveLength(2)
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('11', '12')
         expect(treasuryState.totalCoins).toBeBetween('699999', '700000')
-        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalTokens)
+        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
@@ -425,7 +426,7 @@ describe('Loan', () => {
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('11', '12')
         expect(treasuryState.totalCoins).toBeBetween('699999', '700000')
-        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalTokens)
+        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
@@ -610,7 +611,7 @@ describe('Loan', () => {
             value: between('350261', '350262'),
             body: bodyOp(op.recoverStakeResult),
             success: true,
-            outMessagesCount: 2,
+            outMessagesCount: (x) => x === 2 + 1 || x === 2 + 2,
         })
         expect(result.transactions).toHaveTransaction({
             from: loan3.address,
@@ -618,7 +619,7 @@ describe('Loan', () => {
             value: between('350271', '350272'),
             body: bodyOp(op.recoverStakeResult),
             success: true,
-            outMessagesCount: 2,
+            outMessagesCount: (x) => x === 2 + 1 || x === 2 + 2,
         })
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
@@ -653,6 +654,7 @@ describe('Loan', () => {
             outMessagesCount: 0,
         })
         expect(result.transactions).toHaveLength(14)
+        expect(result.externals).toHaveLength(3)
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
@@ -662,11 +664,8 @@ describe('Loan', () => {
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
-
-        const reward = treasuryState.rewardsHistory.get(until1)
-        expect(treasuryState.rewardsHistory.size).toBe(1)
-        expect(reward?.staked).toBeBetween('699999', '700000')
-        expect(reward?.recovered).toBeBetween('700121', '700122')
+        expect(treasuryState.lastStaked).toBeBetween('699999', '700000')
+        expect(treasuryState.lastRecovered).toBeBetween('700121', '700122')
 
         accumulateFees(result.transactions)
     })
@@ -760,7 +759,7 @@ describe('Loan', () => {
             value: between('699999', '700000'),
             body: bodyOp(op.processLoanRequests),
             success: true,
-            outMessagesCount: 3,
+            outMessagesCount: 3 + 2,
         })
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
@@ -824,22 +823,22 @@ describe('Loan', () => {
             from: loan2.address,
             to: treasury.address,
             value: between('350161', '350162'),
-            body: bodyOp(op.newStakeRejected),
+            body: bodyOp(op.recoverStakeResult),
             success: true,
-            outMessagesCount: 1,
+            outMessagesCount: (x) => x === 2 + 1 || x === 2 + 2,
         })
         expect(result.transactions).toHaveTransaction({
             from: loan3.address,
             to: treasury.address,
             value: between('350171', '350172'),
-            body: bodyOp(op.newStakeRejected),
+            body: bodyOp(op.recoverStakeResult),
             success: true,
-            outMessagesCount: 1,
+            outMessagesCount: (x) => x === 2 + 1 || x === 2 + 2,
         })
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: validator2.address,
-            value: between('101', '101.1'),
+            value: between('101.2', '101.3'),
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
@@ -847,28 +846,44 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: validator3.address,
-            value: between('101', '101.1'),
+            value: between('101.2', '101.3'),
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
         })
-        expect(result.transactions).toHaveLength(14)
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: governor.address,
+            value: between('3.7', '3.8'),
+            body: bodyOp(op.takeProfit),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: governor.address,
+            value: between('4.3', '4.4'),
+            body: bodyOp(op.takeProfit),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(16)
+        expect(result.externals).toHaveLength(5)
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('700141', '700142')
-        expect(treasuryState.totalCoins).toBeBetween('700129', '700130')
-        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalTokens)
+        expect(treasuryBalance).toBeBetween('700133', '700134')
+        expect(treasuryState.totalCoins).toBeBetween('700121', '700122')
+        expect(treasuryState.totalTokens).toBeBetween('699999', '700000')
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.lastStaked).toBeBetween('699999', '700000')
+        expect(treasuryState.lastRecovered).toBeBetween('700121', '700122')
         expect(treasuryState.participations.size === 0).toBeTruthy()
-        expect(treasuryState.rewardsHistory.size === 1).toBeTruthy()
-        expect(treasuryState.rewardsHistory.get(until1)?.staked).toBeBetween('699999', '700000')
-        expect(treasuryState.rewardsHistory.get(until1)?.recovered).toBeBetween('700129', '700130')
 
         accumulateFees(result.transactions)
-        logComputeGas('new_stake_rejected', op.newStakeRejected, result.transactions[10])
+        logComputeGas('recover_stake_result', op.recoverStakeResult, result.transactions[10])
         logComputeGas('new_stake_error', op.newStakeError, result.transactions[9])
     })
 
@@ -987,12 +1002,13 @@ describe('Loan', () => {
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('12', '13')
         expect(treasuryState.totalCoins).toBeTonValue('0')
-        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalTokens)
+        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.lastStaked).toBeTonValue('0')
+        expect(treasuryState.lastRecovered).toBeTonValue('0')
         expect(treasuryState.participations.size === 0).toBeTruthy()
-        expect(treasuryState.rewardsHistory.size === 0).toBeTruthy()
 
         accumulateFees(result.transactions)
     })
@@ -1088,7 +1104,7 @@ describe('Loan', () => {
             value: between('351000', '352000'),
             body: bodyOp(op.processLoanRequests),
             success: true,
-            outMessagesCount: 3,
+            outMessagesCount: 3 + 1,
         })
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
@@ -1132,12 +1148,13 @@ describe('Loan', () => {
             outMessagesCount: 0,
         })
         expect(result.transactions).toHaveLength(8)
+        expect(result.externals).toHaveLength(1)
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('348000', '349000')
         expect(treasuryState.totalCoins).toBeBetween('699999', '700000')
-        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalTokens)
+        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')

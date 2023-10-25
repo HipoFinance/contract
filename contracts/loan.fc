@@ -45,27 +45,6 @@ global int round_since;
     save_data(current_elector);
 }
 
-() new_stake_error(slice src, slice s) impure inline_ref {
-    int query_id = 0;
-    int reason = 0;
-    if (s.slice_bits() >= 64 + 32) { ;; in case the elector's behavior changed, don't throw
-        query_id = s~load_uint(64);
-        reason = s~load_uint(32);
-    }
-
-    throw_unless(err::access_denied, equal_slice_bits(src, elector));
-
-    accept_message();
-
-    builder body = begin_cell()
-        .store_uint(op::new_stake_rejected, 32)
-        .store_uint(query_id, 64)
-        .store_uint(reason, 32)
-        .store_slice(validator)
-        .store_uint(round_since, 32);
-    send_msg(false, treasury.to_builder(), null(), body, 0, send::remaining_balance);
-}
-
 () send_recover_stake(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     s.end_parse();
@@ -112,7 +91,7 @@ int src_is_elector?(slice src) inline {
     if (op == op::new_stake) {
         ;; the elector does not throw because format of new_stake_msg is already checked,
         ;; however, its code might change in the future, so let's handle a potential throw
-        return new_stake_error(src, s);
+        return recover_stake_result(src, op::new_stake_error, s);
     }
 
     if (op == op::recover_stake) {
@@ -142,7 +121,7 @@ int src_is_elector?(slice src) inline {
     }
 
     if (op == op::new_stake_error) {
-        return new_stake_error(src, in_msg_body);
+        return recover_stake_result(src, op, in_msg_body);
     }
 
     if (op == op::new_stake_ok) {
@@ -170,4 +149,10 @@ int src_is_elector?(slice src) inline {
     }
 
     throw(err::invalid_op);
+}
+
+var get_loan_state() method_id {
+    load_data();
+
+    return ( elector, treasury, validator, round_since );
 }

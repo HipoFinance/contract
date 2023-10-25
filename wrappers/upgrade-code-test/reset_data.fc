@@ -5,6 +5,8 @@ global int total_tokens;
 global int total_staking;
 global int total_unstaking;
 global int total_validators_stake;
+global int last_staked;
+global int last_recovered;
 global cell participations;
 global int rounds_imbalance;
 global int stopped?;
@@ -17,7 +19,6 @@ global slice halter;
 global slice governor;
 global cell proposed_governor;
 global int governance_fee;
-global cell rewards_history;
 global cell content;
 
 () load_data() impure {
@@ -27,6 +28,8 @@ global cell content;
     total_staking = ds~load_coins();
     total_unstaking = ds~load_coins();
     total_validators_stake = ds~load_coins();
+    last_staked = ds~load_coins();
+    last_recovered = ds~load_coins();
     participations = ds~load_dict();
     rounds_imbalance = ds~load_uint(8);
     stopped? = ds~load_int(1);
@@ -42,7 +45,6 @@ global cell content;
     governor = s~load_msg_addr();
     proposed_governor = s~load_maybe_ref();
     governance_fee = s~load_uint(16);
-    rewards_history = s~load_dict();
     content = s~load_ref();
     s.end_parse();
 }

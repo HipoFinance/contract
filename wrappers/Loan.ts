@@ -29,6 +29,16 @@ export class Loan implements Contract {
         return new Loan(contractAddress(workchain, init), init)
     }
 
+    async getLoanState(provider: ContractProvider): Promise<LoanConfig> {
+        const { stack } = await provider.get('get_loan_state', [])
+        return {
+            elector: stack.readAddress(),
+            treasury: stack.readAddress(),
+            validator: stack.readAddress(),
+            roundSince: stack.readBigNumber(),
+        }
+    }
+
     async getBalance(provider: ContractProvider): Promise<bigint> {
         const state = await provider.getState()
         return state.balance

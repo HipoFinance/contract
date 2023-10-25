@@ -226,13 +226,6 @@ send_new_stake#77a897f2
     new_stake_msg:^NewStakeMsg
         = InternalMsgBody;
 
-new_stake_rejected#2bf7a8d5
-    query_id:uint64
-    reason:uint32
-    validator:MsgAddress
-    round_since:uint32
-        = InternalMsgBody;
-
 vset_changed#2f0b5b3b
     query_id:uint64
     round_since:uint32
@@ -344,8 +337,6 @@ top_up#5372158c
 // Storage
 //
 
-reward#_ staked:Coins recovered:Coins = Reward;
-
 proposed_governor#_
     accept_after:uint32
     new_governor:MsgAddress
@@ -383,7 +374,6 @@ extension#_
     governor:MsgAddress
     proposed_governor:(Maybe ^ProposedGovernor)
     governance_fee:uint16
-    rewards_history:(HashmapE 32 Reward)
     content:^FullContent
         = Extension;
 
@@ -393,6 +383,8 @@ treasury_storage#_
     total_staking:Coins
     total_unstaking:Coins
     total_validators_stake:Coins
+    last_staked:Coins
+    last_recovered:Coins
     participations:(HashmapE 32 Participation)
     rounds_imbalance:uint8
     stopped:Bool

@@ -155,7 +155,7 @@ export function logCodeSizes(treasuryCode: Cell, walletCode: Cell, loanCode: Cel
 
 export function logComputeGas(opLabel: string, opCode: number, tx: BlockchainTransaction) {
     if (!bodyOp(opCode)(tx.inMessage?.body ?? Cell.EMPTY)) {
-        throw new Error('invalida transaction to log compute gas for op ' + opLabel)
+        throw new Error('invalid transaction to log compute gas for op ' + opLabel)
     }
     const logs = tx.blockchainLogs
     const usedIndex = logs.indexOf('used=')

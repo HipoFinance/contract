@@ -35,11 +35,6 @@ export interface Fees {
     loanStorage: bigint
 }
 
-export interface Reward {
-    staked: bigint
-    recovered: bigint
-}
-
 export enum ParticipationState {
     Open,
     Distribution,
@@ -81,6 +76,8 @@ export interface TreasuryConfig {
     totalStaking: bigint
     totalUnstaking: bigint
     totalValidatorsStake: bigint
+    lastStaked: bigint
+    lastRecovered: bigint
     participations: Dictionary<bigint, Participation>
     roundsImbalance: bigint
     stopped: boolean
@@ -91,7 +88,6 @@ export interface TreasuryConfig {
     governor: Address
     proposedGovernor: Cell | null
     governanceFee: bigint
-    rewardsHistory: Dictionary<bigint, Reward>
     content: Cell
 }
 
@@ -102,7 +98,6 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeAddress(config.governor)
         .storeMaybeRef(config.proposedGovernor)
         .storeUint(config.governanceFee, 16)
-        .storeDict(config.rewardsHistory)
         .storeRef(config.content)
     return beginCell()
         .storeCoins(config.totalCoins)
@@ -110,6 +105,8 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeCoins(config.totalStaking)
         .storeCoins(config.totalUnstaking)
         .storeCoins(config.totalValidatorsStake)
+        .storeCoins(config.lastStaked)
+        .storeCoins(config.lastRecovered)
         .storeDict(config.participations)
         .storeUint(config.roundsImbalance, 8)
         .storeBit(config.stopped)
@@ -125,18 +122,6 @@ export const emptyDictionaryValue: DictionaryValue<unknown> = {
     },
     parse: function (): unknown {
         return {}
-    },
-}
-
-export const rewardDictionaryValue: DictionaryValue<Reward> = {
-    serialize: function (src: Reward, builder: Builder) {
-        builder.storeCoins(src.staked).storeCoins(src.recovered)
-    },
-    parse: function (src: Slice): Reward {
-        return {
-            staked: src.loadCoins(),
-            recovered: src.loadCoins(),
-        }
     },
 }
 
@@ -713,6 +698,8 @@ export class Treasury implements Contract {
             totalStaking: stack.readBigNumber(),
             totalUnstaking: stack.readBigNumber(),
             totalValidatorsStake: stack.readBigNumber(),
+            lastStaked: stack.readBigNumber(),
+            lastRecovered: stack.readBigNumber(),
             participations: Dictionary.loadDirect(
                 Dictionary.Keys.BigUint(32),
                 participationDictionaryValue,
@@ -727,11 +714,6 @@ export class Treasury implements Contract {
             governor: stack.readAddress(),
             proposedGovernor: stack.readCellOpt(),
             governanceFee: stack.readBigNumber(),
-            rewardsHistory: Dictionary.loadDirect(
-                Dictionary.Keys.BigUint(32),
-                rewardDictionaryValue,
-                stack.readCellOpt(),
-            ),
             content: stack.readCell(),
         }
     }

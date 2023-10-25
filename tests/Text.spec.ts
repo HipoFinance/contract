@@ -4,7 +4,7 @@ import '@ton-community/test-utils'
 import { Cell, Dictionary, toNano } from 'ton-core'
 import { between, bodyOp, logTotalFees, accumulateFees, logComputeGas, logCodeSizes } from './helper'
 import { op } from '../wrappers/common'
-import { Fees, Treasury, participationDictionaryValue, rewardDictionaryValue } from '../wrappers/Treasury'
+import { Fees, Treasury, participationDictionaryValue } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
 
 describe('Text Interface', () => {
@@ -43,6 +43,8 @@ describe('Text Interface', () => {
                     totalStaking: 0n,
                     totalUnstaking: 0n,
                     totalValidatorsStake: 0n,
+                    lastStaked: 0n,
+                    lastRecovered: 0n,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                     roundsImbalance: 255n,
                     stopped: false,
@@ -53,7 +55,6 @@ describe('Text Interface', () => {
                     governor: governor.address,
                     proposedGovernor: null,
                     governanceFee: 4096n,
-                    rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
                     content: Cell.EMPTY,
                 },
                 treasuryCode,

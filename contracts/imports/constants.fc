@@ -66,7 +66,6 @@ const int op::decide_loan_requests = 0x6a31d344;
 const int op::process_loan_requests = 0x071d07cc;
 const int op::request_rejected = 0x4d0f2116;
 const int op::send_new_stake = 0x77a897f2;
-const int op::new_stake_rejected = 0x2bf7a8d5;
 const int op::vset_changed = 0x2f0b5b3b;
 const int op::finish_participation = 0x23274435;
 const int op::recover_stakes = 0x4f173d3e;
@@ -94,14 +93,14 @@ const int op::top_up = 0x5372158c;
 const int gas::deposit_coins = 26000;
 const int gas::save_coins = 11000;
 const int gas::stake_coins = 15000;
-const int gas::stake_first_coins = 22000;
-const int gas::mint_tokens = 15000;
+const int gas::stake_first_coins = 23000;
+const int gas::mint_tokens = 16000;
 const int gas::receive_tokens = 17000;
 const int gas::send_tokens = 23000;
 const int gas::transfer_notification = 1000;
 const int gas::unstake_tokens = 18000;
-const int gas::unstake_all_tokens = 25000;
-const int gas::reserve_tokens = 22000;
+const int gas::unstake_all_tokens = 26000;
+const int gas::reserve_tokens = 23000;
 const int gas::withdraw_tokens = 15000;
 const int gas::burn_tokens = 16000;
 const int gas::burn_failed = 11000;
@@ -112,14 +111,13 @@ const int gas::gas_excess = 1000;
 const int gas::request_loan = 36000;
 const int gas::participate_in_election = 31000;
 const int gas::decide_loan_requests = 20000;
-const int gas::process_loan_requests = 31000;
+const int gas::process_loan_requests = 35000;
 const int gas::send_new_stake = 12000;
-const int gas::new_stake_rejected = 21000;
 const int gas::vset_changed = 9000;
-const int gas::finish_participation = 26000;
+const int gas::finish_participation = 27000;
 const int gas::recover_stakes = 27000;
-const int gas::send_recover_stake = 5000;
-const int gas::recover_stake_result = 25000;
+const int gas::send_recover_stake = 6000;
+const int gas::recover_stake_result = 29000;
 const int gas::new_stake = 12000;
 const int gas::new_stake_error = 6000;
 const int gas::new_stake_ok = 2000;
@@ -129,6 +127,11 @@ const int gas::recover_stake_ok = 6000;
 
 const int fee::treasury_storage = 10000000000; ;; 10 TON
 const int fee::new_stake_confirmation = 1000000000; ;; 1 TON
+
+
+const int log::loan = 1;
+const int log::repayment = 2;
+const int log::finish = 3;
 
 
 const int config::elector_address = 1;

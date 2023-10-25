@@ -9,7 +9,6 @@ import {
     ParticipationState,
     Treasury,
     participationDictionaryValue,
-    rewardDictionaryValue,
     treasuryConfigToCell,
 } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
@@ -53,6 +52,8 @@ describe('Treasury', () => {
                     totalStaking: 0n,
                     totalUnstaking: 0n,
                     totalValidatorsStake: 0n,
+                    lastStaked: 0n,
+                    lastRecovered: 0n,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                     roundsImbalance: 255n,
                     stopped: false,
@@ -63,7 +64,6 @@ describe('Treasury', () => {
                     governor: governor.address,
                     proposedGovernor: null,
                     governanceFee: 4096n,
-                    rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
                     content: Cell.EMPTY,
                 },
                 treasuryCode,
@@ -693,7 +693,7 @@ describe('Treasury', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: governor.address,
-            value: between('20', '20.1'),
+            value: between('20.1', '20.2'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,

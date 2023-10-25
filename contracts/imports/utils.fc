@@ -17,6 +17,12 @@ builder store_body(builder b, builder body) inline {
         : b.store_maybe_ref(body.end_cell());
 }
 
+builder store_log(builder b, builder log) inline {
+    return log.builder_bits() <= 654
+        ? b.store_uint(0, 1).store_builder(log)
+        : b.store_maybe_ref(log.end_cell());
+}
+
 () send_msg(int bounceable?, builder dst, cell state_init, builder body, int coins, int mode) impure inline_ref {
     ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
     ;;   src:MsgAddress dest:MsgAddressInt
@@ -34,6 +40,75 @@ builder store_body(builder b, builder body) inline {
         .store_body(body)
         .end_cell();
     send_raw_message(msg, mode);
+}
+
+() emit_log(int topic, builder log) impure inline_ref {
+    ;; addr_extern$01 len:(## 9) external_address:(bits len) = MsgAddressExt;
+    ;; ext_out_msg_info$11 src:MsgAddress dest:MsgAddressExt
+    ;;   created_lt:uint64 created_at:uint32 = CommonMsgInfoRelaxed;
+    ;; message$_ {X:Type} info:CommonMsgInfoRelaxed
+    ;;   init:(Maybe (Either StateInit ^StateInit))
+    ;;   body:(Either X ^X) = MessageRelaxed X;
+    cell msg = begin_cell()
+        .store_uint(0x31, 2 + 2 + 2) ;; 110001
+        .store_uint(256, 9)
+        .store_uint(topic, 256)
+        .store_uint(0, 64 + 32 + 1)
+        .store_log(log)
+        .end_cell();
+    send_raw_message(msg, send::regular);
+}
+
+() log_loan
+( int round_since
+, builder validator
+, int min_payment
+, int validator_reward_share
+, int loan_amount
+, int accrue_amount
+, int stake_amount
+) impure inline {
+    builder log = begin_cell()
+        .store_uint(round_since, 32)
+        .store_builder(validator)
+        .store_coins(min_payment)
+        .store_uint(validator_reward_share, 8)
+        .store_coins(loan_amount)
+        .store_coins(accrue_amount)
+        .store_coins(stake_amount);
+    emit_log(log::loan, log);
+}
+
+() log_repayment
+( int round_since
+    , slice validator
+    , int repayment_amount
+    , int loan_amount
+    , int accrue_amount
+    , int stakers_share
+    , int governor_share
+    , int validator_share
+) impure inline {
+    builder log = begin_cell()
+        .store_uint(round_since, 32)
+        .store_slice(validator)
+        .store_coins(repayment_amount)
+        .store_coins(loan_amount)
+        .store_coins(accrue_amount)
+        .store_coins(stakers_share)
+        .store_coins(governor_share)
+        .store_coins(validator_share);
+    emit_log(log::repayment, log);
+}
+
+() log_finish(int round_since, int total_staked, int total_recovered, int total_coins, int total_tokens) impure inline {
+    builder log = begin_cell()
+        .store_uint(round_since, 32)
+        .store_coins(total_staked)
+        .store_coins(total_recovered)
+        .store_coins(total_coins)
+        .store_coins(total_tokens);
+    emit_log(log::finish, log);
 }
 
 (int, int) get_elector() inline {
@@ -277,7 +352,7 @@ int wallet_storage_fee() inline_ref {
     ;; 1 round validation, 1 round participation and stake held, 1 round for prolonged rounds, 1 round to be safe
     ( int validators_elected_for, _, _, _ ) = get_election_config();
     int duration = 4 * validators_elected_for;
-    return ( pps1 * duration >> 16, pps2 * duration >> 16); ;; currently near 0.005 TON
+    return ( pps1 * duration >> 16, pps2 * duration >> 16 ); ;; currently near 0.005 TON
 }
 
 int msg_fwd_fee(int lump_price, int bit_price, int cell_price, int rest_bits, int rest_cells) inline_ref {
@@ -459,7 +534,6 @@ int request_loan_fee(cell loan_state_init) {
         gas::participate_in_election +
         gas::decide_loan_requests +
         gas::process_loan_requests +
-        gas::new_stake_rejected +
         gas::vset_changed +
         gas::vset_changed +
         gas::finish_participation +
@@ -494,7 +568,6 @@ int request_loan_fee(cell loan_state_init) {
         mc_l_fwd_fee + ;; send_new_stake
         mc_m_fwd_fee + ;; new_stake
         mc_s_fwd_fee + ;; new_stake_error or new_stake_ok
-        s_fwd_fee + ;; new_stake_rejected
         s_fwd_fee + ;; vset_changed
         s_fwd_fee + ;; vset_changed
         s_fwd_fee + ;; finish_participation
@@ -514,7 +587,7 @@ int send_new_stake_fee(cell loan_state_init) {
     ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
     ( int mc_gas_price, _ ) = get_gas_prices(config::mc_gas_prices);
     int computation_gas =
-        gas::new_stake_rejected;
+        gas::recover_stake_result;
     int mc_computation_gas =
         gas::send_new_stake +
         gas::new_stake +
@@ -537,7 +610,7 @@ int send_new_stake_fee(cell loan_state_init) {
         mc_l_fwd_fee + ;; send_new_stake
         mc_m_fwd_fee + ;; new_stake
         mc_s_fwd_fee + ;; new_stake_error or new_stake_ok
-        s_fwd_fee; ;; new_stake_rejected
+        s_fwd_fee; ;; recover_stake_result
 
     return storage_fee + computation_fee + fwd_fee;
 }

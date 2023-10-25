@@ -1,5 +1,5 @@
 import { beginCell, Cell, Dictionary, toNano } from 'ton-core'
-import { participationDictionaryValue, rewardDictionaryValue, Treasury } from '../wrappers/Treasury'
+import { participationDictionaryValue, Treasury } from '../wrappers/Treasury'
 import { compile, NetworkProvider } from '@ton-community/blueprint'
 import { sha256_sync } from 'ton-crypto'
 
@@ -19,6 +19,8 @@ export async function run(provider: NetworkProvider) {
                 totalStaking: 0n,
                 totalUnstaking: 0n,
                 totalValidatorsStake: 0n,
+                lastStaked: 0n,
+                lastRecovered: 0n,
                 participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                 roundsImbalance: 255n,
                 stopped: false,
@@ -29,7 +31,6 @@ export async function run(provider: NetworkProvider) {
                 governor: governor,
                 proposedGovernor: null,
                 governanceFee: 4096n,
-                rewardsHistory: Dictionary.empty(Dictionary.Keys.BigUint(32), rewardDictionaryValue),
                 content,
             },
             await compile('Treasury'),
