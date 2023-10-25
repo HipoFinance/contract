@@ -10,10 +10,11 @@ global slice governor;
 () unpack_extension() impure inline_ref {
 }
 
-() upgrade_data(slice src, int query_id, slice s) impure method_id {
-    ;; Add code for upgrading date here.
+() upgrade_data(slice src, int query_id, cell new_data) impure method_id {
+    ;; Add code for upgrading data here.
 
     ;; This just messes with data for test.
+    slice s = new_data.begin_parse();
     begin_cell()
         .store_slice(s~load_msg_addr())
         .store_ref(get_data())
@@ -21,6 +22,7 @@ global slice governor;
         .set_data();
 
     ;; Do not change the following code.
+    governor = null();
     load_data();
     unpack_extension();
 
@@ -37,13 +39,14 @@ global slice governor;
 () upgrade_code(slice src, slice s) impure {
     int query_id = s~load_uint(64);
     cell new_code = s~load_ref();
-    ;; no s.end_parse(), allow additional data in message body
+    cell new_data = s~load_maybe_ref();
+    s.end_parse();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     set_code(new_code);
     set_c3(new_code.begin_parse().bless());
-    upgrade_data(src, query_id, s);
+    upgrade_data(src, query_id, new_data);
 }
 
 () recv_internal(cell in_msg_full, slice in_msg_body) impure {

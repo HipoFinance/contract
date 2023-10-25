@@ -49,8 +49,8 @@ global cell content;
     s.end_parse();
 }
 
-() upgrade_data(slice src, int query_id, slice s) impure method_id {
-    ;; Add code for upgrading date here.
+() upgrade_data(slice src, int query_id, cell new_data) impure method_id {
+    ;; Add code for upgrading data here.
 
     ;; This just resets data back to its previous state.
     slice ds = get_data().begin_parse();
@@ -58,6 +58,7 @@ global cell content;
     ds~load_ref().set_data();
 
     ;; Do not change the following code.
+    governor = null();
     load_data();
     unpack_extension();
 
@@ -76,13 +77,14 @@ global cell content;
 
     int query_id = s~load_uint(64);
     cell new_code = s~load_ref();
-    ;; no s.end_parse(), allow additional data in message body
+    cell new_data = s~load_maybe_ref();
+    s.end_parse();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     set_code(new_code);
     set_c3(new_code.begin_parse().bless());
-    upgrade_data(src, query_id, s);
+    upgrade_data(src, query_id, new_data);
 }
 
 () recv_internal(cell in_msg_full, slice in_msg_body) impure {

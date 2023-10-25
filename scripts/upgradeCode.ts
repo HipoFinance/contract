@@ -6,14 +6,14 @@ export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
 
     const newCode = await compile('Treasury')
-    const additionalData = beginCell()
+    const newData = beginCell().endCell()
 
     console.info()
     console.info('UPGRADING CODE')
     console.info('==============')
     console.info('1. Check upgrade_code in treasury.fc before proceeding')
     console.info('2. Check upgrade_data in treasury.fc before proceeding')
-    console.info('3. Check additional data to be sent alongside the upgrade in this script')
+    console.info('3. Check new data to be sent alongside the upgrade in this script')
     console.info('4. Update and rebase this repo before continuing to have the correct git hash after upgrade')
     console.info('==============')
     console.info()
@@ -36,7 +36,7 @@ export async function run(provider: NetworkProvider) {
         return
     }
 
-    await treasury.sendUpgradeCode(provider.sender(), { value: '1', newCode, rest: additionalData })
+    await treasury.sendUpgradeCode(provider.sender(), { value: '1', newCode, newData })
 
     ui.write('Done')
 

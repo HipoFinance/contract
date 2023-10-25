@@ -528,7 +528,7 @@ describe('Treasury', () => {
         const result2 = await treasury.sendUpgradeCode(governor.getSender(), {
             value: '0.1',
             newCode: onlyUpgradeCode,
-            rest: beginCell().storeAddress(someone.address),
+            newData: beginCell().storeAddress(someone.address).endCell(),
         })
         expect(result2.transactions).toHaveTransaction({
             from: governor.address,
@@ -542,7 +542,7 @@ describe('Treasury', () => {
         const result3 = await treasury.sendUpgradeCode(governor.getSender(), {
             value: '0.1',
             newCode: onlyUpgradeCode,
-            rest: beginCell().storeAddress(governor.address),
+            newData: beginCell().storeAddress(governor.address).endCell(),
         })
 
         expect(result3.transactions).toHaveTransaction({

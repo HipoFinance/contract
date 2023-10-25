@@ -318,7 +318,7 @@ send_process_loan_requests#06cbff48
 upgrade_code#282600ff
     query_id:uint64
     new_code:^Cell
-    // additional data for upgrade_data might be provided here
+    new_data:(Maybe ^Cell)
         = InternalMsgBody;
 
 //
