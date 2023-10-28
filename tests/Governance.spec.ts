@@ -299,7 +299,7 @@ describe('Treasury', () => {
         expect(result4.transactions).toHaveTransaction({
             from: treasury.address,
             to: wallet.address,
-            value: between(fees.walletStorage, '0.1'),
+            value: between(fees.walletStorage, '0.12'),
             body: bodyOp(op.saveCoins),
             deploy: true,
             success: true,

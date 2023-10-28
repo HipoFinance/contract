@@ -161,7 +161,7 @@ describe('Loan', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: '700000.1' })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -326,7 +326,7 @@ describe('Loan', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: '700000.1' })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -447,7 +447,7 @@ describe('Loan', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: '700000.1' })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -682,7 +682,7 @@ describe('Loan', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: '700000.1' })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -1025,7 +1025,7 @@ describe('Loan', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: '700000.1' })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
 
         await treasury.sendSetRoundsImbalance(halter.getSender(), { value: '0.1', newRoundsImbalance: 0n })
 
@@ -1175,7 +1175,7 @@ describe('Loan', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: '300001' })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,

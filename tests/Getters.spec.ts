@@ -103,7 +103,7 @@ describe('Getters', () => {
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
         const newContent = beginCell().storeUint(0, 9).endCell()
         await treasury.sendSetContent(governor.getSender(), { value: '0.1', newContent: newContent })
 
@@ -127,7 +127,7 @@ describe('Getters', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: '700000.1' })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -171,7 +171,7 @@ describe('Getters', () => {
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
 
         const [tokens, ownerAddress, treasuryAddress, code] = await wallet.getWalletData()
         expect(tokens).toBeBetween('9', '10')
@@ -185,7 +185,7 @@ describe('Getters', () => {
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
         const newContent = beginCell().storeUint(0, 9).endCell()
         await treasury.sendSetContent(governor.getSender(), { value: '0.1', newContent: newContent })
 
@@ -222,7 +222,7 @@ describe('Getters', () => {
         expect(staking.get(0n)).toBeBetween('9', '10')
         expect(unstaking).toBeTonValue('0')
 
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
         const [tokensAfterStake, stakingAfterStake, unstakingAfterStake] = await wallet.getWalletState()
         expect(tokensAfterStake).toBeBetween('9', '10')
         expect(stakingAfterStake.keys()).toHaveLength(0)

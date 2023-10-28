@@ -219,7 +219,7 @@ describe('Text Interface', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
         const result = await treasury.sendMessage(staker.getSender(), { value: '0.2', body: 'w' })
 
         expect(result.transactions).toHaveTransaction({
@@ -289,7 +289,7 @@ describe('Text Interface', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
         await wallet.sendUnstakeTokens(staker.getSender(), { value: '0.2', tokens: '7' })
         const result = await treasury.sendMessage(staker.getSender(), { value: '0.2', body: 'u' })
 

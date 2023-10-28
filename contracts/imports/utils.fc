@@ -328,9 +328,11 @@ int wallet_storage_fee() inline_ref {
     ( int bit_price_ps, int cell_price_ps, _, _ ) = get_storage_prices();
     int bits = 267 + 267 + 124 + 1 + 124 + 2 * (32 + 124);
     int cells = 1 + 3; ;; 3 cells may be used by a dict holding 2 entries
+    bits += 13875; ;; bits of wallet_code
+    cells += 47; ;; cells of wallet_code
     int pps = bits * bit_price_ps + cells * cell_price_ps;
     int duration = 60 * 60 * 24 * 365 * 2; ;; 2 years in seconds
-    return pps * duration >> 16; ;; currently near 0.003 TON
+    return pps * duration >> 16; ;; currently near 0.04 TON
 }
 
 (int, int) loan_storage_fee() inline_ref {

@@ -169,7 +169,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet.address,
             to: driver.address,
-            value: between('0', '0.1'),
+            value: between('0', '0.11'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
@@ -178,10 +178,10 @@ describe('Wallet', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('24.7', '24.9')
+        expect(treasuryBalance).toBeBetween('24.6', '24.7')
         expect(treasuryState.totalCoins).toBeTonValue('0')
         expect(treasuryState.totalTokens).toBeTonValue('0')
-        expect(treasuryState.totalStaking).toBeBetween('14.7', '14.9')
+        expect(treasuryState.totalStaking).toBeBetween('14.6', '14.7')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
@@ -256,12 +256,12 @@ describe('Wallet', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        const result = await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        const result = await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
 
         expect(result.transactions).toHaveTransaction({
             from: driver.address,
             to: wallet.address,
-            value: toNano('0.1'),
+            value: toNano('0.11'),
             body: bodyOp(op.stakeCoins),
             success: true,
             outMessagesCount: 1,
@@ -329,9 +329,9 @@ describe('Wallet', () => {
         const wallet2Address = await treasury.getWalletAddress(staker2.address)
         const wallet1 = blockchain.openContract(Wallet.createFromAddress(wallet1Address))
         const wallet2 = blockchain.openContract(Wallet.createFromAddress(wallet2Address))
-        await wallet1.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet1.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
         const result = await wallet1.sendSendTokens(staker1.getSender(), {
-            value: '0.11',
+            value: '0.12',
             tokens: '9',
             recipient: staker2.address,
             returnExcess: staker1.address,
@@ -341,7 +341,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: staker1.address,
             to: wallet1.address,
-            value: toNano('0.11'),
+            value: toNano('0.12'),
             body: bodyOp(op.sendTokens),
             success: true,
             outMessagesCount: 1,
@@ -408,11 +408,11 @@ describe('Wallet', () => {
         const wallet2Address = await treasury.getWalletAddress(staker2.address)
         const wallet1 = blockchain.openContract(Wallet.createFromAddress(wallet1Address))
         const wallet2 = blockchain.openContract(Wallet.createFromAddress(wallet2Address))
-        await wallet1.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
-        await wallet2.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet1.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
+        await wallet2.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
         const forwardPayload = beginCell().storeUint(0, 256).storeUint(0, 56).endCell().beginParse()
         const result = await wallet1.sendSendTokens(staker1.getSender(), {
-            value: '0.11',
+            value: '0.12',
             tokens: '9',
             recipient: staker2.address,
             returnExcess: staker1.address,
@@ -423,7 +423,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: staker1.address,
             to: wallet1.address,
-            value: toNano('0.11'),
+            value: toNano('0.12'),
             body: bodyOp(op.sendTokens),
             success: true,
             outMessagesCount: 1,
@@ -456,8 +456,8 @@ describe('Wallet', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('24.7', '24.8')
-        expect(treasuryState.totalCoins).toBeBetween('14.7', '14.8')
+        expect(treasuryBalance).toBeBetween('24.6', '24.7')
+        expect(treasuryState.totalCoins).toBeBetween('14.6', '14.7')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -488,7 +488,7 @@ describe('Wallet', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
         const result = await wallet.sendUnstakeTokens(staker.getSender(), { value: '0.2', tokens: '7' })
 
         expect(result.transactions).toHaveTransaction({
@@ -551,7 +551,7 @@ describe('Wallet', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
         await wallet.sendUnstakeTokens(staker.getSender(), { value: '0.2', tokens: '7' })
         const result = await wallet.sendWithdrawTokens(driver.getSender(), { value: '0.1' })
 
@@ -733,7 +733,7 @@ describe('Wallet', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.1', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
         await wallet.sendUnstakeTokens(staker.getSender(), { value: '0.2', tokens: '7' })
         const state = await treasury.getTreasuryState()
         const fakeData = treasuryConfigToCell(state)
