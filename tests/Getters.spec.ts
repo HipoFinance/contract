@@ -228,4 +228,16 @@ describe('Getters', () => {
         expect(stakingAfterStake.keys()).toHaveLength(0)
         expect(unstakingAfterStake).toBeTonValue('0')
     })
+
+    it('should return wallet fees', async () => {
+        const staker = await blockchain.treasury('staker')
+        const walletAddress = await treasury.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
+
+        const [unstakeTokensFee, walletStorageFee, walletTonBalance] = await wallet.getWalletFees()
+        expect(unstakeTokensFee).toBeBetween('0.1', '0.2')
+        expect(walletStorageFee).toBeBetween('0.03', '0.04')
+        expect(walletTonBalance).toBeBetween('0.03', '0.04')
+    })
 })

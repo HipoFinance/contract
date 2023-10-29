@@ -222,6 +222,11 @@ export class Wallet implements Contract {
         return [stack.readBigNumber(), toStakingDict(stack.readCellOpt()), stack.readBigNumber()]
     }
 
+    async getWalletFees(provider: ContractProvider): Promise<[bigint, bigint, bigint]> {
+        const { stack } = await provider.get('get_wallet_fees', [])
+        return [stack.readBigNumber(), stack.readBigNumber(), stack.readBigNumber()]
+    }
+
     async getBalance(provider: ContractProvider): Promise<bigint> {
         const state = await provider.getState()
         return state.balance

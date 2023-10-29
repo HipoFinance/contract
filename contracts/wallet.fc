@@ -442,3 +442,11 @@ global cell wallet_code;
     load_data();
     return ( tokens, staking, unstaking );
 }
+
+(int, int, int) get_wallet_fees() method_id {
+    return
+        ( unstake_tokens_fee()
+        , wallet_storage_fee()
+        , get_balance().pair_first()
+        );
+}
