@@ -9,9 +9,21 @@ hTON consists of these components:
 - **[Driver](https://github.com/HipoFinance/driver)**: The off-chain application that drives the protocol and helps users to receive their TON and hTON.
 - **[Borrower](https://github.com/HipoFinance/borrower)**: The application that helps validators in borrowing from the protocol and validating blocks.
 
-Last deployed contract on testnet:
+## Deployed Contracts
 
-> [kQAjvBlA6Gt0BZhvM9_PgBDVv1_EkRuMYZ3XxdaXlKRyCeaI](https://testnet.tonviewer.com/kQAjvBlA6Gt0BZhvM9_PgBDVv1_EkRuMYZ3XxdaXlKRyCeaI)
+MainNet:
+> EQBNo5qAG8I8J6IxGaz15SfQVB-kX98YhKV_mT36Xo5vYxUa
+
+[TonViewer](https://tonviewer.com/EQBNo5qAG8I8J6IxGaz15SfQVB-kX98YhKV_mT36Xo5vYxUa)
+[TonScan](https://tonscan.org/address/EQBNo5qAG8I8J6IxGaz15SfQVB-kX98YhKV_mT36Xo5vYxUa)
+[Ton.cx](https://ton.cx/address/EQBNo5qAG8I8J6IxGaz15SfQVB-kX98YhKV_mT36Xo5vYxUa)
+
+TestNet:
+> kQAjvBlA6Gt0BZhvM9_PgBDVv1_EkRuMYZ3XxdaXlKRyCeaI
+
+[TonViewer](https://testnet.tonviewer.com/kQAjvBlA6Gt0BZhvM9_PgBDVv1_EkRuMYZ3XxdaXlKRyCeaI)
+[TonScan](https://testnet.tonscan.org/address/kQAjvBlA6Gt0BZhvM9_PgBDVv1_EkRuMYZ3XxdaXlKRyCeaI)
+[Ton.cx](https://testnet.ton.cx/address/kQAjvBlA6Gt0BZhvM9_PgBDVv1_EkRuMYZ3XxdaXlKRyCeaI)
 
 ## Users
 
