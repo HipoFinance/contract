@@ -12,6 +12,12 @@ import {
 } from 'ton-core'
 import { op, tonValue } from './common'
 
+export interface WalletFees {
+    unstakeTokensFee: bigint
+    storageFee: bigint
+    tonBalance: bigint
+}
+
 interface WalletConfig {
     owner: Address
     treasury: Address
@@ -222,9 +228,13 @@ export class Wallet implements Contract {
         return [stack.readBigNumber(), toStakingDict(stack.readCellOpt()), stack.readBigNumber()]
     }
 
-    async getWalletFees(provider: ContractProvider): Promise<[bigint, bigint, bigint]> {
+    async getWalletFees(provider: ContractProvider): Promise<WalletFees> {
         const { stack } = await provider.get('get_wallet_fees', [])
-        return [stack.readBigNumber(), stack.readBigNumber(), stack.readBigNumber()]
+        return {
+            unstakeTokensFee: stack.readBigNumber(),
+            storageFee: stack.readBigNumber(),
+            tonBalance: stack.readBigNumber(),
+        }
     }
 
     async getBalance(provider: ContractProvider): Promise<bigint> {

@@ -235,9 +235,9 @@ describe('Getters', () => {
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
 
-        const [unstakeTokensFee, walletStorageFee, walletTonBalance] = await wallet.getWalletFees()
-        expect(unstakeTokensFee).toBeBetween('0.1', '0.2')
-        expect(walletStorageFee).toBeBetween('0.03', '0.04')
-        expect(walletTonBalance).toBeBetween('0.03', '0.04')
+        const walletFees = await wallet.getWalletFees()
+        expect(walletFees.unstakeTokensFee).toBeBetween('0.1', '0.2')
+        expect(walletFees.storageFee).toBeBetween('0.03', '0.04')
+        expect(walletFees.tonBalance).toBeBetween('0.03', '0.04')
     })
 })
