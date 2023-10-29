@@ -52,7 +52,7 @@ const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Va
     .set(toSha256('symbol'), toTextCell('hTON'))
     .set(toSha256('name'), toTextCell('hTON'))
     .set(toSha256('description'), toTextCell('Hipo liquid staking protocol'))
-    .set(toSha256('image'), toTextCell('https://hipo.finance/hton.png'))
+    .set(toSha256('image'), toTextCell('https://app.hipo.finance/hton.png'))
 
 const content = beginCell().storeUint(0, 8).storeDict(contentDict).endCell()
 
