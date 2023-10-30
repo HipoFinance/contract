@@ -1,6 +1,8 @@
 #include "stdlib.fc";
 #include "constants.fc";
 
+const int old_wallet_code_hash = 0x3a1b672fa12c46689ff28b736d13d05f88dd9772127f56bef71406a0f31d4a53;
+
 builder to_builder(slice s) inline {
     return begin_cell().store_slice(s);
 }

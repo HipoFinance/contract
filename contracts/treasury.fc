@@ -273,6 +273,15 @@ builder pack_participation
     save_data();
 }
 
+() compat_mint_tokens(int msg_ton, slice src, slice s) impure inline {
+    slice s_with_hash = begin_cell()
+        .store_slice(s)
+        .store_ref(begin_cell().store_uint(old_wallet_code_hash, 256).end_cell())
+        .end_cell()
+        .begin_parse();
+    return mint_tokens(msg_ton, src, s_with_hash);
+}
+
 () reserve_tokens(int msg_ton, slice src, slice s) impure inline {
     unpack_extension();
 
@@ -303,6 +312,15 @@ builder pack_participation
     send_msg(false, return_excess.to_builder(), null(), excess, 0, send::remaining_balance + send::ignore_errors);
 
     save_data();
+}
+
+() compat_reserve_tokens(int msg_ton, slice src, slice s) impure inline {
+    slice s_with_hash = begin_cell()
+        .store_slice(s)
+        .store_uint(old_wallet_code_hash, 256)
+        .end_cell()
+        .begin_parse();
+    return reserve_tokens(msg_ton, src, s_with_hash);
 }
 
 () burn_tokens(int msg_ton, slice src, slice s) impure inline {
@@ -360,6 +378,15 @@ builder pack_participation
     send_msg(false, return_excess.to_builder(), null(), excess, 0, send::remaining_balance + send::ignore_errors);
 
     save_data();
+}
+
+() compat_burn_tokens(int msg_ton, slice src, slice s) impure inline {
+    slice s_with_hash = begin_cell()
+        .store_slice(s)
+        .store_uint(old_wallet_code_hash, 256)
+        .end_cell()
+        .begin_parse();
+    return burn_tokens(msg_ton, src, s_with_hash);
 }
 
 () send_stake_first_coins(slice src) impure inline {
@@ -1499,12 +1526,24 @@ builder pack_participation
         return mint_tokens(msg_ton, src, in_msg_body);
     }
 
+    if (op == 0x4559ca57) {
+        return compat_mint_tokens(msg_ton, src, in_msg_body);
+    }
+
     if (op == op::reserve_tokens) {
         return reserve_tokens(msg_ton, src, in_msg_body);
     }
 
+    if (op == 0x7bdd97de) {
+        return compat_reserve_tokens(msg_ton, src, in_msg_body);
+    }
+
     if (op == op::burn_tokens) {
         return burn_tokens(msg_ton, src, in_msg_body);
+    }
+
+    if (op == 0x002c6e13) {
+        return compat_burn_tokens(msg_ton, src, in_msg_body);
     }
 
     if (op == op::provide_wallet_address) {
