@@ -27,7 +27,7 @@ interface WalletConfig {
     walletCode: Cell
 }
 
-function walletConfigToCell(config: WalletConfig): Cell {
+export function walletConfigToCell(config: WalletConfig): Cell {
     return beginCell()
         .storeAddress(config.owner)
         .storeAddress(config.treasury)
@@ -241,6 +241,29 @@ export class Wallet implements Contract {
                 .storeAddress(opts.childWallet)
                 .storeCoins(opts.tokens)
                 .storeMaybeRef(opts.customPayload)
+                .endCell(),
+        })
+    }
+
+    async sendUpgradeWallet(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            returnExcess?: Address
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.upgradeWallet, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .storeAddress(opts.returnExcess)
                 .endCell(),
         })
     }

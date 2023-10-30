@@ -1,5 +1,29 @@
 import { toNano } from 'ton-core'
 
+export const err = {
+    insufficientFee: 101,
+    insufficientFunds: 102,
+    accessDenied: 103,
+    onlyBasechainAllowed: 104,
+    receiverIsSender: 105,
+    stopped: 106,
+    invalidOp: 107,
+    invalidComment: 108,
+
+    notAcceptingLoanRequests: 201,
+    unableToParticipate: 202,
+    tooSoonToParticipate: 203,
+    notReadyToFinishParticipation: 204,
+    tooSoonToFinishParticipation: 205,
+    vsetNotChanged: 206,
+    vsetNotChangeable: 207,
+
+    unexpectedStoragePriceFormat: 301,
+    unexpectedGasPriceFormat: 302,
+    unexpectedMsgForwardPricesFormat: 303,
+    unexpectedValidatorSetFormat: 304,
+}
+
 export const op = {
     newStake: 0x4e73744b,
     newStakeError: 0xee6f454c,
@@ -13,7 +37,6 @@ export const op = {
     transferNotification: 0x7362d09c,
     gasExcess: 0xd53276db,
     unstakeTokens: 0x595f07bc,
-    reserveTokens: 0x7bdd97de,
     provideWalletAddress: 0x2c76b973,
     takeWalletAddress: 0xd1735400,
 
@@ -21,14 +44,18 @@ export const op = {
     saveCoins: 0x7f30ee55,
     stakeCoins: 0x4cae3ab1,
     stakeFirstCoins: 0x70c09713,
-    mintTokens: 0x4559ca57,
+    mintTokens: 0x1321ca6e,
     unstakeAllTokens: 0x2dda9652,
+    reserveTokens: 0x24a319a7,
     withdrawTokens: 0x469bd91e,
-    burnTokens: 0x002c6e13,
+    burnTokens: 0x3cfe4dcb,
     burnFailed: 0x272e3dda,
     withdrawFailed: 0xc6caea4d,
     withdrawalNotification: 0x2ec2a5a0,
     withdrawJettons: 0x768a50b2,
+    upgradeWallet: 0x2c53aec7,
+    convertWallet: 0x41d20e0e,
+    mergeWallet: 0x2eb26791,
 
     requestLoan: 0x12b808d3,
     participateInElection: 0x574a297b,

@@ -693,7 +693,7 @@ describe('Treasury', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: governor.address,
-            value: between('20.1', '20.2'),
+            value: between('20', '20.1'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,

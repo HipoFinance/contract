@@ -3,7 +3,7 @@ import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } fro
 import '@ton-community/test-utils'
 import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
 import { between, bodyOp, logComputeGas, logTotalFees, accumulateFees } from './helper'
-import { op } from '../wrappers/common'
+import { err, op } from '../wrappers/common'
 import {
     Fees,
     ParticipationState,
@@ -11,7 +11,7 @@ import {
     participationDictionaryValue,
     treasuryConfigToCell,
 } from '../wrappers/Treasury'
-import { Wallet } from '../wrappers/Wallet'
+import { Wallet, walletConfigToCell } from '../wrappers/Wallet'
 
 describe('Wallet', () => {
     let treasuryCode: Cell
@@ -331,7 +331,7 @@ describe('Wallet', () => {
         const wallet2 = blockchain.openContract(Wallet.createFromAddress(wallet2Address))
         await wallet1.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
         const result = await wallet1.sendSendTokens(staker1.getSender(), {
-            value: '0.12',
+            value: '0.13',
             tokens: '9',
             recipient: staker2.address,
             returnExcess: staker1.address,
@@ -341,7 +341,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: staker1.address,
             to: wallet1.address,
-            value: toNano('0.12'),
+            value: toNano('0.13'),
             body: bodyOp(op.sendTokens),
             success: true,
             outMessagesCount: 1,
@@ -412,7 +412,7 @@ describe('Wallet', () => {
         await wallet2.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
         const forwardPayload = beginCell().storeUint(0, 256).storeUint(0, 56).endCell().beginParse()
         const result = await wallet1.sendSendTokens(staker1.getSender(), {
-            value: '0.12',
+            value: '0.13',
             tokens: '9',
             recipient: staker2.address,
             returnExcess: staker1.address,
@@ -423,7 +423,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: staker1.address,
             to: wallet1.address,
-            value: toNano('0.12'),
+            value: toNano('0.13'),
             body: bodyOp(op.sendTokens),
             success: true,
             outMessagesCount: 1,
@@ -863,5 +863,175 @@ describe('Wallet', () => {
             outMessagesCount: 0,
         })
         expect(result.transactions).toHaveLength(3)
+    })
+
+    it('should upgrade a wallet to itself when there is no new version', async () => {
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
+        const walletAddress = await treasury.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
+
+        const [tokens1, staking1, unstaking1] = await wallet.getWalletState()
+        expect(tokens1).toBeBetween('9', '10')
+        expect(staking1.keys()).toHaveLength(0)
+        expect(unstaking1).toEqual(0n)
+
+        const result1 = await wallet.sendUpgradeWallet(driver.getSender(), { value: '0.1' })
+        expect(result1.transactions).toHaveTransaction({
+            from: driver.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.upgradeWallet),
+            success: false,
+            exitCode: err.accessDenied,
+            outMessagesCount: 1,
+        })
+        expect(result1.transactions).toHaveLength(3)
+
+        const result2 = await wallet.sendUpgradeWallet(staker.getSender(), { value: '0.1' })
+        expect(result2.transactions).toHaveTransaction({
+            from: staker.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.upgradeWallet),
+            success: false,
+            exitCode: err.insufficientFee,
+            outMessagesCount: 1,
+        })
+        expect(result2.transactions).toHaveLength(3)
+
+        const result3 = await wallet.sendUpgradeWallet(staker.getSender(), { value: '0.21' })
+        expect(result3.transactions).toHaveTransaction({
+            from: staker.address,
+            to: wallet.address,
+            value: toNano('0.21'),
+            body: bodyOp(op.upgradeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: treasury.address,
+            value: between('0', '0.23'),
+            body: bodyOp(op.convertWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: wallet.address,
+            value: between('0', '0.20'),
+            body: bodyOp(op.mergeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            value: between('0', '0.15'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result3.transactions).toHaveLength(5)
+
+        const [tokens2, staking2, unstaking2] = await wallet.getWalletState()
+        expect(tokens2).toBeBetween('9', '10')
+        expect(staking2.keys()).toHaveLength(0)
+        expect(unstaking2).toEqual(0n)
+
+        await wallet.sendUnstakeTokens(staker.getSender(), { value: '0.2', tokens: tokens2 })
+        await treasury.sendTopUp(driver.getSender(), { value: '1' })
+        await wallet.sendWithdrawTokens(driver.getSender(), { value: '0.1' })
+
+        const [tokens3, staking3, unstaking3] = await wallet.getWalletState()
+        expect(tokens3).toBeTonValue('0')
+        expect(staking3.keys()).toHaveLength(0)
+        expect(unstaking3).toEqual(0n)
+
+        const result4 = await wallet.sendUpgradeWallet(staker.getSender(), { value: '0.21' })
+        expect(result4.transactions).toHaveTransaction({
+            from: staker.address,
+            to: wallet.address,
+            value: toNano('0.21'),
+            body: bodyOp(op.upgradeWallet),
+            success: false,
+            exitCode: err.insufficientFunds,
+            outMessagesCount: 1,
+        })
+        expect(result4.transactions).toHaveLength(3)
+
+        const staking = Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.BigVarUint(4))
+        staking.set(0n, toNano('12'))
+        for (let i = 1n; i < 10n; i += 1n) {
+            staking.set(i, i * toNano('1'))
+        }
+        const fakeData = walletConfigToCell({
+            owner: staker.address,
+            treasury: treasury.address,
+            tokens: toNano('20'),
+            staking,
+            unstaking: toNano('30'),
+            walletCode,
+        })
+        await blockchain.setShardAccount(
+            wallet.address,
+            createShardAccount({
+                workchain: 0,
+                address: wallet.address,
+                code: walletCode,
+                data: fakeData,
+                balance: 0n,
+            }),
+        )
+
+        const result5 = await wallet.sendUpgradeWallet(staker.getSender(), { value: '0.21' })
+        expect(result5.transactions).toHaveTransaction({
+            from: staker.address,
+            to: wallet.address,
+            value: toNano('0.21'),
+            body: bodyOp(op.upgradeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result5.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: treasury.address,
+            value: between('0', '0.20'),
+            body: bodyOp(op.convertWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result5.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: wallet.address,
+            value: between('0', '0.15'),
+            body: bodyOp(op.mergeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result5.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            value: between('0', '0.10'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result5.transactions).toHaveLength(5)
+
+        const [tokens4, staking4, unstaking4] = await wallet.getWalletState()
+        expect(tokens4).toBeTonValue('20')
+        expect(staking4.keys()).toHaveLength(10)
+        expect(staking4.get(0n)).toBeTonValue('12')
+        for (let i = 1n; i < 10n; i += 1n) {
+            expect(staking4.get(i)).toEqual(i * toNano('1'))
+        }
+        expect(unstaking4).toBeTonValue('30')
+
+        logComputeGas('upgrade_wallet', op.upgradeWallet, result5.transactions[1])
+        logComputeGas('convert_wallet', op.convertWallet, result5.transactions[2])
+        logComputeGas('merge_wallet', op.mergeWallet, result5.transactions[3])
     })
 })

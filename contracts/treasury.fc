@@ -226,6 +226,10 @@ builder pack_participation
     int round_since = s~load_uint(32);
     slice owner = s~load_msg_addr();
     slice return_excess = s~load_msg_addr();
+    cell rest = s~load_ref();
+    slice rs = rest.begin_parse();
+    int wallet_code_hash = rs~load_uint(256); ;; ignored for now, useful when another wallet version is added
+    rs.end_parse();
     s.end_parse();
 
     ( builder wallet, _, int wallet_addr ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
@@ -276,6 +280,7 @@ builder pack_participation
     int amount = s~load_coins();
     slice owner = s~load_msg_addr();
     slice return_excess = s~load_msg_addr();
+    int wallet_code_hash = s~load_uint(256); ;; ignored for now, useful when another wallet version is added
     s.end_parse();
 
     ( _, _, int wallet_addr ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
@@ -305,6 +310,7 @@ builder pack_participation
     int tokens = s~load_coins();
     slice owner = s~load_msg_addr();
     slice return_excess = s~load_msg_addr();
+    int wallet_code_hash = s~load_uint(256); ;; ignored for now, useful when another wallet version is added
     s.end_parse();
 
     ( builder wallet, _, int wallet_addr ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
@@ -417,6 +423,37 @@ builder pack_participation
         .store_builder(wallet)
         .store_maybe_ref(included_address);
     send_msg(false, src.to_builder(), null(), body, 0, send::remaining_value);
+}
+
+() convert_wallet(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    int tokens = s~load_coins();
+    cell staking = s~load_dict();
+    int unstaking = s~load_coins();
+    slice owner = s~load_msg_addr();
+    slice return_excess = s~load_msg_addr();
+    cell rest = s~load_ref();
+    slice rs = rest.begin_parse();
+    int wallet_code_hash = rs~load_uint(256); ;; ignored for now, useful when another wallet version is added
+    rs.end_parse();
+    s.end_parse();
+
+    ( builder wallet
+    , cell state_init
+    , int wallet_addr
+    ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
+    ( int src_wc, int src_addr ) = parse_std_addr(src);
+
+    throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == wallet_addr));
+
+    builder body = begin_cell()
+        .store_uint(op::merge_wallet, 32)
+        .store_uint(query_id, 64)
+        .store_coins(tokens)
+        .store_dict(staking)
+        .store_coins(unstaking)
+        .store_slice(return_excess);
+    send_msg(false, wallet, state_init, body, 0, send::remaining_value);
 }
 
 (int, int, int, int, int, int) get_times() inline_ref method_id {
@@ -1472,6 +1509,10 @@ builder pack_participation
 
     if (op == op::provide_wallet_address) {
         return provide_wallet_address(src, in_msg_body);
+    }
+
+    if (op == op::convert_wallet) {
+        return convert_wallet(src, in_msg_body);
     }
 
     if (op == op::request_loan) {

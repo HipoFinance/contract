@@ -92,13 +92,6 @@ unstake_tokens#595f07bc // originally named 'burn'
     custom_payload:(Maybe ^Cell)
         = InternalMsgBody;
 
-reserve_tokens#7bdd97de // originally named 'burn_notification'
-    query_id:uint64
-    tokens:Coins
-    owner:MsgAddress
-    return_excess:MsgAddress
-        = InternalMsgBody;
-
 //
 // TEP-89 Discoverable Jettons
 //
@@ -142,12 +135,13 @@ stake_first_coins#70c09713
     return_excess:MsgAddress
         = InternalMsgBody;
 
-mint_tokens#4559ca57
+mint_tokens#1321ca6e
     query_id:uint64
     stake_amount:Coins
     round_since:uint32
     owner:MsgAddress
     return_excess:MsgAddress
+    wallet_code_hash:^bits256
         = InternalMsgBody;
 
 unstake_all_tokens#2dda9652
@@ -155,16 +149,25 @@ unstake_all_tokens#2dda9652
     return_excess:MsgAddress
         = InternalMsgBody;
 
+reserve_tokens#24a319a7
+    query_id:uint64
+    tokens:Coins
+    owner:MsgAddress
+    return_excess:MsgAddress
+    wallet_code_hash:bits256
+        = InternalMsgBody;
+
 withdraw_tokens#469bd91e
     query_id:uint64
     return_excess:MsgAddress
         = InternalMsgBody;
 
-burn_tokens#002c6e13
+burn_tokens#3cfe4dcb
     query_id:uint64
     tokens:Coins
     owner:MsgAddress
     return_excess:MsgAddress
+    wallet_code_hash:bits256
         = InternalMsgBody;
 
 burn_failed#272e3dda
@@ -186,6 +189,29 @@ withdraw_jettons#768a50b2
     child_wallet:MsgAddress
     tokens:Coins
     custom_payload:(Maybe ^Cell)
+        = InternalMsgBody;
+
+upgrade_wallet#2c53aec7
+    query_id:uint64
+    return_excess:MsgAddress
+        = InternalMsgBody;
+
+convert_wallet#41d20e0e
+    query_id:uint64
+    tokens:Coins
+    staking:(HashmapE 32 Coins)
+    unstaking:Coins
+    owner:MsgAddress
+    return_excess:MsgAddress
+    wallet_code_hash:^bits256
+        = InternalMsgBody;
+
+merge_wallet#2eb26791
+    query_id:uint64
+    tokens:Coins
+    staking:(HashmapE 32 Coins)
+    unstaking:Coins
+    return_excess:MsgAddress
         = InternalMsgBody;
 
 //
