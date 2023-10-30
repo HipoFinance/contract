@@ -1435,7 +1435,7 @@ builder pack_participation
         if ((in_msg_body.slice_bits() == 8) & (in_msg_body.slice_refs() == 0)) {
             int c = in_msg_body~load_uint(8);
             if (c == "d"u) {
-                return deposit_coins(msg_ton, src, "00000000000000000"s.skip_bits(2));
+                return deposit_coins(msg_ton, src, "00000000000000002_"s);
             }
 
             if (c == "s"u) {
