@@ -119,7 +119,7 @@ take_wallet_address#d1735400
 // Stakers Ops
 //
 
-deposit_coins#1375a585
+deposit_coins#103af428
     query_id:uint64
     referrer:MsgAddress
         = InternalMsgBody;
@@ -322,7 +322,7 @@ send_process_loan_requests#06cbff48
     round_since:uint32
         = InternalMsgBody;
 
-upgrade_code#282600ff
+upgrade_code#36e4c27d
     query_id:uint64
     new_code:^Cell
     new_data:(Maybe ^Cell)

@@ -48,7 +48,7 @@ const int op::reserve_tokens = 0x7bdd97de;
 const int op::provide_wallet_address = 0x2c76b973;
 const int op::take_wallet_address = 0xd1735400;
 
-const int op::deposit_coins = 0x1375a585;
+const int op::deposit_coins = 0x103af428;
 const int op::save_coins = 0x7f30ee55;
 const int op::stake_coins = 0x4cae3ab1;
 const int op::stake_first_coins = 0x70c09713;
@@ -85,7 +85,7 @@ const int op::set_governance_fee = 0x470fe5f6;
 const int op::set_rounds_imbalance = 0x4ea0efd0;
 const int op::send_message_to_loan = 0x2b93b447;
 const int op::send_process_loan_requests = 0x06cbff48;
-const int op::upgrade_code = 0x282600ff;
+const int op::upgrade_code = 0x36e4c27d;
 
 const int op::withdraw_surplus = 0x302b2fea;
 const int op::top_up = 0x5372158c;
