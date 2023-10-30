@@ -324,6 +324,26 @@ global cell wallet_code;
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_balance + send::ignore_errors);
 }
 
+() withdraw_jettons(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    slice child_wallet = s~load_msg_addr();
+    int tokens = s~load_coins();
+    cell custom_payload = s~load_maybe_ref();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, owner));
+
+    builder body = begin_cell()
+        .store_uint(op::send_tokens, 32)
+        .store_uint(query_id, 64)
+        .store_coins(tokens)
+        .store_slice(owner)
+        .store_slice(owner)
+        .store_maybe_ref(custom_payload)
+        .store_coins(0)
+        .store_int(false, 1);
+    send_msg(true, child_wallet.to_builder(), null(), body, 0, send::remaining_value);
+}
+
 () on_bounce(slice s) impure {
     ;; this should not happen but in a rare case of a bounce (e.g. a frozen account), at least recover tokens
 
@@ -359,6 +379,10 @@ global cell wallet_code;
     if (op == op::burn_tokens) {
         int amount = s~load_coins();
         unstaking += amount;
+    }
+
+    if (op == op::withdraw_jettons) {
+        ;; do nothing
     }
 
     ;; return excess gas to owner which is usually the original sender
@@ -424,6 +448,10 @@ global cell wallet_code;
 
     if (op == op::withdraw_surplus) {
         return withdraw_surplus(src, in_msg_body);
+    }
+
+    if (op == op::withdraw_jettons) {
+        return withdraw_jettons(src, in_msg_body);
     }
 
     if (op == op::top_up) {

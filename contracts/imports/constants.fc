@@ -59,6 +59,7 @@ const int op::burn_tokens = 0x002c6e13;
 const int op::burn_failed = 0x272e3dda;
 const int op::withdraw_failed = 0xc6caea4d;
 const int op::withdrawal_notification = 0x2ec2a5a0;
+const int op::withdraw_jettons = 0x768a50b2;
 
 const int op::request_loan = 0x12b808d3;
 const int op::participate_in_election = 0x574a297b;

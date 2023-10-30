@@ -832,4 +832,36 @@ describe('Wallet', () => {
 
         accumulateFees(result.transactions)
     })
+
+    it('should withdraw wrongly sent jettons', async () => {
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
+        const walletAddress = await treasury.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const childWallet = await blockchain.treasury('childWallet')
+        const result = await wallet.sendWithdrawJettons(staker.getSender(), {
+            value: '0.1',
+            childWallet: childWallet.address,
+            tokens: 100n,
+            customPayload: Cell.EMPTY,
+        })
+
+        expect(result.transactions).toHaveTransaction({
+            from: staker.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.withdrawJettons),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: childWallet.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.sendTokens),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(3)
+    })
 })

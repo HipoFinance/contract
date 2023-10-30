@@ -218,6 +218,33 @@ export class Wallet implements Contract {
         })
     }
 
+    async sendWithdrawJettons(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            childWallet: Address
+            tokens: bigint
+            customPayload?: Cell
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.withdrawJettons, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .storeAddress(opts.childWallet)
+                .storeCoins(opts.tokens)
+                .storeMaybeRef(opts.customPayload)
+                .endCell(),
+        })
+    }
+
     async getWalletData(provider: ContractProvider): Promise<[bigint, Address, Address, Cell]> {
         const { stack } = await provider.get('get_wallet_data', [])
         return [stack.readBigNumber(), stack.readAddress(), stack.readAddress(), stack.readCell()]

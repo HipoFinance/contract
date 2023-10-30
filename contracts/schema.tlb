@@ -181,6 +181,13 @@ withdrawal_notification#2ec2a5a0
     query_id:uint64
         = InternalMsgBody;
 
+withdraw_jettons#768a50b2
+    query_id:uint64
+    child_wallet:MsgAddress
+    tokens:Coins
+    custom_payload:(Maybe ^Cell)
+        = InternalMsgBody;
+
 //
 // Validators Ops
 //

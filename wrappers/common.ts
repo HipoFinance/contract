@@ -28,6 +28,7 @@ export const op = {
     burnFailed: 0x272e3dda,
     withdrawFailed: 0xc6caea4d,
     withdrawalNotification: 0x2ec2a5a0,
+    withdrawJettons: 0x768a50b2,
 
     requestLoan: 0x12b808d3,
     participateInElection: 0x574a297b,
