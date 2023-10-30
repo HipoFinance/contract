@@ -77,6 +77,8 @@ global cell wallet_code;
         v.end_parse();
     }
 
+    ;; Intentionally not checking the sender, since anyone willing to pay for gas can call this,
+    ;; including the driver and the owner.
     throw_unless(err::insufficient_fee, msg_ton >= min_fee);
     throw_unless(err::insufficient_funds, stake_amount > 0);
 
@@ -268,6 +270,8 @@ global cell wallet_code;
 
     int min_ton = withdraw_tokens_fee();
 
+    ;; Intentionally not checking the sender, since anyone willing to pay for gas can call this,
+    ;; including the driver and the owner.
     throw_unless(err::insufficient_fee, msg_ton >= min_ton);
     throw_unless(err::insufficient_funds, unstaking > 0);
 
