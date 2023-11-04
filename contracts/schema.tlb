@@ -109,6 +109,22 @@ take_wallet_address#d1735400
         = InternalMsgBody;
 
 //
+// TEP-?? Quote Ratio
+//
+
+provide_current_quote#ad83913f
+    query_id:uint64
+    custom_payload:(Maybe ^Cell)
+        = InternalMsgBody;
+
+take_current_quote#a420458
+    query_id:uint64
+    quote_numerator:uint128
+    quote_denominator:uint128
+    custom_payload:(Maybe ^Cell)
+        = InternalMsgBody;
+
+//
 // Stakers Ops
 //
 

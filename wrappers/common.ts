@@ -37,8 +37,12 @@ export const op = {
     transferNotification: 0x7362d09c,
     gasExcess: 0xd53276db,
     unstakeTokens: 0x595f07bc,
+
     provideWalletAddress: 0x2c76b973,
     takeWalletAddress: 0xd1735400,
+
+    provideCurrentQuote: 0xad83913f,
+    takeCurrentQuote: 0xa420458,
 
     depositCoins: 0x103af428,
     saveCoins: 0x7f30ee55,

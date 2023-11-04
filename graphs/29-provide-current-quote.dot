@@ -1,0 +1,16 @@
+digraph {
+    label="A dex asks for the current quote"
+    node [ colorscheme=pastel19 style=filled ]
+
+    /* Entities */
+    dex [ color=2 ]
+    treasury [ color=4 ]
+
+    /* Relationships */
+    dex -> treasury [ label="1\l op::provide_current_quote\l 0.10 TON\l" ]
+    treasury -> dex [ label="2\l op::take_current_quote\l 0.09 TON\l" ]
+
+    /* Ranks */
+    { rank=min dex }
+    { rank=max treasury }
+}

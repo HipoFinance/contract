@@ -651,6 +651,52 @@ describe('Wallet', () => {
         accumulateFees(result.transactions)
     })
 
+    it('should provide current quote', async () => {
+        const state = await treasury.getTreasuryState()
+        state.totalCoins = toNano('22000')
+        state.totalTokens = toNano('21000')
+        const fakeData = treasuryConfigToCell(state)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData,
+                balance: await treasury.getBalance(),
+            }),
+        )
+        const dex = await blockchain.treasury('dex')
+        const queryId = BigInt(Math.floor(Math.random() * Math.pow(2, 64)))
+        const customPayload = beginCell().storeAddress(dex.address).endCell()
+        const expectedBody = beginCell()
+            .storeUint(op.takeCurrentQuote, 32)
+            .storeUint(queryId, 64)
+            .storeUint(toNano('22000'), 128)
+            .storeUint(toNano('21000'), 128)
+            .storeMaybeRef(customPayload)
+            .endCell()
+        const result = await treasury.sendProvideCurrentQuote(dex.getSender(), { value: '0.1', queryId, customPayload })
+
+        expect(result.transactions).toHaveTransaction({
+            from: dex.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.provideCurrentQuote),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: dex.address,
+            value: between('0', '0.1'),
+            body: expectedBody,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(3)
+    })
+
     it('should reject staking coins', async () => {
         const times = await treasury.getTimes()
         const roundSince = times.currentRoundSince

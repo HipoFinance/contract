@@ -452,6 +452,20 @@ builder pack_participation
     send_msg(false, src.to_builder(), null(), body, 0, send::remaining_value);
 }
 
+() provide_current_quote(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    cell custom_payload = s~load_maybe_ref();
+    s.end_parse();
+
+    builder body = begin_cell()
+        .store_uint(op::take_current_quote, 32)
+        .store_uint(query_id, 64)
+        .store_uint(total_coins, 128)
+        .store_uint(total_tokens, 128)
+        .store_maybe_ref(custom_payload);
+    send_msg(false, src.to_builder(), null(), body, 0, send::remaining_value);
+}
+
 () convert_wallet(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int tokens = s~load_coins();
@@ -1548,6 +1562,10 @@ builder pack_participation
 
     if (op == op::provide_wallet_address) {
         return provide_wallet_address(src, in_msg_body);
+    }
+
+    if (op == op::provide_current_quote) {
+        return provide_current_quote(src, in_msg_body);
     }
 
     if (op == op::convert_wallet) {
