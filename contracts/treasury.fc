@@ -1414,14 +1414,7 @@ builder pack_participation
     upgrade_data(src, query_id, new_data);
 }
 
-() withdraw_surplus(int msg_ton, slice src, slice s) impure inline {
-    unpack_extension();
-
-    int query_id = s~load_uint(64);
-    s.end_parse();
-
-    throw_unless(err::access_denied, equal_slice_bits(src, governor));
-
+int calculate_surplus(int msg_ton) inline_ref {
     ( _, cell state_init, _ ) = create_loan_address(my_address(), my_address().to_builder(), now(), loan_code);
     int fee = request_loan_fee(state_init);
     int k = -1;
@@ -1449,9 +1442,18 @@ builder pack_participation
     } until (~ f?);
 
     int ton_balance = get_balance().pair_first();
-    int ton_balance_before_msg = ton_balance - msg_ton;
-    int available =
-        max(0, ton_balance_before_msg - fee::treasury_storage - total_validators_stake - total_staking - total_coins);
+    return max(0, ton_balance - msg_ton - fee::treasury_storage - total_validators_stake - total_staking - total_coins);
+}
+
+() withdraw_surplus(int msg_ton, slice src, slice s) impure inline {
+    unpack_extension();
+
+    int query_id = s~load_uint(64);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
+
+    int available = calculate_surplus(msg_ton);
 
     raw_reserve(available, reserve::all_but_amount);
 
@@ -1738,8 +1740,7 @@ var get_treasury_state() method_id {
         );
 }
 
-var get_participation(int round_since)
-    method_id {
+var get_participation(int round_since) method_id {
     load_data();
 
     int state = participation::open;
@@ -1825,6 +1826,13 @@ int get_max_burnable_tokens() method_id {
     }
 
     return burnable_tokens;
+}
+
+int get_surplus() method_id {
+    load_data();
+    unpack_extension();
+
+    return calculate_surplus(0);
 }
 
 int get_max_punishment(int stake) method_id {

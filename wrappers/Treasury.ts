@@ -778,6 +778,16 @@ export class Treasury implements Contract {
         }
     }
 
+    async getMaxBurnableTokens(provider: ContractProvider): Promise<bigint> {
+        const { stack } = await provider.get('get_max_burnable_tokens', [])
+        return stack.readBigNumber()
+    }
+
+    async getSurplus(provider: ContractProvider): Promise<bigint> {
+        const { stack } = await provider.get('get_surplus', [])
+        return stack.readBigNumber()
+    }
+
     async getMaxPunishment(provider: ContractProvider, stake: bigint) {
         const tb = new TupleBuilder()
         tb.writeNumber(stake)

@@ -240,4 +240,23 @@ describe('Getters', () => {
         expect(walletFees.storageFee).toBeBetween('0.03', '0.04')
         expect(walletFees.tonBalance).toBeBetween('0.03', '0.04')
     })
+
+    it('should return max burnable tokens', async () => {
+        const staker = await blockchain.treasury('staker')
+        const walletAddress = await treasury.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
+        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
+
+        const maxBurnableTokens = await treasury.getMaxBurnableTokens()
+        expect(maxBurnableTokens).toBeBetween('9.8', '9.9')
+    })
+
+    it('should return surplus', async () => {
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: '10' })
+
+        const surplus = await treasury.getSurplus()
+        expect(surplus).toBeTonValue('0')
+    })
 })
