@@ -1370,10 +1370,10 @@ describe('Loan', () => {
     })
 
     it('should handle dense election spans', async () => {
-        const electedFor = 120n
-        const electionsStartBefore = 60n
-        const electionsEndBefore = 30n
-        const stakeHeldFor = 60n
+        const electedFor = 3600n
+        const electionsStartBefore = 1800n
+        const electionsEndBefore = 300n
+        const stakeHeldFor = 1800n
         const since = BigInt(Math.floor(Date.now() / 1000))
         const until = since + electedFor
 
@@ -1393,10 +1393,8 @@ describe('Loan', () => {
         expect(times.nextRoundSince).toEqual(until)
         expect(times.nextRoundUntil).toEqual(until + electedFor)
         expect(times.stakeHeldFor).toEqual(stakeHeldFor)
-        expect(times.participateSince).toBeGreaterThanOrEqual(since + electedFor - electionsStartBefore)
-        expect(times.participateSince).toBeLessThanOrEqual(since + electedFor - electionsEndBefore)
-        expect(times.participateUntil).toBeLessThanOrEqual(since + electedFor - electionsEndBefore)
-        expect(times.participateUntil).toBeGreaterThanOrEqual(times.participateSince)
+        expect(times.participateSince).toEqual(until - electionsEndBefore - 900n)
+        expect(times.participateUntil).toEqual(until - electionsEndBefore - 300n)
     })
 
     it('should correctly set sort keys', async () => {
