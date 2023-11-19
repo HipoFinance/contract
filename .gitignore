@@ -1,3 +1,4 @@
 node_modules
 temp
 build
+.DS_Store

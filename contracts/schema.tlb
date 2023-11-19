@@ -222,6 +222,15 @@ convert_wallet#41d20e0e
     wallet_code_hash:^bits256
         = InternalMsgBody;
 
+migrate_wallet#19101d70
+    query_id:uint64
+    tokens:Coins
+    staking:(HashmapE 32 Coins)
+    unstaking:Coins
+    owner:MsgAddress
+    return_excess:MsgAddress
+        = InternalMsgBody;
+
 merge_wallet#2eb26791
     query_id:uint64
     tokens:Coins

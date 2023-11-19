@@ -59,6 +59,7 @@ export const op = {
     withdrawJettons: 0x768a50b2,
     upgradeWallet: 0x2c53aec7,
     convertWallet: 0x41d20e0e,
+    migrateWallet: 0x19101d70,
     mergeWallet: 0x2eb26791,
 
     requestLoan: 0x12b808d3,

@@ -66,6 +66,7 @@ const int op::withdrawal_notification = 0x2ec2a5a0;
 const int op::withdraw_jettons = 0x768a50b2;
 const int op::upgrade_wallet = 0x2c53aec7;
 const int op::convert_wallet = 0x41d20e0e;
+const int op::migrate_wallet = 0x19101d70;
 const int op::merge_wallet = 0x2eb26791;
 
 const int op::request_loan = 0x12b808d3;
