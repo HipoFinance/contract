@@ -184,6 +184,7 @@ export function logFees(fees: Fees) {
             'unstake tokens:     ' + fromNano(fees.unstakeTokensFee),
             'withdraw tokens:    ' + fromNano(fees.withdrawTokensFee),
             'send tokens:        ' + fromNano(fees.sendTokensFee),
+            'upgrade wallet:     ' + fromNano(fees.upgradeWalletFee),
             'request loan:       ' + fromNano(fees.requestLoanFee),
             'wallet storage:     ' + fromNano(fees.walletStorage),
             'loan storage:       ' + fromNano(fees.loanStorage),

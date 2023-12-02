@@ -1759,6 +1759,7 @@ var get_fees() method_id {
         , unstake_tokens_fee()
         , withdraw_tokens_fee()
         , send_tokens_fee(0, ""s)
+        , upgrade_wallet_fee()
         , request_loan_fee(loan_state_init)
         , fee::treasury_storage
         , wallet_storage_fee()
