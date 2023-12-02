@@ -1,6 +1,6 @@
-import { Address, beginCell } from 'ton-core'
+import { Address, beginCell } from '@ton/core'
 import { Treasury } from '../wrappers/Treasury'
-import { NetworkProvider, compile } from '@ton-community/blueprint'
+import { NetworkProvider, compile } from '@ton/blueprint'
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui()

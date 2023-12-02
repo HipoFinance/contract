@@ -9,7 +9,7 @@ import {
     Sender,
     SendMode,
     Slice,
-} from 'ton-core'
+} from '@ton/core'
 import { op, tonValue } from './common'
 
 export interface WalletFees {

@@ -13,7 +13,7 @@ import {
     SendMode,
     Slice,
     TupleBuilder,
-} from 'ton-core'
+} from '@ton/core'
 import { op, tonValue } from './common'
 
 export interface Times {

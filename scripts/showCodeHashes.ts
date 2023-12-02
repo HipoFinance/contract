@@ -1,4 +1,4 @@
-import { compile } from '@ton-community/blueprint'
+import { compile } from '@ton/blueprint'
 
 export async function run() {
     const treasuryCode = await compile('Treasury')

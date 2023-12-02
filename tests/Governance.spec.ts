@@ -1,6 +1,6 @@
-import { compile } from '@ton-community/blueprint'
-import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton-community/sandbox'
-import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
+import { compile } from '@ton/blueprint'
+import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
+import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
 import { between, bodyOp, createVset, emptyNewStakeMsg, logTotalFees, accumulateFees, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
 import {

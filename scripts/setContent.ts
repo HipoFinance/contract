@@ -1,6 +1,6 @@
-import { Address, beginCell, Cell, Dictionary } from 'ton-core'
+import { Address, beginCell, Cell, Dictionary } from '@ton/core'
 import { Treasury } from '../wrappers/Treasury'
-import { NetworkProvider } from '@ton-community/blueprint'
+import { NetworkProvider } from '@ton/blueprint'
 import { sha256_sync } from 'ton-crypto'
 
 const name = 'hTON'

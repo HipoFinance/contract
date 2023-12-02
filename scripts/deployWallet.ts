@@ -1,5 +1,5 @@
-import { toNano } from 'ton-core'
-import { compile, NetworkProvider } from '@ton-community/blueprint'
+import { toNano } from '@ton/core'
+import { compile, NetworkProvider } from '@ton/blueprint'
 import { LibraryDeployer } from '../wrappers/LibraryDeployer'
 
 export async function run(provider: NetworkProvider) {

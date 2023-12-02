@@ -1,7 +1,7 @@
-import { compile } from '@ton-community/blueprint'
-import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton-community/sandbox'
-import '@ton-community/test-utils'
-import { Cell, Dictionary, beginCell, toNano } from 'ton-core'
+import { compile } from '@ton/blueprint'
+import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
+import '@ton/test-utils'
+import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
 import { between, bodyOp, logComputeGas, logTotalFees, accumulateFees } from './helper'
 import { err, op } from '../wrappers/common'
 import {

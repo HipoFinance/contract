@@ -160,10 +160,10 @@ There are 3 roles in the governance of the protocol:
 
 ## Development
 
-- Install dependencies: `yarn`
-- Build contracts: `yarn blueprint build`
-- Deploy: `yarn blueprint run`
-- Test: `yarn test`
+- Install dependencies: `npm install`
+- Build contracts: `npx blueprint build`
+- Deploy: `npx blueprint run`
+- Test: `npx blueprint test`
 
 ### Graphs
 

@@ -7,7 +7,7 @@ import {
     ContractProvider,
     Dictionary,
     TupleBuilder,
-} from 'ton-core'
+} from '@ton/core'
 
 export interface ElectorConfig {
     currentElection?: Cell

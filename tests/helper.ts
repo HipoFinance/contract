@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
-import { Blockchain, BlockchainTransaction } from '@ton-community/sandbox'
+import { Blockchain, BlockchainTransaction } from '@ton/sandbox'
 import type { MatcherFunction } from 'expect'
-import { Address, Builder, Cell, Dictionary, beginCell, fromNano, toNano } from 'ton-core'
+import { Address, Builder, Cell, Dictionary, beginCell, fromNano, toNano } from '@ton/core'
 import { mnemonicNew, mnemonicToPrivateKey, sign } from 'ton-crypto'
 import { Fees } from '../wrappers/Treasury'
 
@@ -10,8 +10,11 @@ const muteLogCodeSizes = true
 const muteLogComputeGas = true
 const muteLogFees = true
 
-export function bodyOp(op: number): (body: Cell) => boolean {
-    return (body: Cell): boolean => {
+export function bodyOp(op: number): (body: Cell | undefined) => boolean {
+    return (body: Cell | undefined): boolean => {
+        if (body == null) {
+            return false
+        }
         const s = body.beginParse()
         return s.remainingBits >= 32 && s.loadUint(32) === op
     }

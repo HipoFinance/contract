@@ -1,4 +1,4 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider } from 'ton-core'
+import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider } from '@ton/core'
 
 export interface LoanConfig {
     elector?: Address

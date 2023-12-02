@@ -1,4 +1,4 @@
-import { Address, beginCell, BitBuilder, Cell, Contract, contractAddress, ContractProvider, Dictionary, Sender, SendMode } from 'ton-core'
+import { Address, beginCell, BitBuilder, Cell, Contract, contractAddress, ContractProvider, Dictionary, Sender, SendMode } from '@ton/core'
 
 export interface LibraryDeployerConfig {
     libraryCode: Cell

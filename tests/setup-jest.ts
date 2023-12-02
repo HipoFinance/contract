@@ -1,4 +1,4 @@
-import '@ton-community/test-utils'
+import '@ton/test-utils'
 import { toBeBetween, toBeTonValue } from './helper'
 
 expect.extend({
