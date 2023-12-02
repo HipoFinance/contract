@@ -13,11 +13,13 @@ import {
     sortedDictionaryValue,
     treasuryConfigToCell,
 } from '../wrappers/Treasury'
+import { LibraryDeployer, buildBlockchainLibraries } from '../wrappers/LibraryDeployer'
 
-describe('Large number of loan requests', () => {
+describe('Large', () => {
     let treasuryCode: Cell
     let walletCode: Cell
     let loanCode: Cell
+    let blockchainLibs: Cell
 
     afterAll(() => {
         logTotalFees()
@@ -25,19 +27,22 @@ describe('Large number of loan requests', () => {
 
     beforeAll(async () => {
         treasuryCode = await compile('Treasury')
-        walletCode = await compile('Wallet')
+        const mainWalletCode = await compile('Wallet')
+        walletCode = LibraryDeployer.exportLibCode(mainWalletCode)
         loanCode = await compile('Loan')
+        blockchainLibs = buildBlockchainLibraries([mainWalletCode])
     })
 
     let blockchain: Blockchain
-    let treasury: SandboxContract<Treasury>
     let driver: SandboxContract<TreasuryContract>
     let halter: SandboxContract<TreasuryContract>
     let governor: SandboxContract<TreasuryContract>
+    let treasury: SandboxContract<Treasury>
     let fees: Fees
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
+        blockchain.libs = blockchainLibs
         driver = await blockchain.treasury('driver')
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
@@ -166,7 +171,7 @@ describe('Large number of loan requests', () => {
             validatorRewardShare: 102n,
             loanAmount: toNano('300000'),
             accrueAmount: 0n,
-            stakeAmount: toNano('1000'),
+            stakeAmount: toNano('101'),
             newStakeMsg: emptyNewStakeMsg,
         }
         const bucket = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Buffer(0))
@@ -194,7 +199,7 @@ describe('Large number of loan requests', () => {
 
         const state = await treasury.getTreasuryState()
         state.participations.set(until1, participation)
-        state.totalValidatorsStake = toNano('1000') * (count1 + count2 + count3)
+        state.totalValidatorsStake = toNano('101') * (count1 + count2 + count3)
         const fakeData = treasuryConfigToCell(state)
         await blockchain.setShardAccount(
             treasury.address,
@@ -203,7 +208,7 @@ describe('Large number of loan requests', () => {
                 address: treasury.address,
                 code: treasuryCode,
                 data: fakeData,
-                balance: toNano('10') + toNano('1001.72') * (count1 + count2 + count3) + toNano('300000') * count3,
+                balance: toNano('10') + toNano('101.8') * (count1 + count2 + count3) + toNano('300000') * count3,
             }),
         )
 
@@ -223,8 +228,8 @@ describe('Large number of loan requests', () => {
                 requestRejectedCount += 1n
             }
         }
-        expect(sendNewStakeCount === count3).toBeTruthy()
-        expect(requestRejectedCount === count1 + count2).toBeTruthy()
+        expect(sendNewStakeCount).toEqual(count3)
+        expect(requestRejectedCount).toEqual(count1 + count2)
 
         expect(result.transactions).toHaveTransaction({
             from: undefined,
@@ -260,14 +265,14 @@ describe('Large number of loan requests', () => {
         })
 
         const p = await treasury.getParticipation(until1)
-        expect(p.size === 0n).toBeTruthy()
-        expect(p.sorted?.size === 0).toBeTruthy()
-        expect(p.requests?.size === 0).toBeTruthy()
-        expect(p.rejected?.size === 0).toBeTruthy()
-        expect(p.accepted?.size === 0).toBeTruthy()
-        expect(p.accrued?.size === 0).toBeTruthy()
-        expect(p.staked?.size === 0).toBeTruthy()
-        expect(p.recovering?.size === 0).toBeTruthy()
+        expect(p.size).toEqual(0n)
+        expect(p.sorted?.size).toEqual(0)
+        expect(p.requests?.size).toEqual(0)
+        expect(p.rejected?.size).toEqual(0)
+        expect(p.accepted?.size).toEqual(0)
+        expect(p.accrued?.size).toEqual(0)
+        expect(p.staked?.size).toEqual(0)
+        expect(p.recovering?.size).toEqual(0)
 
         accumulateFees(result.transactions)
     })

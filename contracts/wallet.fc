@@ -88,8 +88,7 @@ global cell wallet_code;
         .store_coins(stake_amount)
         .store_uint(round_since, 32)
         .store_slice(owner)
-        .store_slice(return_excess)
-        .store_ref(begin_cell().store_uint(wallet_code.cell_hash(), 256).end_cell());
+        .store_slice(return_excess);
     send_msg(true, treasury.to_builder(), null(), body, 0, send::remaining_value);
 
     save_data();
@@ -100,7 +99,7 @@ global cell wallet_code;
     slice return_excess = s~load_msg_addr();
     s.end_parse();
 
-    int min_fee = stake_first_coins_fee() + stake_coins_fee();
+    int min_fee = stake_first_coins_fee();
 
     throw_unless(err::insufficient_fee, msg_ton >= min_fee);
 
@@ -176,12 +175,13 @@ global cell wallet_code;
 
     ( int recipient_wc, _ ) = parse_std_addr(recipient);
     ( builder wallet, cell state_init, _ ) = create_wallet_address(recipient.to_builder(), treasury, wallet_code);
-    int min_ton = forward_ton_amount + send_tokens_fee(state_init);
+    int min_ton = send_tokens_fee(forward_ton_amount, s);
+    int ton_balance = get_balance().pair_first();
 
     throw_unless(err::access_denied, equal_slice_bits(src, owner));
     throw_unless(err::only_basechain_allowed, recipient_wc == chain::base);
     throw_unless(err::receiver_is_sender, ~ equal_slice_bits(recipient, owner));
-    throw_unless(err::insufficient_fee, msg_ton >= min_ton);
+    throw_unless(err::insufficient_fee, (ton_balance >= msg_ton) & (msg_ton >= min_ton));
     throw_unless(err::insufficient_funds, (amount > 0) & (amount <= tokens));
 
     tokens -= amount;
@@ -211,41 +211,31 @@ global cell wallet_code;
     }
 
     int min_ton = unstake_tokens_fee();
+    int ton_balance = get_balance().pair_first();
 
     throw_unless(err::access_denied, equal_slice_bits(src, owner));
-    throw_unless(err::insufficient_fee, msg_ton >= min_ton);
+    throw_unless(err::insufficient_fee, (ton_balance >= msg_ton) & (msg_ton >= min_ton));
     throw_unless(err::insufficient_funds, (amount > 0) & (amount <= tokens));
 
     tokens -= amount;
     unstaking += amount;
-
-    int ton_balance = get_balance().pair_first();
-    int ton_balance_before_msg = ton_balance - msg_ton;
-    int reserve_balance = max(ton_balance_before_msg, wallet_storage_fee());
-    raw_reserve(reserve_balance, reserve::exact);
 
     builder body = begin_cell()
         .store_uint(op::reserve_tokens, 32)
         .store_uint(query_id, 64)
         .store_coins(amount)
         .store_slice(owner)
-        .store_slice(return_excess)
-        .store_uint(wallet_code.cell_hash(), 256);
-    send_msg(true, treasury.to_builder(), null(), body, 0, send::remaining_balance);
+        .store_slice(return_excess);
+    send_msg(true, treasury.to_builder(), null(), body, 0, send::remaining_value);
 
     save_data();
 }
 
 () unstake_all_tokens(int msg_ton, slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
-    slice return_excess = s~load_msg_addr();
     s.end_parse();
 
-    if (return_excess.preload_uint(2) == 0) {
-        return_excess = src;
-    }
-
-    int min_ton = unstake_all_tokens_fee() + unstake_tokens_fee();
+    int min_ton = unstake_all_tokens_fee();
 
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));
     throw_unless(err::insufficient_fee, msg_ton >= min_ton);
@@ -271,10 +261,11 @@ global cell wallet_code;
     }
 
     int min_ton = withdraw_tokens_fee();
+    int ton_balance = get_balance().pair_first();
 
     ;; Intentionally not checking the sender, since anyone willing to pay for gas can call this,
     ;; including the driver and the owner.
-    throw_unless(err::insufficient_fee, msg_ton >= min_ton);
+    throw_unless(err::insufficient_fee, (ton_balance >= msg_ton) & (msg_ton >= min_ton));
     throw_unless(err::insufficient_funds, unstaking > 0);
 
     builder body = begin_cell()
@@ -282,8 +273,7 @@ global cell wallet_code;
         .store_uint(query_id, 64)
         .store_coins(unstaking)
         .store_slice(owner)
-        .store_slice(return_excess)
-        .store_uint(wallet_code.cell_hash(), 256);
+        .store_slice(return_excess);
     send_msg(true, treasury.to_builder(), null(), body, 0, send::remaining_value);
 
     unstaking = 0;
@@ -357,8 +347,7 @@ global cell wallet_code;
         return_excess = src;
     }
 
-    ( _, cell state_init, _ ) = create_wallet_address(owner.to_builder(), treasury, wallet_code);
-    int min_fee = upgrade_wallet_fee(state_init);
+    int min_fee = upgrade_wallet_fee();
 
     throw_unless(err::access_denied, equal_slice_bits(src, owner) | equal_slice_bits(src, treasury));
     throw_unless(err::insufficient_fee, msg_ton >= min_fee);
@@ -371,8 +360,7 @@ global cell wallet_code;
         .store_dict(staking)
         .store_coins(unstaking)
         .store_slice(owner)
-        .store_slice(return_excess)
-        .store_ref(begin_cell().store_uint(wallet_code.cell_hash(), 256).end_cell());
+        .store_slice(return_excess);
     send_msg(false, treasury.to_builder(), null(), body, 0, send::remaining_balance);
 }
 

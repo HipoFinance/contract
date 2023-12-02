@@ -66,7 +66,7 @@ export class Elector implements Contract {
 
     async getCredit(provider: ContractProvider, loanAddress: Address): Promise<bigint> {
         const tb = new TupleBuilder()
-        tb.writeNumber(BigInt('0x' + loanAddress.toRawString().split(':')[1]))
+        tb.writeNumber(BigInt('0x' + loanAddress.hash.toString('hex')))
         const { stack } = await provider.get('compute_returned_stake', tb.build())
         return stack.readBigNumber()
     }

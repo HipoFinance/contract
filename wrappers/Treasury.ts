@@ -27,7 +27,11 @@ export interface Times {
 
 export interface Fees {
     depositCoinsFee: bigint
+    stakeCoinsFee: bigint
+    stakeFirstCoinsFee: bigint
+    unstakeAllTokensFee: bigint
     unstakeTokensFee: bigint
+    withdrawTokensFee: bigint
     sendTokensFee: bigint
     requestLoanFee: bigint
     treasuryStorage: bigint
@@ -769,7 +773,11 @@ export class Treasury implements Contract {
         const { stack } = await provider.get('get_fees', [])
         return {
             depositCoinsFee: stack.readBigNumber(),
+            stakeCoinsFee: stack.readBigNumber(),
+            stakeFirstCoinsFee: stack.readBigNumber(),
+            unstakeAllTokensFee: stack.readBigNumber(),
             unstakeTokensFee: stack.readBigNumber(),
+            withdrawTokensFee: stack.readBigNumber(),
             sendTokensFee: stack.readBigNumber(),
             requestLoanFee: stack.readBigNumber(),
             treasuryStorage: stack.readBigNumber(),

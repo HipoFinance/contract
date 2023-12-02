@@ -3,10 +3,12 @@ import { Blockchain, BlockchainTransaction } from '@ton-community/sandbox'
 import type { MatcherFunction } from 'expect'
 import { Address, Builder, Cell, Dictionary, beginCell, fromNano, toNano } from 'ton-core'
 import { mnemonicNew, mnemonicToPrivateKey, sign } from 'ton-crypto'
+import { Fees } from '../wrappers/Treasury'
 
 const muteLogTotalFees = true
 const muteLogCodeSizes = true
 const muteLogComputeGas = true
+const muteLogFees = true
 
 export function bodyOp(op: number): (body: Cell) => boolean {
     return (body: Cell): boolean => {
@@ -160,12 +162,29 @@ export function logComputeGas(opLabel: string, opCode: number, tx: BlockchainTra
     const logs = tx.blockchainLogs
     const usedIndex = logs.indexOf('used=')
     const commaIndex = logs.indexOf(',', usedIndex)
-    const usedGas = logs.substring(usedIndex + 5, commaIndex)
-    const roundedGas = Math.ceil((parseInt(usedGas, 10) / 1000) * 1.2) * 1000
+    const usedGas = BigInt(logs.substring(usedIndex + 5, commaIndex))
     if (logs.lastIndexOf('used=') !== usedIndex) {
         throw new Error('unexpected second "used" field in calculating gas')
     }
     if (!muteLogComputeGas) {
-        console.info('compute gas for   gas::%s:   used: %s   rounded up: %s', opLabel, usedGas, roundedGas)
+        console.info('compute gas for   gas::%s:   used: %s', opLabel, usedGas.toString())
+    }
+}
+
+export function logFees(fees: Fees) {
+    if (!muteLogFees) {
+        const logs = [
+            'deposit coins:      ' + fromNano(fees.depositCoinsFee),
+            'stake coins:        ' + fromNano(fees.stakeCoinsFee),
+            'stake first coins:  ' + fromNano(fees.stakeFirstCoinsFee),
+            'unstake all tokens: ' + fromNano(fees.unstakeAllTokensFee),
+            'unstake tokens:     ' + fromNano(fees.unstakeTokensFee),
+            'withdraw tokens:    ' + fromNano(fees.withdrawTokensFee),
+            'send tokens:        ' + fromNano(fees.sendTokensFee),
+            'request loan:       ' + fromNano(fees.requestLoanFee),
+            'wallet storage:     ' + fromNano(fees.walletStorage),
+            'loan storage:       ' + fromNano(fees.loanStorage),
+        ]
+        console.info(logs.join('\n'))
     }
 }

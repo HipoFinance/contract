@@ -27,12 +27,14 @@ import {
 } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
 import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-test/Elector'
+import { LibraryDeployer, buildBlockchainLibraries } from '../wrappers/LibraryDeployer'
 
 describe('Loan', () => {
     let treasuryCode: Cell
     let walletCode: Cell
     let loanCode: Cell
     let electorCode: Cell
+    let blockchainLibs: Cell
 
     afterAll(() => {
         logTotalFees()
@@ -40,21 +42,24 @@ describe('Loan', () => {
 
     beforeAll(async () => {
         treasuryCode = await compile('Treasury')
-        walletCode = await compile('Wallet')
+        const mainWalletCode = await compile('Wallet')
+        walletCode = LibraryDeployer.exportLibCode(mainWalletCode)
         loanCode = await compile('Loan')
         electorCode = await compile('elector-test/Elector')
+        blockchainLibs = buildBlockchainLibraries([mainWalletCode])
     })
 
     let blockchain: Blockchain
-    let treasury: SandboxContract<Treasury>
     let driver: SandboxContract<TreasuryContract>
     let halter: SandboxContract<TreasuryContract>
     let governor: SandboxContract<TreasuryContract>
+    let treasury: SandboxContract<Treasury>
     let fees: Fees
     let electorAddress: Address
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
+        blockchain.libs = blockchainLibs
         driver = await blockchain.treasury('driver')
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
@@ -119,7 +124,7 @@ describe('Loan', () => {
 
         const validator = await blockchain.treasury('validator')
         const result = await treasury.sendRequestLoan(validator.getSender(), {
-            value: '151.9', // 101 (max punishment) + 50 (min payment) + 0.9 (fee)
+            value: toNano('151') + fees.requestLoanFee, // 101 (max punishment) + 50 (min payment) + fee
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
@@ -130,7 +135,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: validator.address,
             to: treasury.address,
-            value: toNano('151.9'),
+            value: toNano('151') + fees.requestLoanFee,
             body: bodyOp(op.requestLoan),
             success: true,
             outMessagesCount: 0,
@@ -139,12 +144,12 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('161.8', '161.9')
+        expect(treasuryBalance).toBeBetween('161.7', '161.8')
         expect(treasuryState.totalCoins).toBeTonValue('0')
         expect(treasuryState.totalTokens).toBeTonValue('0')
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
-        expect(treasuryState.totalValidatorsStake).toBeBetween('151', '151.1')
+        expect(treasuryState.totalValidatorsStake).toBeTonValue('151')
 
         accumulateFees(result.transactions)
     })
@@ -158,10 +163,10 @@ describe('Loan', () => {
         setConfig(blockchain, config.currentValidators, vset1)
 
         const staker = await blockchain.treasury('staker')
-        await treasury.sendDepositCoins(staker.getSender(), { value: '700000.1' })
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('700000') + fees.depositCoinsFee })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -187,7 +192,7 @@ describe('Loan', () => {
         const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
         const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
-            value: '151.9', // 101 (max punishment) + 50 (min payment) + 0.9 (fee)
+            value: toNano('151') + fees.requestLoanFee, // 101 (max punishment) + 50 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
@@ -195,7 +200,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
-            value: '161.9', // 101 (max punishment) + 60 (min payment) + 0.9 (fee)
+            value: toNano('161') + fees.requestLoanFee, // 101 (max punishment) + 60 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
@@ -203,7 +208,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
-            value: '171.9', // 101 (max punishment) + 70 (min payment) + 0.9 (fee)
+            value: toNano('171') + fees.requestLoanFee, // 101 (max punishment) + 70 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
@@ -243,7 +248,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: validator1.address,
-            value: between('151', '151.1'),
+            value: toNano('151'),
             body: bodyOp(op.requestRejected),
             success: true,
             outMessagesCount: 0,
@@ -304,12 +309,12 @@ describe('Loan', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('11', '12')
-        expect(treasuryState.totalCoins).toBeBetween('699999', '700000')
+        expect(treasuryState.totalCoins).toBeTonValue('700000')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
-        expect(treasuryState.participations.size === 1).toBeTruthy()
+        expect(treasuryState.participations.size).toEqual(1)
 
         accumulateFees(result.transactions)
     })
@@ -323,10 +328,10 @@ describe('Loan', () => {
         setConfig(blockchain, config.currentValidators, vset1)
 
         const staker = await blockchain.treasury('staker')
-        await treasury.sendDepositCoins(staker.getSender(), { value: '700000.1' })
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('700000') + fees.depositCoinsFee })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -352,7 +357,7 @@ describe('Loan', () => {
         const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
         const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
-            value: '151.9', // 101 (max punishment) + 50 (min payment) + 0.9 (fee)
+            value: toNano('151') + fees.requestLoanFee, // 101 (max punishment) + 50 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
@@ -360,7 +365,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
-            value: '161.9', // 101 (max punishment) + 60 (min payment) + 0.9 (fee)
+            value: toNano('161') + fees.requestLoanFee, // 101 (max punishment) + 60 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
@@ -368,7 +373,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
-            value: '171.9', // 101 (max punishment) + 70 (min payment) + 0.9 (fee)
+            value: toNano('171') + fees.requestLoanFee, // 101 (max punishment) + 70 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
@@ -425,7 +430,7 @@ describe('Loan', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('11', '12')
-        expect(treasuryState.totalCoins).toBeBetween('699999', '700000')
+        expect(treasuryState.totalCoins).toBeTonValue('700000')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -444,10 +449,10 @@ describe('Loan', () => {
         setConfig(blockchain, config.currentValidators, vset1)
 
         const staker = await blockchain.treasury('staker')
-        await treasury.sendDepositCoins(staker.getSender(), { value: '700000.1' })
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('700000') + fees.depositCoinsFee })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -473,7 +478,7 @@ describe('Loan', () => {
         const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
         const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
-            value: '151.9', // 101 (max punishment) + 50 (min payment) + 0.9 (fee)
+            value: toNano('151') + fees.requestLoanFee, // 101 (max punishment) + 50 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
@@ -481,7 +486,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
-            value: '161.9', // 101 (max punishment) + 60 (min payment) + 0.9 (fee)
+            value: toNano('161') + fees.requestLoanFee, // 101 (max punishment) + 60 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
@@ -489,7 +494,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
-            value: '171.9', // 101 (max punishment) + 70 (min payment) + 0.9 (fee)
+            value: toNano('171') + fees.requestLoanFee, // 101 (max punishment) + 70 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
@@ -504,8 +509,8 @@ describe('Loan', () => {
         await treasury.sendParticipateInElection({ roundSince: until1 })
 
         const credits = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.BigVarUint(4))
-        credits.set(BigInt('0x' + loan2.address.toRawString().split(':')[1]), toNano('350260'))
-        credits.set(BigInt('0x' + loan3.address.toRawString().split(':')[1]), toNano('350270'))
+        credits.set(BigInt('0x' + loan2.address.hash.toString('hex')), toNano('350260'))
+        credits.set(BigInt('0x' + loan3.address.hash.toString('hex')), toNano('350270'))
         await blockchain.setShardAccount(
             electorAddress,
             createShardAccount({
@@ -552,7 +557,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: treasury.address,
-            value: between('0.8', '0.9'),
+            value: between('0.7', '0.8'),
             body: bodyOp(op.recoverStakes),
             success: true,
             outMessagesCount: 2,
@@ -660,7 +665,7 @@ describe('Loan', () => {
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('700131', '700132')
         expect(treasuryState.totalCoins).toBeBetween('700121', '700122')
-        expect(treasuryState.totalTokens).toBeBetween('699999', '700000')
+        expect(treasuryState.totalTokens).toBeTonValue('700000')
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
@@ -679,10 +684,10 @@ describe('Loan', () => {
         setConfig(blockchain, config.currentValidators, vset1)
 
         const staker = await blockchain.treasury('staker')
-        await treasury.sendDepositCoins(staker.getSender(), { value: '700000.1' })
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('700000') + fees.depositCoinsFee })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -708,7 +713,7 @@ describe('Loan', () => {
         const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
         const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
-            value: '151.9', // 101 (max punishment) + 50 (min payment) + 0.9 (fee)
+            value: toNano('151') + fees.requestLoanFee, // 101 (max punishment) + 50 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
@@ -716,7 +721,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
-            value: '161.9', // 101 (max punishment) + 60 (min payment) + 0.9 (fee)
+            value: toNano('161') + fees.requestLoanFee, // 101 (max punishment) + 60 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
@@ -724,7 +729,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
-            value: '171.9', // 101 (max punishment) + 70 (min payment) + 0.9 (fee)
+            value: toNano('171') + fees.requestLoanFee, // 101 (max punishment) + 70 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
@@ -764,7 +769,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: validator1.address,
-            value: between('151', '151.1'),
+            value: toNano('151'),
             body: bodyOp(op.requestRejected),
             success: true,
             outMessagesCount: 0,
@@ -838,7 +843,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: validator2.address,
-            value: between('101.2', '101.3'),
+            value: between('101.1', '101.2'),
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
@@ -846,7 +851,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: validator3.address,
-            value: between('101.2', '101.3'),
+            value: between('101.1', '101.2'),
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
@@ -874,13 +879,13 @@ describe('Loan', () => {
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('700133', '700134')
         expect(treasuryState.totalCoins).toBeBetween('700121', '700122')
-        expect(treasuryState.totalTokens).toBeBetween('699999', '700000')
+        expect(treasuryState.totalTokens).toBeTonValue('700000')
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
         expect(treasuryState.lastStaked).toBeBetween('699999', '700000')
         expect(treasuryState.lastRecovered).toBeBetween('700121', '700122')
-        expect(treasuryState.participations.size === 0).toBeTruthy()
+        expect(treasuryState.participations.size).toEqual(0)
 
         accumulateFees(result.transactions)
         logComputeGas('recover_stake_result', op.recoverStakeResult, result.transactions[10])
@@ -919,7 +924,7 @@ describe('Loan', () => {
         const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
         const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
-            value: '151.9', // 101 (max punishment) + 50 (min payment) + 0.9 (fee)
+            value: toNano('151') + fees.requestLoanFee, // 101 (max punishment) + 50 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
@@ -927,7 +932,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
-            value: '161.9', // 101 (max punishment) + 60 (min payment) + 0.9 (fee)
+            value: toNano('161') + fees.requestLoanFee, // 101 (max punishment) + 60 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
@@ -935,7 +940,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
-            value: '171.9', // 101 (max punishment) + 70 (min payment) + 0.9 (fee)
+            value: toNano('171') + fees.requestLoanFee, // 101 (max punishment) + 70 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
@@ -975,7 +980,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: validator1.address,
-            value: between('151', '151.1'),
+            value: toNano('151'),
             body: bodyOp(op.requestRejected),
             success: true,
             outMessagesCount: 0,
@@ -983,7 +988,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: validator2.address,
-            value: between('161', '161.1'),
+            value: toNano('161'),
             body: bodyOp(op.requestRejected),
             success: true,
             outMessagesCount: 0,
@@ -991,7 +996,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: validator3.address,
-            value: between('171', '171.1'),
+            value: toNano('171'),
             body: bodyOp(op.requestRejected),
             success: true,
             outMessagesCount: 0,
@@ -1008,7 +1013,7 @@ describe('Loan', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
         expect(treasuryState.lastStaked).toBeTonValue('0')
         expect(treasuryState.lastRecovered).toBeTonValue('0')
-        expect(treasuryState.participations.size === 0).toBeTruthy()
+        expect(treasuryState.participations.size).toEqual(0)
 
         accumulateFees(result.transactions)
     })
@@ -1022,10 +1027,10 @@ describe('Loan', () => {
         setConfig(blockchain, config.currentValidators, vset1)
 
         const staker = await blockchain.treasury('staker')
-        await treasury.sendDepositCoins(staker.getSender(), { value: '700000.1' })
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('700000') + fees.depositCoinsFee })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
 
         await treasury.sendSetRoundsImbalance(halter.getSender(), { value: '0.1', newRoundsImbalance: 0n })
 
@@ -1053,7 +1058,7 @@ describe('Loan', () => {
         const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
         const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
         await treasury.sendRequestLoan(validator1.getSender(), {
-            value: '151.9', // 101 (max punishment) + 50 (min payment) + 0.9 (fee)
+            value: toNano('151') + fees.requestLoanFee, // 101 (max punishment) + 50 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
@@ -1061,7 +1066,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
-            value: '161.9', // 101 (max punishment) + 60 (min payment) + 0.9 (fee)
+            value: toNano('161') + fees.requestLoanFee, // 101 (max punishment) + 60 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
@@ -1069,7 +1074,7 @@ describe('Loan', () => {
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
-            value: '171.9', // 101 (max punishment) + 70 (min payment) + 0.9 (fee)
+            value: toNano('171') + fees.requestLoanFee, // 101 (max punishment) + 70 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
@@ -1109,7 +1114,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: validator1.address,
-            value: between('151', '151.1'),
+            value: toNano('151'),
             body: bodyOp(op.requestRejected),
             success: true,
             outMessagesCount: 0,
@@ -1117,7 +1122,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: validator2.address,
-            value: between('161', '161.1'),
+            value: toNano('161'),
             body: bodyOp(op.requestRejected),
             success: true,
             outMessagesCount: 0,
@@ -1153,12 +1158,12 @@ describe('Loan', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('348000', '349000')
-        expect(treasuryState.totalCoins).toBeBetween('699999', '700000')
+        expect(treasuryState.totalCoins).toBeTonValue('700000')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
-        expect(treasuryState.participations.size === 1).toBeTruthy()
+        expect(treasuryState.participations.size).toEqual(1)
 
         accumulateFees(result.transactions)
     })
@@ -1172,10 +1177,12 @@ describe('Loan', () => {
         setConfig(blockchain, config.currentValidators, vset1)
 
         const staker = await blockchain.treasury('staker')
-        await treasury.sendDepositCoins(staker.getSender(), { value: '300001' })
+        await treasury.sendDepositCoins(staker.getSender(), {
+            value: toNano('300000') + fees.depositCoinsFee + toNano('0.1'),
+        })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: '0.11', roundSince: 0n })
+        await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -1193,7 +1200,7 @@ describe('Loan', () => {
         const loan = blockchain.openContract(Loan.createFromAddress(loanAddress))
         const newStakeMsg = await createNewStakeMsg(loan.address, until1)
         const result1 = await treasury.sendRequestLoan(validator.getSender(), {
-            value: '1151.9', // 1000 (stake) + 101 (max punishment) + 50 (min payment) + 0.9 (fee)
+            value: toNano('1151') + fees.requestLoanFee, // 1000 (stake) + 101 (max punishment) + 50 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
@@ -1210,7 +1217,7 @@ describe('Loan', () => {
         expect(result2.transactions).toHaveTransaction({
             from: treasury.address,
             to: loan.address,
-            value: between('301152', '301153'),
+            value: between('301151', '301152'),
             body: bodyOp(op.sendNewStake),
             deploy: true,
             success: true,
@@ -1218,7 +1225,7 @@ describe('Loan', () => {
         })
 
         const credits = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.BigVarUint(4))
-        credits.set(BigInt('0x' + loan.address.toRawString().split(':')[1]), toNano('350260'))
+        credits.set(BigInt('0x' + loan.address.hash.toString('hex')), toNano('350260'))
         await blockchain.setShardAccount(
             electorAddress,
             createShardAccount({
@@ -1329,13 +1336,13 @@ describe('Loan', () => {
                 address: treasury.address,
                 code: treasuryCode,
                 data: fakeData1,
-                balance: toNano('10') + toNano('1001.72') * count,
+                balance: toNano('10') + toNano('1001') * count,
             }),
         )
 
         const validator = await blockchain.treasury('validator')
         const result1 = await treasury.sendRequestLoan(validator.getSender(), {
-            value: '1151.9', // 1000 (stake) + 101 (max punishment) + 50 (min payment) + 0.9 (fee)
+            value: toNano('1151') + fees.requestLoanFee, // 1000 (stake) + 101 (max punishment) + 50 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
@@ -1346,7 +1353,7 @@ describe('Loan', () => {
         // should reject last worst request, and replace it with the new better request
         expect(result1.transactions).toHaveTransaction({
             from: treasury.address,
-            value: between('1000', '1000.1'),
+            value: toNano('1000'),
             body: bodyOp(op.requestRejected),
             success: false, // fake account used is not initialized, and success will be false
             outMessagesCount: 0,
@@ -1355,7 +1362,7 @@ describe('Loan', () => {
 
         // should update previous request
         const result2 = await treasury.sendRequestLoan(validator.getSender(), {
-            value: '1.9', // 0.9 (fee)
+            value: toNano('1') + fees.requestLoanFee, // fee
             roundSince: until1,
             loanAmount: '400000',
             minPayment: '50',
@@ -1409,7 +1416,7 @@ describe('Loan', () => {
         const validator2 = await blockchain.treasury('validator2')
         const validator3 = await blockchain.treasury('validator3')
         await treasury.sendRequestLoan(validator1.getSender(), {
-            value: '151.9', // 101 (max punishment) + 50 (min payment) + 0.9 (fee)
+            value: toNano('151') + fees.requestLoanFee, // 101 (max punishment) + 50 (min payment) + fee
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
@@ -1417,7 +1424,7 @@ describe('Loan', () => {
             newStakeMsg: emptyNewStakeMsg,
         })
         await treasury.sendRequestLoan(validator2.getSender(), {
-            value: '102.9', // 101 (max punishment) + 1 (min payment) + 0.9 (fee)
+            value: toNano('102') + fees.requestLoanFee, // 101 (max punishment) + 1 (min payment) + fee
             roundSince: until,
             loanAmount: '5000000000',
             minPayment: '1',
@@ -1425,7 +1432,7 @@ describe('Loan', () => {
             newStakeMsg: emptyNewStakeMsg,
         })
         await treasury.sendRequestLoan(validator3.getSender(), {
-            value: '320101.9', // 101 (max punishment) + 20000 (min payment) + 0.9 (fee)
+            value: toNano('320101') + fees.requestLoanFee, // 101 (max punishment) + 20000 (min payment) + fee
             roundSince: until,
             loanAmount: '1000',
             minPayment: '20000',

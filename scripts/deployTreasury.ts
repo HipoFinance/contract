@@ -2,6 +2,7 @@ import { beginCell, Cell, Dictionary, toNano } from 'ton-core'
 import { participationDictionaryValue, Treasury } from '../wrappers/Treasury'
 import { compile, NetworkProvider } from '@ton-community/blueprint'
 import { sha256_sync } from 'ton-crypto'
+import { LibraryDeployer } from '../wrappers/LibraryDeployer'
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
@@ -24,7 +25,7 @@ export async function run(provider: NetworkProvider) {
                 participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                 roundsImbalance: 255n,
                 stopped: false,
-                walletCode: await compile('Wallet'),
+                walletCode: LibraryDeployer.exportLibCode(await compile('Wallet')),
                 loanCode: await compile('Loan'),
                 driver: governor,
                 halter: governor,

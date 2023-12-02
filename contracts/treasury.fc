@@ -183,7 +183,7 @@ builder pack_participation
 
     ( builder wallet, cell state_init, _ ) = create_wallet_address(src.to_builder(), my_address(), wallet_code);
     ( int src_wc, _ ) = parse_std_addr(src);
-    int min_fee = deposit_coins_fee(state_init);
+    int min_fee = deposit_coins_fee();
     int storage_fee = 0; ;; todo
     int stake_amount = msg_ton - storage_fee - min_fee;
 
@@ -226,10 +226,6 @@ builder pack_participation
     int round_since = s~load_uint(32);
     slice owner = s~load_msg_addr();
     slice return_excess = s~load_msg_addr();
-    cell rest = s~load_ref();
-    slice rs = rest.begin_parse();
-    int wallet_code_hash = rs~load_uint(256); ;; ignored for now, useful when another wallet version is added
-    rs.end_parse();
     s.end_parse();
 
     ( builder wallet, _, int wallet_addr ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
@@ -266,20 +262,11 @@ builder pack_participation
         .store_coins(tokens)
         .store_slice(owner)
         .store_slice(return_excess)
-        .store_coins(transfer_notification_fee())
+        .store_coins(1)
         .store_uint(0, 1); ;; empty forward_payload
     send_msg(false, wallet, null(), body, 0, send::remaining_value);
 
     save_data();
-}
-
-() compat_mint_tokens(int msg_ton, slice src, slice s) impure inline {
-    slice s_with_hash = begin_cell()
-        .store_slice(s)
-        .store_ref(begin_cell().store_uint(old_wallet_code_hash, 256).end_cell())
-        .end_cell()
-        .begin_parse();
-    return mint_tokens(msg_ton, src, s_with_hash);
 }
 
 () reserve_tokens(int msg_ton, slice src, slice s) impure inline {
@@ -289,7 +276,6 @@ builder pack_participation
     int amount = s~load_coins();
     slice owner = s~load_msg_addr();
     slice return_excess = s~load_msg_addr();
-    int wallet_code_hash = s~load_uint(256); ;; ignored for now, useful when another wallet version is added
     s.end_parse();
 
     ( _, _, int wallet_addr ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
@@ -314,21 +300,11 @@ builder pack_participation
     save_data();
 }
 
-() compat_reserve_tokens(int msg_ton, slice src, slice s) impure inline {
-    slice s_with_hash = begin_cell()
-        .store_slice(s)
-        .store_uint(old_wallet_code_hash, 256)
-        .end_cell()
-        .begin_parse();
-    return reserve_tokens(msg_ton, src, s_with_hash);
-}
-
 () burn_tokens(int msg_ton, slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int tokens = s~load_coins();
     slice owner = s~load_msg_addr();
     slice return_excess = s~load_msg_addr();
-    int wallet_code_hash = s~load_uint(256); ;; ignored for now, useful when another wallet version is added
     s.end_parse();
 
     ( builder wallet, _, int wallet_addr ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
@@ -380,15 +356,6 @@ builder pack_participation
     save_data();
 }
 
-() compat_burn_tokens(int msg_ton, slice src, slice s) impure inline {
-    slice s_with_hash = begin_cell()
-        .store_slice(s)
-        .store_uint(old_wallet_code_hash, 256)
-        .end_cell()
-        .begin_parse();
-    return burn_tokens(msg_ton, src, s_with_hash);
-}
-
 () send_stake_first_coins(slice src) impure inline {
     ( builder wallet, _, _ ) = create_wallet_address(src.to_builder(), my_address(), wallet_code);
     ( int src_wc, _ ) = parse_std_addr(src);
@@ -410,8 +377,7 @@ builder pack_participation
 
     builder body = begin_cell()
         .store_uint(op::unstake_all_tokens, 32)
-        .store_uint(0, 64)
-        .store_slice(src);
+        .store_uint(0, 64);
     send_msg(false, wallet, null(), body, 0, send::remaining_value);
 }
 
@@ -473,10 +439,6 @@ builder pack_participation
     int unstaking = s~load_coins();
     slice owner = s~load_msg_addr();
     slice return_excess = s~load_msg_addr();
-    cell rest = s~load_ref();
-    slice rs = rest.begin_parse();
-    int wallet_code_hash = rs~load_uint(256); ;; ignored for now, useful when another wallet version is added
-    rs.end_parse();
     s.end_parse();
 
     ( builder wallet
@@ -863,7 +825,7 @@ builder pack_participation
         builder body = begin_cell()
             .store_uint(op::request_rejected, 32)
             .store_uint(query_id, 64);
-        send_msg(false, validator, null(), body, stake_amount, send::regular);
+        send_msg(false, validator, null(), body, stake_amount, send::pay_gas_separately);
     }
 
     ifnot (dict_empty?(rejected) & dict_empty?(accrued)) {
@@ -1540,24 +1502,12 @@ int calculate_surplus(int msg_ton) inline_ref {
         return mint_tokens(msg_ton, src, in_msg_body);
     }
 
-    if (op == 0x4559ca57) {
-        return compat_mint_tokens(msg_ton, src, in_msg_body);
-    }
-
     if (op == op::reserve_tokens) {
         return reserve_tokens(msg_ton, src, in_msg_body);
     }
 
-    if (op == 0x7bdd97de) {
-        return compat_reserve_tokens(msg_ton, src, in_msg_body);
-    }
-
     if (op == op::burn_tokens) {
         return burn_tokens(msg_ton, src, in_msg_body);
-    }
-
-    if (op == 0x002c6e13) {
-        return compat_burn_tokens(msg_ton, src, in_msg_body);
     }
 
     if (op == op::provide_wallet_address) {
@@ -1799,17 +1749,19 @@ var get_participation(int round_since) method_id {
 var get_fees() method_id {
     load_data();
 
-    ( _, cell wallet_state_init, _ ) = create_wallet_address(my_address().to_builder(), my_address(), wallet_code);
     ( _, cell loan_state_init, _ ) = create_loan_address(my_address(), my_address().to_builder(), 0, loan_code);
-    int wallet_storage = wallet_storage_fee();
     ( int loan_storage, _ ) = loan_storage_fee();
     return
-        ( deposit_coins_fee(wallet_state_init)
+        ( deposit_coins_fee()
+        , stake_coins_fee()
+        , stake_first_coins_fee()
+        , unstake_all_tokens_fee()
         , unstake_tokens_fee()
-        , send_tokens_fee(wallet_state_init)
+        , withdraw_tokens_fee()
+        , send_tokens_fee(0, ""s)
         , request_loan_fee(loan_state_init)
         , fee::treasury_storage
-        , wallet_storage
+        , wallet_storage_fee()
         , loan_storage
         );
 }
