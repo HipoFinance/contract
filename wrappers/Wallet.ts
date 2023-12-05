@@ -245,29 +245,6 @@ export class Wallet implements Contract {
         })
     }
 
-    async sendUpgradeWallet(
-        provider: ContractProvider,
-        via: Sender,
-        opts: {
-            value: bigint | string
-            bounce?: boolean
-            sendMode?: SendMode
-            queryId?: bigint
-            returnExcess?: Address
-        },
-    ) {
-        await this.sendMessage(provider, via, {
-            value: opts.value,
-            bounce: opts.bounce,
-            sendMode: opts.sendMode,
-            body: beginCell()
-                .storeUint(op.upgradeWallet, 32)
-                .storeUint(opts.queryId ?? 0, 64)
-                .storeAddress(opts.returnExcess)
-                .endCell(),
-        })
-    }
-
     async getWalletData(provider: ContractProvider): Promise<[bigint, Address, Address, Cell]> {
         const { stack } = await provider.get('get_wallet_data', [])
         return [stack.readBigNumber(), stack.readAddress(), stack.readAddress(), stack.readCell()]

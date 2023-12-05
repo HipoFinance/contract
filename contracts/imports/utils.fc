@@ -496,26 +496,6 @@ int withdraw_tokens_fee() {
     return computation_fee + fwd_fee;
 }
 
-int upgrade_wallet_fee() {
-    ( int gas_price, _ ) = get_gas_prices(config::gas_prices);
-    int computation_gas =
-        gas::upgrade_wallet +
-        gas::convert_wallet +
-        gas::merge_wallet +
-        gas::gas_excess;
-    int computation_fee = computation_gas * gas_price >> 16;
-
-    ( int lump_price, int bit_price, int cell_price ) = get_msg_forward_prices(config::fwd_prices);
-    int cells = 3;
-    int bits = 5 + (264) + (267 + 267 + 124 + 1 + 4 + 264);
-    int l_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, bits, cells);
-    int fwd_fee =
-        l_fwd_fee + ;; convert_wallet
-        l_fwd_fee; ;; merge_wallet
-
-    return computation_fee + fwd_fee;
-}
-
 int request_loan_fee(cell loan_state_init) {
     ( int loan_storage_fee, int request_storage_fee ) = loan_storage_fee();
     int storage_fee = loan_storage_fee + request_storage_fee;

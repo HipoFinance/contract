@@ -64,10 +64,6 @@ const int op::burn_failed = 0x272e3dda;
 const int op::withdraw_failed = 0xc6caea4d;
 const int op::withdrawal_notification = 0x2ec2a5a0;
 const int op::withdraw_jettons = 0x768a50b2;
-const int op::upgrade_wallet = 0x2c53aec7;
-const int op::convert_wallet = 0x60af7d75;
-const int op::migrate_wallet = 0x19101d70;
-const int op::merge_wallet = 0x2eb26791;
 
 const int op::request_loan = 0x12b808d3;
 const int op::participate_in_election = 0x574a297b;
@@ -112,9 +108,6 @@ const int gas::reserve_tokens = 17015;
 const int gas::withdraw_tokens = 11545;
 const int gas::burn_tokens = 13223;
 const int gas::burn_failed = 9258;
-const int gas::upgrade_wallet = 11412;
-const int gas::convert_wallet = 8512;
-const int gas::merge_wallet = 59115;
 const int gas::gas_excess = 309;
 
 const int gas::request_loan = 30220;

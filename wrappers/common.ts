@@ -57,10 +57,6 @@ export const op = {
     withdrawFailed: 0xc6caea4d,
     withdrawalNotification: 0x2ec2a5a0,
     withdrawJettons: 0x768a50b2,
-    upgradeWallet: 0x2c53aec7,
-    convertWallet: 0x60af7d75,
-    migrateWallet: 0x19101d70,
-    mergeWallet: 0x2eb26791,
 
     requestLoan: 0x12b808d3,
     participateInElection: 0x574a297b,

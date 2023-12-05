@@ -203,37 +203,6 @@ withdraw_jettons#768a50b2
     custom_payload:(Maybe ^Cell)
         = InternalMsgBody;
 
-upgrade_wallet#2c53aec7
-    query_id:uint64
-    return_excess:MsgAddress
-        = InternalMsgBody;
-
-convert_wallet#60af7d75
-    query_id:uint64
-    tokens:Coins
-    staking:(HashmapE 32 Coins)
-    unstaking:Coins
-    owner:MsgAddress
-    return_excess:MsgAddress
-        = InternalMsgBody;
-
-migrate_wallet#19101d70
-    query_id:uint64
-    tokens:Coins
-    staking:(HashmapE 32 Coins)
-    unstaking:Coins
-    owner:MsgAddress
-    return_excess:MsgAddress
-        = InternalMsgBody;
-
-merge_wallet#2eb26791
-    query_id:uint64
-    tokens:Coins
-    staking:(HashmapE 32 Coins)
-    unstaking:Coins
-    return_excess:MsgAddress
-        = InternalMsgBody;
-
 //
 // Validators Ops
 //

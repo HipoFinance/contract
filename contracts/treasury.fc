@@ -432,33 +432,6 @@ builder pack_participation
     send_msg(false, src.to_builder(), null(), body, 0, send::remaining_value);
 }
 
-() convert_wallet(slice src, slice s) impure inline {
-    int query_id = s~load_uint(64);
-    int tokens = s~load_coins();
-    cell staking = s~load_dict();
-    int unstaking = s~load_coins();
-    slice owner = s~load_msg_addr();
-    slice return_excess = s~load_msg_addr();
-    s.end_parse();
-
-    ( builder wallet
-    , cell state_init
-    , int wallet_addr
-    ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
-    ( int src_wc, int src_addr ) = parse_std_addr(src);
-
-    throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == wallet_addr));
-
-    builder body = begin_cell()
-        .store_uint(op::merge_wallet, 32)
-        .store_uint(query_id, 64)
-        .store_coins(tokens)
-        .store_dict(staking)
-        .store_coins(unstaking)
-        .store_slice(return_excess);
-    send_msg(false, wallet, state_init, body, 0, send::remaining_value);
-}
-
 (int, int, int, int, int, int) get_times() inline_ref method_id {
     ( int current_round_since, int next_round_since ) = get_vset_times(config::current_validators);
     ( int validators_elected_for
@@ -1518,10 +1491,6 @@ int calculate_surplus(int msg_ton) inline_ref {
         return provide_current_quote(src, in_msg_body);
     }
 
-    if (op == op::convert_wallet) {
-        return convert_wallet(src, in_msg_body);
-    }
-
     if (op == op::request_loan) {
         return request_loan(msg_ton, src, in_msg_body);
     }
@@ -1759,7 +1728,6 @@ var get_fees() method_id {
         , unstake_tokens_fee()
         , withdraw_tokens_fee()
         , send_tokens_fee(0, ""s)
-        , upgrade_wallet_fee()
         , request_loan_fee(loan_state_init)
         , fee::treasury_storage
         , wallet_storage_fee()

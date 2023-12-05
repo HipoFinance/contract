@@ -33,7 +33,6 @@ export interface Fees {
     unstakeTokensFee: bigint
     withdrawTokensFee: bigint
     sendTokensFee: bigint
-    upgradeWalletFee: bigint
     requestLoanFee: bigint
     treasuryStorage: bigint
     walletStorage: bigint
@@ -780,7 +779,6 @@ export class Treasury implements Contract {
             unstakeTokensFee: stack.readBigNumber(),
             withdrawTokensFee: stack.readBigNumber(),
             sendTokensFee: stack.readBigNumber(),
-            upgradeWalletFee: stack.readBigNumber(),
             requestLoanFee: stack.readBigNumber(),
             treasuryStorage: stack.readBigNumber(),
             walletStorage: stack.readBigNumber(),
