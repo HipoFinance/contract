@@ -144,13 +144,13 @@ describe('Text', () => {
         accumulateFees(result.transactions)
     })
 
-    it('should stake coins for comment s', async () => {
+    it('should stake coins for comment m', async () => {
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         const fee = fees.stakeFirstCoinsFee + toNano('0.01') // 0.01 for processing on treasury
-        const result = await treasury.sendMessage(staker.getSender(), { value: fee, body: 's' })
+        const result = await treasury.sendMessage(staker.getSender(), { value: fee, body: 'm' })
 
         expect(result.transactions).toHaveTransaction({
             from: staker.address,
@@ -294,14 +294,14 @@ describe('Text', () => {
         logComputeGas('unstake_all_tokens', op.unstakeAllTokens, result.transactions[2])
     })
 
-    it('should withdraw tokens for comment u', async () => {
+    it('should withdraw tokens for comment b', async () => {
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
         const walletAddress = await treasury.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
         await wallet.sendUnstakeTokens(staker.getSender(), { value: fees.unstakeTokensFee, tokens: '7' })
-        const result = await treasury.sendMessage(staker.getSender(), { value: '0.1', body: 'u' })
+        const result = await treasury.sendMessage(staker.getSender(), { value: '0.1', body: 'b' })
 
         expect(result.transactions).toHaveTransaction({
             from: staker.address,

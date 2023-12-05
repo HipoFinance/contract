@@ -1451,7 +1451,7 @@ int calculate_surplus(int msg_ton) inline_ref {
                 return deposit_coins(msg_ton, src, "00000000000000002_"s);
             }
 
-            if (c == "s"u) {
+            if (c == "m"u) {
                 return send_stake_first_coins(src);
             }
 
@@ -1459,7 +1459,7 @@ int calculate_surplus(int msg_ton) inline_ref {
                 return send_unstake_all_tokens(src);
             }
 
-            if (c == "u"u) {
+            if (c == "b"u) {
                 return send_withdraw_tokens(src);
             }
         }
