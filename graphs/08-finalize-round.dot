@@ -1,0 +1,37 @@
+digraph {
+    label="when current round is finalized, all stake/unstake bills are burned and converted to tokens/coins"
+    node [ colorscheme=pastel19 style=filled ]
+    edge [ colorscheme=set39 ]
+
+    /* Entities */
+    staker1, staker2 [ color=2 ]
+    wallet1, wallet2, bill1, bill2 [ color=3 ]
+    treasury [ color=4 ]
+    parent, collection [ color=5 ]
+
+    /* Relationships */
+    staker1 -> wallet1, bill1 [ arrowhead=inv style=dotted ]
+    staker2 -> wallet2, bill2 [ arrowhead=inv style=dotted ]
+    treasury -> collection [ label="1\l op::burn_all\l" ]
+
+    collection -> bill1 [ label="2\l op::burn_bill\l" color=1 ]
+    bill1 -> collection [ label="3\l op::bill_burned\l" color=1 ]
+    collection -> treasury [ label="4\l op::mint_tokens\l" color=1 ]
+    treasury -> parent [ label="5\l op::proxy_tokens_minted\l" color=1 ]
+    parent -> wallet1 [ label="6\l op::tokens_minted\l" color=1 ]
+    wallet1 -> staker1 [ label="7\l op::stake_notification\l" color=1 ]
+
+    collection -> bill2 [ label="8\l op::burn_bill\l" color=4 ]
+    bill2 -> collection [ label="9\l op::bill_burned\l" color=4 ]
+    collection -> treasury [ label="10\l op::burn_tokens\l" color=4 ]
+    treasury -> parent [ label="11\l op::proxy_tokens_burned\l" color=4 ]
+    parent -> wallet2 [ label="12\l op::tokens_burned\l" color=4 ]
+    wallet2 -> staker2 [ label="13\l op::withdrawal_notification\l" color=4 ]
+
+    collection -> treasury [ label="14\l op::last_bill_burned\l" ]
+
+    /* Ranks */
+    { rank=min collection }
+    { rank=same wallet1 wallet2 bill1 bill2 }
+    { rank=max staker1 staker2 }
+}

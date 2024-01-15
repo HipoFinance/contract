@@ -1,0 +1,16 @@
+digraph {
+    label="A smart contract asks for an owner's jetton wallet"
+    node [ colorscheme=pastel19 style=filled ]
+
+    /* Entities */
+    contract [ color=2 ]
+    parent [ color=5 ]
+
+    /* Relationships */
+    contract -> parent [ label="1\l op::provide_wallet_address\l 0.10 TON\l" ]
+    parent -> contract [ label="2\l op::take_wallet_address\l 0.09 TON\l" ]
+
+    /* Ranks */
+    { rank=min contract }
+    { rank=max parent }
+}

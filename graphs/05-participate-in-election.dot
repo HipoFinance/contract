@@ -1,0 +1,34 @@
+digraph {
+    label="anyone sends a message to start the process of participation in the current election"
+    node [ colorscheme=pastel19 style=filled ]
+    edge [ colorscheme=set39 ]
+
+    /* Entities */
+    external [ shape=point ]
+    treasury [ color=4 ]
+    loan2, loan3 [ color=8 ]
+    elector [ color=1 ]
+    borrower1, borrower2, borrower3 [ color=7 ]
+
+    /* Relationships */
+    borrower2 -> loan2 [ arrowhead=inv style=dotted ]
+    borrower3 -> loan3 [ arrowhead=inv style=dotted ]
+    external -> treasury [ label="1\l op::participate_in_election\l" ]
+    treasury -> treasury [ label="\l2\l op::decide_loan_requests    \l\l" ]
+    treasury -> treasury [ label="\l3\l op::process_loan_requests\l\l" ]
+
+    treasury -> loan2 [ label="4\l op::proxy_new_stake\l 300002 TON\l" color=1 ]
+    loan2 -> elector [ label="5\l op::new_stake\l 300001 TON\l" color=1 ]
+    elector -> loan2 [ label="6\l op::new_stake_ok\l 1 TON\l" color=1 ]
+
+    treasury -> loan3 [ label="7\l op::proxy_new_stake\l 300002 TON\l" color=4 ]
+    loan3 -> elector [ label="8\l op::new_stake\l 300001 TON\l" color=4 ]
+    elector -> loan3 [ label="9\l op::new_stake_ok\l 1 TON\l" color=4 ]
+
+    treasury -> borrower1 [ label="10\l op::request_rejected\l 301 TON\l" color=5 ]
+
+    /* Ranks */
+    { rank=min borrower1 borrower2 borrower3 }
+    { rank=same external treasury }
+    { rank=max elector }
+}

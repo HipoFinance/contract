@@ -1,0 +1,36 @@
+digraph {
+    label="anyone sends a message to finish participation"
+    node [ colorscheme=pastel19 style=filled ]
+    edge [ colorscheme=set39 ]
+
+    /* Entities */
+    external [ shape=point ]
+    treasury [ color=4 ]
+    loan1, loan2 [ color=8 ]
+    elector [ color=1 ]
+    borrower1, borrower2 [ color=7 ]
+    governor [ color=2 ]
+
+    /* Relationships */
+    external -> treasury [ label="1\l op::finish_participation\l" ]
+    treasury -> treasury [ label="2\l op::recover_stakes\l" ]
+
+    treasury -> loan1 [ label="3\l op::proxy_recover_stake\l 1 TON\l" color=1 ]
+    loan1 -> elector [ label="4\l op::recover_stake\l 1 TON\l" color=1 ]
+    elector -> loan1 [ label="5\l op::recover_stake_ok\l 300101 TON\l" color=1 ]
+    loan1 -> treasury [ label="6\l op::recover_stake_result\l 300101 TON\l" color=1 ]
+    treasury -> borrower1 [ label="7\l op::loan_result\l 100050 TON\l" color=1 ]
+    treasury -> governor [ label="8\l op::take_profit\l 50 TON\l" color=1 ]
+
+    treasury -> loan2 [ label="9\l op::proxy_recover_stake\l 1 TON\l" color=4 ]
+    loan2 -> elector [ label="10\l op::recover_stake\l 1 TON\l" color=4 ]
+    elector -> loan2 [ label="11\l op::recover_stake_ok\l 300101 TON\l" color=4 ]
+    loan2 -> treasury [ label="12\l op::recover_stake_result\l 300101 TON\l" color=4 ]
+    treasury -> borrower2 [ label="13\l op::loan_result\l 250 TON\l" color=4 ]
+    treasury -> governor [ label="14\l op::take_profit\l 50 TON\l" color=4 ]
+
+    /* Ranks */
+    { rank=min borrower1 borrower2 governor }
+    { rank=same external treasury }
+    { rank=max elector }
+}

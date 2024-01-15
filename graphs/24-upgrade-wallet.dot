@@ -1,0 +1,23 @@
+digraph {
+    label="an staker upgrades their wallet to the new jetton parent"
+    node [ colorscheme=pastel19 style=filled ]
+
+    /* Entities */
+    staker [ color=2 ]
+    wallet_v1, wallet_v2 [ color=3 ]
+    treasury [ color=4 ]
+    parent_v1, parent_v2 [ color=5 ]
+
+    /* Relationships */
+    staker -> wallet_v1 [ label="1\l op::upgrade_wallet\l 0.10 TON\l" ]
+    wallet_v1 -> parent_v1 [ label="2\l op::proxy_migrate_wallet\l 0.09 TON\l" ]
+    parent_v1 -> treasury [ label="3\l op::migrate_wallet\l 0.08 TON\l" ]
+    treasury -> parent_v2 [ label="4\l op::proxy_merge_wallet\l 0.07 TON\l" ]
+    parent_v2 -> wallet_v2 [ label="5\l op::merge_wallet\l 0.06 TON\l" ]
+    wallet_v2 -> staker [ label="6\l op::gas_excess\l 0.05 TON\l" ]
+
+    /* Ranks */
+    { rank=min staker }
+    { rank=same wallet_v1 wallet_v2 }
+    { rank=same parent_v1 parent_v2 }
+}

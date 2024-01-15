@@ -1,0 +1,16 @@
+digraph {
+    label="the current halter sets the stopped flag"
+    node [ colorscheme=pastel19 style=filled ]
+
+    /* Entities */
+    halter [ color=2 ]
+    treasury [ color=4 ]
+
+    /* Relationships */
+    halter -> treasury [ label="1\l op::set_stopped\l 0.10 TON\l" ]
+    treasury -> halter [ label="2\l op::gas_excess\l 0.09 TON\l" ]
+
+    /* Ranks */
+    { rank=min halter }
+    { rank=max treasury }
+}

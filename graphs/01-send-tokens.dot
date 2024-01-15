@@ -1,10 +1,5 @@
 digraph {
-    label="
-        Each node is a smart contract.\l\
-        Arrows denote a message sent from one smart contract to another.\l\
-        The number on each arrow shows the order of messages.\l\
-        Each arrow has an operation identifying the message type being sent.\l\
-        "
+    label="staker1 sends 10 hTON to staker2"
     node [ colorscheme=pastel19 style=filled ]
 
     /* Entities */
