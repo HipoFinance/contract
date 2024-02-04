@@ -199,7 +199,10 @@ export const participationDictionaryValue: DictionaryValue<Participation> = {
 }
 
 export class Treasury implements Contract {
-    constructor(readonly address: Address, readonly init?: { code: Cell; data: Cell }) {}
+    constructor(
+        readonly address: Address,
+        readonly init?: { code: Cell; data: Cell },
+    ) {}
 
     static createFromAddress(address: Address) {
         return new Treasury(address)
@@ -495,29 +498,6 @@ export class Treasury implements Contract {
         })
     }
 
-    async sendSetDriver(
-        provider: ContractProvider,
-        via: Sender,
-        opts: {
-            value: bigint | string
-            bounce?: boolean
-            sendMode?: SendMode
-            queryId?: bigint
-            newDriver: Address
-        },
-    ) {
-        await this.sendMessage(provider, via, {
-            value: opts.value,
-            bounce: opts.bounce,
-            sendMode: opts.sendMode,
-            body: beginCell()
-                .storeUint(op.setDriver, 32)
-                .storeUint(opts.queryId ?? 0, 64)
-                .storeAddress(opts.newDriver)
-                .endCell(),
-        })
-    }
-
     async sendSetContent(
         provider: ContractProvider,
         via: Sender,
@@ -630,7 +610,7 @@ export class Treasury implements Contract {
             bounce: opts.bounce,
             sendMode: opts.sendMode,
             body: beginCell()
-                .storeUint(op.sendProcessLoanRequests, 32)
+                .storeUint(op.retryProcessLoanRequests, 32)
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeUint(opts.roundSince, 32)
                 .endCell(),
@@ -693,18 +673,6 @@ export class Treasury implements Contract {
             nextRoundUntil: stack.readBigNumber(),
             stakeHeldFor: stack.readBigNumber(),
         }
-    }
-
-    async getJettonData(provider: ContractProvider): Promise<[bigint, boolean, Address, Cell, Cell]> {
-        const { stack } = await provider.get('get_jetton_data', [])
-        return [stack.readBigNumber(), stack.readBoolean(), stack.readAddress(), stack.readCell(), stack.readCell()]
-    }
-
-    async getWalletAddress(provider: ContractProvider, owner: Address): Promise<Address> {
-        const tb = new TupleBuilder()
-        tb.writeAddress(owner)
-        const { stack } = await provider.get('get_wallet_address', tb.build())
-        return stack.readAddress()
     }
 
     async getLoanAddress(provider: ContractProvider, validator: Address, roundSince: bigint) {

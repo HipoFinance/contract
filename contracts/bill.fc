@@ -1,0 +1,230 @@
+#include "imports/utils.fc";
+
+global int index;
+global slice collection;
+global slice parent;
+global slice owner;
+global int unstake?;
+global int amount;
+
+() save_data() impure inline_ref {
+    begin_cell()
+        .store_uint(index, 64)
+        .store_slice(collection)
+        .store_slice(parent)
+        .store_slice(owner)
+        .store_int(unstake?, 1)
+        .store_coins(amount)
+        .end_cell()
+        .set_data();
+}
+
+() load_data() impure inline_ref {
+    slice ds = get_data().begin_parse();
+    index = ds~load_uint(64);
+    collection = ds~load_msg_addr();
+    parent = ds~load_msg_addr();
+    owner = ds~load_msg_addr();
+    unstake? = ds~load_int(1);
+    amount = ds~load_coins();
+    ds.end_parse();
+}
+
+() assign_bill(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    amount = s~load_coins();
+    unstake? = s~load_int(1);
+    owner = s~load_msg_addr();
+    parent = s~load_msg_addr();
+    int notify = s~load_coins();
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, collection));
+
+    if notify {
+        builder assigned = begin_cell()
+            .store_uint(op::ownership_assigned, 32)
+            .store_uint(query_id, 64)
+            .store_uint(0, 3); ;; 00 (addr_none) + 0 (left forward payload)
+        send_msg(false, owner.to_builder(), null(), assigned, notify, send::pay_gas_separately + send::ignore_errors);
+    }
+
+    save_data();
+}
+
+() burn_bill(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, collection));
+
+    builder burn = begin_cell()
+        .store_uint(op::bill_burned, 32)
+        .store_uint(query_id, 64)
+        .store_coins(amount)
+        .store_int(unstake?, 1)
+        .store_slice(owner)
+        .store_slice(parent)
+        .store_uint(index, 64);
+    send_msg(false, collection.to_builder(), null(), burn, 0, send::unreserved_balance);
+
+    owner = "2_"s; ;; 00 (addr_none)
+    parent = "2_"s; ;; 00 (addr_none)
+    unstake? = 0;
+    amount = 0;
+
+    save_data();
+}
+
+builder create_bill_name() inline {
+    return begin_cell()
+        .store_uint(0, 8)
+        .store_slice("Hipo Bill #")
+        .store_builder(int_to_string(index));
+}
+
+builder create_bill_description() inline {
+    return begin_cell()
+        .store_uint(0, 8)
+        .store_slice(unstake? ? "Withdraw " : "Deposit ")
+        .store_builder(int_to_ton(amount))
+        .store_slice(unstake? ? " hTON" : " TON");
+}
+
+cell create_bill_metadata() {
+    cell content = new_dict();
+    content~udict_set_builder(256, "name"H, create_bill_name());
+    content~udict_set_builder(256, "description"H, create_bill_description());
+    return content;
+}
+
+() prove_ownership(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    slice destination = s~load_msg_addr();
+    cell forward_payload = s~load_ref();
+    int with_content? = s~load_int(1);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, owner));
+
+    cell content = with_content? ? create_bill_metadata() : null();
+
+    builder proof = begin_cell()
+        .store_uint(op::ownership_proof, 32)
+        .store_uint(query_id, 64)
+        .store_uint(index, 256)
+        .store_slice(owner)
+        .store_ref(forward_payload)
+        .store_uint(0, 64)
+        .store_maybe_ref(content);
+    send_msg(true, destination.to_builder(), null(), proof, 0, send::remaining_value);
+}
+
+() request_owner(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    slice destination = s~load_msg_addr();
+    cell forward_payload = s~load_ref();
+    int with_content? = s~load_int(1);
+    s.end_parse();
+
+    cell content = with_content? ? create_bill_metadata() : null();
+
+    builder info = begin_cell()
+        .store_uint(op::owner_info, 32)
+        .store_uint(query_id, 64)
+        .store_uint(index, 256)
+        .store_slice(src)
+        .store_slice(owner)
+        .store_ref(forward_payload)
+        .store_uint(0, 64)
+        .store_maybe_ref(content);
+    send_msg(true, destination.to_builder(), null(), info, 0, send::remaining_value);
+}
+
+() get_static_data(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    s.end_parse();
+
+    builder data = begin_cell()
+        .store_uint(op::report_static_data, 32)
+        .store_uint(query_id, 64)
+        .store_uint(index, 256)
+        .store_slice(collection);
+    send_msg(false, src.to_builder(), null(), data, 0, send::remaining_value);
+}
+
+() on_bounce(slice src, slice s) impure inline {
+    s~load_uint(32);
+    int op = s~load_uint(32);
+    int query_id = s~load_uint(64);
+
+    if op == op::ownership_proof {
+        ;; return bounced coins to owner
+        builder bounced = begin_cell()
+            .store_uint(op::ownership_proof_bounced, 32)
+            .store_uint(query_id, 64);
+        send_msg(false, owner.to_builder(), null(), bounced, 0, send::remaining_value);
+    }
+
+    if op == op::owner_info {
+        ;; just accept bounced coins
+    }
+
+    return ();
+}
+
+() recv_internal(cell in_msg_full, slice s) impure {
+    load_data();
+
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    slice src = cs~load_msg_addr();
+
+    if flags & 1 {
+        return on_bounce(src, s);
+    }
+
+    int op = s~load_uint(32);
+
+    if op == op::assign_bill {
+        return assign_bill(src, s);
+    }
+
+    if op == op::burn_bill {
+        return burn_bill(src, s);
+    }
+
+    if op == op::prove_ownership {
+        return prove_ownership(src, s);
+    }
+
+    if op == op::request_owner {
+        return request_owner(src, s);
+    }
+
+    if op == op::get_static_data {
+        return get_static_data(src, s);
+    }
+
+    throw(err::invalid_op);
+}
+
+;;
+;; get methods
+;;
+
+(int, int, slice, slice, cell) get_nft_data() method_id {
+    load_data();
+
+    return ( owner.preload_uint(2) != 0 , index , collection , owner , create_bill_metadata() );
+}
+
+slice get_authority_address() method_id {
+    load_data();
+
+    return collection;
+}
+
+int get_revoked_time() method_id {
+    return 0;
+}

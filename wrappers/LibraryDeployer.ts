@@ -1,4 +1,15 @@
-import { Address, beginCell, BitBuilder, Cell, Contract, contractAddress, ContractProvider, Dictionary, Sender, SendMode } from '@ton/core'
+import {
+    Address,
+    beginCell,
+    BitBuilder,
+    Cell,
+    Contract,
+    contractAddress,
+    ContractProvider,
+    Dictionary,
+    Sender,
+    SendMode,
+} from '@ton/core'
 
 export interface LibraryDeployerConfig {
     libraryCode: Cell
@@ -6,7 +17,7 @@ export interface LibraryDeployerConfig {
 
 export function buildBlockchainLibraries(libs: Cell[]): Cell {
     const libraries = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
-    libs.forEach(lib => libraries.set(BigInt('0x' + lib.hash().toString('hex')), lib))
+    libs.forEach((lib) => libraries.set(BigInt('0x' + lib.hash().toString('hex')), lib))
 
     return beginCell().storeDictDirect(libraries).endCell()
 }
@@ -20,7 +31,10 @@ export class LibraryDeployer implements Contract {
         return new Cell({ exotic: true, bits: bits.build() })
     }
 
-    constructor(readonly address: Address, readonly init?: { code: Cell; data: Cell }) {}
+    constructor(
+        readonly address: Address,
+        readonly init?: { code: Cell; data: Cell },
+    ) {}
 
     static createFromConfig(config: LibraryDeployerConfig, code: Cell, workchain = -1) {
         const data = config.libraryCode

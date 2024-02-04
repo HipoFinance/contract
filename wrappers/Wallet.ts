@@ -43,7 +43,10 @@ function toStakingDict(dict: Cell | null): Dictionary<bigint, bigint> {
 }
 
 export class Wallet implements Contract {
-    constructor(readonly address: Address, readonly init?: { code: Cell; data: Cell }) {}
+    constructor(
+        readonly address: Address,
+        readonly init?: { code: Cell; data: Cell },
+    ) {}
 
     static createFromAddress(address: Address) {
         return new Wallet(address)
@@ -85,31 +88,6 @@ export class Wallet implements Contract {
             body: beginCell()
                 .storeUint(op.topUp, 32)
                 .storeUint(opts.queryId ?? 0, 64)
-                .endCell(),
-        })
-    }
-
-    async sendStakeCoins(
-        provider: ContractProvider,
-        via: Sender,
-        opts: {
-            value: bigint | string
-            bounce?: boolean
-            sendMode?: SendMode
-            queryId?: bigint
-            roundSince: bigint
-            returnExcess?: Address
-        },
-    ) {
-        await this.sendMessage(provider, via, {
-            value: opts.value,
-            bounce: opts.bounce,
-            sendMode: opts.sendMode,
-            body: beginCell()
-                .storeUint(op.stakeCoins, 32)
-                .storeUint(opts.queryId ?? 0, 64)
-                .storeUint(opts.roundSince, 32)
-                .storeAddress(opts.returnExcess)
                 .endCell(),
         })
     }
@@ -170,29 +148,6 @@ export class Wallet implements Contract {
                 .storeCoins(tonValue(opts.tokens))
                 .storeAddress(opts.returnExcess)
                 .storeMaybeRef(opts.customPayload)
-                .endCell(),
-        })
-    }
-
-    async sendWithdrawTokens(
-        provider: ContractProvider,
-        via: Sender,
-        opts: {
-            value: bigint | string
-            bounce?: boolean
-            sendMode?: SendMode
-            queryId?: bigint
-            returnExcess?: Address
-        },
-    ) {
-        await this.sendMessage(provider, via, {
-            value: opts.value,
-            bounce: opts.bounce,
-            sendMode: opts.sendMode,
-            body: beginCell()
-                .storeUint(op.withdrawTokens, 32)
-                .storeUint(opts.queryId ?? 0, 64)
-                .storeAddress(opts.returnExcess)
                 .endCell(),
         })
     }

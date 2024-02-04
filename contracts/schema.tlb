@@ -35,6 +35,26 @@ recover_stake_ok#f96f7324
         = InternalMsgBody;
 
 //
+// TEP-62 NFT
+//
+
+ownership_assigned#05138d91
+    query_id:uint64
+    prev_owner:MsgAddress
+    forward_payload:(Either Cell ^Cell)
+        = InternalMsgBody;
+
+get_static_data#2fcb26a2
+    query_id:uint64
+        = InternalMsgBody;
+
+report_static_data#8b771735
+    query_id:uint64
+    index:uint256
+    collection:MsgAddress
+        = InternalMsgBody;
+
+//
 // TEP-64 Token Data
 //
 
@@ -85,20 +105,6 @@ gas_excess#d53276db // originally named 'excesses'
     query_id:uint64
         = InternalMsgBody;
 
-unstake_tokens#595f07bc // originally named 'burn'
-    query_id:uint64
-    tokens:Coins
-    return_excess:MsgAddress
-    custom_payload:(Maybe ^Cell)
-        = InternalMsgBody;
-
-reserve_tokens#7bdd97de // originally named 'burn_notification'
-    query_id:uint64
-    tokens:Coins
-    owner:MsgAddress
-    return_excess:MsgAddress
-        = InternalMsgBody;
-
 //
 // TEP-89 Discoverable Jettons
 //
@@ -116,6 +122,51 @@ take_wallet_address#d1735400
         = InternalMsgBody;
 
 //
+// TEP-85 SBT
+//
+
+prove_ownership#04ded148
+    query_id:uint64
+    destination:MsgAddress
+    forward_payload:^Cell
+    with_content:Bool
+        = InternalMsgBody;
+
+ownership_proof#0524c7ae
+    query_id:uint64
+    index:uint256
+    owner:MsgAddress
+    forward_payload:^Cell
+    revoked_at:uint64
+    content:(Maybe ^Cell)
+        = InternalMsgBody;
+
+ownership_proof_bounced#c18e86d2 // not specified in standard
+    query_id:uint64
+        = InternalMsgBody;
+
+request_owner#d0c3bfea
+    query_id:uint64
+    destination:MsgAddress
+    forward_payload:^Cell
+    with_content:Bool
+        = InternalMsgBody;
+
+owner_info#0dd607e3
+    query_id:uint64
+    index:uint256
+    initiator:MsgAddress
+    owner:MsgAddress
+    forward_payload:^Cell
+    revoked_at:uint64
+    content:(Maybe ^Cell)
+        = InternalMsgBody;
+
+burn_bill#1f04537a // originally named 'destroy'
+    query_id:uint64
+        = InternalMsgBody;
+
+//
 // TEP-?? Quote Ratio
 //
 
@@ -124,7 +175,7 @@ provide_current_quote#ad83913f
     custom_payload:(Maybe ^Cell)
         = InternalMsgBody;
 
-take_current_quote#a420458
+take_current_quote#0a420458
     query_id:uint64
     quote_numerator:uint128
     quote_denominator:uint128
@@ -132,80 +183,37 @@ take_current_quote#a420458
         = InternalMsgBody;
 
 //
-// Stakers Ops
+// Treasury Ops
 //
 
-deposit_coins#103af428
+deposit_coins#40ef2953
     query_id:uint64
+    ownership_assigned_amount:Coins
     referrer:MsgAddress
         = InternalMsgBody;
 
-save_coins#7f30ee55
-    query_id:uint64
-    stake_amount:Coins
-    round_since:uint32
-    return_excess:MsgAddress
-        = InternalMsgBody;
-
-stake_coins#4cae3ab1
-    query_id:uint64
-    round_since:uint32
-    return_excess:MsgAddress
-        = InternalMsgBody;
-
-stake_first_coins#70c09713
-    query_id:uint64
-    return_excess:MsgAddress
-        = InternalMsgBody;
-
-mint_tokens#4559ca57
-    query_id:uint64
-    stake_amount:Coins
-    round_since:uint32
-    owner:MsgAddress
-    return_excess:MsgAddress
-        = InternalMsgBody;
-
-unstake_all_tokens#44b3392b
-    query_id:uint64
-        = InternalMsgBody;
-
-withdraw_tokens#469bd91e
-    query_id:uint64
-    return_excess:MsgAddress
-        = InternalMsgBody;
-
-burn_tokens#002c6e13
+reserve_tokens#6fcba7cd
     query_id:uint64
     tokens:Coins
     owner:MsgAddress
-    return_excess:MsgAddress
+    ownership_assigned_amount:Coins
         = InternalMsgBody;
 
-burn_failed#272e3dda
+mint_tokens#42684479
+    query_id:uint64
+    coins:Coins
+    owner:MsgAddress
+    parent:MsgAddress
+    round_since:uint32
+        = InternalMsgBody;
+
+burn_tokens#7cffe1ee
     query_id:uint64
     tokens:Coins
-    return_excess:MsgAddress
+    owner:MsgAddress
+    parent:MsgAddress
+    round_since:uint32
         = InternalMsgBody;
-
-withdraw_failed#c6caea4d
-    query_id:uint64
-        = InternalMsgBody;
-
-withdrawal_notification#2ec2a5a0
-    query_id:uint64
-        = InternalMsgBody;
-
-withdraw_jettons#768a50b2
-    query_id:uint64
-    child_wallet:MsgAddress
-    tokens:Coins
-    custom_payload:(Maybe ^Cell)
-        = InternalMsgBody;
-
-//
-// Validators Ops
-//
 
 new_stake_msg#_
     validator_pubkey:bits256
@@ -239,15 +247,6 @@ process_loan_requests#071d07cc
     round_since:uint32
         = InternalMsgBody;
 
-request_rejected#4d0f2116
-    query_id:uint64
-        = InternalMsgBody;
-
-send_new_stake#77a897f2
-    query_id:uint64
-    new_stake_msg:^NewStakeMsg
-        = InternalMsgBody;
-
 vset_changed#2f0b5b3b
     query_id:uint64
     round_since:uint32
@@ -263,28 +262,17 @@ recover_stakes#4f173d3e
     round_since:uint32
         = InternalMsgBody;
 
-send_recover_stake#05eec9a2
-    query_id:uint64
-        = InternalMsgBody;
-
-recover_stake_result#48310d2a
+recover_stake_result#c8310d2a
     query_id:uint64
     ok:Bool
     validator:MsgAddress
     round_since:uint32
         = InternalMsgBody;
 
-loan_result#7aaa8366
+last_bill_burned#c6d8b51f
     query_id:uint64
+    round_since:uint32
         = InternalMsgBody;
-
-take_profit#0b556813
-    query_id:uint64
-        = InternalMsgBody;
-
-//
-// Governance Ops
-//
 
 propose_governor#76ff2956
     query_id:uint64
@@ -300,18 +288,14 @@ set_halter#16bb5b17
     new_halter:MsgAddress
         = InternalMsgBody;
 
-set_stopped#700d5e50
+set_stopped#0e5e9773
     query_id:uint64
-    stopped:Bool
+    new_stopped:Bool
         = InternalMsgBody;
 
-set_driver#7e7da841
+proxy_set_content#2b1c8e37
     query_id:uint64
-    new_driver:MsgAddress
-        = InternalMsgBody;
-
-set_content#471dad93
-    query_id:uint64
+    destination:MsgAddress
     new_content:^FullContent
         = InternalMsgBody;
 
@@ -320,9 +304,9 @@ set_governance_fee#470fe5f6
     new_governance_fee:uint16
         = InternalMsgBody;
 
-set_rounds_imbalance#4ea0efd0
+set_rounds_imbalance#1b4463b6
     query_id:uint64
-    rounds_imbalance:uint8
+    new_rounds_imbalance:uint8
         = InternalMsgBody;
 
 send_message_to_loan#2b93b447
@@ -332,28 +316,288 @@ send_message_to_loan#2b93b447
     message:^Cell
         = InternalMsgBody;
 
-send_process_loan_requests#06cbff48
+retry_process_loan_requests#173dbb8f
     query_id:uint64
     round_since:uint32
         = InternalMsgBody;
 
-upgrade_code#36e4c27d
+withdraw_surplus#23355ffb
     query_id:uint64
+    return_excess:MsgAddress
+        = InternalMsgBody;
+
+proxy_withdraw_surplus#77a0bf77
+    query_id:uint64
+    destination:MsgAddress
+        = InternalMsgBody;
+
+upgrade_code#3d6a29b5
+    query_id:uint64
+    new_code:^Cell
+    new_data:(Maybe ^Cell)
+    return_excess:MsgAddress
+        = InternalMsgBody;
+
+proxy_upgrade_code#78570010
+    query_id:uint64
+    destination:MsgAddress
     new_code:^Cell
     new_data:(Maybe ^Cell)
         = InternalMsgBody;
 
-//
-// General Ops
-//
-
-withdraw_surplus#302b2fea
+migrate_wallet#325aacfa
     query_id:uint64
+    tokens:Coins
+    owner:MsgAddress
         = InternalMsgBody;
 
 top_up#5372158c
     query_id:uint64
         = InternalMsgBody;
+
+//
+// Parent Ops
+//
+
+proxy_tokens_minted#5be57626
+    query_id:uint64
+    tokens:Coins
+    coins:Coins
+    owner:MsgAddress
+    round_since:uint32
+        = InternalMsgBody;
+
+proxy_save_coins#47daa10f
+    query_id:uint64
+    coins:Coins
+    owner:MsgAddress
+    round_since:uint32
+        = InternalMsgBody;
+
+proxy_reserve_tokens#653b5ecb
+    query_id:uint64
+    tokens:Coins
+    owner:MsgAddress
+    ownership_assigned_amount:Coins
+        = InternalMsgBody;
+
+proxy_rollback_unstake#32b67194
+    query_id:uint64
+    tokens:Coins
+    owner:MsgAddress
+        = InternalMsgBody;
+
+proxy_tokens_burned#4476fde0
+    query_id:uint64
+    tokens:Coins
+    coins:Coins
+    owner:MsgAddress
+        = InternalMsgBody;
+
+proxy_unstake_all_tokens#411710ab
+    query_id:uint64
+    owner:MsgAddress
+        = InternalMsgBody;
+
+proxy_migrate_wallet#0cb246bb
+    query_id:uint64
+    tokens:Coins
+    owner:MsgAddress
+        = InternalMsgBody;
+
+proxy_merge_wallet#6833d7d0
+    query_id:uint64
+    tokens:Coins
+    owner:MsgAddress
+        = InternalMsgBody;
+
+set_content#04dc78b7
+    query_id:uint64
+    return_excess:MsgAddress
+    new_content:^FullContent
+        = InternalMsgBody;
+
+//
+// Wallet Ops
+//
+
+tokens_minted#5445efee
+    query_id:uint64
+    tokens:Coins
+    coins:Coins
+    owner:MsgAddress
+    round_since:uint32
+        = InternalMsgBody;
+
+save_coins#4cce0e74
+    query_id:uint64
+    coins:Coins
+    owner:MsgAddress
+    round_since:uint32
+        = InternalMsgBody;
+
+unstake_tokens#18afa179
+    query_id:uint64
+    tokens:Coins
+    ownership_assigned_amount:Coins
+        = InternalMsgBody;
+
+rollback_unstake#1b77fd1a
+    query_id:uint64
+    tokens:Coins
+        = InternalMsgBody;
+
+tokens_burned#5b512e25
+    query_id:uint64
+    tokens:Coins
+    coins:Coins
+        = InternalMsgBody;
+
+unstake_all_tokens#44b3392b
+    query_id:uint64
+        = InternalMsgBody;
+
+upgrade_wallet#01d9ae1c
+    query_id:uint64
+        = InternalMsgBody;
+
+merge_wallet#63d3a76c
+    query_id:uint64
+    tokens:Coins
+        = InternalMsgBody;
+
+withdraw_jettons#768a50b2
+    query_id:uint64
+    child_wallet:MsgAddress
+    tokens:Coins
+    custom_payload:(Maybe ^Cell)
+        = InternalMsgBody;
+
+//
+// Collection Ops
+//
+
+mint_bill#4b2d7871
+    query_id:uint64
+    amount:Coins
+    unstake:Bool
+    owner:MsgAddress
+    parent:MsgAddress
+    ownership_assigned_amount:Coins
+        = InternalMsgBody;
+
+bill_burned#840f6369
+    query_id:uint64
+    amount:Coins
+    unstake:Bool
+    owner:MsgAddress
+    parent:MsgAddress
+    index:uint64
+        = InternalMsgBody;
+
+burn_all#639d400a
+    query_id:uint64
+    start_index:uint64
+        = InternalMsgBody;
+
+//
+// Bill Ops
+//
+
+assign_bill#3275dfc2
+    query_id:uint64
+    amount:Coins
+    unstake:Bool
+    owner:MsgAddress
+    parent:MsgAddress
+    ownership_assigned_amount:Coins
+        = InternalMsgBody;
+
+//
+// Loan Ops
+//
+
+proxy_new_stake#089cd4d0
+    query_id:uint64
+    new_stake_msg:^NewStakeMsg
+        = InternalMsgBody;
+
+proxy_recover_stake#407cb243
+    query_id:uint64
+        = InternalMsgBody;
+
+//
+// Validator Ops
+//
+
+request_rejected#cd0f2116
+    query_id:uint64
+        = InternalMsgBody;
+
+loan_result#faaa8366
+    query_id:uint64
+        = InternalMsgBody;
+
+take_profit#8b556813
+    query_id:uint64
+        = InternalMsgBody;
+
+//
+// Staker Ops
+//
+
+stake_notification#d401b82b
+    query_id:uint64
+    tokens:Coins
+        = InternalMsgBody;
+
+withdrawal_notification#f0fa223b
+    query_id:uint64
+    tokens:Coins
+    coins:Coins
+        = InternalMsgBody;
+
+//
+// Logs
+//
+
+log_loan#1
+    round_since:uint32
+    min_payment:Coins
+    validator_reward_share:uint8
+    loan_amount:Coins
+    accrue_amount:Coins
+    stake_amount:Coins
+    validator:MsgAddress
+        = LogMsgBody;
+
+log_repayment#2
+    round_since:uint32
+    repayment_amount:Coins
+    loan_amount:Coins
+    accrue_amount:Coins
+    stakers_share:Coins
+    governor_share:Coins
+    validator_share:Coins
+    validator:MsgAddress
+        = LogMsgBody;
+
+log_finish#3
+    round_since:uint32
+    total_staked:Coins
+    total_recovered:Coins
+    total_coins:Coins
+    total_tokens:Coins
+        = LogMsgBody;
+
+log_failed_burning_tokens#4
+    round_since:uint32
+    total_coins:Coins
+    total_tokens:Coins
+    coins:Coins
+    tokens:Coins
+    owner:MsgAddress
+        = LogMsgBody;
 
 //
 // Storage
@@ -374,7 +618,7 @@ request#_
         = Request;
 
 participation#_
-    state:uint3
+    state:uint4
     size:uint16
     sorted:(HashmapE 112 (Hashmap 256 True))
     requests:(HashmapE 256 Request)
@@ -391,12 +635,15 @@ participation#_
         = Participation;
 
 extension#_
-    driver:MsgAddress
+    last_staked:Coins
+    last_recovered:Coins
     halter:MsgAddress
     governor:MsgAddress
     proposed_governor:(Maybe ^ProposedGovernor)
     governance_fee:uint16
-    content:^FullContent
+    collection_code:^Cell
+    bill_code:^Cell
+    old_parents:(HashmapE 256 True)
         = Extension;
 
 treasury_storage#_
@@ -405,24 +652,45 @@ treasury_storage#_
     total_staking:Coins
     total_unstaking:Coins
     total_validators_stake:Coins
-    last_staked:Coins
-    last_recovered:Coins
+    parent:MsgAddress
     participations:(HashmapE 32 Participation)
     rounds_imbalance:uint8
     stopped:Bool
-    wallet_code:^Cell
     loan_code:^Cell
     extension:^Extension
         = TreasuryStorage;
 
+parent_storage#_
+    total_tokens:Coins
+    treasury:MsgAddress
+    wallet_code:^Cell
+    content:^FullContent
+        = ParentStorage;
+
 wallet_storage#_
     owner:MsgAddress
-    treasury:MsgAddress
+    parent:MsgAddress
     tokens:Coins
     staking:(HashmapE 32 Coins)
     unstaking:Coins
     wallet_code:^Cell
         = WalletStorage;
+
+collection_storage#_
+    treasury:MsgAddress
+    round_since:uint32
+    next_item_index:uint64
+    bill_code:^Cell
+        = CollectionStorage;
+
+bill_storage#_
+    index:uint64
+    collection:MsgAddress
+    parent:MsgAddress
+    owner:MsgAddress
+    unstake:Bool
+    amount:Coins
+        = BillStorage;
 
 loan_storage#_
     elector:MsgAddress

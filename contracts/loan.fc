@@ -24,7 +24,7 @@ global int round_since;
     ds.end_parse();
 }
 
-() send_new_stake(slice src, slice s) impure inline {
+() proxy_new_stake(slice src, slice s) impure inline {
     int query_id = s~load_uint(64); ;; must be non-zero to receive success response
     cell new_stake_msg = s~load_ref();
     s.end_parse();
@@ -40,12 +40,12 @@ global int round_since;
         .store_uint(op::new_stake, 32)
         .store_uint(query_id, 64)
         .store_slice(new_stake_msg.begin_parse());
-    send_msg(true, current_elector, null(), body, 0, send::remaining_balance);
+    send_msg(true, current_elector, null(), body, 0, send::unreserved_balance);
 
     save_data(current_elector);
 }
 
-() send_recover_stake(slice src, slice s) impure inline {
+() proxy_recover_stake(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     s.end_parse();
 
@@ -59,7 +59,7 @@ global int round_since;
 
 () recover_stake_result(slice src, int op, slice s) impure inline_ref {
     int query_id = 0;
-    if (s.slice_bits() >= 64) { ;; in case the elector's behavior changed, don't throw
+    if s.slice_bits() >= 64 { ;; in case the elector's behavior changed, don't throw
         query_id = s~load_uint(64);
     }
 
@@ -75,7 +75,7 @@ global int round_since;
         .store_int(ok?, 1)
         .store_slice(validator)
         .store_uint(round_since, 32);
-    send_msg(false, treasury.to_builder(), null(), body, 0, send::remaining_balance);
+    send_msg(false, treasury.to_builder(), null(), body, 0, send::unreserved_balance);
 }
 
 int src_is_elector?(slice src) inline {
@@ -84,67 +84,67 @@ int src_is_elector?(slice src) inline {
     return equal_slice_bits(src, elector) | equal_slice_bits(src, current_elector.end_cell().begin_parse());
 }
 
-() on_bounce(slice src, slice s) impure {
+() on_bounce(slice src, slice s) impure inline {
     s~load_uint(32); ;; skip bounced op
     int op = s~load_uint(32);
 
-    if (op == op::new_stake) {
+    if op == op::new_stake {
         ;; the elector does not throw because format of new_stake_msg is already checked,
         ;; however, its code might change in the future, so let's handle a potential throw
         return recover_stake_result(src, op::new_stake_error, s);
     }
 
-    if (op == op::recover_stake) {
+    if op == op::recover_stake {
         ;; the elector does not throw, but we'll handle it in case the elector's code has changed
         return recover_stake_result(src, op::recover_stake_error, s);
     }
 }
 
-() recv_internal(cell in_msg_full, slice in_msg_body) impure {
+() recv_internal(cell in_msg_full, slice s) impure {
     load_data();
 
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
     slice src = cs~load_msg_addr();
 
-    if (flags & 1) {
-        return on_bounce(src, in_msg_body);
+    if flags & 1 {
+        return on_bounce(src, s);
     }
 
     int op = 0;
-    if (in_msg_body.slice_bits()) {
-        op = in_msg_body~load_uint(32);
+    if s.slice_bits() {
+        op = s~load_uint(32);
     }
 
-    if (op == op::send_new_stake) {
-        return send_new_stake(src, in_msg_body);
+    if op == op::proxy_new_stake {
+        return proxy_new_stake(src, s);
     }
 
-    if (op == op::new_stake_error) {
-        return recover_stake_result(src, op, in_msg_body);
+    if op == op::new_stake_error {
+        return recover_stake_result(src, op, s);
     }
 
-    if (op == op::new_stake_ok) {
+    if op == op::new_stake_ok {
         return (); ;; elector returns 1 TON when query_id > 0, do nothing
     }
 
-    if (op == op::send_recover_stake) {
-        return send_recover_stake(src, in_msg_body);
+    if op == op::proxy_recover_stake {
+        return proxy_recover_stake(src, s);
     }
 
-    if (op == op::recover_stake_error) {
-        return recover_stake_result(src, op, in_msg_body);
+    if op == op::recover_stake_error {
+        return recover_stake_result(src, op, s);
     }
 
-    if (op == op::recover_stake_ok) {
-        return recover_stake_result(src, op, in_msg_body);
+    if op == op::recover_stake_ok {
+        return recover_stake_result(src, op, s);
     }
 
-    if (op == op::top_up) {
+    if op == op::top_up {
         return (); ;; top up TON balance, do nothing
     }
 
-    if (src_is_elector?(src)) {
+    if src_is_elector?(src) {
         return (); ;; accept coins from the elector
     }
 
