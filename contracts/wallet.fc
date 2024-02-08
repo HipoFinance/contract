@@ -256,7 +256,7 @@ global cell wallet_code;
     int min_ton = upgrade_wallet_fee();
     int ton_balance = get_balance().pair_first();
 
-    throw_unless(err::access_denied, equal_slice_bits(src, owner));
+    throw_unless(err::access_denied, equal_slice_bits(src, owner) | equal_slice_bits(src, parent));
     throw_unless(err::insufficient_fee, (ton_balance >= msg_ton) & (msg_ton >= min_ton));
 
     builder migrate = begin_cell()

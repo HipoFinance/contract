@@ -38,14 +38,14 @@ global cell content;
 
     total_tokens += tokens;
 
-    builder body = begin_cell()
+    builder minted = begin_cell()
         .store_uint(op::tokens_minted, 32)
         .store_uint(query_id, 64)
         .store_coins(tokens)
         .store_coins(coins)
         .store_slice(owner) ;; when bounced message limit is increased it can be useful to find the owner
         .store_uint(round_since, 32);
-    send_msg(false, wallet, state_init, body, 0, send::remaining_value);
+    send_msg(false, wallet, state_init, minted, 0, send::remaining_value);
 
     save_data();
 }
@@ -61,13 +61,13 @@ global cell content;
 
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
-    builder body = begin_cell()
+    builder save = begin_cell()
         .store_uint(op::save_coins, 32)
         .store_uint(query_id, 64)
         .store_coins(coins)
         .store_slice(owner) ;; when bounced message limit is increased it can be useful to find the owner
         .store_uint(round_since, 32);
-    send_msg(false, wallet, state_init, body, 0, send::remaining_value);
+    send_msg(false, wallet, state_init, save, 0, send::remaining_value);
 }
 
 () proxy_reserve_tokens(slice src, slice s) impure inline {
@@ -82,13 +82,13 @@ global cell content;
 
     throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == wallet_addr));
 
-    builder body = begin_cell()
+    builder reserve = begin_cell()
         .store_uint(op::reserve_tokens, 32)
         .store_uint(query_id, 64)
         .store_coins(tokens)
         .store_slice(owner)
         .store_coins(ownership_assigned_amount);
-    send_msg(false, treasury.to_builder(), null(), body, 0, send::remaining_value);
+    send_msg(false, treasury.to_builder(), null(), reserve, 0, send::remaining_value);
 }
 
 () proxy_rollback_unstake(slice src, slice s) impure inline {
@@ -101,11 +101,11 @@ global cell content;
 
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
-    builder body = begin_cell()
+    builder rollback = begin_cell()
         .store_uint(op::rollback_unstake, 32)
         .store_uint(query_id, 64)
         .store_coins(tokens);
-    send_msg(false, wallet, null(), body, 0, send::remaining_value);
+    send_msg(false, wallet, null(), rollback, 0, send::remaining_value);
 }
 
 () proxy_tokens_burned(slice src, slice s) impure inline {
@@ -121,12 +121,12 @@ global cell content;
 
     total_tokens -= tokens;
 
-    builder body = begin_cell()
+    builder burned = begin_cell()
         .store_uint(op::tokens_burned, 32)
         .store_uint(query_id, 64)
         .store_coins(tokens)
         .store_coins(coins);
-    send_msg(false, wallet, null(), body, 0, send::remaining_value);
+    send_msg(false, wallet, null(), burned, 0, send::remaining_value);
 
     save_data();
 }
@@ -140,10 +140,25 @@ global cell content;
 
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
-    builder body = begin_cell()
+    builder unstake = begin_cell()
         .store_uint(op::unstake_all_tokens, 32)
         .store_uint(query_id, 64);
-    send_msg(false, wallet, state_init, body, 0, send::remaining_value);
+    send_msg(false, wallet, state_init, unstake, 0, send::remaining_value);
+}
+
+() proxy_upgrade_wallet(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    slice owner = s~load_msg_addr();
+    s.end_parse();
+
+    ( builder wallet, _, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
+
+    throw_unless(err::access_denied, equal_slice_bits(src, treasury));
+
+    builder upgrade = begin_cell()
+        .store_uint(op::upgrade_wallet, 32)
+        .store_uint(query_id, 64);
+    send_msg(true, wallet, null(), upgrade, 0, send::remaining_value);
 }
 
 () proxy_migrate_wallet(slice src, slice s) impure inline {
@@ -159,12 +174,12 @@ global cell content;
 
     total_tokens -= tokens;
 
-    builder body = begin_cell()
+    builder migrate = begin_cell()
         .store_uint(op::migrate_wallet, 32)
         .store_uint(query_id, 64)
         .store_coins(tokens)
         .store_slice(owner);
-    send_msg(false, treasury.to_builder(), null(), body, 0, send::remaining_value);
+    send_msg(false, treasury.to_builder(), null(), migrate, 0, send::remaining_value);
 
     save_data();
 }
@@ -181,11 +196,11 @@ global cell content;
 
     total_tokens += tokens;
 
-    builder body = begin_cell()
+    builder merge = begin_cell()
         .store_uint(op::merge_wallet, 32)
         .store_uint(query_id, 64)
         .store_coins(tokens);
-    send_msg(false, wallet, state_init, body, 0, send::remaining_value);
+    send_msg(false, wallet, state_init, merge, 0, send::remaining_value);
 
     save_data();
 }
@@ -206,12 +221,12 @@ global cell content;
         ? owner.to_builder().end_cell()
         : null();
 
-    builder body = begin_cell()
+    builder take = begin_cell()
         .store_uint(op::take_wallet_address, 32)
         .store_uint(query_id, 64)
         .store_builder(wallet)
         .store_maybe_ref(included_address);
-    send_msg(false, src.to_builder(), null(), body, 0, send::remaining_value);
+    send_msg(false, src.to_builder(), null(), take, 0, send::remaining_value);
 }
 
 () set_content(slice src, slice s) impure inline {
@@ -327,6 +342,10 @@ global cell content;
 
     if op == op::proxy_unstake_all_tokens {
         return proxy_unstake_all_tokens(src, s);
+    }
+
+    if op == op::proxy_upgrade_wallet {
+        return proxy_upgrade_wallet(src, s);
     }
 
     if op == op::proxy_migrate_wallet {

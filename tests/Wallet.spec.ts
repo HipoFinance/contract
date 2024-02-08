@@ -1565,4 +1565,310 @@ describe('Wallet', () => {
         })
         expect(result.transactions).toHaveLength(3)
     })
+
+    it('should upgrade wallet to itself when there is no new version', async () => {
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const result = await wallet.sendUpgradeWallet(staker.getSender(), { value: '0.1' })
+
+        expect(result.transactions).toHaveTransaction({
+            from: staker.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.upgradeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: parent.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.proxyMigrateWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: parent.address,
+            to: treasury.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.migrateWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: parent.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.proxyMergeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.mergeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(7)
+
+        const [parentTotalTokens] = await parent.getJettonData()
+        expect(parentTotalTokens).toBeTonValue('10')
+
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
+        expect(tokens).toBeTonValue('10')
+        expect(staking.keys()).toHaveLength(0)
+        expect(unstaking).toBeTonValue('0')
+    })
+
+    it('should upgrade wallet to new version when there is a new version', async () => {
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+        const walletAddress1 = await parent.getWalletAddress(staker.address)
+        const wallet1 = blockchain.openContract(Wallet.createFromAddress(walletAddress1))
+
+        const parent2 = blockchain.openContract(
+            Parent.createFromConfig(
+                {
+                    totalTokens: 0n,
+                    treasury: treasury.address,
+                    walletCode,
+                    content: beginCell().storeUint(2, 2).endCell(),
+                },
+                parentCode,
+            ),
+        )
+        await parent2.sendDeploy(governor.getSender(), { value: '1' })
+        await treasury.sendSetParent(governor.getSender(), {
+            value: '1',
+            newParent: parent2.address,
+        })
+
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('5') + fees.depositCoinsFee })
+        const walletAddress2 = await parent2.getWalletAddress(staker.address)
+        const wallet2 = blockchain.openContract(Wallet.createFromAddress(walletAddress2))
+        expect(wallet2.address.equals(wallet1.address)).toEqual(false)
+
+        const [parentTotalTokens1] = await parent.getJettonData()
+        expect(parentTotalTokens1).toBeTonValue('10')
+
+        const [tokens1, staking1, unstaking1] = await wallet1.getWalletState()
+        expect(tokens1).toBeTonValue('10')
+        expect(staking1.keys()).toHaveLength(0)
+        expect(unstaking1).toBeTonValue('0')
+
+        const [parentTotalTokens2] = await parent2.getJettonData()
+        expect(parentTotalTokens2).toBeTonValue('5')
+
+        const [tokens2, staking2, unstaking2] = await wallet2.getWalletState()
+        expect(tokens2).toBeTonValue('5')
+        expect(staking2.keys()).toHaveLength(0)
+        expect(unstaking2).toBeTonValue('0')
+
+        const result = await wallet1.sendUpgradeWallet(staker.getSender(), { value: '0.1' })
+
+        expect(result.transactions).toHaveTransaction({
+            from: staker.address,
+            to: wallet1.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.upgradeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet1.address,
+            to: parent.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.proxyMigrateWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: parent.address,
+            to: treasury.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.migrateWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: parent2.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.proxyMergeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: parent2.address,
+            to: wallet2.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.mergeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet2.address,
+            to: staker.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(7)
+
+        const [parentTotalTokens1After] = await parent.getJettonData()
+        expect(parentTotalTokens1After).toBeTonValue('0')
+
+        const [tokens1After, staking1After, unstaking1After] = await wallet1.getWalletState()
+        expect(tokens1After).toBeTonValue('0')
+        expect(staking1After.keys()).toHaveLength(0)
+        expect(unstaking1After).toBeTonValue('0')
+
+        const [parentTotalTokens2After] = await parent2.getJettonData()
+        expect(parentTotalTokens2After).toBeTonValue('15')
+
+        const [tokens2After, staking2After, unstaking2After] = await wallet2.getWalletState()
+        expect(tokens2After).toBeTonValue('15')
+        expect(staking2After.keys()).toHaveLength(0)
+        expect(unstaking2After).toBeTonValue('0')
+    })
+
+    it('should upgrade wallet to new version when halter decides', async () => {
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+        const walletAddress1 = await parent.getWalletAddress(staker.address)
+        const wallet1 = blockchain.openContract(Wallet.createFromAddress(walletAddress1))
+
+        const parent2 = blockchain.openContract(
+            Parent.createFromConfig(
+                {
+                    totalTokens: 0n,
+                    treasury: treasury.address,
+                    walletCode,
+                    content: beginCell().storeUint(2, 2).endCell(),
+                },
+                parentCode,
+            ),
+        )
+        await parent2.sendDeploy(governor.getSender(), { value: '1' })
+        await treasury.sendSetParent(governor.getSender(), {
+            value: '1',
+            newParent: parent2.address,
+        })
+
+        const walletAddress2 = await parent2.getWalletAddress(staker.address)
+        const wallet2 = blockchain.openContract(Wallet.createFromAddress(walletAddress2))
+        expect(wallet2.address.equals(wallet1.address)).toEqual(false)
+
+        const [parentTotalTokens1] = await parent.getJettonData()
+        expect(parentTotalTokens1).toBeTonValue('10')
+
+        const [tokens1, staking1, unstaking1] = await wallet1.getWalletState()
+        expect(tokens1).toBeTonValue('10')
+        expect(staking1.keys()).toHaveLength(0)
+        expect(unstaking1).toBeTonValue('0')
+
+        const [parentTotalTokens2] = await parent2.getJettonData()
+        expect(parentTotalTokens2).toBeTonValue('0')
+
+        const result = await treasury.sendSendProxyUpgradeWallet(halter.getSender(), {
+            value: '0.1',
+            destination: parent.address,
+            owner: staker.address,
+        })
+
+        expect(result.transactions).toHaveTransaction({
+            from: halter.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.sendProxyUpgradeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: parent.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.proxyUpgradeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet1.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.upgradeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet1.address,
+            to: parent.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.proxyMigrateWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: parent.address,
+            to: treasury.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.migrateWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: parent2.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.proxyMergeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: parent2.address,
+            to: wallet2.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.mergeWallet),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet2.address,
+            to: staker.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(9)
+
+        const [parentTotalTokens1After] = await parent.getJettonData()
+        expect(parentTotalTokens1After).toBeTonValue('0')
+
+        const [tokens1After, staking1After, unstaking1After] = await wallet1.getWalletState()
+        expect(tokens1After).toBeTonValue('0')
+        expect(staking1After.keys()).toHaveLength(0)
+        expect(unstaking1After).toBeTonValue('0')
+
+        const [parentTotalTokens2After] = await parent2.getJettonData()
+        expect(parentTotalTokens2After).toBeTonValue('10')
+
+        const [tokens2After, staking2After, unstaking2After] = await wallet2.getWalletState()
+        expect(tokens2After).toBeTonValue('10')
+        expect(staking2After.keys()).toHaveLength(0)
+        expect(unstaking2After).toBeTonValue('0')
+    })
 })

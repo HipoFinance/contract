@@ -91,6 +91,7 @@ const int op::withdraw_surplus = 0x23355ffb;
 const int op::proxy_withdraw_surplus = 0x77a0bf77;
 const int op::upgrade_code = 0x3d6a29b5;
 const int op::proxy_upgrade_code = 0x78570010;
+const int op::send_proxy_upgrade_wallet = 0x1c1c5a0f;
 const int op::migrate_wallet = 0x325aacfa;
 const int op::top_up = 0x5372158c;
 
@@ -100,6 +101,7 @@ const int op::proxy_reserve_tokens = 0x653b5ecb;
 const int op::proxy_rollback_unstake = 0x32b67194;
 const int op::proxy_tokens_burned = 0x4476fde0;
 const int op::proxy_unstake_all_tokens = 0x411710ab;
+const int op::proxy_upgrade_wallet = 0x4664bc68;
 const int op::proxy_migrate_wallet = 0x0cb246bb;
 const int op::proxy_merge_wallet = 0x6833d7d0;
 const int op::set_content = 0x04dc78b7;

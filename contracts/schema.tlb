@@ -356,6 +356,12 @@ proxy_upgrade_code#78570010
     new_data:(Maybe ^Cell)
         = InternalMsgBody;
 
+send_proxy_upgrade_wallet#1c1c5a0f
+    query_id:uint64
+    destination:MsgAddress
+    owner:MsgAddress
+        = InternalMsgBody;
+
 migrate_wallet#325aacfa
     query_id:uint64
     tokens:Coins
@@ -406,6 +412,11 @@ proxy_tokens_burned#4476fde0
         = InternalMsgBody;
 
 proxy_unstake_all_tokens#411710ab
+    query_id:uint64
+    owner:MsgAddress
+        = InternalMsgBody;
+
+proxy_upgrade_wallet#4664bc68
     query_id:uint64
     owner:MsgAddress
         = InternalMsgBody;

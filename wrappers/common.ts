@@ -83,6 +83,7 @@ export const op = {
     proxyWithdrawSurplus: 0x77a0bf77,
     upgradeCode: 0x3d6a29b5,
     proxyUpgradeCode: 0x78570010,
+    sendProxyUpgradeWallet: 0x1c1c5a0f,
     migrateWallet: 0x325aacfa,
     topUp: 0x5372158c,
 
@@ -92,6 +93,7 @@ export const op = {
     proxyRollbackUnstake: 0x32b67194,
     proxyTokensBurned: 0x4476fde0,
     proxyUnstakeAllTokens: 0x411710ab,
+    proxyUpgradeWallet: 0x4664bc68,
     proxyMigrateWallet: 0x0cb246bb,
     proxyMergeWallet: 0x6833d7d0,
     setContent: 0x04dc78b7,

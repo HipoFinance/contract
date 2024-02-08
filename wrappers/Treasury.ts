@@ -744,6 +744,31 @@ export class Treasury implements Contract {
         })
     }
 
+    async sendSendProxyUpgradeWallet(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            destination: Address
+            owner: Address
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.sendProxyUpgradeWallet, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .storeAddress(opts.destination)
+                .storeAddress(opts.owner)
+                .endCell(),
+        })
+    }
+
     async getTimes(provider: ContractProvider): Promise<Times> {
         const { stack } = await provider.get('get_times', [])
         return {
