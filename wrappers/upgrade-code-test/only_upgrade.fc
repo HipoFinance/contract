@@ -10,7 +10,7 @@ global slice governor;
 () unpack_extension() impure inline_ref {
 }
 
-() upgrade_data(slice src, int query_id, cell new_data) impure method_id {
+() upgrade_data(slice src, int query_id, cell new_data, slice return_excess) impure method_id {
     ;; Add code for upgrading data here.
 
     ;; This just messes with data for test.
@@ -31,7 +31,7 @@ global slice governor;
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
-    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+    send_msg(false, return_excess.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
     throw(0);
 }
@@ -40,13 +40,18 @@ global slice governor;
     int query_id = s~load_uint(64);
     cell new_code = s~load_ref();
     cell new_data = s~load_maybe_ref();
+    slice return_excess = s~load_msg_addr();
     s.end_parse();
+
+    ifnot return_excess.preload_uint(2) {
+        return_excess = src;
+    }
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     set_code(new_code);
     set_c3(new_code.begin_parse().bless());
-    upgrade_data(src, query_id, new_data);
+    upgrade_data(src, query_id, new_data, return_excess);
 }
 
 () recv_internal(cell in_msg_full, slice in_msg_body) impure {
@@ -56,16 +61,13 @@ global slice governor;
     int flags = cs~load_uint(4);
     slice src = cs~load_msg_addr();
 
-    if (flags & 1) {
+    if flags & 1 {
         return ();
     }
 
-    int op = 0;
-    if (in_msg_body.slice_bits()) {
-        op = in_msg_body~load_uint(32);
-    }
+    int op = in_msg_body~load_uint(32);
 
-    if (op == op::upgrade_code) {
+    if op == op::upgrade_code {
         return upgrade_code(src, in_msg_body);
     }
 

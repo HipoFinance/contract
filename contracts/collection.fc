@@ -58,13 +58,13 @@ global cell bill_code;
         builder body = begin_cell()
             .store_uint(op::burn_bill, 32)
             .store_uint(query_id, 64);
-        send_msg(false, bill, null(), body, burn_bill_fee(), send::regular);
+        send_msg(false, bill, null(), body, burn_bill_fee(), send::pay_gas_separately);
     } else {
         builder done = begin_cell()
             .store_uint(op::last_bill_burned, 32)
             .store_uint(query_id, 64)
             .store_uint(round_since, 32);
-        send_msg(false, treasury.to_builder(), null(), done, 0, send::unreserved_balance);
+        send_msg(false, treasury.to_builder(), null(), done, last_bill_burned_fee(), send::pay_gas_separately);
     }
 }
 
@@ -82,6 +82,8 @@ global cell bill_code;
 
     throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == bill_addr));
 
+    burn_next(query_id, index + 1);
+
     builder body = begin_cell()
         .store_uint(unstake? ? op::burn_tokens : op::mint_tokens, 32)
         .store_uint(query_id, 64)
@@ -89,9 +91,7 @@ global cell bill_code;
         .store_slice(owner)
         .store_slice(parent)
         .store_uint(round_since, 32);
-    send_msg(false, treasury.to_builder(), null(), body, 0, send::remaining_value);
-
-    burn_next(query_id, index + 1);
+    send_msg(false, treasury.to_builder(), null(), body, 0, send::unreserved_balance);
 }
 
 () burn_all(slice src, slice s) impure inline {

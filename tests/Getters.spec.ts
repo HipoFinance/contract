@@ -4,40 +4,49 @@ import '@ton/test-utils'
 import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core'
 import { bodyOp, createNewStakeMsg, createVset, getElector, logFees, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
-import { Fees, Treasury, participationDictionaryValue } from '../wrappers/Treasury'
+import { Fees, Treasury, emptyDictionaryValue, participationDictionaryValue } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
 import { Loan } from '../wrappers/Loan'
 import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-test/Elector'
 import { LibraryDeployer, buildBlockchainLibraries } from '../wrappers/LibraryDeployer'
+import { Parent } from '../wrappers/Parent'
 
 describe('Getters', () => {
-    let treasuryCode: Cell
-    let walletCode: Cell
-    let loanCode: Cell
     let electorCode: Cell
+    let treasuryCode: Cell
+    let parentCode: Cell
+    let walletCode: Cell
+    let collectionCode: Cell
+    let billCode: Cell
+    let loanCode: Cell
     let blockchainLibs: Cell
 
     beforeAll(async () => {
-        treasuryCode = await compile('Treasury')
-        const mainWalletCode = await compile('Wallet')
-        walletCode = LibraryDeployer.exportLibCode(mainWalletCode)
-        loanCode = await compile('Loan')
         electorCode = await compile('elector-test/Elector')
-        blockchainLibs = buildBlockchainLibraries([mainWalletCode])
+        treasuryCode = await compile('Treasury')
+        parentCode = await compile('Parent')
+        const mainWalletCode = await compile('Wallet')
+        const mainCollectionCode = await compile('Collection')
+        const mainBillCode = await compile('Bill')
+        const mainLoanCode = await compile('Loan')
+        walletCode = LibraryDeployer.exportLibCode(mainWalletCode)
+        collectionCode = LibraryDeployer.exportLibCode(mainCollectionCode)
+        billCode = LibraryDeployer.exportLibCode(mainBillCode)
+        loanCode = LibraryDeployer.exportLibCode(mainLoanCode)
+        blockchainLibs = buildBlockchainLibraries([mainWalletCode, mainCollectionCode, mainBillCode, mainLoanCode])
     })
 
     let blockchain: Blockchain
-    let driver: SandboxContract<TreasuryContract>
     let halter: SandboxContract<TreasuryContract>
     let governor: SandboxContract<TreasuryContract>
     let treasury: SandboxContract<Treasury>
+    let parent: SandboxContract<Parent>
     let fees: Fees
     let electorAddress: Address
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
         blockchain.libs = blockchainLibs
-        driver = await blockchain.treasury('driver')
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
         treasury = blockchain.openContract(
@@ -48,41 +57,78 @@ describe('Getters', () => {
                     totalStaking: 0n,
                     totalUnstaking: 0n,
                     totalValidatorsStake: 0n,
-                    lastStaked: 0n,
-                    lastRecovered: 0n,
+                    parent: null,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                     roundsImbalance: 255n,
                     stopped: false,
-                    walletCode,
                     loanCode,
-                    driver: driver.address,
+                    lastStaked: 0n,
+                    lastRecovered: 0n,
                     halter: halter.address,
                     governor: governor.address,
                     proposedGovernor: null,
                     governanceFee: 4096n,
-                    content: Cell.EMPTY,
+                    collectionCode,
+                    billCode,
+                    oldParents: Dictionary.empty(Dictionary.Keys.BigUint(256), emptyDictionaryValue),
                 },
                 treasuryCode,
             ),
         )
+        parent = blockchain.openContract(
+            Parent.createFromConfig(
+                {
+                    totalTokens: 0n,
+                    treasury: treasury.address,
+                    walletCode,
+                    content: Cell.EMPTY,
+                },
+                parentCode,
+            ),
+        )
 
         const deployer = await blockchain.treasury('deployer')
-        const deployResult = await treasury.sendDeploy(deployer.getSender(), { value: '0.01' })
-
-        expect(deployResult.transactions).toHaveTransaction({
+        const deployTreasuryResult = await treasury.sendDeploy(deployer.getSender(), { value: '1' })
+        const deployParentResult = await parent.sendDeploy(deployer.getSender(), { value: '1' })
+        const setParentResult = await treasury.sendSetParent(governor.getSender(), {
+            value: '1',
+            newParent: parent.address,
+        })
+        expect(deployTreasuryResult.transactions).toHaveTransaction({
             from: deployer.address,
             to: treasury.address,
-            value: toNano('0.01'),
+            value: toNano('1'),
             body: bodyOp(op.topUp),
             deploy: true,
             success: true,
             outMessagesCount: 0,
         })
-        expect(deployResult.transactions).toHaveLength(2)
+        expect(deployTreasuryResult.transactions).toHaveLength(2)
+        expect(deployParentResult.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: parent.address,
+            value: toNano('1'),
+            body: bodyOp(op.topUp),
+            deploy: true,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(deployParentResult.transactions).toHaveLength(2)
+        expect(setParentResult.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            value: toNano('1'),
+            body: bodyOp(op.setParent),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(setParentResult.transactions).toHaveLength(3)
 
         fees = await treasury.getFees()
 
-        await treasury.sendTopUp(deployer.getSender(), { value: fees.treasuryStorage })
+        await treasury.sendWithdrawSurplus(governor.getSender(), { value: fees.treasuryStorage })
+        const treasuryBalance = await treasury.getBalance()
+        expect(treasuryBalance).toBeTonValue(fees.treasuryStorage)
 
         electorAddress = getElector(blockchain)
     })
@@ -101,17 +147,18 @@ describe('Getters', () => {
 
     it('should return jetton data', async () => {
         const staker = await blockchain.treasury('staker')
-        const walletAddress = await treasury.getWalletAddress(staker.address)
-        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
-        await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
         const newContent = beginCell().storeUint(0, 9).endCell()
-        await treasury.sendSetContent(governor.getSender(), { value: '0.1', newContent: newContent })
+        await treasury.sendProxySetContent(governor.getSender(), {
+            value: '0.1',
+            destination: parent.address,
+            newContent: newContent,
+        })
 
-        const [totalTokens, mintable, adminAddress, content, code] = await treasury.getJettonData()
+        const [totalTokens, mintable, adminAddress, content, code] = await parent.getJettonData()
         expect(totalTokens).toBeTonValue('10')
         expect(mintable).toEqual(true)
-        expect(adminAddress.toString()).toEqual('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c')
+        expect(adminAddress).toEqualAddress(treasury.address)
         expect(content.toBoc().toString('base64')).toEqual(newContent.toBoc().toString('base64'))
         expect(code.toBoc().toString('base64')).toEqual(walletCode.toBoc().toString('base64'))
     })
@@ -126,9 +173,6 @@ describe('Getters', () => {
 
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('700000') + fees.depositCoinsFee })
-        const walletAddress = await treasury.getWalletAddress(staker.address)
-        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -169,26 +213,20 @@ describe('Getters', () => {
 
     it('should return wallet data', async () => {
         const staker = await blockchain.treasury('staker')
-        const walletAddress = await treasury.getWalletAddress(staker.address)
+        const walletAddress = await parent.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
-        await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
 
-        const [tokens, ownerAddress, treasuryAddress, code] = await wallet.getWalletData()
+        const [tokens, ownerAddress, parentAddress, code] = await wallet.getWalletData()
         expect(tokens).toBeTonValue('10')
         expect(ownerAddress.toString()).toEqual(staker.address.toString())
-        expect(treasuryAddress.toString()).toEqual(treasury.address.toString())
+        expect(parentAddress).toEqualAddress(parent.address)
         expect(code.toBoc().toString('base64')).toEqual(walletCode.toBoc().toString('base64'))
     })
 
     it('should return treasury state', async () => {
         const staker = await blockchain.treasury('staker')
-        const walletAddress = await treasury.getWalletAddress(staker.address)
-        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
-        await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
-        const newContent = beginCell().storeUint(0, 9).endCell()
-        await treasury.sendSetContent(governor.getSender(), { value: '0.1', newContent: newContent })
 
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryState.totalCoins).toBeTonValue('10')
@@ -196,43 +234,39 @@ describe('Getters', () => {
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
-        expect(treasuryState.lastStaked).toBeTonValue('0')
-        expect(treasuryState.lastRecovered).toBeTonValue('0')
+        expect(treasuryState.parent).toEqualAddress(parent.address)
         expect(treasuryState.participations.keys()).toHaveLength(0)
         expect(treasuryState.roundsImbalance).toEqual(255n)
         expect(treasuryState.stopped).toEqual(false)
-        expect(treasuryState.walletCode.toBoc().toString('base64')).toEqual(walletCode.toBoc().toString('base64'))
         expect(treasuryState.loanCode.toBoc().toString('base64')).toEqual(loanCode.toBoc().toString('base64'))
-        expect(treasuryState.driver.toString()).toEqual(driver.address.toString())
+        expect(treasuryState.lastStaked).toBeTonValue('0')
+        expect(treasuryState.lastRecovered).toBeTonValue('0')
         expect(treasuryState.halter.toString()).toEqual(halter.address.toString())
         expect(treasuryState.governor.toString()).toEqual(governor.address.toString())
         expect(treasuryState.proposedGovernor).toEqual(null)
         expect(treasuryState.governanceFee).toEqual(4096n)
-        expect(treasuryState.content.toBoc().toString('base64')).toEqual(newContent.toBoc().toString('base64'))
+        expect(treasuryState.collectionCode.toBoc().toString('base64')).toEqual(
+            collectionCode.toBoc().toString('base64'),
+        )
+        expect(treasuryState.billCode.toBoc().toString('base64')).toEqual(billCode.toBoc().toString('base64'))
+        expect(treasuryState.oldParents.size).toEqual(0)
     })
 
     it('should return wallet state', async () => {
         const staker = await blockchain.treasury('staker')
-        const walletAddress = await treasury.getWalletAddress(staker.address)
+        const walletAddress = await parent.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
 
         const [tokens, staking, unstaking] = await wallet.getWalletState()
-        expect(tokens).toBeTonValue('0')
-        expect(staking.keys()).toHaveLength(1)
-        expect(staking.get(0n)).toBeTonValue('10')
+        expect(tokens).toBeTonValue('10')
+        expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('0')
-
-        await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
-        const [tokensAfterStake, stakingAfterStake, unstakingAfterStake] = await wallet.getWalletState()
-        expect(tokensAfterStake).toBeTonValue('10')
-        expect(stakingAfterStake.keys()).toHaveLength(0)
-        expect(unstakingAfterStake).toBeTonValue('0')
     })
 
     it('should return wallet fees', async () => {
         const staker = await blockchain.treasury('staker')
-        const walletAddress = await treasury.getWalletAddress(staker.address)
+        const walletAddress = await parent.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
 
@@ -246,13 +280,10 @@ describe('Getters', () => {
 
     it('should return max burnable tokens', async () => {
         const staker = await blockchain.treasury('staker')
-        const walletAddress = await treasury.getWalletAddress(staker.address)
-        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
-        await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
 
         const maxBurnableTokens = await treasury.getMaxBurnableTokens()
-        expect(maxBurnableTokens).toBeBetween('9.9', '10')
+        expect(maxBurnableTokens).toBeTonValue('10')
     })
 
     it('should return surplus', async () => {
@@ -260,6 +291,6 @@ describe('Getters', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
 
         const surplus = await treasury.getSurplus()
-        expect(surplus).toBeTonValue('0')
+        expect(surplus).toBeBetween(-5n, 5n)
     })
 })

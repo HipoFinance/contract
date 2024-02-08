@@ -240,7 +240,7 @@ cell create_collection_data(slice treasury, int round_since, cell bill_code) inl
     return begin_cell()
         .store_slice(treasury)
         .store_uint(round_since, 32)
-        .store_coins(0)
+        .store_uint(0, 64)
         .store_ref(bill_code)
         .end_cell();
 }
@@ -382,7 +382,7 @@ int max_recommended_punishment_for_validator_misbehaviour(int stake) inline_ref 
     ;; _ MisbehaviourPunishmentConfig = ConfigParam 40;
 
     cell cp = config_param(config::misbehaviour_punishment);
-    if (cell_null?(cp)) {
+    if cell_null?(cp) {
         ;; 101 TON - https://github.com/ton-blockchain/ton/blob/b38d227a469666d83ac535ad2eea80cb49d911b8/lite-client/lite-client.cpp#L3678
         return 101000000000;
     }
@@ -478,7 +478,7 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
     ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
     int l_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023 * 2, 1 + 3);
     int payload_fee = 0;
-    if (forward_ton_amount > 0) {
+    if forward_ton_amount {
         ( int payload_cells, int payload_bits, _ ) = slice_compute_data_size(forward_payload, 1000);
         payload_fee = msg_fwd_fee(lump_price, bit_price, cell_price, payload_bits, payload_cells);
     }
@@ -528,15 +528,15 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
 
     int total = storage_fee + compute_fee + forward_fee + ownership_assigned_amount;
 
-    int sub_compute_gas =
+    int proxy_compute_gas =
         gas::proxy_save_coins +
         gas::save_coins;
-    int sub_compute_fee = sub_compute_gas * gas_price >> 16;
+    int proxy_compute_fee = proxy_compute_gas * gas_price >> 16;
 
-    int sub_forward_fee =
+    int proxy_forward_fee =
         l_fwd_fee; ;; save_coins
 
-    int proxy_save_coins_fee = storage_fee + sub_compute_fee + sub_forward_fee;
+    int proxy_save_coins_fee = storage_fee + proxy_compute_fee + proxy_forward_fee;
 
     return ( total, proxy_save_coins_fee );
 }
@@ -690,6 +690,7 @@ int burn_all_fee() {
     ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
     int compute_gas =
         gas::burn_all +
+        gas::burn_bill +
         gas::last_bill_burned;
     int compute_fee = compute_gas * gas_price >> 16;
 
@@ -697,9 +698,19 @@ int burn_all_fee() {
     int s_fwd_fee = lump_price;
     int forward_fee =
         s_fwd_fee + ;; burn_all
+        s_fwd_fee + ;; burn_bill
         s_fwd_fee; ;; last_bill_burned
 
     return compute_fee + forward_fee;
+}
+
+int last_bill_burned_fee() {
+    ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
+    int compute_gas =
+        gas::last_bill_burned;
+    int compute_fee = compute_gas * gas_price >> 16;
+
+    return compute_fee;
 }
 
 int burn_bill_fee() {
@@ -713,7 +724,6 @@ int burn_bill_fee() {
     int s_fwd_fee = lump_price;
     int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
     int forward_fee =
-        s_fwd_fee + ;; burn_bill
         m_fwd_fee; ;; bill_burned
 
     return compute_fee + forward_fee;

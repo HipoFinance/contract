@@ -177,16 +177,13 @@ export function logComputeGas(opLabel: string, opCode: number, tx: BlockchainTra
 export function logFees(fees: Fees) {
     if (!muteLogFees) {
         const logs = [
-            'deposit coins:      ' + fromNano(fees.depositCoinsFee),
-            'stake coins:        ' + fromNano(fees.stakeCoinsFee),
-            'stake first coins:  ' + fromNano(fees.stakeFirstCoinsFee),
-            'unstake all tokens: ' + fromNano(fees.unstakeAllTokensFee),
-            'unstake tokens:     ' + fromNano(fees.unstakeTokensFee),
-            'withdraw tokens:    ' + fromNano(fees.withdrawTokensFee),
             'send tokens:        ' + fromNano(fees.sendTokensFee),
+            'deposit coins:      ' + fromNano(fees.depositCoinsFee),
+            'unstake tokens:     ' + fromNano(fees.unstakeTokensFee),
+            'unstake all tokens: ' + fromNano(fees.unstakeAllTokensFee),
             'request loan:       ' + fromNano(fees.requestLoanFee),
-            'wallet storage:     ' + fromNano(fees.walletStorage),
             'loan storage:       ' + fromNano(fees.loanStorage),
+            'wallet storage:     ' + fromNano(fees.walletStorage),
         ]
         console.info(logs.join('\n'))
     }

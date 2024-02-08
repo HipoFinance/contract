@@ -13,7 +13,7 @@ export async function run(provider: NetworkProvider) {
 
     const roundSince = BigInt(await ui.input('Enter round since'))
 
-    await treasury.sendSendProcessLoanRequests(provider.sender(), { value: '0.1', roundSince })
+    await treasury.sendRetryProcessLoanRequests(provider.sender(), { value: '0.1', roundSince })
 
     ui.write('Done')
 }

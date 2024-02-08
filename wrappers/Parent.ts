@@ -56,6 +56,19 @@ export class Parent implements Contract {
         await provider.internal(via, opts)
     }
 
+    async sendDeploy(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+        },
+    ) {
+        await this.sendTopUp(provider, via, opts)
+    }
+
     async sendTopUp(
         provider: ContractProvider,
         via: Sender,
@@ -73,6 +86,31 @@ export class Parent implements Contract {
             body: beginCell()
                 .storeUint(op.topUp, 32)
                 .storeUint(opts.queryId ?? 0, 64)
+                .endCell(),
+        })
+    }
+
+    async sendProvideWalletAddress(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            owner: Address
+            includeAddress?: boolean
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.provideWalletAddress, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .storeAddress(opts.owner)
+                .storeBit(opts.includeAddress ?? false)
                 .endCell(),
         })
     }

@@ -1,5 +1,5 @@
 import { compile } from '@ton/blueprint'
-import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
+import { Blockchain, EmulationError, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
 import { bodyOp, createVset, emptyNewStakeMsg, logTotalFees, accumulateFees, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
@@ -8,16 +8,21 @@ import {
     Participation,
     ParticipationState,
     Treasury,
+    emptyDictionaryValue,
     participationDictionaryValue,
     requestDictionaryValue,
     sortedDictionaryValue,
     treasuryConfigToCell,
 } from '../wrappers/Treasury'
 import { LibraryDeployer, buildBlockchainLibraries } from '../wrappers/LibraryDeployer'
+import { Parent } from '../wrappers/Parent'
 
 describe('Large', () => {
     let treasuryCode: Cell
+    let parentCode: Cell
     let walletCode: Cell
+    let collectionCode: Cell
+    let billCode: Cell
     let loanCode: Cell
     let blockchainLibs: Cell
 
@@ -27,23 +32,28 @@ describe('Large', () => {
 
     beforeAll(async () => {
         treasuryCode = await compile('Treasury')
+        parentCode = await compile('Parent')
         const mainWalletCode = await compile('Wallet')
+        const mainCollectionCode = await compile('Collection')
+        const mainBillCode = await compile('Bill')
+        const mainLoanCode = await compile('Loan')
         walletCode = LibraryDeployer.exportLibCode(mainWalletCode)
-        loanCode = await compile('Loan')
-        blockchainLibs = buildBlockchainLibraries([mainWalletCode])
+        collectionCode = LibraryDeployer.exportLibCode(mainCollectionCode)
+        billCode = LibraryDeployer.exportLibCode(mainBillCode)
+        loanCode = LibraryDeployer.exportLibCode(mainLoanCode)
+        blockchainLibs = buildBlockchainLibraries([mainWalletCode, mainCollectionCode, mainBillCode, mainLoanCode])
     })
 
     let blockchain: Blockchain
-    let driver: SandboxContract<TreasuryContract>
     let halter: SandboxContract<TreasuryContract>
     let governor: SandboxContract<TreasuryContract>
     let treasury: SandboxContract<Treasury>
+    let parent: SandboxContract<Parent>
     let fees: Fees
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
         blockchain.libs = blockchainLibs
-        driver = await blockchain.treasury('driver')
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
         treasury = blockchain.openContract(
@@ -54,45 +64,78 @@ describe('Large', () => {
                     totalStaking: 0n,
                     totalUnstaking: 0n,
                     totalValidatorsStake: 0n,
-                    lastStaked: 0n,
-                    lastRecovered: 0n,
+                    parent: null,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                     roundsImbalance: 255n,
                     stopped: false,
-                    walletCode,
                     loanCode,
-                    driver: driver.address,
+                    lastStaked: 0n,
+                    lastRecovered: 0n,
                     halter: halter.address,
                     governor: governor.address,
                     proposedGovernor: null,
                     governanceFee: 4096n,
-                    content: Cell.EMPTY,
+                    collectionCode,
+                    billCode,
+                    oldParents: Dictionary.empty(Dictionary.Keys.BigUint(256), emptyDictionaryValue),
                 },
                 treasuryCode,
             ),
         )
+        parent = blockchain.openContract(
+            Parent.createFromConfig(
+                {
+                    totalTokens: 0n,
+                    treasury: treasury.address,
+                    walletCode,
+                    content: Cell.EMPTY,
+                },
+                parentCode,
+            ),
+        )
 
         const deployer = await blockchain.treasury('deployer')
-        const deployResult = await treasury.sendDeploy(deployer.getSender(), { value: '0.01' })
-
-        expect(deployResult.transactions).toHaveTransaction({
+        const deployTreasuryResult = await treasury.sendDeploy(deployer.getSender(), { value: '1' })
+        const deployParentResult = await parent.sendDeploy(deployer.getSender(), { value: '1' })
+        const setParentResult = await treasury.sendSetParent(governor.getSender(), {
+            value: '1',
+            newParent: parent.address,
+        })
+        expect(deployTreasuryResult.transactions).toHaveTransaction({
             from: deployer.address,
             to: treasury.address,
-            value: toNano('0.01'),
+            value: toNano('1'),
             body: bodyOp(op.topUp),
             deploy: true,
             success: true,
             outMessagesCount: 0,
         })
-        expect(deployResult.transactions).toHaveLength(2)
+        expect(deployTreasuryResult.transactions).toHaveLength(2)
+        expect(deployParentResult.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: parent.address,
+            value: toNano('1'),
+            body: bodyOp(op.topUp),
+            deploy: true,
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(deployParentResult.transactions).toHaveLength(2)
+        expect(setParentResult.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            value: toNano('1'),
+            body: bodyOp(op.setParent),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(setParentResult.transactions).toHaveLength(3)
 
         fees = await treasury.getFees()
 
-        await treasury.sendTopUp(deployer.getSender(), { value: fees.treasuryStorage })
-    })
-
-    it('should deploy treasury', () => {
-        return
+        await treasury.sendWithdrawSurplus(governor.getSender(), { value: fees.treasuryStorage })
+        const treasuryBalance = await treasury.getBalance()
+        expect(treasuryBalance).toBeTonValue(fees.treasuryStorage)
     })
 
     it('should send a big batch of messages to recover stakes', async () => {
@@ -222,7 +265,7 @@ describe('Large', () => {
         let requestRejectedCount = 0n
         for (const transaction of result.transactions) {
             const bodyOp = transaction.inMessage?.body.beginParse().loadUint(32)
-            if (bodyOp === op.sendNewStake) {
+            if (bodyOp === op.proxyNewStake) {
                 sendNewStakeCount += 1n
             } else if (bodyOp === op.requestRejected) {
                 requestRejectedCount += 1n
@@ -259,20 +302,17 @@ describe('Large', () => {
         })
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
-            body: bodyOp(op.sendNewStake),
+            body: bodyOp(op.proxyNewStake),
             success: true,
             outMessagesCount: 1,
         })
 
-        const p = await treasury.getParticipation(until1)
-        expect(p.size).toEqual(0n)
-        expect(p.sorted?.size).toEqual(0)
-        expect(p.requests?.size).toEqual(0)
-        expect(p.rejected?.size).toEqual(0)
-        expect(p.accepted?.size).toEqual(0)
-        expect(p.accrued?.size).toEqual(0)
-        expect(p.staked?.size).toEqual(0)
-        expect(p.recovering?.size).toEqual(0)
+        try {
+            await treasury.getParticipation(until1)
+            fail()
+        } catch (e) {
+            expect((e as EmulationError).exitCode).toEqual(7)
+        }
 
         accumulateFees(result.transactions)
     })

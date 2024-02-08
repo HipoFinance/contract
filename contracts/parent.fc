@@ -198,7 +198,7 @@ global cell content;
 
     builder wallet = begin_cell().store_uint(0, 2); ;; addr_none;
     ( int owner_wc, _ ) = parse_std_addr(owner);
-    if (owner_wc == chain::base) {
+    if owner_wc == chain::base {
         ( wallet, _, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
     }
 
@@ -234,6 +234,10 @@ global cell content;
     int query_id = s~load_uint(64);
     slice return_excess = s~load_msg_addr();
     s.end_parse();
+
+    ifnot return_excess.preload_uint(2) {
+        return_excess = src;
+    }
 
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 

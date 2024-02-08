@@ -14,14 +14,19 @@ export async function run(provider: NetworkProvider) {
         'Setting metadata to:\n\tname: \t\t%s\n\tdescription: \t%s\n\timage: \t\t%s\n',
         name,
         description,
-        image
+        image,
     )
 
-    const addressString = await ui.input('Enter the friendly address of the treasury')
-    const treasuryAddress = Address.parse(addressString)
-    const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
+    const treasuryAddress = await ui.input('Enter the friendly address of the treasury')
+    const treasury = provider.open(Treasury.createFromAddress(Address.parse(treasuryAddress)))
 
-    await treasury.sendSetContent(provider.sender(), { value: '0.1', newContent: content })
+    const parentAddress = await ui.input('Enter the friendly address of the parent')
+
+    await treasury.sendProxySetContent(provider.sender(), {
+        value: '0.1',
+        destination: Address.parse(parentAddress),
+        newContent: content,
+    })
 
     ui.write('Done')
 }

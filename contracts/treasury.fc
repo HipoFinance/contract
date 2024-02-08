@@ -285,7 +285,7 @@ builder pack_request
     int ton_balance_before_msg = ton_balance - msg_ton;
     int available_ton = ton_balance_before_msg - fee::treasury_storage - total_validators_stake;
 
-    if available_ton > coins {
+    if available_ton >= coins {
         total_coins -= coins;
         total_tokens -= tokens;
         if (total_coins == 0) | (total_tokens == 0) {
@@ -353,6 +353,8 @@ builder pack_request
 }
 
 () mint_tokens(int msg_ton, slice src, slice s) impure inline {
+    unpack_extension();
+
     int query_id = s~load_uint(64);
     int coins = s~load_coins();
     slice owner = s~load_msg_addr();
@@ -1180,7 +1182,7 @@ builder pack_request
     throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == collection_addr));
 
     ( slice ps, int f? ) = participations~udict_delete_get?(32, round_since);
-    if (f?) {
+    if f? {
         ( int state
         , int size
         , cell sorted
@@ -1291,24 +1293,6 @@ builder pack_request
     save_data();
 }
 
-() proxy_set_content(slice src, slice s) impure inline {
-    unpack_extension();
-
-    int query_id = s~load_uint(64);
-    slice destination = s~load_msg_addr();
-    cell content = s~load_ref();
-    s.end_parse();
-
-    throw_unless(err::access_denied, equal_slice_bits(src, governor));
-
-    builder content = begin_cell() ;; todo: check this, it should error, then rename to `set`
-        .store_uint(op::set_content, 32)
-        .store_uint(query_id, 64)
-        .store_slice(src)
-        .store_ref(content);
-    send_msg(true, destination.to_builder(), null(), content, 0, send::remaining_value);
-}
-
 () set_governance_fee(slice src, slice s) impure inline {
     unpack_extension();
 
@@ -1380,7 +1364,7 @@ builder pack_request
 
     int state = -1;
     ( slice ps, int f? ) = participations.udict_get?(32, round_since);
-    if (f?) {
+    if f? {
         ( state, _, _, _, _, _, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
     }
 
@@ -1394,12 +1378,80 @@ builder pack_request
     send_msg(false, my_address().to_builder(), null(), process, 0, send::remaining_value);
 }
 
-int calculate_surplus(int msg_ton) inline_ref {
+() retry_burn_all(slice src, slice s) impure inline {
+    unpack_extension();
+
+    int query_id = s~load_uint(64);
+    int round_since = s~load_uint(32);
+    int start_index = s~load_uint(64);
+    s.end_parse();
+
+    int state = -1;
+    ( slice ps, int f? ) = participations.udict_get?(32, round_since);
+    if f? {
+        ( state, _, _, _, _, _, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
+    }
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
+    throw_unless(err::not_ready_to_burn_all, state == participation::burning);
+
+    ( builder collection, _, _ ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
+
+    builder burn = begin_cell()
+        .store_uint(op::burn_all, 32)
+        .store_uint(query_id, 64)
+        .store_uint(start_index, 64);
+    send_msg(false, collection, null(), burn, 0, send::remaining_value);
+}
+
+() set_parent(slice src, slice s) impure inline {
+    unpack_extension();
+
+    int query_id = s~load_uint(64);
+    slice new_parent = s~load_msg_addr();
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
+
+    if parent.preload_uint(2) {
+        ( _, int parent_addr ) = parse_std_addr(parent);
+        old_parents~udict_set_builder(256, parent_addr, begin_cell());
+    }
+    parent = new_parent;
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+
+    pack_extension();
+    save_data();
+}
+
+() proxy_set_content(slice src, slice s) impure inline {
+    unpack_extension();
+
+    int query_id = s~load_uint(64);
+    slice destination = s~load_msg_addr();
+    cell content = s~load_ref();
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
+
+    builder content = begin_cell() ;; todo: check this, it should error, then rename to `set`
+        .store_uint(op::set_content, 32)
+        .store_uint(query_id, 64)
+        .store_slice(src)
+        .store_ref(content);
+    send_msg(true, destination.to_builder(), null(), content, 0, send::remaining_value);
+}
+
+int calculate_min_coins() inline_ref {
     ( int total_fee, _, _ ) = request_loan_fee();
     int k = -1;
     do {
         ( k, slice ps, int f? ) = participations.udict_get_next?(32, k);
-        if (f?) {
+        if f? {
             ( _
             , int size
             , _
@@ -1415,13 +1467,13 @@ int calculate_surplus(int msg_ton) inline_ref {
             , _
             , _
             ) = unpack_participation(ps);
-            total_coins -= total_staked - total_recovered;
+            total_coins -= total_staked;
+            total_coins += total_recovered;
             total_coins += size * total_fee;
         }
     } until ~ f?;
 
-    int ton_balance = get_balance().pair_first();
-    return max(0, ton_balance - msg_ton - fee::treasury_storage - total_validators_stake - total_staking - total_coins);
+    return fee::treasury_storage + total_validators_stake + total_staking + total_coins;
 }
 
 () withdraw_surplus(int msg_ton, slice src, slice s) impure inline {
@@ -1431,11 +1483,13 @@ int calculate_surplus(int msg_ton) inline_ref {
     slice return_excess = s~load_msg_addr();
     s.end_parse();
 
+    ifnot return_excess.preload_uint(2) {
+        return_excess = src;
+    }
+
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
-    int available = calculate_surplus(msg_ton);
-
-    raw_reserve(available, reserve::all_but_amount);
+    raw_reserve(calculate_min_coins(), reserve::exact);
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
@@ -1487,6 +1541,10 @@ int calculate_surplus(int msg_ton) inline_ref {
     cell new_data = s~load_maybe_ref();
     slice return_excess = s~load_msg_addr();
     s.end_parse();
+
+    ifnot return_excess.preload_uint(2) {
+        return_excess = src;
+    }
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
@@ -1568,9 +1626,9 @@ int calculate_surplus(int msg_ton) inline_ref {
     if op == 0 {
         if (s.slice_bits() == 8) & (s.slice_refs() == 0) {
             int c = s~load_uint(8);
-            c &= 0xdf; ;; convert to lowercase
+            c |= 0x20; ;; convert to lowercase
             if c == "d"u {
-                return deposit_coins(msg_ton, src, "00000000000000002_"s);
+                return deposit_coins(msg_ton, src, "000000000000000002_"s);
             }
 
             if c == "w"u {
@@ -1653,10 +1711,6 @@ int calculate_surplus(int msg_ton) inline_ref {
         return set_stopped(src, s);
     }
 
-    if op == op::proxy_set_content {
-        return proxy_set_content(src, s);
-    }
-
     if op == op::set_governance_fee {
         return set_governance_fee(src, s);
     }
@@ -1671,6 +1725,18 @@ int calculate_surplus(int msg_ton) inline_ref {
 
     if op == op::retry_process_loan_requests {
         return retry_process_loan_requests(src, s);
+    }
+
+    if op == op::retry_burn_all {
+        return retry_burn_all(src, s);
+    }
+
+    if op == op::set_parent {
+        return set_parent(src, s);
+    }
+
+    if op == op::proxy_set_content {
+        return proxy_set_content(src, s);
     }
 
     if op == op::withdraw_surplus {
@@ -1758,6 +1824,25 @@ var get_participation(int round_since) method_id {
     return unpack_participation(ps);
 }
 
+slice get_collection_address(int round_since) method_id {
+    load_data();
+    unpack_extension();
+
+    ( builder collection, _, _ ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
+
+    return collection.end_cell().begin_parse();
+}
+
+slice get_bill_address(int round_since, int index) method_id {
+    load_data();
+    unpack_extension();
+
+    ( builder collection, _, _ ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
+    ( builder bill, _, _ ) = create_bill_address(index, collection.end_cell().begin_parse(), bill_code);
+
+    return bill.end_cell().begin_parse();
+}
+
 slice get_loan_address(slice validator, int round_since) method_id {
     load_data();
 
@@ -1798,7 +1883,7 @@ int get_max_burnable_tokens() method_id {
     int available_ton = ton_balance - fee::treasury_storage - total_validators_stake;
     int burnable_tokens = 0;
 
-    if (total_coins > 0) {
+    if total_coins {
         burnable_tokens = muldiv(available_ton, total_tokens, total_coins);
     }
 
@@ -1809,7 +1894,10 @@ int get_surplus() method_id {
     load_data();
     unpack_extension();
 
-    return calculate_surplus(0);
+    int ton_balance = get_balance().pair_first();
+    int min_coins = calculate_min_coins();
+
+    return ton_balance - min_coins;
 }
 
 int get_max_punishment(int stake) method_id {

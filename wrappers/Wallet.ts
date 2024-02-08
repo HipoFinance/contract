@@ -134,8 +134,7 @@ export class Wallet implements Contract {
             sendMode?: SendMode
             queryId?: bigint
             tokens: bigint | string
-            returnExcess?: Address
-            customPayload?: Cell
+            ownershipAssignedAmount?: bigint
         },
     ) {
         await this.sendMessage(provider, via, {
@@ -146,13 +145,35 @@ export class Wallet implements Contract {
                 .storeUint(op.unstakeTokens, 32)
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeCoins(tonValue(opts.tokens))
-                .storeAddress(opts.returnExcess)
-                .storeMaybeRef(opts.customPayload)
+                .storeCoins(opts.ownershipAssignedAmount ?? 0n)
                 .endCell(),
         })
     }
 
     async sendWithdrawSurplus(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            returnExcess?: Address
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.withdrawSurplus, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .storeAddress(opts.returnExcess)
+                .endCell(),
+        })
+    }
+
+    async sendUpgradeWallet(
         provider: ContractProvider,
         via: Sender,
         opts: {
@@ -167,7 +188,7 @@ export class Wallet implements Contract {
             bounce: opts.bounce,
             sendMode: opts.sendMode,
             body: beginCell()
-                .storeUint(op.withdrawSurplus, 32)
+                .storeUint(op.upgradeWallet, 32)
                 .storeUint(opts.queryId ?? 0, 64)
                 .endCell(),
         })

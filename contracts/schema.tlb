@@ -293,12 +293,6 @@ set_stopped#0e5e9773
     new_stopped:Bool
         = InternalMsgBody;
 
-proxy_set_content#2b1c8e37
-    query_id:uint64
-    destination:MsgAddress
-    new_content:^FullContent
-        = InternalMsgBody;
-
 set_governance_fee#470fe5f6
     query_id:uint64
     new_governance_fee:uint16
@@ -319,6 +313,23 @@ send_message_to_loan#2b93b447
 retry_process_loan_requests#173dbb8f
     query_id:uint64
     round_since:uint32
+        = InternalMsgBody;
+
+retry_burn_all#106b8001
+    query_id:uint64
+    round_since:uint32
+    start_index:uint64
+        = InternalMsgBody;
+
+set_parent#4f6f6eed
+    query_id:uint64
+    new_parent:MsgAddress
+        = InternalMsgBody;
+
+proxy_set_content#2b1c8e37
+    query_id:uint64
+    destination:MsgAddress
+    new_content:^FullContent
         = InternalMsgBody;
 
 withdraw_surplus#23355ffb

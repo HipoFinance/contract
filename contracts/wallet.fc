@@ -40,7 +40,7 @@ global cell wallet_code;
     slice forward_payload = s;
     s~skip_bits(1); ;; check either field
 
-    if (return_excess.preload_uint(2) == 0) {
+    ifnot return_excess.preload_uint(2) {
         return_excess = src;
     }
 
@@ -108,7 +108,7 @@ global cell wallet_code;
     save_data();
 }
 
-() tokens_minted(slice src, slice s) impure inline {
+() tokens_minted(int msg_ton, slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int amount = s~load_coins();
     int coins = s~load_coins();
@@ -130,16 +130,21 @@ global cell wallet_code;
         }
     }
 
+    int ton_balance = get_balance().pair_first();
+    int ton_balance_before_msg = ton_balance - msg_ton;
+    int reserve_balance = max(ton_balance_before_msg, wallet_storage_fee());
+    raw_reserve(reserve_balance, reserve::at_most);
+
     builder notification = begin_cell()
         .store_uint(op::stake_notification, 32)
         .store_uint(query_id, 64)
         .store_coins(amount);
-    send_msg(false, owner.to_builder(), null(), notification, 0, send::remaining_value + send::ignore_errors);
+    send_msg(false, owner.to_builder(), null(), notification, 0, send::unreserved_balance + send::ignore_errors);
 
     save_data();
 }
 
-() save_coins(int msg_ton, slice src, slice s) impure inline {
+() save_coins(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int coins = s~load_coins();
     s~load_msg_addr(); ;; skip owner address
@@ -288,6 +293,10 @@ global cell wallet_code;
     slice return_excess = s~load_msg_addr();
     s.end_parse();
 
+    ifnot return_excess.preload_uint(2) {
+        return_excess = src;
+    }
+
     throw_unless(err::access_denied, equal_slice_bits(src, owner));
 
     raw_reserve(wallet_storage_fee(), reserve::exact);
@@ -377,11 +386,11 @@ global cell wallet_code;
     }
 
     if op == op::tokens_minted {
-        return tokens_minted(src, s);
+        return tokens_minted(msg_ton, src, s);
     }
 
     if op == op::save_coins {
-        return save_coins(msg_ton, src, s);
+        return save_coins(src, s);
     }
 
     if op == op::unstake_tokens {
