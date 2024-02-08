@@ -736,7 +736,6 @@ builder pack_request
                 allocated += loan_amount;
                 accepted~udict_set(256, validator_addr, request);
             } else {
-                size -= 1;
                 rejected~udict_set(256, validator_addr, request);
             }
         }
@@ -841,7 +840,7 @@ builder pack_request
         total_staked += loan_amount + accrue_amount;
         staked~udict_set(256, validator_addr, request);
         total_validators_stake -= stake_amount;
-        msg_ton -= ton_amount; ;; todo: check this, might be negative
+        msg_ton -= ton_amount;
 
         builder body = begin_cell()
             .store_uint(op::proxy_new_stake, 32)
@@ -855,6 +854,7 @@ builder pack_request
     ;; return staked amount of rejected requests
     while (~ dict_empty?(rejected)) & remain {
         remain -= 1;
+        size -= 1;
         ( int validator_addr, slice request, _ ) = rejected~udict_delete_get_min?(256);
         ( _, _, _, _, int stake_amount, _ ) = unpack_request(request);
         builder validator = create_address(chain::base, validator_addr);
@@ -872,7 +872,7 @@ builder pack_request
             .store_uint(op::process_loan_requests, 32)
             .store_uint(query_id, 64)
             .store_uint(round_since, 32);
-        send_msg(false, my_address().to_builder(), null(), process, max(msg_ton, total_fee), send::regular);
+        send_msg(false, my_address().to_builder(), null(), process, max(msg_ton, size * total_fee), send::regular);
     } else {
         state = participation::staked;
     }
@@ -1089,6 +1089,7 @@ builder pack_request
             ( request, e? ) = staked~udict_delete_get?(256, validator_addr);
         }
         if e? {
+            size -= 1;
             ( int min_payment
             , int validator_reward_share
             , int loan_amount
@@ -1438,12 +1439,12 @@ builder pack_request
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
-    builder content = begin_cell() ;; todo: check this, it should error, then rename to `set`
+    builder set = begin_cell()
         .store_uint(op::set_content, 32)
         .store_uint(query_id, 64)
         .store_slice(src)
         .store_ref(content);
-    send_msg(true, destination.to_builder(), null(), content, 0, send::remaining_value);
+    send_msg(true, destination.to_builder(), null(), set, 0, send::remaining_value);
 }
 
 int calculate_min_coins() inline_ref {

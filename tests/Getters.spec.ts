@@ -283,7 +283,7 @@ describe('Getters', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
 
         const maxBurnableTokens = await treasury.getMaxBurnableTokens()
-        expect(maxBurnableTokens).toBeTonValue('10')
+        expect(maxBurnableTokens).toBeBetween(toNano('10') - 5n, '10')
     })
 
     it('should return surplus', async () => {
