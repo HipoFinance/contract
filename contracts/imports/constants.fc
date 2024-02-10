@@ -208,6 +208,7 @@ const int config::misbehaviour_punishment = 40;
 const int send::regular = 0;
 const int send::pay_gas_separately = 1;
 const int send::ignore_errors = 2;
+const int send::bounce_if_failed = 16;
 const int send::destroy_if_zero = 32;
 const int send::remaining_value = 64;
 const int send::unreserved_balance = 128;
@@ -218,6 +219,7 @@ const int reserve::all_but_amount = 1;
 const int reserve::at_most = 2;
 const int reserve::add_original_balance = 4;
 const int reserve::negate = 8;
+const int reserve::bounce_if_failed = 16;
 
 
 const int chain::main = -1;
