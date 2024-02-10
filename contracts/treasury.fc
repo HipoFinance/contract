@@ -721,14 +721,15 @@ builder pack_request
     int available = total_staked; ;; use the total_staked field as a temp var for available amount
     int allocated = total_recovered; ;; use the total_recovered field as a temp var for allocated amount
 
-    ;; todo: use GASCONSUMED instead of remain
-    int remain = 40 - 1; ;; keep the last one for continue message
+    ( _, int gas_limit ) = get_compute_prices(config::gas_prices);
+    int soft_gas_limit = muldiv(gas_limit, 8, 10);
+    int remain = 255 - 1; ;; keep the last one for continue message
 
-    while (~ dict_empty?(sorted)) & remain {
+    while remain & (gas_consumed() < soft_gas_limit) & ~ sorted.dict_empty?() {
         ;; sorted is in ascending order, read from the end
         ( int k, slice v, _ ) = sorted.udict_get_max?(112);
         cell bucket = v~load_ref();
-        while (~ dict_empty?(bucket)) & remain {
+        while remain & (gas_consumed() < soft_gas_limit) & ~ bucket.dict_empty?() {
             remain -= 1;
             ( int validator_addr, _, _ ) = bucket~udict_delete_get_min?(256);
             if bucket.dict_empty?() {
@@ -749,7 +750,7 @@ builder pack_request
     }
 
     ;; distribute remaining coins between accepted requests, when they have enough stake
-    while (~ dict_empty?(accepted)) & remain {
+    while remain & (gas_consumed() < soft_gas_limit) & ~ accepted.dict_empty?() {
         remain -= 1;
         ( int validator_addr, slice request, _ ) = accepted~udict_delete_get_min?(256);
         ( int min_payment
@@ -772,7 +773,7 @@ builder pack_request
         }
     }
 
-    if dict_empty?(sorted) & dict_empty?(accepted) {
+    if sorted.dict_empty?() & accepted.dict_empty?() {
         total_staked = 0;
         total_recovered = 0;
 
@@ -829,11 +830,12 @@ builder pack_request
 
     int incoming_ton = get_incoming_value().pair_first();
 
-    ;; todo: set it to 255 and in addition use GASCONSUMED
-    int remain = 30 - 1; ;; keep the last one for continue message
+    ( _, int gas_limit ) = get_compute_prices(config::gas_prices);
+    int soft_gas_limit = muldiv(gas_limit, 8, 10);
+    int remain = 255 - 1; ;; keep the last one for continue message
 
     ;; send new stake message for each accrued request
-    while (~ dict_empty?(accrued)) & remain {
+    while remain & (gas_consumed() < soft_gas_limit) & ~ accrued.dict_empty?() {
         remain -= 1;
         ( int validator_addr, slice request, _ ) = accrued~udict_delete_get_min?(256);
         ( int min_payment
@@ -861,7 +863,7 @@ builder pack_request
     }
 
     ;; return staked amount of rejected requests
-    while (~ dict_empty?(rejected)) & remain {
+    while remain & (gas_consumed() < soft_gas_limit) & ~ rejected.dict_empty?() {
         remain -= 1;
         size -= 1;
         ( int validator_addr, slice request, _ ) = rejected~udict_delete_get_min?(256);
@@ -875,7 +877,7 @@ builder pack_request
         send_msg(false, validator, null(), rejected, stake_amount, send::pay_gas_separately);
     }
 
-    ifnot dict_empty?(rejected) & dict_empty?(accrued) {
+    ifnot rejected.dict_empty?() & accrued.dict_empty?() {
         ;; continue sending messages until done
         builder process = begin_cell()
             .store_uint(op::process_loan_requests, 32)
@@ -886,7 +888,7 @@ builder pack_request
         state = participation::staked;
     }
 
-    if dict_empty?(rejected) & dict_empty?(accrued) & dict_empty?(staked) & dict_empty?(recovering) {
+    if rejected.dict_empty?() & accrued.dict_empty?() & staked.dict_empty?() & recovering.dict_empty?() {
         ;; no more requests, remove empty participation data
         participations~udict_delete?(32, round_since);
     } else {
@@ -1022,11 +1024,12 @@ builder pack_request
 
     int incoming_ton = get_incoming_value().pair_first();
 
-    ;; todo: set it to 255 and in addition use GASCONSUMED
-    int remain = 80 - 1; ;; keep the last one for continue message
+    ( _, int gas_limit ) = get_compute_prices(config::gas_prices);
+    int soft_gas_limit = muldiv(gas_limit, 8, 10);
+    int remain = 255 - 1; ;; keep the last one for continue message
 
     ;; send recover stake message from each given loan
-    while (~ dict_empty?(staked)) & remain {
+    while remain & (gas_consumed() < soft_gas_limit) & ~ staked.dict_empty?() {
         remain -= 1;
         ( int validator_addr, slice request, _ ) = staked~udict_delete_get_min?(256);
         recovering~udict_set(256, validator_addr, request);
@@ -1039,7 +1042,7 @@ builder pack_request
         send_msg(true, loan, null(), recover, recover_stake_fee, send::regular);
     }
 
-    ifnot dict_empty?(staked) {
+    ifnot staked.dict_empty?() {
         ;; continue sending messages until done
         builder continue = begin_cell()
             .store_uint(op::recover_stakes, 32)
@@ -1141,7 +1144,7 @@ builder pack_request
                 round_since, incoming_ton, loan_amount, accrue_amount, new_coins, fee, stake_amount, validator
             );
 
-            if dict_empty?(rejected) & dict_empty?(accrued) & dict_empty?(staked) & dict_empty?(recovering) {
+            if rejected.dict_empty?() & accrued.dict_empty?() & staked.dict_empty?() & recovering.dict_empty?() {
                 last_staked = total_staked;
                 last_recovered = total_recovered;
                 state = participation::burning;

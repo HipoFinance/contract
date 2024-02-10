@@ -186,7 +186,7 @@ describe('Large', () => {
             to: treasury.address,
             body: bodyOp(op.recoverStakes),
             success: true,
-            outMessagesCount: 80,
+            outMessagesCount: (x) => x >= 60 && x <= 255,
         })
 
         accumulateFees(result.transactions)
@@ -293,7 +293,7 @@ describe('Large', () => {
             to: treasury.address,
             body: bodyOp(op.processLoanRequests),
             success: true,
-            outMessagesCount: 30,
+            outMessagesCount: (x) => x >= 100 && x <= 255,
         })
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
