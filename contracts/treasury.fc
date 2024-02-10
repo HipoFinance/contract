@@ -472,14 +472,17 @@ builder pack_request
     save_data();
 }
 
-() send_unstake_all_tokens(slice src) impure inline {
+() send_unstake_all_tokens(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    s.end_parse();
+
     ( int src_wc, _ ) = parse_std_addr(src);
 
     throw_unless(err::only_basechain_allowed, src_wc == chain::base);
 
     builder unstake = begin_cell()
         .store_uint(op::proxy_unstake_all_tokens, 32)
-        .store_uint(cur_lt(), 64)
+        .store_uint(query_id, 64)
         .store_slice(src);
     send_msg(false, parent.to_builder(), null(), unstake, 0, send::remaining_value);
 }
@@ -1650,7 +1653,7 @@ int calculate_min_coins() inline_ref {
             }
 
             if c == "w"u {
-                return send_unstake_all_tokens(src);
+                return send_unstake_all_tokens(src, "0000000000000000"s);
             }
         }
 
@@ -1659,6 +1662,10 @@ int calculate_min_coins() inline_ref {
 
     if op == op::deposit_coins {
         return deposit_coins(msg_ton, src, s);
+    }
+
+    if op == op::send_unstake_all_tokens {
+        return send_unstake_all_tokens(src, s);
     }
 
     if op == op::reserve_tokens {

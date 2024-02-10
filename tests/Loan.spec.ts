@@ -1,5 +1,5 @@
 import { compile } from '@ton/blueprint'
-import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
+import { Blockchain, EmulationError, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import { Address, Cell, Dictionary, beginCell, toNano } from '@ton/core'
 import {
     between,
@@ -11,9 +11,10 @@ import {
     logTotalFees,
     accumulateFees,
     setConfig,
+    storeComputeGas,
     logComputeGas,
 } from './helper'
-import { config, op } from '../wrappers/common'
+import { config, err, op } from '../wrappers/common'
 import { Loan } from '../wrappers/Loan'
 import {
     Fees,
@@ -42,6 +43,25 @@ describe('Loan', () => {
 
     afterAll(() => {
         logTotalFees()
+        logComputeGas([
+            'request_loan',
+            'participate_in_election',
+            'decide_loan_requests',
+            'process_loan_requests',
+            'proxy_new_stake',
+            'vset_changed',
+            'finish_participation',
+            'recover_stakes',
+            'proxy_recover_stake',
+            'recover_stake_result',
+            'burn_all',
+            'last_bill_burned',
+            'new_stake',
+            'new_stake_error',
+            'new_stake_ok',
+            'recover_stake',
+            'recover_stake_ok',
+        ])
     })
 
     beforeAll(async () => {
@@ -206,8 +226,6 @@ describe('Loan', () => {
 
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('700000') + fees.depositCoinsFee })
-        // const walletAddress = await parent.getWalletAddress(staker.address)
-        // const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -370,8 +388,6 @@ describe('Loan', () => {
 
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('700000') + fees.depositCoinsFee })
-        // const walletAddress = await treasury.getWalletAddress(staker.address)
-        // const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -456,15 +472,10 @@ describe('Loan', () => {
         const vset5 = createVset(2n, 3n)
         setConfig(blockchain, config.currentValidators, vset5)
         try {
-            // For the third case, an internal message is sent to avoid error message for external messages in console.
-            // await treasury.sendVsetChanged({ roundSince: until1 })
-            await treasury.sendMessage(halter.getSender(), {
-                value: '0.1',
-                body: beginCell().storeUint(op.vsetChanged, 32).storeUint(until1, 32).endCell(),
-            })
-            fail()
+            await treasury.sendVsetChanged({ roundSince: until1 })
+            throw new Error('failed')
         } catch (e) {
-            // ignore
+            expect((e as EmulationError).exitCode).toEqual(err.vsetNotChangeable)
         }
 
         const treasuryBalance = await treasury.getBalance()
@@ -490,9 +501,6 @@ describe('Loan', () => {
 
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('700000') + fees.depositCoinsFee })
-        // const walletAddress = await treasury.getWalletAddress(staker.address)
-        // const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        // await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -743,9 +751,6 @@ describe('Loan', () => {
 
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('700000') + fees.depositCoinsFee })
-        // const walletAddress = await treasury.getWalletAddress(staker.address)
-        // const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        // await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -964,8 +969,8 @@ describe('Loan', () => {
         expect(treasuryState.participations.size).toEqual(0)
 
         accumulateFees(result.transactions)
-        logComputeGas('recover_stake_result', op.recoverStakeResult, result.transactions[10])
-        logComputeGas('new_stake_error', op.newStakeError, result.transactions[9])
+        storeComputeGas('recover_stake_result', op.recoverStakeResult, result.transactions[10])
+        storeComputeGas('new_stake_error', op.newStakeError, result.transactions[9])
     })
 
     it('should remove participation when there is no funds available to give loans', async () => {
@@ -1104,9 +1109,6 @@ describe('Loan', () => {
 
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('700000') + fees.depositCoinsFee })
-        // const walletAddress = await treasury.getWalletAddress(staker.address)
-        // const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        // await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
 
         await treasury.sendSetRoundsImbalance(halter.getSender(), { value: '0.1', newRoundsImbalance: 0n })
 
@@ -1256,9 +1258,6 @@ describe('Loan', () => {
         await treasury.sendDepositCoins(staker.getSender(), {
             value: toNano('300000') + fees.depositCoinsFee + toNano('0.1'),
         })
-        // const walletAddress = await treasury.getWalletAddress(staker.address)
-        // const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        // await wallet.sendStakeCoins(driver.getSender(), { value: fees.stakeCoinsFee, roundSince: 0n })
 
         await blockchain.setShardAccount(
             electorAddress,
@@ -1349,20 +1348,22 @@ describe('Loan', () => {
         accumulateFees(result3.transactions)
         accumulateFees(result4.transactions)
         accumulateFees(result5.transactions)
-        logComputeGas('request_loan', op.requestLoan, result1.transactions[1])
-        logComputeGas('participate_in_election', op.participateInElection, result2.transactions[0])
-        logComputeGas('decide_loan_requests', op.decideLoanRequests, result2.transactions[1])
-        logComputeGas('process_loan_requests', op.processLoanRequests, result2.transactions[2])
-        // logComputeGas('send_new_stake', op.sendNewStake, result2.transactions[3])
-        logComputeGas('vset_changed', op.vsetChanged, result3.transactions[0])
-        logComputeGas('finish_participation', op.finishParticipation, result5.transactions[0])
-        logComputeGas('recover_stakes', op.recoverStakes, result5.transactions[1])
-        // logComputeGas('send_recover_stake', op.sendRecoverStake, result5.transactions[2])
-        logComputeGas('recover_stake_result', op.recoverStakeResult, result5.transactions[5])
-        logComputeGas('new_stake', op.newStake, result2.transactions[4])
-        logComputeGas('new_stake_ok', op.newStakeOk, result2.transactions[5])
-        logComputeGas('recover_stake', op.recoverStake, result5.transactions[3])
-        logComputeGas('recover_stake_ok', op.recoverStakeOk, result5.transactions[4])
+        storeComputeGas('request_loan', op.requestLoan, result1.transactions[1])
+        storeComputeGas('participate_in_election', op.participateInElection, result2.transactions[0])
+        storeComputeGas('decide_loan_requests', op.decideLoanRequests, result2.transactions[1])
+        storeComputeGas('process_loan_requests', op.processLoanRequests, result2.transactions[2])
+        storeComputeGas('proxy_new_stake', op.proxyNewStake, result2.transactions[3])
+        storeComputeGas('vset_changed', op.vsetChanged, result3.transactions[0])
+        storeComputeGas('finish_participation', op.finishParticipation, result5.transactions[0])
+        storeComputeGas('recover_stakes', op.recoverStakes, result5.transactions[1])
+        storeComputeGas('proxy_recover_stake', op.proxyRecoverStake, result5.transactions[2])
+        storeComputeGas('recover_stake_result', op.recoverStakeResult, result5.transactions[5])
+        storeComputeGas('burn_all', op.burnAll, result5.transactions[6])
+        storeComputeGas('last_bill_burned', op.lastBillBurned, result5.transactions[9])
+        storeComputeGas('new_stake', op.newStake, result2.transactions[4])
+        storeComputeGas('new_stake_ok', op.newStakeOk, result2.transactions[5])
+        storeComputeGas('recover_stake', op.recoverStake, result5.transactions[3])
+        storeComputeGas('recover_stake_ok', op.recoverStakeOk, result5.transactions[4])
     })
 
     it('should handle loan request edge cases', async () => {

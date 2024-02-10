@@ -309,7 +309,7 @@ describe('Large', () => {
 
         try {
             await treasury.getParticipation(until1)
-            fail()
+            throw new Error('failed')
         } catch (e) {
             expect((e as EmulationError).exitCode).toEqual(7)
         }

@@ -1,0 +1,19 @@
+#include "../../contracts/imports/utils.fc";
+
+() recv_internal() {
+}
+
+(int, int, int) get_storage_cost(int main?, int duration, cell c) method_id {
+    ( int bit_price_ps, int cell_price_ps, int mc_bit_price_ps, int mc_cell_price_ps ) = get_storage_prices();
+
+    if main? {
+        bit_price_ps = mc_bit_price_ps;
+        cell_price_ps = mc_cell_price_ps;
+    }
+
+    ( int cells, int bits, _ ) = compute_data_size(c, 10000);
+
+    int pps = bits * bit_price_ps + cells * cell_price_ps;
+    int cost = pps * duration >> 16;
+    return ( bits, cells, cost );
+}

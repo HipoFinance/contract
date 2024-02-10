@@ -5,10 +5,12 @@ import { Address, Builder, Cell, Dictionary, beginCell, fromNano, toNano } from 
 import { mnemonicNew, mnemonicToPrivateKey, sign } from 'ton-crypto'
 import { Fees } from '../wrappers/Treasury'
 
-const muteLogTotalFees = true
-const muteLogCodeSizes = true
 const muteLogComputeGas = true
+const muteLogTotalFees = true
+const muteLogCodeCost = true
 const muteLogFees = true
+
+const gasUsed: Record<string, bigint> = {}
 
 export function bodyOp(op: number): (body: Cell | undefined) => boolean {
     return (body: Cell | undefined): boolean => {
@@ -145,21 +147,53 @@ export function accumulateFees(transactions: BlockchainTransaction[]) {
 
 export function logTotalFees() {
     if (!muteLogTotalFees) {
-        console.info('total fees: %s', fromNano(totalFees))
+        console.info('Total Fees: %s', fromNano(totalFees))
     }
 }
 
-export function logCodeSizes(treasuryCode: Cell, walletCode: Cell, loanCode: Cell) {
-    if (!muteLogCodeSizes) {
-        const t = treasuryCode.toBoc().length
-        const w = walletCode.toBoc().length
-        const l = loanCode.toBoc().length
-        console.info('treasury code size: %d\nwallet code size:   %d\nloan code size:     %d', t, w, l)
+function toBytes(bits: bigint): string {
+    return Math.ceil(Number(bits) / 8)
+        .toString()
+        .padStart(5)
+}
+
+export function logCodeCost(cost: [bigint, bigint, bigint][]) {
+    if (!muteLogCodeCost) {
+        console.info(
+            [
+                'Code Storage Cost:',
+                '               | Bytes | Cells | 1 Year Cost',
+                '    Treasury   | %s | %s | %s',
+                '    Parent     | %s | %s | %s',
+                '    Wallet     | %s | %s | %s',
+                '    Collection | %s | %s | %s',
+                '    Bill       | %s | %s | %s',
+                '    Loan       | %s | %s | %s',
+            ].join('\n'),
+            toBytes(cost[0][0]),
+            cost[0][1].toString().padStart(5),
+            fromNano(cost[0][2]).padStart(12),
+            toBytes(cost[1][0]),
+            cost[1][1].toString().padStart(5),
+            fromNano(cost[1][2]).padStart(12),
+            toBytes(cost[2][0]),
+            cost[2][1].toString().padStart(5),
+            fromNano(cost[2][2]).padStart(12),
+            toBytes(cost[3][0]),
+            cost[3][1].toString().padStart(5),
+            fromNano(cost[3][2]).padStart(12),
+            toBytes(cost[4][0]),
+            cost[4][1].toString().padStart(5),
+            fromNano(cost[4][2]).padStart(12),
+            toBytes(cost[5][0]),
+            cost[5][1].toString().padStart(5),
+            fromNano(cost[5][2]).padStart(12),
+        )
     }
 }
 
-export function logComputeGas(opLabel: string, opCode: number, tx: BlockchainTransaction) {
-    if (!bodyOp(opCode)(tx.inMessage?.body ?? Cell.EMPTY)) {
+export function storeComputeGas(opLabel: string, opCode: number, tx: BlockchainTransaction) {
+    if (!bodyOp(opCode)(tx.inMessage?.body ?? Cell.EMPTY) && !bodyOp(0)(tx.inMessage?.body ?? Cell.EMPTY)) {
         throw new Error('invalid transaction to log compute gas for op ' + opLabel)
     }
     const logs = tx.blockchainLogs
@@ -169,21 +203,43 @@ export function logComputeGas(opLabel: string, opCode: number, tx: BlockchainTra
     if (logs.lastIndexOf('used=') !== usedIndex) {
         throw new Error('unexpected second "used" field in calculating gas')
     }
+    if (gasUsed[opLabel] == null || gasUsed[opLabel] < usedGas) {
+        gasUsed[opLabel] = usedGas
+    }
+}
+
+function logGas(opLabel: string): string {
+    const used = gasUsed[opLabel]
+    gasUsed[opLabel] = -1n
+    if (used >= 0n) {
+        return '    const int gas::' + opLabel + ' = ' + used.toString() + ';'
+    } else {
+        return 'unknown gas: ' + opLabel
+    }
+}
+
+export function logComputeGas(opLabels: string[]) {
     if (!muteLogComputeGas) {
-        console.info('compute gas for   gas::%s:   used: %s', opLabel, usedGas.toString())
+        console.info('Compute Gas:\n' + opLabels.map(logGas).join('\n'))
+        for (const [key, value] of Object.entries(gasUsed)) {
+            if (value >= 0n) {
+                console.info('Unknown gas: ', key, value)
+            }
+        }
     }
 }
 
 export function logFees(fees: Fees) {
     if (!muteLogFees) {
         const logs = [
-            'send tokens:        ' + fromNano(fees.sendTokensFee),
-            'deposit coins:      ' + fromNano(fees.depositCoinsFee),
-            'unstake tokens:     ' + fromNano(fees.unstakeTokensFee),
-            'unstake all tokens: ' + fromNano(fees.unstakeAllTokensFee),
-            'request loan:       ' + fromNano(fees.requestLoanFee),
-            'loan storage:       ' + fromNano(fees.loanStorage),
-            'wallet storage:     ' + fromNano(fees.walletStorage),
+            'Fees:',
+            '    send tokens:        ' + fromNano(fees.sendTokensFee),
+            '    deposit coins:      ' + fromNano(fees.depositCoinsFee),
+            '    unstake tokens:     ' + fromNano(fees.unstakeTokensFee),
+            '    unstake all tokens: ' + fromNano(fees.unstakeAllTokensFee),
+            '    request loan:       ' + fromNano(fees.requestLoanFee),
+            '    loan storage:       ' + fromNano(fees.loanStorage),
+            '    wallet storage:     ' + fromNano(fees.walletStorage),
         ]
         console.info(logs.join('\n'))
     }

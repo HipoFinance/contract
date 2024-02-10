@@ -192,6 +192,10 @@ deposit_coins#40ef2953
     referrer:MsgAddress
         = InternalMsgBody;
 
+send_unstake_all_tokens#50c21339
+    query_id:uint64
+        = InternalMsgBody;
+
 reserve_tokens#6fcba7cd
     query_id:uint64
     tokens:Coins

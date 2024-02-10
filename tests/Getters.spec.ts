@@ -2,7 +2,7 @@ import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import '@ton/test-utils'
 import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core'
-import { bodyOp, createNewStakeMsg, createVset, getElector, logFees, setConfig } from './helper'
+import { bodyOp, createNewStakeMsg, createVset, getElector, logCodeCost, logFees, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
 import { Fees, Treasury, emptyDictionaryValue, participationDictionaryValue } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
@@ -10,6 +10,7 @@ import { Loan } from '../wrappers/Loan'
 import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-test/Elector'
 import { LibraryDeployer, buildBlockchainLibraries } from '../wrappers/LibraryDeployer'
 import { Parent } from '../wrappers/Parent'
+import { StorageCost } from '../wrappers/storage-cost/StorageCost'
 
 describe('Getters', () => {
     let electorCode: Cell
@@ -20,15 +21,19 @@ describe('Getters', () => {
     let billCode: Cell
     let loanCode: Cell
     let blockchainLibs: Cell
+    let mainWalletCode: Cell
+    let mainCollectionCode: Cell
+    let mainBillCode: Cell
+    let mainLoanCode: Cell
 
     beforeAll(async () => {
         electorCode = await compile('elector-test/Elector')
         treasuryCode = await compile('Treasury')
         parentCode = await compile('Parent')
-        const mainWalletCode = await compile('Wallet')
-        const mainCollectionCode = await compile('Collection')
-        const mainBillCode = await compile('Bill')
-        const mainLoanCode = await compile('Loan')
+        mainWalletCode = await compile('Wallet')
+        mainCollectionCode = await compile('Collection')
+        mainBillCode = await compile('Bill')
+        mainLoanCode = await compile('Loan')
         walletCode = LibraryDeployer.exportLibCode(mainWalletCode)
         collectionCode = LibraryDeployer.exportLibCode(mainCollectionCode)
         billCode = LibraryDeployer.exportLibCode(mainBillCode)
@@ -133,8 +138,22 @@ describe('Getters', () => {
         electorAddress = getElector(blockchain)
     })
 
-    it('should deploy treasury', () => {
-        return
+    it('should calculate code sizes', async () => {
+        const oneYear = 60 * 60 * 24 * 365
+        const deployer = await blockchain.treasury('deployer')
+        const storageCostCode = await compile('storage-cost/StorageCost')
+        const storageCost = blockchain.openContract(StorageCost.createFromConfig({}, storageCostCode))
+        await storageCost.sendDeploy(deployer.getSender(), { value: '0.1' })
+
+        const cost = await Promise.all([
+            storageCost.getStorageCost(false, oneYear, treasuryCode),
+            storageCost.getStorageCost(false, oneYear, parentCode),
+            storageCost.getStorageCost(true, oneYear, mainWalletCode),
+            storageCost.getStorageCost(true, oneYear, mainCollectionCode),
+            storageCost.getStorageCost(true, oneYear, mainBillCode),
+            storageCost.getStorageCost(true, oneYear, mainLoanCode),
+        ])
+        logCodeCost(cost)
     })
 
     it('should return max punishment value', async () => {

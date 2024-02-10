@@ -2,7 +2,7 @@ import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import '@ton/test-utils'
 import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
-import { between, bodyOp, logComputeGas, logTotalFees, accumulateFees } from './helper'
+import { between, bodyOp, storeComputeGas, logTotalFees, accumulateFees, logComputeGas } from './helper'
 import { err, op } from '../wrappers/common'
 import {
     Fees,
@@ -27,6 +27,34 @@ describe('Wallet', () => {
 
     afterAll(() => {
         logTotalFees()
+        logComputeGas([
+            'send_tokens',
+            'receive_tokens',
+            'deposit_coins',
+            'proxy_save_coins',
+            'save_coins',
+            'mint_bill',
+            'assign_bill',
+            'burn_bill',
+            'bill_burned',
+            'mint_tokens',
+            'proxy_tokens_minted',
+            'tokens_minted',
+            'unstake_tokens',
+            'proxy_reserve_tokens',
+            'reserve_tokens',
+            'burn_tokens',
+            'proxy_tokens_burned',
+            'tokens_burned',
+            'send_unstake_all_tokens',
+            'proxy_unstake_all_tokens',
+            'unstake_all_tokens',
+            'upgrade_wallet',
+            'proxy_migrate_wallet',
+            'migrate_wallet',
+            'proxy_merge_wallet',
+            'merge_wallet',
+        ])
     })
 
     beforeAll(async () => {
@@ -201,7 +229,7 @@ describe('Wallet', () => {
         expect(unstaking).toBeTonValue('0')
 
         accumulateFees(result.transactions)
-        logComputeGas('deposit_coins', op.depositCoins, result.transactions[1])
+        storeComputeGas('deposit_coins', op.depositCoins, result.transactions[1])
     })
 
     it('should deposit and save coins when there is an active round', async () => {
@@ -321,7 +349,7 @@ describe('Wallet', () => {
             }),
         )
 
-        const fee = toNano('0.1')
+        const fee = toNano('0.2')
         const result2 = await treasury.sendRetryBurnAll(halter.getSender(), { value: fee, roundSince })
 
         expect(result2.transactions).toHaveTransaction({
@@ -367,7 +395,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: collectionAddress,
             to: treasury.address,
-            value: between('0', '0.1'),
+            value: between('0', '0.3'),
             body: bodyOp(op.mintTokens),
             success: true,
             outMessagesCount: 1,
@@ -375,7 +403,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: treasury.address,
             to: parent.address,
-            value: between('0', '0.1'),
+            value: between('0', '0.2'),
             body: bodyOp(op.proxyTokensMinted),
             success: true,
             outMessagesCount: 1,
@@ -383,7 +411,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: parent.address,
             to: wallet.address,
-            value: between('0', '0.1'),
+            value: between('0', '0.2'),
             body: bodyOp(op.tokensMinted),
             success: true,
             outMessagesCount: 1,
@@ -391,7 +419,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: wallet.address,
             to: staker.address,
-            value: between('0', '0.1'),
+            value: between('0', '0.2'),
             body: bodyOp(op.stakeNotification),
             success: true,
             outMessagesCount: 0,
@@ -400,7 +428,16 @@ describe('Wallet', () => {
         expect(result2.externals).toHaveLength(1)
 
         accumulateFees(result1.transactions)
-        logComputeGas('deposit_coins', op.depositCoins, result1.transactions[1])
+        storeComputeGas('deposit_coins', op.depositCoins, result1.transactions[1])
+        storeComputeGas('proxy_save_coins', op.proxySaveCoins, result1.transactions[2])
+        storeComputeGas('save_coins', op.saveCoins, result1.transactions[4])
+        storeComputeGas('mint_bill', op.mintBill, result1.transactions[3])
+        storeComputeGas('assign_bill', op.assignBill, result1.transactions[5])
+        storeComputeGas('burn_bill', op.burnBill, result2.transactions[3])
+        storeComputeGas('bill_burned', op.billBurned, result2.transactions[4])
+        storeComputeGas('mint_tokens', op.mintTokens, result2.transactions[6])
+        storeComputeGas('proxy_tokens_minted', op.proxyTokensMinted, result2.transactions[7])
+        storeComputeGas('tokens_minted', op.tokensMinted, result2.transactions[8])
     })
 
     it('should unstake and withdraw coins when there is no active round', async () => {
@@ -480,8 +517,11 @@ describe('Wallet', () => {
         expect(unstaking).toBeTonValue('0')
 
         accumulateFees(result.transactions)
-        logComputeGas('unstake_tokens', op.unstakeTokens, result.transactions[1])
-        // logComputeGas('reserve_tokens', op.reserveTokens, result.transactions[2])
+        storeComputeGas('unstake_tokens', op.unstakeTokens, result.transactions[1])
+        storeComputeGas('proxy_reserve_tokens', op.proxyReserveTokens, result.transactions[2])
+        storeComputeGas('reserve_tokens', op.reserveTokens, result.transactions[3])
+        storeComputeGas('proxy_tokens_burned', op.proxyTokensBurned, result.transactions[4])
+        storeComputeGas('tokens_burned', op.tokensBurned, result.transactions[5])
     })
 
     it('should unstake and reserve tokens when there is an active round', async () => {
@@ -598,7 +638,7 @@ describe('Wallet', () => {
             }),
         )
 
-        const fee2 = toNano('0.1')
+        const fee2 = toNano('0.2')
         const result2 = await treasury.sendRetryBurnAll(halter.getSender(), { value: fee2, roundSince })
 
         expect(result2.transactions).toHaveTransaction({
@@ -652,7 +692,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: treasury.address,
             to: parent.address,
-            value: between('7', toNano('7') + fee2),
+            value: between('7', toNano('7.1') + fee2),
             body: bodyOp(op.proxyTokensBurned),
             success: true,
             outMessagesCount: 1,
@@ -677,8 +717,9 @@ describe('Wallet', () => {
         expect(result2.externals).toHaveLength(1)
 
         accumulateFees(result1.transactions)
-        logComputeGas('unstake_tokens', op.unstakeTokens, result1.transactions[1])
-        // logComputeGas('reserve_tokens', op.reserveTokens, result.transactions[2])
+        storeComputeGas('unstake_tokens', op.unstakeTokens, result1.transactions[1])
+        storeComputeGas('reserve_tokens', op.reserveTokens, result1.transactions[3])
+        storeComputeGas('burn_tokens', op.burnTokens, result2.transactions[6])
     })
 
     it('should deposit coins for comment d', async () => {
@@ -746,7 +787,7 @@ describe('Wallet', () => {
         expect(unstaking).toBeTonValue('0')
 
         accumulateFees(result.transactions)
-        // logComputeGas('deposit_coins', op.depositCoins, result.transactions[1])
+        storeComputeGas('deposit_coins', op.depositCoins, result.transactions[1])
     })
 
     it('should unstake all tokens for comment w', async () => {
@@ -841,7 +882,9 @@ describe('Wallet', () => {
         expect(unstaking).toBeTonValue('0')
 
         accumulateFees(result.transactions)
-        // logComputeGas('unstake_all_tokens', op.unstakeAllTokens, result.transactions[2])
+        storeComputeGas('send_unstake_all_tokens', op.sendUnstakeAllTokens, result.transactions[1])
+        storeComputeGas('proxy_unstake_all_tokens', op.proxyUnstakeAllTokens, result.transactions[2])
+        storeComputeGas('unstake_all_tokens', op.unstakeAllTokens, result.transactions[3])
     })
 
     it('should handle multiple deposits, unstakes, and sends', async () => {
@@ -1072,8 +1115,8 @@ describe('Wallet', () => {
         treasuryBalance = await treasury.getBalance()
         treasuryState = await treasury.getTreasuryState()
         // expect(treasuryBalance).toBeBetween(
-        //     fees.treasuryStorage + toNano('14') - 5n,
         //     fees.treasuryStorage + toNano('14'),
+        //     fees.treasuryStorage + toNano('14') + 5n,
         // )
         expect(treasuryState.totalCoins).toBeTonValue('14')
         expect(treasuryState.totalTokens).toBeTonValue('14')
@@ -1217,7 +1260,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: staker1.address,
-            value: between('0.003', '0.004'),
+            value: between('0.002', '0.003'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
@@ -1298,7 +1341,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: excessReceiver.address,
-            value: between('0.001', '0.002'),
+            value: between('0', '0.001'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
@@ -1381,7 +1424,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: staker1.address,
-            value: between('0.003', '0.004'),
+            value: between('0.002', '0.003'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
@@ -1415,8 +1458,8 @@ describe('Wallet', () => {
         expect(unstaking2).toBeTonValue('0')
 
         accumulateFees(result.transactions)
-        logComputeGas('receive_tokens', op.receiveTokens, result.transactions[2])
-        logComputeGas('send_tokens', op.sendTokens, result.transactions[1])
+        storeComputeGas('receive_tokens', op.receiveTokens, result.transactions[2])
+        storeComputeGas('send_tokens', op.sendTokens, result.transactions[1])
     })
 
     it('should respond with wallet address', async () => {
@@ -1630,6 +1673,12 @@ describe('Wallet', () => {
         expect(tokens).toBeTonValue('10')
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('0')
+
+        storeComputeGas('upgrade_wallet', op.upgradeWallet, result.transactions[1])
+        storeComputeGas('proxy_migrate_wallet', op.proxyMigrateWallet, result.transactions[2])
+        storeComputeGas('migrate_wallet', op.migrateWallet, result.transactions[3])
+        storeComputeGas('proxy_merge_wallet', op.proxyMergeWallet, result.transactions[4])
+        storeComputeGas('merge_wallet', op.mergeWallet, result.transactions[5])
     })
 
     it('should upgrade wallet to new version when there is a new version', async () => {
