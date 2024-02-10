@@ -122,9 +122,12 @@ cell my_code() asm "MYCODE";
 [int, cell] get_balance() asm "BALANCE";
 
 ;;; Returns the incoming value to the smart contract as a tuple consisting of an int
-;;; (balance in nanotoncoins) and a `cell`
+;;; (value in nanotoncoins) and a `cell`
 ;;; (a dictionary with 32-bit keys representing the incoming value of "extra currencies").
 [int, cell] get_incoming_value() asm "INCOMINGVALUE";
+
+;;; Returns value in nanotoncoins of storage phase fees.
+int get_storage_fees() asm "STORAGEFEES";
 
 ;;; Returns the logical time of the current transaction.
 int cur_lt() asm "LTIME";
