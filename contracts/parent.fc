@@ -307,7 +307,7 @@ global cell content;
     return ();
 }
 
-() recv_internal(int msg_ton, cell in_msg_full, slice s) impure {
+() recv_internal(cell in_msg_full, slice s) impure {
     load_data();
 
     slice cs = in_msg_full.begin_parse();

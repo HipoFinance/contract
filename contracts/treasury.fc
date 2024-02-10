@@ -178,14 +178,15 @@ builder pack_request
     return ( min_payment, validator_reward_share, loan_amount, accrue_amount, stake_amount, new_stake_msg );
 }
 
-() deposit_coins(int msg_ton, slice src, slice s) impure inline_ref {
+() deposit_coins(slice src, slice s) impure inline_ref {
     int query_id = s~load_uint(64);
     int ownership_assigned_amount = s~load_coins();
     s~load_msg_addr(); ;; only used to mark the referrer of this deposit on-chain
     s.end_parse();
 
     ( int total_fee, int proxy_save_coins_fee ) = deposit_coins_fee(ownership_assigned_amount);
-    int coins = msg_ton - total_fee;
+    int incoming_ton = get_incoming_value().pair_first();
+    int coins = incoming_ton - total_fee;
     ( int src_wc, _ ) = parse_std_addr(src);
 
     throw_unless(err::only_basechain_allowed, src_wc == chain::base);
@@ -257,7 +258,7 @@ builder pack_request
     save_data();
 }
 
-() reserve_tokens(int msg_ton, slice src, slice s) impure inline {
+() reserve_tokens(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int tokens = s~load_coins();
     slice owner = s~load_msg_addr();
@@ -281,8 +282,9 @@ builder pack_request
         coins = muldiv(tokens, total_coins, total_tokens);
     }
 
+    int incoming_ton = get_incoming_value().pair_first();
     int ton_balance = get_balance().pair_first();
-    int ton_balance_before_msg = ton_balance - msg_ton;
+    int ton_balance_before_msg = ton_balance - incoming_ton;
     int available_ton = ton_balance_before_msg - fee::treasury_storage - total_validators_stake;
 
     if available_ton >= coins {
@@ -352,7 +354,7 @@ builder pack_request
     save_data();
 }
 
-() mint_tokens(int msg_ton, slice src, slice s) impure inline {
+() mint_tokens(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -388,7 +390,7 @@ builder pack_request
     save_data();
 }
 
-() burn_tokens(int msg_ton, slice src, slice s) impure inline {
+() burn_tokens(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -408,8 +410,9 @@ builder pack_request
         coins = muldiv(tokens, total_coins, total_tokens);
     }
 
+    int incoming_ton = get_incoming_value().pair_first();
     int ton_balance = get_balance().pair_first();
-    int ton_balance_before_msg = ton_balance - msg_ton;
+    int ton_balance_before_msg = ton_balance - incoming_ton;
     int available_ton = ton_balance_before_msg - fee::treasury_storage - total_validators_stake;
 
     if available_ton < coins {
@@ -521,7 +524,7 @@ builder pack_request
         );
 }
 
-() request_loan(int msg_ton, slice src, slice s) impure inline {
+() request_loan(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     int loan_amount = s~load_coins();
@@ -565,7 +568,8 @@ builder pack_request
         }
     }
     ( int total_fee, _, _ ) = request_loan_fee();
-    int stake_amount = msg_ton - total_fee + old_stake_amount;
+    int incoming_ton = get_incoming_value().pair_first();
+    int stake_amount = incoming_ton - total_fee + old_stake_amount;
     total_validators_stake += stake_amount - old_stake_amount;
     int max_punishment = max_recommended_punishment_for_validator_misbehaviour(loan_amount + stake_amount);
     ( _, int participate_since, _, _, _, _ ) = get_times();
@@ -797,7 +801,7 @@ builder pack_request
     save_data();
 }
 
-() process_loan_requests(int msg_ton, slice src, slice s) impure inline {
+() process_loan_requests(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
@@ -823,6 +827,8 @@ builder pack_request
 
     throw_unless(err::access_denied, equal_slice_bits(src, my_address()));
 
+    int incoming_ton = get_incoming_value().pair_first();
+
     ;; todo: set it to 255 and in addition use GASCONSUMED
     int remain = 30 - 1; ;; keep the last one for continue message
 
@@ -843,7 +849,7 @@ builder pack_request
         total_staked += loan_amount + accrue_amount;
         staked~udict_set(256, validator_addr, request);
         total_validators_stake -= stake_amount;
-        msg_ton -= ton_amount;
+        incoming_ton -= ton_amount;
 
         builder body = begin_cell()
             .store_uint(op::proxy_new_stake, 32)
@@ -875,7 +881,7 @@ builder pack_request
             .store_uint(op::process_loan_requests, 32)
             .store_uint(query_id, 64)
             .store_uint(round_since, 32);
-        send_msg(false, my_address().to_builder(), null(), process, max(msg_ton, size * total_fee), send::regular);
+        send_msg(false, my_address().to_builder(), null(), process, max(incoming_ton, size * total_fee), send::regular);
     } else {
         state = participation::staked;
     }
@@ -986,7 +992,7 @@ builder pack_request
     save_data();
 }
 
-() recover_stakes(int msg_ton, slice src, slice s) impure inline {
+() recover_stakes(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
@@ -1014,6 +1020,8 @@ builder pack_request
 
     accept_message();
 
+    int incoming_ton = get_incoming_value().pair_first();
+
     ;; todo: set it to 255 and in addition use GASCONSUMED
     int remain = 80 - 1; ;; keep the last one for continue message
 
@@ -1037,7 +1045,7 @@ builder pack_request
             .store_uint(op::recover_stakes, 32)
             .store_uint(query_id, 64)
             .store_uint(round_since, 32);
-        send_msg(false, my_address().to_builder(), null(), continue, msg_ton, send::pay_gas_separately);
+        send_msg(false, my_address().to_builder(), null(), continue, incoming_ton, send::pay_gas_separately);
     }
 
     builder pb = pack_participation(
@@ -1049,7 +1057,7 @@ builder pack_request
     save_data();
 }
 
-() recover_stake_result(int msg_ton, slice src, slice s) impure inline {
+() recover_stake_result(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1103,7 +1111,8 @@ builder pack_request
 
             int fee = 0;
             int new_coins = 0;
-            int reward = msg_ton - loan_amount - accrue_amount - stake_amount;
+            int incoming_ton = get_incoming_value().pair_first();
+            int reward = incoming_ton - loan_amount - accrue_amount - stake_amount;
             if reward >= 0 {
                 int treasury_reward_share = 255 - validator_reward_share;
                 int treasury_reward = max(min_payment, muldiv(reward, treasury_reward_share, 255));
@@ -1124,11 +1133,13 @@ builder pack_request
                 fee = muldiv(treasury_reward, governance_fee, 65535);
                 new_coins = treasury_reward - fee;
                 total_coins += reward + compensation + new_coins;
-                reserve_amount = msg_ton - stake_amount + new_coins;
+                reserve_amount = incoming_ton - stake_amount + new_coins;
                 total_recovered += reserve_amount;
             }
 
-            log_repayment(round_since, msg_ton, loan_amount, accrue_amount, new_coins, fee, stake_amount, validator);
+            log_repayment(
+                round_since, incoming_ton, loan_amount, accrue_amount, new_coins, fee, stake_amount, validator
+            );
 
             if dict_empty?(rejected) & dict_empty?(accrued) & dict_empty?(staked) & dict_empty?(recovering) {
                 last_staked = total_staked;
@@ -1480,7 +1491,7 @@ int calculate_min_coins() inline_ref {
     return fee::treasury_storage + total_validators_stake + total_staking + total_coins;
 }
 
-() withdraw_surplus(int msg_ton, slice src, slice s) impure inline {
+() withdraw_surplus(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1594,7 +1605,7 @@ int calculate_min_coins() inline_ref {
     send_msg(false, destination.to_builder(), null(), proxy, 0, send::remaining_value);
 }
 
-() migrate_wallet(int msg_ton, slice src, slice s) impure inline {
+() migrate_wallet(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1628,7 +1639,7 @@ int calculate_min_coins() inline_ref {
     return ();
 }
 
-() recv_internal(int msg_ton, cell in_msg_full, slice s) impure {
+() recv_internal(cell in_msg_full, slice s) impure {
     load_data();
 
     slice cs = in_msg_full.begin_parse();
@@ -1649,7 +1660,7 @@ int calculate_min_coins() inline_ref {
             int c = s~load_uint(8);
             c |= 0x20; ;; convert to lowercase
             if c == "d"u {
-                return deposit_coins(msg_ton, src, "000000000000000002_"s);
+                return deposit_coins(src, "000000000000000002_"s);
             }
 
             if c == "w"u {
@@ -1661,7 +1672,7 @@ int calculate_min_coins() inline_ref {
     }
 
     if op == op::deposit_coins {
-        return deposit_coins(msg_ton, src, s);
+        return deposit_coins(src, s);
     }
 
     if op == op::send_unstake_all_tokens {
@@ -1669,15 +1680,15 @@ int calculate_min_coins() inline_ref {
     }
 
     if op == op::reserve_tokens {
-        return reserve_tokens(msg_ton, src, s);
+        return reserve_tokens(src, s);
     }
 
     if op == op::mint_tokens {
-        return mint_tokens(msg_ton, src, s);
+        return mint_tokens(src, s);
     }
 
     if op == op::burn_tokens {
-        return burn_tokens(msg_ton, src, s);
+        return burn_tokens(src, s);
     }
 
     if op == op::provide_current_quote {
@@ -1685,7 +1696,7 @@ int calculate_min_coins() inline_ref {
     }
 
     if op == op::request_loan {
-        return request_loan(msg_ton, src, s);
+        return request_loan(src, s);
     }
 
     if op == op::participate_in_election {
@@ -1697,7 +1708,7 @@ int calculate_min_coins() inline_ref {
     }
 
     if op == op::process_loan_requests {
-        return process_loan_requests(msg_ton, src, s);
+        return process_loan_requests(src, s);
     }
 
     if op == op::vset_changed {
@@ -1709,11 +1720,11 @@ int calculate_min_coins() inline_ref {
     }
 
     if op == op::recover_stakes {
-        return recover_stakes(msg_ton, src, s);
+        return recover_stakes(src, s);
     }
 
     if op == op::recover_stake_result {
-        return recover_stake_result(msg_ton, src, s);
+        return recover_stake_result(src, s);
     }
 
     if op == op::last_bill_burned {
@@ -1765,7 +1776,7 @@ int calculate_min_coins() inline_ref {
     }
 
     if op == op::withdraw_surplus {
-        return withdraw_surplus(msg_ton, src, s);
+        return withdraw_surplus(src, s);
     }
 
     if op == op::proxy_withdraw_surplus {
@@ -1785,7 +1796,7 @@ int calculate_min_coins() inline_ref {
     }
 
     if op == op::migrate_wallet {
-        return migrate_wallet(msg_ton, src, s);
+        return migrate_wallet(src, s);
     }
 
     if op == op::top_up {
