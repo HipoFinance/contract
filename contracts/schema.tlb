@@ -699,7 +699,6 @@ wallet_storage#_
     tokens:Coins
     staking:(HashmapE 32 Coins)
     unstaking:Coins
-    wallet_code:^Cell
         = WalletStorage;
 
 collection_storage#_

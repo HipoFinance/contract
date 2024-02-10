@@ -1424,7 +1424,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: staker1.address,
-            value: between('0.002', '0.003'),
+            value: between('0.001', '0.002'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,

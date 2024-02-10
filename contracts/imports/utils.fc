@@ -253,14 +253,13 @@ cell create_bill_data(int index, slice collection) inline {
         .end_cell();
 }
 
-cell create_wallet_data(builder owner, slice parent, cell wallet_code) inline {
+cell create_wallet_data(builder owner, slice parent) inline {
     return begin_cell()
         .store_builder(owner)
         .store_slice(parent)
         .store_coins(0) ;; tokens
         .store_dict(null()) ;; staking
         .store_coins(0) ;; unstaking
-        .store_ref(wallet_code)
         .end_cell();
 }
 
@@ -290,7 +289,7 @@ cell create_loan_data(slice treasury, builder validator, int round_since) inline
 }
 
 (builder, cell, int) create_wallet_address(builder owner, slice parent, cell wallet_code) inline_ref {
-    cell wallet_data = create_wallet_data(owner, parent, wallet_code);
+    cell wallet_data = create_wallet_data(owner, parent);
     cell state_init = create_state_init(wallet_code, wallet_data);
     int addr = state_init.cell_hash();
     builder wallet = create_address(chain::base, addr);
@@ -425,12 +424,12 @@ int parent_storage_fee() inline_ref {
     int cells = 1 + 1 + 11; ;; 1 (parent storage) + 1 (wallet_code) + 11 (content)
     int pps = bits * bit_price_ps + cells * cell_price_ps;
     int duration = 60 * 60 * 24 * 365 * 2; ;; 2 years in seconds
-    return pps * duration >> 16;
+    return pps * duration >> 16; ;;currently near 0.01 TON
 }
 
 int wallet_storage_fee() inline_ref {
     ( int bit_price_ps, int cell_price_ps, _, _ ) = get_storage_prices();
-    int bits = 267 + 267 + 124 + 264; ;; staking and unstaking amounts are short lived, and ignored here
+    int bits = 267 + 267 + 124; ;; staking and unstaking amounts are short lived, and ignored here
     int cells = 1 + 1;
     int pps = bits * bit_price_ps + cells * cell_price_ps;
     int duration = 60 * 60 * 24 * 365 * 2; ;; 2 years in seconds

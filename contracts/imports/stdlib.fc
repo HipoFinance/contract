@@ -111,6 +111,9 @@ int now() asm "NOW";
 ;;; If necessary, it can be parsed further using primitives such as [parse_std_addr].
 slice my_address() asm "MYADDR";
 
+;;; Returns the code of the current smart contract.
+cell my_code() asm "MYCODE";
+
 ;;; Returns the balance of the smart contract as a tuple consisting of an int
 ;;; (balance in nanotoncoins) and a `cell`
 ;;; (a dictionary with 32-bit keys representing the balance of "extra currencies")
@@ -337,7 +340,6 @@ cell preload_dict(slice s) asm "PLDDICT";
 
 ;;; Loads a dictionary as [load_dict], but returns only the remainder of the slice.
 slice skip_dict(slice s) asm "SKIPDICT";
-(slice, ()) ~skip_dict(slice s) asm "SKIPDICT";
 
 ;;; Loads (Maybe ^Cell) from `slice` [s].
 ;;; In other words loads 1 bit and if it is true

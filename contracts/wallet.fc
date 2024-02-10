@@ -5,7 +5,6 @@ global slice parent;
 global int tokens;
 global cell staking;
 global int unstaking;
-global cell wallet_code;
 
 () save_data() impure inline_ref {
     begin_cell()
@@ -14,7 +13,6 @@ global cell wallet_code;
         .store_coins(tokens)
         .store_dict(staking)
         .store_coins(unstaking)
-        .store_ref(wallet_code)
         .end_cell()
         .set_data();
 }
@@ -26,7 +24,6 @@ global cell wallet_code;
     tokens = ds~load_coins();
     staking = ds~load_dict();
     unstaking = ds~load_coins();
-    wallet_code = ds~load_ref();
     ds.end_parse();
 }
 
@@ -45,7 +42,7 @@ global cell wallet_code;
     }
 
     ( int recipient_wc, _ ) = parse_std_addr(recipient);
-    ( builder wallet, cell state_init, _ ) = create_wallet_address(recipient.to_builder(), parent, wallet_code);
+    ( builder wallet, cell state_init, _ ) = create_wallet_address(recipient.to_builder(), parent, my_code());
     int min_ton = send_tokens_fee(forward_ton_amount, s);
     int ton_balance = get_balance().pair_first();
 
@@ -78,7 +75,7 @@ global cell wallet_code;
     int forward_ton_amount = s~load_coins();
     slice forward_payload = s;
 
-    ( _, _, int wallet_addr ) = create_wallet_address(sender.to_builder(), parent, wallet_code);
+    ( _, _, int wallet_addr ) = create_wallet_address(sender.to_builder(), parent, my_code());
     ( int src_wc, int src_addr ) = parse_std_addr(src);
 
     throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == wallet_addr));
@@ -439,7 +436,7 @@ global cell wallet_code;
 (int, slice, slice, cell) get_wallet_data() method_id {
     load_data();
 
-    return ( tokens, owner, parent, wallet_code );
+    return ( tokens, owner, parent, my_code() );
 }
 
 (int, cell, int) get_wallet_state() method_id {
