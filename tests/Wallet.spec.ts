@@ -1660,7 +1660,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet.address,
             to: staker.address,
-            value: between('0', '0.1'),
+            value: between('0.001', '0.1'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
@@ -1771,7 +1771,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: staker.address,
-            value: between('0', '0.1'),
+            value: between('0.001', '0.1'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
@@ -1898,7 +1898,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: staker.address,
-            value: between('0', '0.1'),
+            value: between('0.001', '0.1'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,

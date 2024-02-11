@@ -436,6 +436,26 @@ int wallet_storage_fee() inline_ref {
     return pps * duration >> 16; ;; currently near 0.004 TON
 }
 
+int collection_storage_fee() inline_ref {
+    ( int bit_price_ps, int cell_price_ps, _, _ ) = get_storage_prices();
+    int bits = 267 + 32 + 64 + 264;
+    int cells = 1 + 1;
+    int pps = bits * bit_price_ps + cells * cell_price_ps;
+    ( int validators_elected_for, _, _, _ ) = get_election_config();
+    int duration = 2 * validators_elected_for;
+    return pps * duration >> 16; ;; currently near 0.000003 TON
+}
+
+int bill_storage_fee() inline_ref {
+    ( int bit_price_ps, int cell_price_ps, _, _ ) = get_storage_prices();
+    int bits = 64 + 267 + 267 + 267 + 1 + 124;
+    int cells = 1;
+    int pps = bits * bit_price_ps + cells * cell_price_ps;
+    ( int validators_elected_for, _, _, _ ) = get_election_config();
+    int duration = 2 * validators_elected_for;
+    return pps * duration >> 16; ;; currently near 0.000003 TON
+}
+
 (int, int) loan_storage_fee() inline_ref {
     ;; loan smart contract storage on main chain while validating
     ( int bit_price_ps, int cell_price_ps, int mc_bit_price_ps, int mc_cell_price_ps ) = get_storage_prices();
