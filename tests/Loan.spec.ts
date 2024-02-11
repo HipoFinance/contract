@@ -607,7 +607,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: treasury.address,
-            value: between('0.7', '0.8'),
+            value: between('0.6', '0.7'),
             body: bodyOp(op.recoverStakes),
             success: true,
             outMessagesCount: 2,
@@ -631,7 +631,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: loan2.address,
             to: electorAddress,
-            value: between('0.1', '0.2'),
+            value: between('1', '1.1'),
             body: bodyOp(op.recoverStake),
             success: true,
             outMessagesCount: 1,
@@ -639,7 +639,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: loan3.address,
             to: electorAddress,
-            value: between('0.1', '0.2'),
+            value: between('1', '1.1'),
             body: bodyOp(op.recoverStake),
             success: true,
             outMessagesCount: 1,
@@ -647,7 +647,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: electorAddress,
             to: loan2.address,
-            value: between('350260', '350261'),
+            value: between('350261', '350262'),
             body: bodyOp(op.recoverStakeOk),
             success: true,
             outMessagesCount: 1,
@@ -655,7 +655,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: electorAddress,
             to: loan3.address,
-            value: between('350270', '350271'),
+            value: between('350271', '350272'),
             body: bodyOp(op.recoverStakeOk),
             success: true,
             outMessagesCount: 1,
@@ -1086,7 +1086,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('12', '13')
+        expect(treasuryBalance).toBeBetween('11.9', '12')
         expect(treasuryState.totalCoins).toBeTonValue('0')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')

@@ -5,10 +5,10 @@ import { Address, Builder, Cell, Dictionary, beginCell, fromNano, toNano } from 
 import { mnemonicNew, mnemonicToPrivateKey, sign } from 'ton-crypto'
 import { Fees } from '../wrappers/Treasury'
 
-const muteLogComputeGas = true
-const muteLogTotalFees = true
-const muteLogCodeCost = true
-const muteLogFees = true
+const muteLogComputeGas = false
+const muteLogTotalFees = false
+const muteLogCodeCost = false
+const muteLogFees = false
 
 const gasUsed: Record<string, bigint> = {}
 

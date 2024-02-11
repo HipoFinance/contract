@@ -602,7 +602,7 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
 
     ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
     ( int mc_gas_price, _ ) = get_compute_prices(config::mc_gas_prices);
-    int computation_gas =
+    int compute_gas =
         gas::request_loan +
         gas::participate_in_election +
         gas::decide_loan_requests +
@@ -614,7 +614,7 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
         gas::recover_stake_result +
         gas::burn_all +
         gas::last_bill_burned;
-    int mc_computation_gas =
+    int mc_compute_gas =
         gas::proxy_new_stake +
         gas::new_stake + ;; beware, it's out of our control since it's in elector
         gas::new_stake_error +
@@ -622,7 +622,7 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
         gas::proxy_recover_stake +
         gas::recover_stake + ;; beware, it's out of our control since it's in elector
         gas::recover_stake_ok;
-    int computation_fee = (computation_gas * gas_price >> 16) + (mc_computation_gas * mc_gas_price >> 16);
+    int compute_fee = (compute_gas * gas_price >> 16) + (mc_compute_gas * mc_gas_price >> 16);
 
     ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
     ( int mc_lump_price, int mc_bit_price, int mc_cell_price ) = get_forward_prices(config::mc_fwd_prices);
@@ -651,7 +651,7 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
         s_fwd_fee + ;; burn_all
         s_fwd_fee; ;; last_bill_burned
 
-    int total = loan_storage_fee + request_storage_fee + computation_fee + forward_fee;
+    int total = loan_storage_fee + request_storage_fee + compute_fee + forward_fee;
 
     int proxy_mc_compute_gas =
         gas::proxy_new_stake +
@@ -666,7 +666,7 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
         mc_s_fwd_fee + ;; new_stake_error or new_stake_ok
         m_fwd_fee; ;; recover_stake_result
 
-    int proxy_new_stake_fee = loan_storage_fee + proxy_compute_fee + proxy_forward_fee;
+    int proxy_new_stake_fee = proxy_compute_fee + proxy_forward_fee;
 
     int recover_mc_compute_gas =
         gas::proxy_recover_stake +
@@ -680,7 +680,7 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
         mc_s_fwd_fee + ;; recover_stake_ok
         m_fwd_fee; ;; recover_stake_result
 
-    int recover_stake_fee = recover_compute_fee + recover_forward_fee;
+    int recover_stake_fee = loan_storage_fee + recover_compute_fee + recover_forward_fee;
 
     return ( total, proxy_new_stake_fee, recover_stake_fee );
 }

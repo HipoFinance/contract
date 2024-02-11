@@ -453,8 +453,8 @@ global int unstaking;
 
 (int, int, int) get_wallet_fees() method_id {
     ( int unstake_fee, _) = unstake_tokens_fee(0);
-    int balance = get_balance().pair_first();
     int storage_fee = wallet_storage_fee();
+    int balance = get_balance().pair_first();
     return
         ( unstake_fee
         , storage_fee

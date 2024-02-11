@@ -31,16 +31,13 @@ global int round_since;
 
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
-    ( int loan_storage, _ ) = loan_storage_fee();
-    raw_reserve(loan_storage, reserve::at_most);
-
     builder current_elector = create_address(get_elector());
 
-    builder body = begin_cell()
+    builder stake = begin_cell()
         .store_uint(op::new_stake, 32)
         .store_uint(query_id, 64)
         .store_slice(new_stake_msg.begin_parse());
-    send_msg(true, current_elector, null(), body, 0, send::unreserved_balance);
+    send_msg(true, current_elector, null(), stake, 0, send::unreserved_balance);
 
     save_data(current_elector);
 }
@@ -51,10 +48,10 @@ global int round_since;
 
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
-    builder body = begin_cell()
+    builder recover = begin_cell()
         .store_uint(op::recover_stake, 32)
         .store_uint(query_id, 64);
-    send_msg(true, elector.to_builder(), null(), body, 0, send::remaining_value);
+    send_msg(true, elector.to_builder(), null(), recover, 0, send::unreserved_balance);
 }
 
 () recover_stake_result(slice src, int op, slice s) impure inline_ref {
@@ -69,13 +66,13 @@ global int round_since;
 
     accept_message();
 
-    builder body = begin_cell()
+    builder result = begin_cell()
         .store_uint(op::recover_stake_result, 32)
         .store_uint(query_id, 64)
         .store_int(ok?, 1)
         .store_slice(validator)
         .store_uint(round_since, 32);
-    send_msg(false, treasury.to_builder(), null(), body, 0, send::unreserved_balance);
+    send_msg(false, treasury.to_builder(), null(), result, 0, send::unreserved_balance);
 }
 
 int src_is_elector?(slice src) inline {
