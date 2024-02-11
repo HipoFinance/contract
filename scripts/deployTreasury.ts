@@ -75,9 +75,6 @@ export async function run(provider: NetworkProvider) {
     await provider.waitForDeploy(treasury.address)
     await provider.waitForDeploy(parent.address)
 
-    const fees = await treasury.getFees()
-
-    await treasury.sendWithdrawSurplus(provider.sender(), { value: fees.treasuryStorage })
     await treasury.sendProxyWithdrawSurplus(provider.sender(), { value: toNano('1'), destination: parent.address })
 
     const treasuryAddress = treasury.address.toString({
@@ -94,6 +91,9 @@ export async function run(provider: NetworkProvider) {
     ui.clearActionPrompt()
     ui.write(`Address of treasury: ${treasuryAddress}`)
     ui.write(`Address of parent: ${parentAddress}`)
+    ui.write('')
+    ui.write(`Don't forget to top up treasury.`)
+    ui.write(`Use withdrawSurplus script.`)
 }
 
 const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())

@@ -169,9 +169,9 @@ describe('Loan', () => {
 
         fees = await treasury.getFees()
 
-        await treasury.sendWithdrawSurplus(governor.getSender(), { value: fees.treasuryStorage })
+        await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10' })
         const treasuryBalance = await treasury.getBalance()
-        expect(treasuryBalance).toBeTonValue(fees.treasuryStorage)
+        expect(treasuryBalance).toBeTonValue('10')
 
         electorAddress = getElector(blockchain)
     })

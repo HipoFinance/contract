@@ -131,9 +131,9 @@ describe('Getters', () => {
 
         fees = await treasury.getFees()
 
-        await treasury.sendWithdrawSurplus(governor.getSender(), { value: fees.treasuryStorage })
+        await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10' })
         const treasuryBalance = await treasury.getBalance()
-        expect(treasuryBalance).toBeTonValue(fees.treasuryStorage)
+        expect(treasuryBalance).toBeTonValue('10')
 
         electorAddress = getElector(blockchain)
     })
@@ -289,10 +289,8 @@ describe('Getters', () => {
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
 
-        const walletFees = await wallet.getWalletFees()
-        expect(walletFees.unstakeTokensFee).toEqual(fees.unstakeTokensFee)
-        expect(walletFees.storageFee).toEqual(fees.walletStorage)
-        expect(walletFees.tonBalance).toEqual(fees.walletStorage)
+        const unstakeFee = await wallet.getUnstakeFee(0n)
+        expect(unstakeFee).toEqual(fees.unstakeTokensFee)
 
         logFees(fees)
     })

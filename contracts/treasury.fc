@@ -1913,9 +1913,6 @@ var get_fees() method_id {
         , unstake_fee
         , unstake_all_fee
         , loan_fee
-        , loan_storage
-        , wallet_storage
-        , fee::treasury_storage
         );
 }
 

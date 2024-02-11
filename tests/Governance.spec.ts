@@ -136,9 +136,9 @@ describe('Governance', () => {
 
         fees = await treasury.getFees()
 
-        await treasury.sendWithdrawSurplus(governor.getSender(), { value: fees.treasuryStorage })
+        await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10' })
         const treasuryBalance = await treasury.getBalance()
-        expect(treasuryBalance).toBeTonValue(fees.treasuryStorage)
+        expect(treasuryBalance).toBeTonValue('10')
     })
 
     it('should propose governor', async () => {
@@ -351,7 +351,7 @@ describe('Governance', () => {
         expect(result4.transactions).toHaveTransaction({
             from: treasury.address,
             to: parent.address,
-            value: between(fees.walletStorage, fees.depositCoinsFee),
+            value: between('0', fees.depositCoinsFee),
             body: bodyOp(op.proxyTokensMinted),
             success: true,
             outMessagesCount: 1,
@@ -359,7 +359,7 @@ describe('Governance', () => {
         expect(result4.transactions).toHaveTransaction({
             from: parent.address,
             to: wallet.address,
-            value: between(fees.walletStorage, fees.depositCoinsFee),
+            value: between('0', fees.depositCoinsFee),
             body: bodyOp(op.tokensMinted),
             deploy: true,
             success: true,

@@ -4,7 +4,6 @@ import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
 import { bodyOp, createVset, emptyNewStakeMsg, logTotalFees, accumulateFees, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
 import {
-    Fees,
     Participation,
     ParticipationState,
     Treasury,
@@ -49,7 +48,6 @@ describe('Large', () => {
     let governor: SandboxContract<TreasuryContract>
     let treasury: SandboxContract<Treasury>
     let parent: SandboxContract<Parent>
-    let fees: Fees
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
@@ -131,11 +129,9 @@ describe('Large', () => {
         })
         expect(setParentResult.transactions).toHaveLength(3)
 
-        fees = await treasury.getFees()
-
-        await treasury.sendWithdrawSurplus(governor.getSender(), { value: fees.treasuryStorage })
+        await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10' })
         const treasuryBalance = await treasury.getBalance()
-        expect(treasuryBalance).toBeTonValue(fees.treasuryStorage)
+        expect(treasuryBalance).toBeTonValue('10')
     })
 
     it('should send a big batch of messages to recover stakes', async () => {

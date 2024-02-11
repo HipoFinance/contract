@@ -238,8 +238,6 @@ export function logFees(fees: Fees) {
             '    unstake tokens:     ' + fromNano(fees.unstakeTokensFee),
             '    unstake all tokens: ' + fromNano(fees.unstakeAllTokensFee),
             '    request loan:       ' + fromNano(fees.requestLoanFee),
-            '    loan storage:       ' + fromNano(fees.loanStorage),
-            '    wallet storage:     ' + fromNano(fees.walletStorage),
         ]
         console.info(logs.join('\n'))
     }

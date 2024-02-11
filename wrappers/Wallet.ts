@@ -9,6 +9,7 @@ import {
     Sender,
     SendMode,
     Slice,
+    TupleBuilder,
 } from '@ton/core'
 import { op, tonValue } from './common'
 
@@ -231,13 +232,11 @@ export class Wallet implements Contract {
         return [stack.readBigNumber(), toStakingDict(stack.readCellOpt()), stack.readBigNumber()]
     }
 
-    async getWalletFees(provider: ContractProvider): Promise<WalletFees> {
-        const { stack } = await provider.get('get_wallet_fees', [])
-        return {
-            unstakeTokensFee: stack.readBigNumber(),
-            storageFee: stack.readBigNumber(),
-            tonBalance: stack.readBigNumber(),
-        }
+    async getUnstakeFee(provider: ContractProvider, ownershipAssignedAmount: bigint): Promise<bigint> {
+        const tb = new TupleBuilder()
+        tb.writeNumber(ownershipAssignedAmount)
+        const { stack } = await provider.get('get_unstake_fee', tb.build())
+        return stack.readBigNumber()
     }
 
     async getBalance(provider: ContractProvider): Promise<bigint> {

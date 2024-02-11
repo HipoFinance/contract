@@ -432,8 +432,8 @@ int wallet_storage_fee() inline_ref {
     int bits = 267 + 267 + 124; ;; staking and unstaking amounts are short lived, and ignored here
     int cells = 1 + 1;
     int pps = bits * bit_price_ps + cells * cell_price_ps;
-    int duration = 60 * 60 * 24 * 365 * 2; ;; 2 years in seconds
-    return pps * duration >> 16; ;; currently near 0.002 TON
+    int duration = 60 * 60 * 24 * 365 * 5; ;; 5 years in seconds
+    return pps * duration >> 16; ;; currently near 0.004 TON
 }
 
 (int, int) loan_storage_fee() inline_ref {
@@ -729,8 +729,6 @@ int burn_bill_fee() {
 }
 
 int upgrade_wallet_fee() {
-    int storage_fee = wallet_storage_fee();
-
     ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
     int compute_gas =
         gas::upgrade_wallet +
@@ -750,5 +748,5 @@ int upgrade_wallet_fee() {
         m_fwd_fee + ;; proxy_merge_wallet
         l_fwd_fee; ;; merge_wallet
 
-    return storage_fee + compute_fee + forward_fee;
+    return compute_fee + forward_fee;
 }
