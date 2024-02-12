@@ -79,15 +79,15 @@ export interface TreasuryConfig {
     participations: Dictionary<bigint, Participation>
     roundsImbalance: bigint
     stopped: boolean
-    loanCode: Cell
+    loanCodes: Dictionary<bigint, Cell>
     lastStaked: bigint
     lastRecovered: bigint
     halter: Address
     governor: Address
     proposedGovernor: Cell | null
     governanceFee: bigint
-    collectionCode: Cell
-    billCode: Cell
+    collectionCodes: Dictionary<bigint, Cell>
+    billCodes: Dictionary<bigint, Cell>
     oldParents: Dictionary<bigint, unknown>
 }
 
@@ -99,8 +99,8 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeAddress(config.governor)
         .storeMaybeRef(config.proposedGovernor)
         .storeUint(config.governanceFee, 16)
-        .storeRef(config.collectionCode)
-        .storeRef(config.billCode)
+        .storeRef(beginCell().storeDictDirect(config.collectionCodes))
+        .storeRef(beginCell().storeDictDirect(config.billCodes))
         .storeDict(config.oldParents)
     return beginCell()
         .storeCoins(config.totalCoins)
@@ -112,7 +112,7 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeDict(config.participations)
         .storeUint(config.roundsImbalance, 8)
         .storeBit(config.stopped)
-        .storeRef(config.loanCode)
+        .storeRef(beginCell().storeDictDirect(config.loanCodes))
         .storeRef(treasuryExtension)
         .endCell()
 }
@@ -821,15 +821,19 @@ export class Treasury implements Contract {
             ),
             roundsImbalance: stack.readBigNumber(),
             stopped: stack.readBoolean(),
-            loanCode: stack.readCell(),
+            loanCodes: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell(), stack.readCell()),
             lastStaked: stack.readBigNumber(),
             lastRecovered: stack.readBigNumber(),
             halter: stack.readAddress(),
             governor: stack.readAddress(),
             proposedGovernor: stack.readCellOpt(),
             governanceFee: stack.readBigNumber(),
-            collectionCode: stack.readCell(),
-            billCode: stack.readCell(),
+            collectionCodes: Dictionary.loadDirect(
+                Dictionary.Keys.BigUint(32),
+                Dictionary.Values.Cell(),
+                stack.readCell(),
+            ),
+            billCodes: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell(), stack.readCell()),
             oldParents: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), emptyDictionaryValue, stack.readCellOpt()),
         }
     }

@@ -9,7 +9,7 @@ global slice parent;
 global cell participations;
 global int rounds_imbalance;
 global int stopped?;
-global cell loan_code;
+global cell loan_codes;
 global cell extension;
 
 global int last_staked;
@@ -18,8 +18,8 @@ global slice halter;
 global slice governor;
 global cell proposed_governor;
 global int governance_fee;
-global cell collection_code;
-global cell bill_code;
+global cell collection_codes;
+global cell bill_codes;
 global cell old_parents;
 
 () save_data() impure inline_ref {
@@ -33,7 +33,7 @@ global cell old_parents;
         .store_dict(participations)
         .store_uint(rounds_imbalance, 8)
         .store_int(stopped?, 1)
-        .store_ref(loan_code)
+        .store_ref(loan_codes)
         .store_ref(extension)
         .end_cell()
         .set_data();
@@ -50,7 +50,7 @@ global cell old_parents;
     participations = ds~load_dict();
     rounds_imbalance = ds~load_uint(8);
     stopped? = ds~load_int(1);
-    loan_code = ds~load_ref();
+    loan_codes = ds~load_ref();
     extension = ds~load_ref();
     ds.end_parse();
 }
@@ -63,8 +63,8 @@ global cell old_parents;
         .store_slice(governor)
         .store_maybe_ref(proposed_governor)
         .store_uint(governance_fee, 16)
-        .store_ref(collection_code)
-        .store_ref(bill_code)
+        .store_ref(collection_codes)
+        .store_ref(bill_codes)
         .store_dict(old_parents)
         .end_cell();
 }
@@ -77,8 +77,8 @@ global cell old_parents;
     governor = s~load_msg_addr();
     proposed_governor = s~load_maybe_ref();
     governance_fee = s~load_uint(16);
-    collection_code = s~load_ref();
-    bill_code = s~load_ref();
+    collection_codes = s~load_ref();
+    bill_codes = s~load_ref();
     old_parents = s~load_dict();
     s.end_parse();
 }
@@ -178,6 +178,13 @@ builder pack_request
     return ( min_payment, validator_reward_share, loan_amount, accrue_amount, stake_amount, new_stake_msg );
 }
 
+cell find_code(cell dict, int round_since) inline {
+    ( _, slice code_slice, _ ) = dict.udict_get_preveq?(32, round_since);
+    cell code = code_slice~load_ref();
+    code_slice.end_parse();
+    return code;
+}
+
 () deposit_coins(slice src, slice s) impure inline_ref {
     int query_id = s~load_uint(64);
     int ownership_assigned_amount = s~load_coins();
@@ -230,6 +237,9 @@ builder pack_request
         total_staking += coins;
 
         unpack_extension();
+
+        cell collection_code = collection_codes.find_code(round_since);
+        cell bill_code = bill_codes.find_code(round_since);
 
         ( builder collection
         , cell state_init
@@ -335,6 +345,9 @@ builder pack_request
 
         unpack_extension();
 
+        cell collection_code = collection_codes.find_code(round_since);
+        cell bill_code = bill_codes.find_code(round_since);
+
         ( builder collection
         , cell state_init
         , _
@@ -363,6 +376,9 @@ builder pack_request
     slice fixed_parent = s~load_msg_addr();
     int round_since = s~load_uint(32);
     s.end_parse();
+
+    cell collection_code = collection_codes.find_code(round_since);
+    cell bill_code = bill_codes.find_code(round_since);
 
     ( _, _, int collection_addr ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
     ( int src_wc, int src_addr ) = parse_std_addr(src);
@@ -399,6 +415,9 @@ builder pack_request
     slice fixed_parent = s~load_msg_addr();
     int round_since = s~load_uint(32);
     s.end_parse();
+
+    cell collection_code = collection_codes.find_code(round_since);
+    cell bill_code = bill_codes.find_code(round_since);
 
     ( _, _, int collection_addr ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
     ( int src_wc, int src_addr ) = parse_std_addr(src);
@@ -828,6 +847,8 @@ builder pack_request
 
     throw_unless(err::access_denied, equal_slice_bits(src, my_address()));
 
+    cell loan_code = loan_codes.find_code(round_since);
+
     int incoming_ton = get_incoming_value().pair_first();
 
     ( _, int gas_limit ) = get_compute_prices(config::gas_prices);
@@ -1020,9 +1041,11 @@ builder pack_request
 
     throw_unless(err::access_denied, equal_slice_bits(src, my_address()));
 
-    accept_message();
+    cell loan_code = loan_codes.find_code(round_since);
 
     int incoming_ton = get_incoming_value().pair_first();
+
+    accept_message();
 
     ( _, int gas_limit ) = get_compute_prices(config::gas_prices);
     int soft_gas_limit = muldiv(gas_limit, 8, 10);
@@ -1068,6 +1091,8 @@ builder pack_request
     slice validator = s~load_msg_addr();
     int round_since = s~load_uint(32);
     s.end_parse();
+
+    cell loan_code = loan_codes.find_code(round_since);
 
     ( _, _, int loan_addr ) = create_loan_address(my_address(), validator.to_builder(), round_since, loan_code);
     ( int src_wc, int src_addr ) = parse_std_addr(src);
@@ -1149,6 +1174,9 @@ builder pack_request
                 last_recovered = total_recovered;
                 state = participation::burning;
 
+                cell collection_code = collection_codes.find_code(round_since);
+                cell bill_code = bill_codes.find_code(round_since);
+
                 ( builder collection
                 , cell state_init
                 , _
@@ -1193,6 +1221,9 @@ builder pack_request
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
+
+    cell collection_code = collection_codes.find_code(round_since);
+    cell bill_code = bill_codes.find_code(round_since);
 
     ( _, _, int collection_addr ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
     ( int src_wc, int src_addr ) = parse_std_addr(src);
@@ -1356,6 +1387,8 @@ builder pack_request
     cell message = s~load_ref();
     s.end_parse();
 
+    cell loan_code = loan_codes.find_code(round_since);
+
     ( builder loan, _, _ ) = create_loan_address(my_address(), validator.to_builder(), round_since, loan_code);
     int vset_hash = -1;
     int stake_held_until = 0;
@@ -1412,6 +1445,9 @@ builder pack_request
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
     throw_unless(err::not_ready_to_burn_all, state == participation::burning);
+
+    cell collection_code = collection_codes.find_code(round_since);
+    cell bill_code = bill_codes.find_code(round_since);
 
     ( builder collection, _, _ ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
 
@@ -1872,15 +1908,15 @@ var get_treasury_state() method_id {
         , participations
         , rounds_imbalance
         , stopped?
-        , loan_code
+        , loan_codes
         , last_staked
         , last_recovered
         , halter
         , governor
         , proposed_governor
         , governance_fee
-        , collection_code
-        , bill_code
+        , collection_codes
+        , bill_codes
         , old_parents
         );
 }
@@ -1896,6 +1932,9 @@ slice get_collection_address(int round_since) method_id {
     load_data();
     unpack_extension();
 
+    cell collection_code = collection_codes.find_code(round_since);
+    cell bill_code = bill_codes.find_code(round_since);
+
     ( builder collection, _, _ ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
 
     return collection.end_cell().begin_parse();
@@ -1904,6 +1943,9 @@ slice get_collection_address(int round_since) method_id {
 slice get_bill_address(int round_since, int index) method_id {
     load_data();
     unpack_extension();
+
+    cell collection_code = collection_codes.find_code(round_since);
+    cell bill_code = bill_codes.find_code(round_since);
 
     ( builder collection, _, _ ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
     ( builder bill, _, _ ) = create_bill_address(index, collection.end_cell().begin_parse(), bill_code);
@@ -1917,6 +1959,8 @@ slice get_loan_address(slice validator, int round_since) method_id {
     ( int validator_wc, _ ) = parse_std_addr(validator);
 
     throw_unless(err::only_basechain_allowed, validator_wc == chain::base);
+
+    cell loan_code = loan_codes.find_code(round_since);
 
     ( builder loan, _, _ ) = create_loan_address(my_address(), validator.to_builder(), round_since, loan_code);
 

@@ -684,8 +684,8 @@ extension#_
     governor:MsgAddress
     proposed_governor:(Maybe ^ProposedGovernor)
     governance_fee:uint16
-    collection_code:^Cell
-    bill_code:^Cell
+    collection_codes:(Hashmap 32 ^Cell)
+    bill_codes:(Hashmap 32 ^Cell)
     old_parents:(HashmapE 256 True)
         = Extension;
 
@@ -699,7 +699,7 @@ treasury_storage#_
     participations:(HashmapE 32 Participation)
     rounds_imbalance:uint8
     stopped:Bool
-    loan_code:^Cell
+    loan_codes:(Hashmap 32 ^Cell)
     extension:^Extension
         = TreasuryStorage;
 

@@ -68,15 +68,24 @@ describe('Getters', () => {
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                     roundsImbalance: 255n,
                     stopped: false,
-                    loanCode,
+                    loanCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
+                        0n,
+                        loanCode,
+                    ),
                     lastStaked: 0n,
                     lastRecovered: 0n,
                     halter: halter.address,
                     governor: governor.address,
                     proposedGovernor: null,
                     governanceFee: 4096n,
-                    collectionCode,
-                    billCode,
+                    collectionCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
+                        0n,
+                        collectionCode,
+                    ),
+                    billCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
+                        0n,
+                        billCode,
+                    ),
                     oldParents: Dictionary.empty(Dictionary.Keys.BigUint(256), emptyDictionaryValue),
                 },
                 treasuryCode,
@@ -260,17 +269,17 @@ describe('Getters', () => {
         expect(treasuryState.participations.keys()).toHaveLength(0)
         expect(treasuryState.roundsImbalance).toEqual(255n)
         expect(treasuryState.stopped).toEqual(false)
-        expect(treasuryState.loanCode.toBoc().toString('base64')).toEqual(loanCode.toBoc().toString('base64'))
+        expect(treasuryState.loanCodes.get(0n)?.toBoc().toString('base64')).toEqual(loanCode.toBoc().toString('base64'))
         expect(treasuryState.lastStaked).toBeTonValue('0')
         expect(treasuryState.lastRecovered).toBeTonValue('0')
         expect(treasuryState.halter.toString()).toEqual(halter.address.toString())
         expect(treasuryState.governor.toString()).toEqual(governor.address.toString())
         expect(treasuryState.proposedGovernor).toEqual(null)
         expect(treasuryState.governanceFee).toEqual(4096n)
-        expect(treasuryState.collectionCode.toBoc().toString('base64')).toEqual(
+        expect(treasuryState.collectionCodes.get(0n)?.toBoc().toString('base64')).toEqual(
             collectionCode.toBoc().toString('base64'),
         )
-        expect(treasuryState.billCode.toBoc().toString('base64')).toEqual(billCode.toBoc().toString('base64'))
+        expect(treasuryState.billCodes.get(0n)?.toBoc().toString('base64')).toEqual(billCode.toBoc().toString('base64'))
         expect(treasuryState.oldParents.size).toEqual(0)
     })
 
