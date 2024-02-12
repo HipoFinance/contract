@@ -372,6 +372,13 @@ migrate_wallet#325aacfa
     owner:MsgAddress
         = InternalMsgBody;
 
+proxy_set_library#0046ae45
+    query_id:uint64
+    destination:MsgAddress
+    mode:uint256
+    code:^Cell
+        = InternalMsgBody;
+
 top_up#5372158c
     query_id:uint64
         = InternalMsgBody;
@@ -584,6 +591,16 @@ withdrawal_notification#f0fa223b
         = InternalMsgBody;
 
 //
+// Librarian Ops
+//
+
+set_library#354dfc8f
+    query_id:uint64
+    mode:uint256
+    code:^Cell
+        = InternalMsgBody;
+
+//
 // Logs
 //
 
@@ -723,3 +740,7 @@ loan_storage#_
     validator:MsgAddress
     round_since:uint32
         = LoanStorage;
+
+librarian_storage#_
+    treasury:MsgAddress
+        = LibrarianStorage;

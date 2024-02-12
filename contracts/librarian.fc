@@ -1,0 +1,65 @@
+#include "imports/utils.fc";
+
+global slice treasury;
+
+() set_lib_code(cell code, int mode) impure asm "SETLIBCODE";
+
+() load_data() impure inline {
+    slice ds = get_data().begin_parse();
+    treasury = ds~load_msg_addr();
+    ds.end_parse();
+}
+
+() set_library(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    int mode = s~load_uint(256);
+    cell code = s~load_ref();
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, treasury));
+
+    set_lib_code(code, mode);
+}
+
+() withdraw_surplus(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    slice return_excess = s~load_msg_addr();
+    s.end_parse();
+
+    ifnot return_excess.preload_uint(2) {
+        return_excess = src;
+    }
+
+    throw_unless(err::access_denied, equal_slice_bits(src, treasury));
+
+    raw_reserve(fee::librarian_storage, reserve::at_most);
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, return_excess.to_builder(), null(), excess, 0, send::unreserved_balance + send::ignore_errors);
+}
+
+() recv_internal(cell in_msg_full, slice s) impure {
+    load_data();
+
+    slice cs = in_msg_full.begin_parse();
+    cs~skip_bits(4);
+    slice src = cs~load_msg_addr();
+
+    int op = s~load_uint(32);
+
+    if op == op::set_library {
+        return set_library(src, s);
+    }
+
+    if op == op::withdraw_surplus {
+        return withdraw_surplus(src, s);
+    }
+
+    if op == op::top_up {
+        return (); ;; top up TON balance, do nothing
+    }
+
+    throw(err::invalid_op);
+}

@@ -5,10 +5,10 @@ import { Address, Builder, Cell, Dictionary, beginCell, fromNano, toNano } from 
 import { mnemonicNew, mnemonicToPrivateKey, sign } from 'ton-crypto'
 import { Fees } from '../wrappers/Treasury'
 
-const muteLogComputeGas = false
-const muteLogTotalFees = false
-const muteLogCodeCost = false
-const muteLogFees = false
+const muteLogComputeGas = true
+const muteLogTotalFees = true
+const muteLogCodeCost = true
+const muteLogFees = true
 
 const gasUsed: Record<string, bigint> = {}
 
@@ -169,6 +169,7 @@ export function logCodeCost(cost: [bigint, bigint, bigint][]) {
                 '    Collection | %s | %s | %s',
                 '    Bill       | %s | %s | %s',
                 '    Loan       | %s | %s | %s',
+                '    Librarian  | %s | %s | %s',
             ].join('\n'),
             toBytes(cost[0][0]),
             cost[0][1].toString().padStart(5),
@@ -188,6 +189,9 @@ export function logCodeCost(cost: [bigint, bigint, bigint][]) {
             toBytes(cost[5][0]),
             cost[5][1].toString().padStart(5),
             fromNano(cost[5][2]).padStart(12),
+            toBytes(cost[6][0]),
+            cost[6][1].toString().padStart(5),
+            fromNano(cost[6][2]).padStart(12),
         )
     }
 }

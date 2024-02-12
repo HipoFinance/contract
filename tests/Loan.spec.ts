@@ -28,8 +28,8 @@ import {
     treasuryConfigToCell,
 } from '../wrappers/Treasury'
 import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-test/Elector'
-import { LibraryDeployer, buildBlockchainLibraries } from '../wrappers/LibraryDeployer'
 import { Parent } from '../wrappers/Parent'
+import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
 
 describe('Loan', () => {
     let electorCode: Cell
@@ -72,10 +72,10 @@ describe('Loan', () => {
         const mainCollectionCode = await compile('Collection')
         const mainBillCode = await compile('Bill')
         const mainLoanCode = await compile('Loan')
-        walletCode = LibraryDeployer.exportLibCode(mainWalletCode)
-        collectionCode = LibraryDeployer.exportLibCode(mainCollectionCode)
-        billCode = LibraryDeployer.exportLibCode(mainBillCode)
-        loanCode = LibraryDeployer.exportLibCode(mainLoanCode)
+        walletCode = exportLibCode(mainWalletCode)
+        collectionCode = exportLibCode(mainCollectionCode)
+        billCode = exportLibCode(mainBillCode)
+        loanCode = exportLibCode(mainLoanCode)
         blockchainLibs = buildBlockchainLibraries([mainWalletCode, mainCollectionCode, mainBillCode, mainLoanCode])
     })
 

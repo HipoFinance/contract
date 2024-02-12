@@ -1,9 +1,9 @@
-import { beginCell, Cell, Dictionary, toNano } from '@ton/core'
+import { beginCell, Cell, Dictionary } from '@ton/core'
 import { emptyDictionaryValue, participationDictionaryValue, Treasury } from '../wrappers/Treasury'
 import { compile, NetworkProvider } from '@ton/blueprint'
 import { sha256_sync } from 'ton-crypto'
-import { LibraryDeployer } from '../wrappers/LibraryDeployer'
 import { Parent } from '../wrappers/Parent'
+import { exportLibCode, Librarian } from '../wrappers/Librarian'
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
@@ -19,10 +19,11 @@ export async function run(provider: NetworkProvider) {
     const mainCollectionCode = await compile('Collection')
     const mainBillCode = await compile('Bill')
     const mainLoanCode = await compile('Loan')
-    const walletCode = LibraryDeployer.exportLibCode(mainWalletCode)
-    const collectionCode = LibraryDeployer.exportLibCode(mainCollectionCode)
-    const billCode = LibraryDeployer.exportLibCode(mainBillCode)
-    const loanCode = LibraryDeployer.exportLibCode(mainLoanCode)
+    const librarianCode = await compile('Librarian')
+    const walletCode = exportLibCode(mainWalletCode)
+    const collectionCode = exportLibCode(mainCollectionCode)
+    const billCode = exportLibCode(mainBillCode)
+    const loanCode = exportLibCode(mainLoanCode)
 
     const treasury = provider.open(
         Treasury.createFromConfig(
@@ -63,37 +64,65 @@ export async function run(provider: NetworkProvider) {
         ),
     )
 
-    const confirm = await ui.input('\n\nDeploy treasury and parent? [yN]')
+    const librarian = provider.open(
+        Librarian.createFromConfig(
+            {
+                treasury: treasury.address,
+            },
+            librarianCode,
+        ),
+    )
+
+    const confirm = await ui.input('\n\nDeploy treasury, parent, wallet, collection, bill, and librarian? [yN]')
     if (confirm.toLowerCase() !== 'y') {
         return
     }
 
-    await treasury.sendDeploy(provider.sender(), { value: toNano('0.1') })
-    await parent.sendDeploy(provider.sender(), { value: toNano('0.1') })
-    await treasury.sendSetParent(provider.sender(), { value: toNano('0.1'), newParent: parent.address })
+    await treasury.sendDeploy(provider.sender(), { value: '0.1' })
+    await parent.sendDeploy(provider.sender(), { value: '0.1' })
+    await librarian.sendDeploy(provider.sender(), { value: '0.1' })
 
     await provider.waitForDeploy(treasury.address)
     await provider.waitForDeploy(parent.address)
+    await provider.waitForDeploy(librarian.address)
 
-    await treasury.sendProxyWithdrawSurplus(provider.sender(), { value: toNano('1'), destination: parent.address })
+    await treasury.sendSetParent(provider.sender(), { value: '0.1', newParent: parent.address })
+    await treasury.sendProxySetLibrary(provider.sender(), {
+        value: '0.1',
+        destination: librarian.address,
+        mode: 2n,
+        code: mainWalletCode,
+    })
+    await treasury.sendProxySetLibrary(provider.sender(), {
+        value: '0.1',
+        destination: librarian.address,
+        mode: 2n,
+        code: mainCollectionCode,
+    })
+    await treasury.sendProxySetLibrary(provider.sender(), {
+        value: '0.1',
+        destination: librarian.address,
+        mode: 2n,
+        code: mainBillCode,
+    })
+    await treasury.sendProxySetLibrary(provider.sender(), {
+        value: '0.1',
+        destination: librarian.address,
+        mode: 2n,
+        code: mainLoanCode,
+    })
 
-    const treasuryAddress = treasury.address.toString({
-        bounceable: true,
-        urlSafe: true,
-        testOnly: provider.network() !== 'mainnet',
-    })
-    const parentAddress = parent.address.toString({
-        bounceable: true,
-        urlSafe: true,
-        testOnly: provider.network() !== 'mainnet',
-    })
+    const testOnly = provider.network() !== 'mainnet'
+    const treasuryAddress = treasury.address.toString({ bounceable: true, urlSafe: true, testOnly })
+    const parentAddress = parent.address.toString({ bounceable: true, urlSafe: true, testOnly })
+    const librarianAddress = librarian.address.toString({ bounceable: true, urlSafe: true, testOnly })
 
     ui.clearActionPrompt()
     ui.write(`Address of treasury: ${treasuryAddress}`)
     ui.write(`Address of parent: ${parentAddress}`)
+    ui.write(`Address of librarian: ${librarianAddress}`)
     ui.write('')
-    ui.write(`Don't forget to top up treasury.`)
-    ui.write(`Use withdrawSurplus script.`)
+    ui.write(`Don't forget to top up treasury and librarian.`)
 }
 
 const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())

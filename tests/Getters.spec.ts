@@ -8,9 +8,9 @@ import { Fees, Treasury, emptyDictionaryValue, participationDictionaryValue } fr
 import { Wallet } from '../wrappers/Wallet'
 import { Loan } from '../wrappers/Loan'
 import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-test/Elector'
-import { LibraryDeployer, buildBlockchainLibraries } from '../wrappers/LibraryDeployer'
 import { Parent } from '../wrappers/Parent'
 import { StorageCost } from '../wrappers/storage-cost/StorageCost'
+import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
 
 describe('Getters', () => {
     let electorCode: Cell
@@ -21,6 +21,7 @@ describe('Getters', () => {
     let billCode: Cell
     let loanCode: Cell
     let blockchainLibs: Cell
+    let librarianCode: Cell
     let mainWalletCode: Cell
     let mainCollectionCode: Cell
     let mainBillCode: Cell
@@ -34,10 +35,11 @@ describe('Getters', () => {
         mainCollectionCode = await compile('Collection')
         mainBillCode = await compile('Bill')
         mainLoanCode = await compile('Loan')
-        walletCode = LibraryDeployer.exportLibCode(mainWalletCode)
-        collectionCode = LibraryDeployer.exportLibCode(mainCollectionCode)
-        billCode = LibraryDeployer.exportLibCode(mainBillCode)
-        loanCode = LibraryDeployer.exportLibCode(mainLoanCode)
+        librarianCode = await compile('Librarian')
+        walletCode = exportLibCode(mainWalletCode)
+        collectionCode = exportLibCode(mainCollectionCode)
+        billCode = exportLibCode(mainBillCode)
+        loanCode = exportLibCode(mainLoanCode)
         blockchainLibs = buildBlockchainLibraries([mainWalletCode, mainCollectionCode, mainBillCode, mainLoanCode])
     })
 
@@ -152,6 +154,7 @@ describe('Getters', () => {
             storageCost.getStorageCost(true, oneYear, mainCollectionCode),
             storageCost.getStorageCost(true, oneYear, mainBillCode),
             storageCost.getStorageCost(true, oneYear, mainLoanCode),
+            storageCost.getStorageCost(true, oneYear, librarianCode),
         ])
         logCodeCost(cost)
     })

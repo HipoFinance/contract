@@ -13,8 +13,8 @@ import {
     sortedDictionaryValue,
     treasuryConfigToCell,
 } from '../wrappers/Treasury'
-import { LibraryDeployer, buildBlockchainLibraries } from '../wrappers/LibraryDeployer'
 import { Parent } from '../wrappers/Parent'
+import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
 
 describe('Large', () => {
     let treasuryCode: Cell
@@ -36,10 +36,10 @@ describe('Large', () => {
         const mainCollectionCode = await compile('Collection')
         const mainBillCode = await compile('Bill')
         const mainLoanCode = await compile('Loan')
-        walletCode = LibraryDeployer.exportLibCode(mainWalletCode)
-        collectionCode = LibraryDeployer.exportLibCode(mainCollectionCode)
-        billCode = LibraryDeployer.exportLibCode(mainBillCode)
-        loanCode = LibraryDeployer.exportLibCode(mainLoanCode)
+        walletCode = exportLibCode(mainWalletCode)
+        collectionCode = exportLibCode(mainCollectionCode)
+        billCode = exportLibCode(mainBillCode)
+        loanCode = exportLibCode(mainLoanCode)
         blockchainLibs = buildBlockchainLibraries([mainWalletCode, mainCollectionCode, mainBillCode, mainLoanCode])
     })
 

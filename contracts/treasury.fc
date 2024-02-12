@@ -1516,6 +1516,8 @@ int calculate_min_coins() inline_ref {
 }
 
 () proxy_withdraw_surplus(slice src, slice s) impure inline {
+    unpack_extension();
+
     int query_id = s~load_uint(64);
     slice destination = s~load_msg_addr();
     s.end_parse();
@@ -1631,6 +1633,25 @@ int calculate_min_coins() inline_ref {
         .store_coins(tokens)
         .store_slice(owner);
     send_msg(false, destination.to_builder(), null(), merge, 0, send::remaining_value);
+}
+
+() proxy_set_library(slice src, slice s) impure inline {
+    unpack_extension();
+
+    int query_id = s~load_uint(64);
+    slice destination = s~load_msg_addr();
+    int mode = s~load_uint(256);
+    cell code = s~load_ref();
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
+
+    builder library = begin_cell()
+        .store_uint(op::set_library, 32)
+        .store_uint(query_id, 64)
+        .store_uint(mode, 256)
+        .store_ref(code);
+    send_msg(false, destination.to_builder(), null(), library, 0, send::remaining_value);
 }
 
 () on_bounce(slice src, slice s) impure inline {
@@ -1800,6 +1821,10 @@ int calculate_min_coins() inline_ref {
 
     if op == op::migrate_wallet {
         return migrate_wallet(src, s);
+    }
+
+    if op == op::proxy_set_library {
+        return proxy_set_library(src, s);
     }
 
     if op == op::top_up {

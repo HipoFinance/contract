@@ -5,7 +5,7 @@ GID=$(shell id -g)
 
 GRAPHVIZ_DOCKER_IMG=contract/graphviz:latest
 
-graphs:
+graphs: clean
 	@docker run --rm --user $(UID):$(GID) -v $(PWD)/graphs:/data $(GRAPHVIZ_DOCKER_IMG)
 
 build_graphviz:
