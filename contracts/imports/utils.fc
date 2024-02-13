@@ -603,14 +603,13 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
     int total = compute_fee + forward_fee + ownership_assigned_amount;
 
     int unstake_all_compute_gas =
-        gas::send_unstake_all_tokens +
-        gas::proxy_unstake_all_tokens +
-        gas::unstake_all_tokens - gas::unstake_tokens;
+        gas::send_unstake_tokens +
+        gas::proxy_unstake_tokens;
     int unstake_all_compute_fee = unstake_all_compute_gas * gas_price >> 16;
 
     int unstake_all_forward_fee =
-        m_fwd_fee + ;; proxy_unstake_all_tokens
-        s_fwd_fee ; ;; unstake_all_tokens
+        m_fwd_fee + ;; proxy_unstake_tokens
+        s_fwd_fee ; ;; unstake_tokens
 
     int unstake_all = unstake_all_compute_fee + compute_fee + unstake_all_forward_fee + forward_fee;
 

@@ -494,7 +494,7 @@ cell find_code(cell dict, int round_since) inline {
     save_data();
 }
 
-() send_unstake_all_tokens(slice src, slice s) impure inline {
+() send_unstake_tokens(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     s.end_parse();
 
@@ -503,7 +503,7 @@ cell find_code(cell dict, int round_since) inline {
     throw_unless(err::only_basechain_allowed, src_wc == chain::base);
 
     builder unstake = begin_cell()
-        .store_uint(op::proxy_unstake_all_tokens, 32)
+        .store_uint(op::proxy_unstake_tokens, 32)
         .store_uint(query_id, 64)
         .store_slice(src);
     send_msg(false, parent.to_builder(), null(), unstake, 0, send::remaining_value);
@@ -1724,7 +1724,7 @@ int calculate_min_coins() inline_ref {
             }
 
             if c == "w"u {
-                return send_unstake_all_tokens(src, "0000000000000000"s);
+                return send_unstake_tokens(src, "0000000000000000"s);
             }
         }
 
@@ -1735,8 +1735,8 @@ int calculate_min_coins() inline_ref {
         return deposit_coins(src, s);
     }
 
-    if op == op::send_unstake_all_tokens {
-        return send_unstake_all_tokens(src, s);
+    if op == op::send_unstake_tokens {
+        return send_unstake_tokens(src, s);
     }
 
     if op == op::reserve_tokens {

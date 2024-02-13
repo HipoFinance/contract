@@ -135,9 +135,14 @@ export class Wallet implements Contract {
             sendMode?: SendMode
             queryId?: bigint
             tokens: bigint | string
+            returnExcess?: Address
             ownershipAssignedAmount?: bigint
         },
     ) {
+        let customPayload: Cell | null = null
+        if (opts.ownershipAssignedAmount != null) {
+            customPayload = beginCell().storeCoins(opts.ownershipAssignedAmount).endCell()
+        }
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
@@ -146,7 +151,8 @@ export class Wallet implements Contract {
                 .storeUint(op.unstakeTokens, 32)
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeCoins(tonValue(opts.tokens))
-                .storeCoins(opts.ownershipAssignedAmount ?? 0n)
+                .storeAddress(opts.returnExcess)
+                .storeMaybeRef(customPayload)
                 .endCell(),
         })
     }

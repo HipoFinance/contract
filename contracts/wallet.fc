@@ -154,14 +154,27 @@ global int unstaking;
 () unstake_tokens(slice src, slice s) impure inline_ref {
     int query_id = s~load_uint(64);
     int amount = s~load_coins();
-    int ownership_assigned_amount = s~load_coins();
+    slice return_excess = s~load_msg_addr();
+    cell custom_payload = s~load_maybe_ref();
     s.end_parse();
+
+    ifnot amount {
+        amount = tokens;
+    }
+
+    int ownership_assigned_amount = 0;
+    ifnot custom_payload.null?() {
+        slice ss = custom_payload.begin_parse();
+        ownership_assigned_amount = ss~load_coins();
+        ss.end_parse();
+    }
 
     ( int unstake_fee, _ ) = unstake_tokens_fee(ownership_assigned_amount);
     int ton_balance = get_balance().pair_first();
     int enough_fee? = ton_balance >= unstake_fee;
+    int acceptable? = equal_slice_bits(return_excess, owner) | (return_excess.preload_uint(2) == 0);
 
-    throw_unless(err::access_denied, equal_slice_bits(src, owner));
+    throw_unless(err::access_denied, acceptable? & (equal_slice_bits(src, owner) | equal_slice_bits(src, parent)));
     throw_unless(err::insufficient_fee, enough_fee?);
     throw_unless(err::insufficient_funds, (amount > 0) & (amount <= tokens));
 
@@ -177,27 +190,6 @@ global int unstaking;
     send_msg(true, parent.to_builder(), null(), reserve, 0, send::remaining_value);
 
     save_data();
-}
-
-() unstake_all_tokens(slice src, slice s) impure inline {
-    int query_id = s~load_uint(64);
-    s.end_parse();
-
-    slice ss = begin_cell()
-        .store_uint(query_id, 64)
-        .store_coins(tokens)
-        .store_coins(0)
-        .end_cell()
-        .begin_parse();
-
-    ( int unstake_fee, _ ) = unstake_tokens_fee(0);
-    int ton_balance = get_balance().pair_first();
-    int enough_fee? = ton_balance - gas_consumed() >= unstake_fee;
-
-    throw_unless(err::access_denied, equal_slice_bits(src, parent));
-    throw_unless(err::insufficient_fee, enough_fee?);
-
-    unstake_tokens(owner, ss);
 }
 
 () rollback_unstake(slice src, slice s) impure inline {
@@ -383,10 +375,6 @@ global int unstaking;
 
     if op == op::unstake_tokens {
         return unstake_tokens(src, s);
-    }
-
-    if op == op::unstake_all_tokens {
-        return unstake_all_tokens(src, s);
     }
 
     if op == op::rollback_unstake {

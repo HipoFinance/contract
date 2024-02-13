@@ -10,9 +10,8 @@ digraph {
 
     /* Relationships */
     staker -> treasury [ label="1\l comment: w\l 0.10 TON\l" ]
-    treasury -> parent [ label="2\l op::proxy_unstake_all_tokens\l 0.09 TON\l" ]
-    parent -> wallet [ label="3\l op::unstake_all_tokens\l 0.08 TON\l" ]
-    wallet -> parent [ label="4\l op::proxy_reserve_tokens\l 0.07 TON\l ...\l" ]
+    treasury -> parent [ label="2\l op::proxy_unstake_tokens\l 0.09 TON\l" ]
+    parent -> wallet [ label="3\l op::unstake_tokens\l 0.08 TON\l ...\l" ]
 
     /* Ranks */
     { rank=min staker }

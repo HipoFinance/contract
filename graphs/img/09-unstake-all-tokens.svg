@@ -12,63 +12,54 @@
 <!-- staker -->
 <g id="node1" class="node">
 <title>staker</title>
-<ellipse fill="#b3cde3" stroke="#b3cde3" cx="178.79" cy="-431.75" rx="42.79" ry="18"/>
-<text text-anchor="middle" x="178.79" y="-427.07" font-family="Times,serif" font-size="14.00">staker</text>
+<ellipse fill="#b3cde3" stroke="#b3cde3" cx="193.54" cy="-431.75" rx="42.79" ry="18"/>
+<text text-anchor="middle" x="193.54" y="-427.07" font-family="Times,serif" font-size="14.00">staker</text>
 </g>
 <!-- treasury -->
 <g id="node3" class="node">
 <title>treasury</title>
-<ellipse fill="#decbe4" stroke="#decbe4" cx="178.79" cy="-308" rx="53.84" ry="18"/>
-<text text-anchor="middle" x="178.79" y="-303.32" font-family="Times,serif" font-size="14.00">treasury</text>
+<ellipse fill="#decbe4" stroke="#decbe4" cx="193.54" cy="-308" rx="53.84" ry="18"/>
+<text text-anchor="middle" x="193.54" y="-303.32" font-family="Times,serif" font-size="14.00">treasury</text>
 </g>
 <!-- staker&#45;&gt;treasury -->
 <g id="edge1" class="edge">
 <title>staker&#45;&gt;treasury</title>
-<path fill="none" stroke="black" d="M178.79,-413.31C178.79,-393.42 178.79,-360.62 178.79,-337.11"/>
-<polygon fill="black" stroke="black" points="182.29,-337.41 178.79,-327.41 175.29,-337.41 182.29,-337.41"/>
-<text text-anchor="start" x="178.79" y="-382.45" font-family="Times,serif" font-size="14.00">1</text>
-<text text-anchor="start" x="178.79" y="-365.2" font-family="Times,serif" font-size="14.00"> comment: w</text>
-<text text-anchor="start" x="178.79" y="-347.95" font-family="Times,serif" font-size="14.00"> 0.10 TON</text>
+<path fill="none" stroke="black" d="M193.54,-413.31C193.54,-393.42 193.54,-360.62 193.54,-337.11"/>
+<polygon fill="black" stroke="black" points="197.04,-337.41 193.54,-327.41 190.04,-337.41 197.04,-337.41"/>
+<text text-anchor="start" x="193.54" y="-382.45" font-family="Times,serif" font-size="14.00">1</text>
+<text text-anchor="start" x="193.54" y="-365.2" font-family="Times,serif" font-size="14.00"> comment: w</text>
+<text text-anchor="start" x="193.54" y="-347.95" font-family="Times,serif" font-size="14.00"> 0.10 TON</text>
 </g>
 <!-- wallet -->
 <g id="node2" class="node">
 <title>wallet</title>
-<ellipse fill="#ccebc5" stroke="#ccebc5" cx="178.79" cy="-43.25" rx="41.74" ry="18"/>
-<text text-anchor="middle" x="178.79" y="-38.58" font-family="Times,serif" font-size="14.00">wallet</text>
+<ellipse fill="#ccebc5" stroke="#ccebc5" cx="193.54" cy="-43.25" rx="41.74" ry="18"/>
+<text text-anchor="middle" x="193.54" y="-38.58" font-family="Times,serif" font-size="14.00">wallet</text>
 </g>
 <!-- parent -->
 <g id="node4" class="node">
 <title>parent</title>
-<ellipse fill="#fed9a6" stroke="#fed9a6" cx="178.79" cy="-184.25" rx="44.37" ry="18"/>
-<text text-anchor="middle" x="178.79" y="-179.57" font-family="Times,serif" font-size="14.00">parent</text>
-</g>
-<!-- wallet&#45;&gt;parent -->
-<g id="edge4" class="edge">
-<title>wallet&#45;&gt;parent</title>
-<path fill="none" stroke="black" d="M214.8,-52.91C228.51,-58.16 242.76,-66.41 250.79,-79.25 267.06,-105.25 267.06,-122.25 250.79,-148.25 244.93,-157.62 235.77,-164.54 225.92,-169.64"/>
-<polygon fill="black" stroke="black" points="224.61,-166.84 216.94,-174.15 227.49,-173.22 224.61,-166.84"/>
-<text text-anchor="start" x="262.79" y="-134.95" font-family="Times,serif" font-size="14.00">4</text>
-<text text-anchor="start" x="262.79" y="-117.7" font-family="Times,serif" font-size="14.00"> op::proxy_reserve_tokens</text>
-<text text-anchor="start" x="262.79" y="-100.45" font-family="Times,serif" font-size="14.00"> 0.07 TON</text>
-<text text-anchor="start" x="262.79" y="-83.2" font-family="Times,serif" font-size="14.00"> ...</text>
+<ellipse fill="#fed9a6" stroke="#fed9a6" cx="193.54" cy="-184.25" rx="44.37" ry="18"/>
+<text text-anchor="middle" x="193.54" y="-179.57" font-family="Times,serif" font-size="14.00">parent</text>
 </g>
 <!-- treasury&#45;&gt;parent -->
 <g id="edge2" class="edge">
 <title>treasury&#45;&gt;parent</title>
-<path fill="none" stroke="black" d="M178.79,-289.56C178.79,-269.67 178.79,-236.87 178.79,-213.36"/>
-<polygon fill="black" stroke="black" points="182.29,-213.66 178.79,-203.66 175.29,-213.66 182.29,-213.66"/>
-<text text-anchor="start" x="178.79" y="-258.7" font-family="Times,serif" font-size="14.00">2</text>
-<text text-anchor="start" x="178.79" y="-241.45" font-family="Times,serif" font-size="14.00"> op::proxy_unstake_all_tokens</text>
-<text text-anchor="start" x="178.79" y="-224.2" font-family="Times,serif" font-size="14.00"> 0.09 TON</text>
+<path fill="none" stroke="black" d="M193.54,-289.56C193.54,-269.67 193.54,-236.87 193.54,-213.36"/>
+<polygon fill="black" stroke="black" points="197.04,-213.66 193.54,-203.66 190.04,-213.66 197.04,-213.66"/>
+<text text-anchor="start" x="193.54" y="-258.7" font-family="Times,serif" font-size="14.00">2</text>
+<text text-anchor="start" x="193.54" y="-241.45" font-family="Times,serif" font-size="14.00"> op::proxy_unstake_tokens</text>
+<text text-anchor="start" x="193.54" y="-224.2" font-family="Times,serif" font-size="14.00"> 0.09 TON</text>
 </g>
 <!-- parent&#45;&gt;wallet -->
 <g id="edge3" class="edge">
 <title>parent&#45;&gt;wallet</title>
-<path fill="none" stroke="black" d="M136.48,-178.18C117.69,-173.58 97.28,-164.85 85.79,-148.25 68.34,-123.03 68.34,-104.47 85.79,-79.25 95.62,-65.05 111.98,-56.61 128.26,-51.59"/>
-<polygon fill="black" stroke="black" points="129.11,-54.71 137.87,-48.75 127.31,-47.95 129.11,-54.71"/>
-<text text-anchor="start" x="85.79" y="-126.33" font-family="Times,serif" font-size="14.00">3</text>
-<text text-anchor="start" x="85.79" y="-109.08" font-family="Times,serif" font-size="14.00"> op::unstake_all_tokens</text>
-<text text-anchor="start" x="85.79" y="-91.83" font-family="Times,serif" font-size="14.00"> 0.08 TON</text>
+<path fill="none" stroke="black" d="M193.54,-165.93C193.54,-142.39 193.54,-100.03 193.54,-72.03"/>
+<polygon fill="black" stroke="black" points="197.04,-72.36 193.54,-62.36 190.04,-72.36 197.04,-72.36"/>
+<text text-anchor="start" x="193.54" y="-134.95" font-family="Times,serif" font-size="14.00">3</text>
+<text text-anchor="start" x="193.54" y="-117.7" font-family="Times,serif" font-size="14.00"> op::unstake_tokens</text>
+<text text-anchor="start" x="193.54" y="-100.45" font-family="Times,serif" font-size="14.00"> 0.08 TON</text>
+<text text-anchor="start" x="193.54" y="-83.2" font-family="Times,serif" font-size="14.00"> ...</text>
 </g>
 </g>
 </svg>

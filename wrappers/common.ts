@@ -41,6 +41,7 @@ export const op = {
     receiveTokens: 0x178d4519,
     transferNotification: 0x7362d09c,
     gasExcess: 0xd53276db,
+    unstakeTokens: 0x595f07bc,
 
     provideWalletAddress: 0x2c76b973,
     takeWalletAddress: 0xd1735400,
@@ -56,7 +57,7 @@ export const op = {
     takeCurrentQuote: 0x0a420458,
 
     depositCoins: 0x40ef2953,
-    sendUnstakeAllTokens: 0x50c21339,
+    sendUnstakeTokens: 0x3a50f43e,
     reserveTokens: 0x6fcba7cd,
     mintTokens: 0x42684479,
     burnTokens: 0x7cffe1ee,
@@ -94,7 +95,7 @@ export const op = {
     proxyReserveTokens: 0x653b5ecb,
     proxyRollbackUnstake: 0x32b67194,
     proxyTokensBurned: 0x4476fde0,
-    proxyUnstakeAllTokens: 0x411710ab,
+    proxyUnstakeTokens: 0x68cd97db,
     proxyUpgradeWallet: 0x4664bc68,
     proxyMigrateWallet: 0x0cb246bb,
     proxyMergeWallet: 0x6833d7d0,
@@ -102,10 +103,8 @@ export const op = {
 
     tokensMinted: 0x5445efee,
     saveCoins: 0x4cce0e74,
-    unstakeTokens: 0x18afa179,
     rollbackUnstake: 0x1b77fd1a,
     tokensBurned: 0x5b512e25,
-    unstakeAllTokens: 0x44b3392b,
     upgradeWallet: 0x01d9ae1c,
     mergeWallet: 0x63d3a76c,
     withdrawJettons: 0x768a50b2,

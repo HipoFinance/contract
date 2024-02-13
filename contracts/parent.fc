@@ -131,19 +131,20 @@ global cell content;
     save_data();
 }
 
-() proxy_unstake_all_tokens(slice src, slice s) impure inline {
+() proxy_unstake_tokens(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
     slice owner = s~load_msg_addr();
     s.end_parse();
 
-    ( builder wallet, cell state_init, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
+    ( builder wallet, _, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
 
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
     builder unstake = begin_cell()
-        .store_uint(op::unstake_all_tokens, 32)
-        .store_uint(query_id, 64);
-    send_msg(false, wallet, state_init, unstake, 0, send::remaining_value);
+        .store_uint(op::unstake_tokens, 32)
+        .store_uint(query_id, 64)
+        .store_uint(0, 7); ;; 0000 (amount) + 00 (addr_none) + 0 (custom_payload)
+    send_msg(false, wallet, null(), unstake, 0, send::remaining_value);
 }
 
 () proxy_upgrade_wallet(slice src, slice s) impure inline {
@@ -340,8 +341,8 @@ global cell content;
         return proxy_tokens_burned(src, s);
     }
 
-    if op == op::proxy_unstake_all_tokens {
-        return proxy_unstake_all_tokens(src, s);
+    if op == op::proxy_unstake_tokens {
+        return proxy_unstake_tokens(src, s);
     }
 
     if op == op::proxy_upgrade_wallet {

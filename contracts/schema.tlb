@@ -105,6 +105,13 @@ gas_excess#d53276db // originally named 'excesses'
     query_id:uint64
         = InternalMsgBody;
 
+unstake_tokens#595f07bc // originally named 'burn'
+    query_id:uint64
+    tokens:Coins
+    return_excess:MsgAddress
+    custom_payload:(Maybe ^Cell)
+        = InternalMsgBody;
+
 //
 // TEP-89 Discoverable Jettons
 //
@@ -192,7 +199,7 @@ deposit_coins#40ef2953
     referrer:MsgAddress
         = InternalMsgBody;
 
-send_unstake_all_tokens#50c21339
+send_unstake_tokens#3a50f43e
     query_id:uint64
         = InternalMsgBody;
 
@@ -422,7 +429,7 @@ proxy_tokens_burned#4476fde0
     owner:MsgAddress
         = InternalMsgBody;
 
-proxy_unstake_all_tokens#411710ab
+proxy_unstake_tokens#68cd97db
     query_id:uint64
     owner:MsgAddress
         = InternalMsgBody;
@@ -469,12 +476,6 @@ save_coins#4cce0e74
     round_since:uint32
         = InternalMsgBody;
 
-unstake_tokens#18afa179
-    query_id:uint64
-    tokens:Coins
-    ownership_assigned_amount:Coins
-        = InternalMsgBody;
-
 rollback_unstake#1b77fd1a
     query_id:uint64
     tokens:Coins
@@ -484,10 +485,6 @@ tokens_burned#5b512e25
     query_id:uint64
     tokens:Coins
     coins:Coins
-        = InternalMsgBody;
-
-unstake_all_tokens#44b3392b
-    query_id:uint64
         = InternalMsgBody;
 
 upgrade_wallet#01d9ae1c

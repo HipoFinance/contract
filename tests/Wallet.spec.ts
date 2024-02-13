@@ -46,9 +46,8 @@ describe('Wallet', () => {
             'burn_tokens',
             'proxy_tokens_burned',
             'tokens_burned',
-            'send_unstake_all_tokens',
-            'proxy_unstake_all_tokens',
-            'unstake_all_tokens',
+            'send_unstake_tokens',
+            'proxy_unstake_tokens',
             'upgrade_wallet',
             'proxy_migrate_wallet',
             'migrate_wallet',
@@ -821,7 +820,7 @@ describe('Wallet', () => {
             from: treasury.address,
             to: parent.address,
             value: between('0', fee),
-            body: bodyOp(op.proxyUnstakeAllTokens),
+            body: bodyOp(op.proxyUnstakeTokens),
             success: true,
             outMessagesCount: 1,
         })
@@ -829,7 +828,7 @@ describe('Wallet', () => {
             from: parent.address,
             to: wallet.address,
             value: between('0', fee),
-            body: bodyOp(op.unstakeAllTokens),
+            body: bodyOp(op.unstakeTokens),
             success: true,
             outMessagesCount: 1,
         })
@@ -892,9 +891,8 @@ describe('Wallet', () => {
         expect(unstaking).toBeTonValue('0')
 
         accumulateFees(result.transactions)
-        storeComputeGas('send_unstake_all_tokens', op.sendUnstakeAllTokens, result.transactions[1])
-        storeComputeGas('proxy_unstake_all_tokens', op.proxyUnstakeAllTokens, result.transactions[2])
-        storeComputeGas('unstake_all_tokens', op.unstakeAllTokens, result.transactions[3])
+        storeComputeGas('send_unstake_tokens', op.sendUnstakeTokens, result.transactions[1])
+        storeComputeGas('proxy_unstake_tokens', op.proxyUnstakeTokens, result.transactions[2])
     })
 
     it('should handle multiple deposits, unstakes, and sends', async () => {
