@@ -529,16 +529,12 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
     int s_fwd_fee = lump_price;
     int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
     int l_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023 * 2, 1 + 3);
-    int ownership_assigned_fwd_fee = 0;
-    if ownership_assigned_amount {
-        ownership_assigned_fwd_fee = s_fwd_fee;
-    }
     int forward_fee =
         m_fwd_fee + ;; proxy_save_coins
         l_fwd_fee + ;; save_coins
         l_fwd_fee + ;; mint_bill
         l_fwd_fee + ;; assign_bill
-        ownership_assigned_fwd_fee + ;; ownership_assigned
+        s_fwd_fee + ;; ownership_assigned
         s_fwd_fee + ;; burn_bill
         m_fwd_fee + ;; bill_burned
         m_fwd_fee + ;; mint_tokens
@@ -579,16 +575,12 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
     int s_fwd_fee = lump_price;
     int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
     int l_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023 * 2, 1 + 3);
-    int ownership_assigned_fwd_fee = 0;
-    if ownership_assigned_amount {
-        ownership_assigned_fwd_fee = s_fwd_fee;
-    }
     int forward_fee =
         m_fwd_fee + ;; proxy_reserve_tokens
         m_fwd_fee + ;; reserve_tokens
         l_fwd_fee + ;; mint_bill
         l_fwd_fee + ;; assign_bill
-        ownership_assigned_fwd_fee + ;; ownership_assigned
+        s_fwd_fee + ;; ownership_assigned
         s_fwd_fee + ;; burn_bill
         m_fwd_fee + ;; bill_burned
         m_fwd_fee + ;; burn_tokens

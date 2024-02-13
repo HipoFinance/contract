@@ -58,7 +58,7 @@ export const op = {
 
     depositCoins: 0x40ef2953,
     sendUnstakeTokens: 0x3a50f43e,
-    reserveTokens: 0x6fcba7cd,
+    reserveTokens: 0x386a358b,
     mintTokens: 0x42684479,
     burnTokens: 0x7cffe1ee,
     requestLoan: 0x12b808d3,
@@ -92,7 +92,7 @@ export const op = {
 
     proxyTokensMinted: 0x5be57626,
     proxySaveCoins: 0x47daa10f,
-    proxyReserveTokens: 0x653b5ecb,
+    proxyReserveTokens: 0x688b0213,
     proxyRollbackUnstake: 0x32b67194,
     proxyTokensBurned: 0x4476fde0,
     proxyUnstakeTokens: 0x68cd97db,

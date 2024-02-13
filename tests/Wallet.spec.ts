@@ -12,7 +12,7 @@ import {
     participationDictionaryValue,
     treasuryConfigToCell,
 } from '../wrappers/Treasury'
-import { Wallet } from '../wrappers/Wallet'
+import { UnstakeMode, Wallet } from '../wrappers/Wallet'
 import { Parent } from '../wrappers/Parent'
 import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
 
@@ -266,7 +266,7 @@ describe('Wallet', () => {
         const collectionAddress = await treasury.getCollectionAddress(roundSince)
         const billAddress = await treasury.getBillAddress(roundSince, 0n)
         const result1 = await treasury.sendDepositCoins(staker.getSender(), {
-            value: amount + fees.depositCoinsFee + ownershipAssignedAmount + toNano('0.001'),
+            value: amount + fees.depositCoinsFee + ownershipAssignedAmount,
             ownershipAssignedAmount,
             referrer: referrer.address,
         })
@@ -274,7 +274,7 @@ describe('Wallet', () => {
         expect(result1.transactions).toHaveTransaction({
             from: staker.address,
             to: treasury.address,
-            value: amount + fees.depositCoinsFee + ownershipAssignedAmount + toNano('0.001'),
+            value: amount + fees.depositCoinsFee + ownershipAssignedAmount,
             body: bodyOp(op.depositCoins),
             success: true,
             outMessagesCount: 2,
@@ -729,6 +729,393 @@ describe('Wallet', () => {
         storeComputeGas('unstake_tokens', op.unstakeTokens, result1.transactions[1])
         storeComputeGas('reserve_tokens', op.reserveTokens, result1.transactions[3])
         storeComputeGas('burn_tokens', op.burnTokens, result2.transactions[6])
+    })
+
+    it('should unstake with different modes where there is no active round', async () => {
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+
+        const result1 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee,
+            tokens: '1',
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            value: between('1', toNano('1') + fees.unstakeTokensFee),
+            body: bodyOp(op.withdrawalNotification),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result1.transactions).toHaveLength(7)
+
+        const result2 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee + toNano('0.05'),
+            tokens: '1',
+            ownershipAssignedAmount: toNano('0.05'),
+        })
+        expect(result2.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            value: between('1', toNano('1') + fees.unstakeTokensFee + toNano('0.05')),
+            body: bodyOp(op.withdrawalNotification),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result2.transactions).toHaveLength(7)
+
+        const result3 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee + toNano('0.05'),
+            tokens: '1',
+            mode: UnstakeMode.Auto,
+            ownershipAssignedAmount: toNano('0.05'),
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            value: between('1', toNano('1') + fees.unstakeTokensFee + toNano('0.05')),
+            body: bodyOp(op.withdrawalNotification),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result3.transactions).toHaveLength(7)
+
+        const result4 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee,
+            tokens: '1',
+            mode: UnstakeMode.Instant,
+            ownershipAssignedAmount: 0n,
+        })
+        expect(result4.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            value: between('1', toNano('1') + fees.unstakeTokensFee),
+            body: bodyOp(op.withdrawalNotification),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result4.transactions).toHaveLength(7)
+
+        const result5 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee,
+            tokens: '1',
+            mode: UnstakeMode.Best,
+        })
+        expect(result5.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            value: between('1', toNano('1') + fees.unstakeTokensFee),
+            body: bodyOp(op.withdrawalNotification),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result5.transactions).toHaveLength(7)
+
+        const fakeState = await treasury.getTreasuryState()
+        const fakeData = treasuryConfigToCell(fakeState)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData,
+                balance: treasuryStorage,
+            }),
+        )
+
+        const result6 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee,
+            tokens: '1',
+        })
+        expect(result6.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet.address,
+            value: between('0', fees.unstakeTokensFee),
+            body: bodyOp(op.rollbackUnstake),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result6.transactions).toHaveLength(7)
+
+        const result7 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee + toNano('0.05'),
+            tokens: '1',
+            ownershipAssignedAmount: toNano('0.05'),
+        })
+        expect(result7.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet.address,
+            value: between('0', fees.unstakeTokensFee + toNano('0.05')),
+            body: bodyOp(op.rollbackUnstake),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result7.transactions).toHaveLength(7)
+
+        const result8 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee + toNano('0.05'),
+            tokens: '1',
+            mode: UnstakeMode.Auto,
+            ownershipAssignedAmount: toNano('0.05'),
+        })
+        expect(result8.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet.address,
+            value: between('0', fees.unstakeTokensFee + toNano('0.05')),
+            body: bodyOp(op.rollbackUnstake),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result8.transactions).toHaveLength(7)
+
+        const result9 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee,
+            tokens: '1',
+            mode: UnstakeMode.Instant,
+            ownershipAssignedAmount: 0n,
+        })
+        expect(result9.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet.address,
+            value: between('0', fees.unstakeTokensFee),
+            body: bodyOp(op.rollbackUnstake),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result9.transactions).toHaveLength(7)
+
+        const result10 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee,
+            tokens: '1',
+            mode: UnstakeMode.Best,
+        })
+        expect(result10.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet.address,
+            value: between('0', fees.unstakeTokensFee),
+            body: bodyOp(op.rollbackUnstake),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result10.transactions).toHaveLength(7)
+
+        accumulateFees(result1.transactions)
+        accumulateFees(result2.transactions)
+        accumulateFees(result3.transactions)
+        accumulateFees(result4.transactions)
+        accumulateFees(result5.transactions)
+        accumulateFees(result6.transactions)
+        accumulateFees(result7.transactions)
+        accumulateFees(result8.transactions)
+        accumulateFees(result9.transactions)
+        accumulateFees(result10.transactions)
+    })
+
+    it('should unstake with different modes when there is an active round', async () => {
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+
+        const roundSince = 1n
+        const fakeState1 = await treasury.getTreasuryState()
+        fakeState1.participations.set(roundSince, { state: ParticipationState.Staked })
+        const fakeData1 = treasuryConfigToCell(fakeState1)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData1,
+                balance: treasuryStorage + toNano('10'),
+            }),
+        )
+        const collectionAddress = await treasury.getCollectionAddress(roundSince)
+
+        const result1 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee,
+            tokens: '1',
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            value: between('1', toNano('1') + fees.unstakeTokensFee),
+            body: bodyOp(op.withdrawalNotification),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result1.transactions).toHaveLength(7)
+
+        const result2 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee + toNano('0.05'),
+            tokens: '1',
+            ownershipAssignedAmount: toNano('0.05'),
+        })
+        expect(result2.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            value: between('1', toNano('1') + fees.unstakeTokensFee + toNano('0.05')),
+            body: bodyOp(op.withdrawalNotification),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result2.transactions).toHaveLength(7)
+
+        const result3 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee,
+            tokens: '1',
+            mode: UnstakeMode.Auto,
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            value: between('1', toNano('1') + fees.unstakeTokensFee),
+            body: bodyOp(op.withdrawalNotification),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result3.transactions).toHaveLength(7)
+
+        const result4 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee,
+            tokens: '1',
+            mode: UnstakeMode.Instant,
+            ownershipAssignedAmount: 0n,
+        })
+        expect(result4.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            value: between('1', toNano('1') + fees.unstakeTokensFee),
+            body: bodyOp(op.withdrawalNotification),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result4.transactions).toHaveLength(7)
+
+        const billAddress0 = await treasury.getBillAddress(roundSince, 0n)
+        const result5 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee + toNano('0.05'),
+            tokens: '1',
+            mode: UnstakeMode.Best,
+            ownershipAssignedAmount: toNano('0.05'),
+        })
+        expect(result5.transactions).toHaveTransaction({
+            from: billAddress0,
+            to: staker.address,
+            value: toNano('0.05'),
+            body: bodyOp(op.ownershipAssigned),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result5.transactions).toHaveLength(7)
+
+        const fakeState = await treasury.getTreasuryState()
+        const fakeData = treasuryConfigToCell(fakeState)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData,
+                balance: treasuryStorage,
+            }),
+        )
+
+        const billAddress1 = await treasury.getBillAddress(roundSince, 1n)
+        const result6 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee,
+            tokens: '1',
+        })
+        expect(result6.transactions).toHaveTransaction({
+            from: collectionAddress,
+            to: billAddress1,
+            value: between('0', fees.unstakeTokensFee),
+            body: bodyOp(op.assignBill),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result6.transactions).toHaveLength(6)
+
+        const billAddress2 = await treasury.getBillAddress(roundSince, 2n)
+        const result7 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee + toNano('0.05'),
+            tokens: '1',
+            ownershipAssignedAmount: toNano('0.05'),
+        })
+        expect(result7.transactions).toHaveTransaction({
+            from: billAddress2,
+            to: staker.address,
+            value: toNano('0.05'),
+            body: bodyOp(op.ownershipAssigned),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result7.transactions).toHaveLength(7)
+
+        const billAddress3 = await treasury.getBillAddress(roundSince, 3n)
+        const result8 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee + toNano('0.05'),
+            tokens: '1',
+            mode: UnstakeMode.Auto,
+            ownershipAssignedAmount: toNano('0.05'),
+        })
+        expect(result8.transactions).toHaveTransaction({
+            from: billAddress3,
+            to: staker.address,
+            value: toNano('0.05'),
+            body: bodyOp(op.ownershipAssigned),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result8.transactions).toHaveLength(7)
+
+        const result9 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee,
+            tokens: '1',
+            mode: UnstakeMode.Instant,
+        })
+        expect(result9.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet.address,
+            value: between('0', fees.unstakeTokensFee),
+            body: bodyOp(op.rollbackUnstake),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result9.transactions).toHaveLength(7)
+
+        const billAddress4 = await treasury.getBillAddress(roundSince, 4n)
+        const result10 = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee,
+            tokens: '1',
+            mode: UnstakeMode.Best,
+            ownershipAssignedAmount: 0n,
+        })
+        expect(result10.transactions).toHaveTransaction({
+            from: collectionAddress,
+            to: billAddress4,
+            value: between('0', fees.unstakeTokensFee),
+            body: bodyOp(op.assignBill),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result10.transactions).toHaveLength(6)
+
+        accumulateFees(result1.transactions)
+        accumulateFees(result2.transactions)
+        accumulateFees(result3.transactions)
+        accumulateFees(result4.transactions)
+        accumulateFees(result5.transactions)
+        accumulateFees(result6.transactions)
+        accumulateFees(result7.transactions)
+        accumulateFees(result8.transactions)
+        accumulateFees(result9.transactions)
+        accumulateFees(result10.transactions)
     })
 
     it('should deposit coins for comment d', async () => {

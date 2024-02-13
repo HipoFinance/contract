@@ -74,6 +74,7 @@ global cell content;
     int query_id = s~load_uint(64);
     int tokens = s~load_coins();
     slice owner = s~load_msg_addr();
+    int mode = s~load_uint(4);
     int ownership_assigned_amount = s~load_coins();
     s.end_parse();
 
@@ -87,6 +88,7 @@ global cell content;
         .store_uint(query_id, 64)
         .store_coins(tokens)
         .store_slice(owner)
+        .store_uint(mode, 4)
         .store_coins(ownership_assigned_amount);
     send_msg(false, treasury.to_builder(), null(), reserve, 0, send::remaining_value);
 }

@@ -34,6 +34,11 @@ const int participation::recovering = 5;
 const int participation::burning = 6;
 
 
+const int unstake::auto = 0;
+const int unstake::instant = 1;
+const int unstake::best = 2;
+
+
 const int op::new_stake = 0x4e73744b;
 const int op::new_stake_error = 0xee6f454c;
 const int op::new_stake_ok = 0xf374484c;
@@ -66,7 +71,7 @@ const int op::take_current_quote = 0x0a420458;
 
 const int op::deposit_coins = 0x40ef2953;
 const int op::send_unstake_tokens = 0x3a50f43e;
-const int op::reserve_tokens = 0x6fcba7cd;
+const int op::reserve_tokens = 0x386a358b;
 const int op::mint_tokens = 0x42684479;
 const int op::burn_tokens = 0x7cffe1ee;
 const int op::request_loan = 0x12b808d3;
@@ -100,7 +105,7 @@ const int op::top_up = 0x5372158c;
 
 const int op::proxy_tokens_minted = 0x5be57626;
 const int op::proxy_save_coins = 0x47daa10f;
-const int op::proxy_reserve_tokens = 0x653b5ecb;
+const int op::proxy_reserve_tokens = 0x688b0213;
 const int op::proxy_rollback_unstake = 0x32b67194;
 const int op::proxy_tokens_burned = 0x4476fde0;
 const int op::proxy_unstake_tokens = 0x68cd97db;
@@ -138,42 +143,42 @@ const int op::set_library = 0x354dfc8f;
 
 const int gas::send_tokens = 14917;
 const int gas::receive_tokens = 10749;
-const int gas::deposit_coins = 20972;
+const int gas::deposit_coins = 20859;
 const int gas::proxy_save_coins = 5852;
 const int gas::save_coins = 4351;
 const int gas::mint_bill = 7730;
 const int gas::assign_bill = 5767;
 const int gas::burn_bill = 6389;
 const int gas::bill_burned = 12205;
-const int gas::mint_tokens = 11165;
+const int gas::mint_tokens = 11037;
 const int gas::proxy_tokens_minted = 6766;
 const int gas::tokens_minted = 6343;
-const int gas::unstake_tokens = 12554;
-const int gas::proxy_reserve_tokens = 6289;
-const int gas::reserve_tokens = 12562;
-const int gas::burn_tokens = 12443;
+const int gas::unstake_tokens = 12653;
+const int gas::proxy_reserve_tokens = 6341;
+const int gas::reserve_tokens = 12779;
+const int gas::burn_tokens = 12425;
 const int gas::proxy_tokens_burned = 7176;
 const int gas::tokens_burned = 6250;
 const int gas::send_unstake_tokens = 5330;
 const int gas::proxy_unstake_tokens = 6418;
 const int gas::upgrade_wallet = 10794;
 const int gas::proxy_migrate_wallet = 7847;
-const int gas::migrate_wallet = 10773;
+const int gas::migrate_wallet = 10627;
 const int gas::proxy_merge_wallet = 7684;
 const int gas::merge_wallet = 6426;
 
-const int gas::request_loan = 26077;
+const int gas::request_loan = 25949;
 const int gas::participate_in_election = 22263;
-const int gas::decide_loan_requests = 18357;
-const int gas::process_loan_requests = 29541;
+const int gas::decide_loan_requests = 18339;
+const int gas::process_loan_requests = 29413;
 const int gas::proxy_new_stake = 6821;
 const int gas::vset_changed = 7130;
 const int gas::finish_participation = 18455;
-const int gas::recover_stakes = 25639;
+const int gas::recover_stakes = 25511;
 const int gas::proxy_recover_stake = 4391;
-const int gas::recover_stake_result = 31302;
+const int gas::recover_stake_result = 31284;
 const int gas::burn_all = 6958;
-const int gas::last_bill_burned = 12841;
+const int gas::last_bill_burned = 12823;
 const int gas::new_stake = 9351;
 const int gas::new_stake_error = 4722;
 const int gas::new_stake_ok = 1863;

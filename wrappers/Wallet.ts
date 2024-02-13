@@ -13,10 +13,16 @@ import {
 } from '@ton/core'
 import { op, tonValue } from './common'
 
-export interface WalletFees {
+export interface WalletFees1 {
     unstakeTokensFee: bigint
     storageFee: bigint
     tonBalance: bigint
+}
+
+export enum UnstakeMode {
+    Auto,
+    Instant,
+    Best,
 }
 
 interface WalletConfig {
@@ -136,12 +142,16 @@ export class Wallet implements Contract {
             queryId?: bigint
             tokens: bigint | string
             returnExcess?: Address
+            mode?: UnstakeMode
             ownershipAssignedAmount?: bigint
         },
     ) {
         let customPayload: Cell | null = null
-        if (opts.ownershipAssignedAmount != null) {
-            customPayload = beginCell().storeCoins(opts.ownershipAssignedAmount).endCell()
+        if (opts.ownershipAssignedAmount != null || opts.mode != null) {
+            customPayload = beginCell()
+                .storeUint(opts.mode ?? 0, 4)
+                .storeCoins(opts.ownershipAssignedAmount ?? 0)
+                .endCell()
         }
         await this.sendMessage(provider, via, {
             value: opts.value,

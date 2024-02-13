@@ -272,20 +272,9 @@ cell find_code(cell dict, int round_since) inline {
     int query_id = s~load_uint(64);
     int tokens = s~load_coins();
     slice owner = s~load_msg_addr();
+    int mode = s~load_uint(4);
     int ownership_assigned_amount = s~load_coins();
     s.end_parse();
-
-    ifnot equal_slice_bits(src, parent) {
-        ;; Maybe old wallets are trying to unstake. Those wallets must first upgrade. Rollback the unstake request.
-        builder rollback = begin_cell()
-            .store_uint(op::proxy_rollback_unstake, 32)
-            .store_uint(query_id, 64)
-            .store_coins(tokens)
-            .store_slice(owner);
-        send_msg(false, src.to_builder(), null(), rollback, 0, send::remaining_value);
-
-        return ();
-    }
 
     int coins = tokens;
     if total_tokens {
@@ -297,7 +286,39 @@ cell find_code(cell dict, int round_since) inline {
     int ton_balance_before_msg = ton_balance - incoming_ton;
     int available_ton = ton_balance_before_msg - fee::treasury_storage - total_validators_stake;
 
-    if available_ton >= coins {
+    int round_since = 0;
+    int k = 0;
+    do {
+        ( k, slice v, int f? ) = participations.udict_get_next?(32, k);
+        if f? {
+            int state = v~load_uint(4);
+            if (state > participation::open) & (state < participation::burning) {
+                ;; burn tokens after this round has been finalized
+                round_since = k;
+                f? = false;
+            }
+        }
+    } until ~ f?;
+
+    ;; Maybe old wallets are trying to unstake. Those wallets must first upgrade. Rollback the unstake request.
+    int rollback? = ~ equal_slice_bits(src, parent);
+    ;; No funds locked in the next round. This should not happen. At least rollback the unstake request.
+    rollback? |= (round_since == 0) & (available_ton < coins);
+    ;; User requested instant operation, but there is not enough funds. Rollback the unstake request.
+    rollback? |= (mode == unstake::instant) & (available_ton < coins);
+
+    if rollback? {
+        builder rollback = begin_cell()
+            .store_uint(op::proxy_rollback_unstake, 32)
+            .store_uint(query_id, 64)
+            .store_coins(tokens)
+            .store_slice(owner);
+        send_msg(false, src.to_builder(), null(), rollback, 0, send::remaining_value);
+
+        return ();
+    }
+
+    if (available_ton >= coins) & ((mode <= unstake::instant) | (round_since == 0)) {
         total_coins -= coins;
         total_tokens -= tokens;
         if (total_coins == 0) | (total_tokens == 0) {
@@ -315,32 +336,6 @@ cell find_code(cell dict, int round_since) inline {
             .store_slice(owner);
         send_msg(false, parent.to_builder(), null(), burned, 0, send::unreserved_balance);
     } else {
-        int round_since = 0;
-        int k = 0;
-        do {
-            ( k, slice v, int f? ) = participations.udict_get_next?(32, k);
-            if f? {
-                int state = v~load_uint(4);
-                if (state > participation::open) & (state < participation::burning) {
-                    ;; burn tokens after this round has been finalized
-                    round_since = k;
-                    f? = false;
-                }
-            }
-        } until ~ f?;
-
-        ifnot round_since {
-            ;; No candidate round found. This should not happen. At least rollback the unstake request.
-            builder rollback = begin_cell()
-                .store_uint(op::proxy_rollback_unstake, 32)
-                .store_uint(query_id, 64)
-                .store_coins(tokens)
-                .store_slice(owner);
-            send_msg(false, src.to_builder(), null(), rollback, 0, send::remaining_value);
-
-            return ();
-        }
-
         total_unstaking += tokens;
 
         unpack_extension();

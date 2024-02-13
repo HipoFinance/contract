@@ -162,9 +162,11 @@ global int unstaking;
         amount = tokens;
     }
 
+    int mode = unstake::auto;
     int ownership_assigned_amount = 0;
     ifnot custom_payload.null?() {
         slice ss = custom_payload.begin_parse();
+        mode = ss~load_uint(4);
         ownership_assigned_amount = ss~load_coins();
         ss.end_parse();
     }
@@ -173,6 +175,7 @@ global int unstaking;
     int ton_balance = get_balance().pair_first();
     int enough_fee? = ton_balance >= unstake_fee;
     int acceptable? = equal_slice_bits(return_excess, owner) | (return_excess.preload_uint(2) == 0);
+    acceptable? &= (mode >= unstake::auto) & (mode <= unstake::best);
 
     throw_unless(err::access_denied, acceptable? & (equal_slice_bits(src, owner) | equal_slice_bits(src, parent)));
     throw_unless(err::insufficient_fee, enough_fee?);
@@ -186,6 +189,7 @@ global int unstaking;
         .store_uint(query_id, 64)
         .store_coins(amount)
         .store_slice(owner)
+        .store_uint(mode, 4)
         .store_coins(ownership_assigned_amount);
     send_msg(true, parent.to_builder(), null(), reserve, 0, send::remaining_value);
 

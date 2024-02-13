@@ -203,10 +203,11 @@ send_unstake_tokens#3a50f43e
     query_id:uint64
         = InternalMsgBody;
 
-reserve_tokens#6fcba7cd
+reserve_tokens#386a358b
     query_id:uint64
     tokens:Coins
     owner:MsgAddress
+    mode:uint4
     ownership_assigned_amount:Coins
         = InternalMsgBody;
 
@@ -409,10 +410,11 @@ proxy_save_coins#47daa10f
     round_since:uint32
         = InternalMsgBody;
 
-proxy_reserve_tokens#653b5ecb
+proxy_reserve_tokens#688b0213
     query_id:uint64
     tokens:Coins
     owner:MsgAddress
+    mode:uint4
     ownership_assigned_amount:Coins
         = InternalMsgBody;
 
