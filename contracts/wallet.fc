@@ -158,10 +158,6 @@ global int unstaking;
     cell custom_payload = s~load_maybe_ref();
     s.end_parse();
 
-    ifnot amount {
-        amount = tokens;
-    }
-
     int mode = unstake::auto;
     int ownership_assigned_amount = 0;
     ifnot custom_payload.null?() {
@@ -171,13 +167,18 @@ global int unstaking;
         ss.end_parse();
     }
 
+    int from_parent? = equal_slice_bits(src, parent);
+    if from_parent? & (amount == 0) {
+        amount = tokens;
+    }
+
     ( int unstake_fee, _ ) = unstake_tokens_fee(ownership_assigned_amount);
     int ton_balance = get_balance().pair_first();
     int enough_fee? = ton_balance >= unstake_fee;
     int valid? = equal_slice_bits(return_excess, owner) | (return_excess.preload_uint(2) == 0);
     valid? &= (mode >= unstake::auto) & (mode <= unstake::best);
 
-    throw_unless(err::access_denied, equal_slice_bits(src, owner) | equal_slice_bits(src, parent));
+    throw_unless(err::access_denied, equal_slice_bits(src, owner) | from_parent?);
     throw_unless(err::invalid_parameters, valid?);
     throw_unless(err::insufficient_fee, enough_fee?);
     throw_unless(err::insufficient_funds, (amount > 0) & (amount <= tokens));
