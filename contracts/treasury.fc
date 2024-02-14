@@ -195,8 +195,8 @@ cell find_code(cell dict, int round_since) inline {
     int incoming_ton = get_incoming_value().pair_first();
     int coins = incoming_ton - total_fee;
     ( int src_wc, _ ) = parse_std_addr(src);
+    src_wc~impure_touch();
 
-    throw_unless(err::only_basechain_allowed, src_wc == chain::base);
     throw_unless(err::insufficient_fee, coins > 0);
     throw_if(err::stopped, stopped?);
 
@@ -494,8 +494,7 @@ cell find_code(cell dict, int round_since) inline {
     s.end_parse();
 
     ( int src_wc, _ ) = parse_std_addr(src);
-
-    throw_unless(err::only_basechain_allowed, src_wc == chain::base);
+    src_wc~impure_touch();
 
     builder unstake = begin_cell()
         .store_uint(op::proxy_unstake_tokens, 32)
@@ -1257,6 +1256,7 @@ cell find_code(cell dict, int round_since) inline {
     s.end_parse();
 
     ( int new_governor_wc, _ ) = parse_std_addr(new_governor);
+    new_governor_wc~impure_touch();
     int accept_after = now() + 60 * 60 * 24;
     proposed_governor = begin_cell()
         .store_uint(accept_after, 32)
@@ -1264,7 +1264,6 @@ cell find_code(cell dict, int round_since) inline {
         .end_cell();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
-    throw_unless(err::only_basechain_allowed, new_governor_wc == chain::base);
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
@@ -1307,9 +1306,9 @@ cell find_code(cell dict, int round_since) inline {
     s.end_parse();
 
     ( int halter_wc, _ ) = parse_std_addr(halter);
+    halter_wc~impure_touch();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
-    throw_unless(err::only_basechain_allowed, halter_wc == chain::base);
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
@@ -1953,7 +1952,7 @@ slice get_loan_address(slice validator, int round_since) method_id {
 
     ( int validator_wc, _ ) = parse_std_addr(validator);
 
-    throw_unless(err::only_basechain_allowed, validator_wc == chain::base);
+    throw_unless(err::invalid_parameters, validator_wc == chain::base);
 
     cell loan_code = loan_codes.find_code(round_since);
 

@@ -4,7 +4,7 @@
 const int err::insufficient_fee = 101;
 const int err::insufficient_funds = 102;
 const int err::access_denied = 103;
-const int err::only_basechain_allowed = 104;
+const int err::invalid_parameters = 104;
 const int err::receiver_is_sender = 105;
 const int err::stopped = 106;
 const int err::invalid_op = 107;

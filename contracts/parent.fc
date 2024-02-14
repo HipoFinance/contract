@@ -396,8 +396,7 @@ slice get_wallet_address(slice owner) method_id {
     load_data();
 
     ( int owner_wc, _ ) = parse_std_addr(owner);
-
-    throw_unless(err::only_basechain_allowed, owner_wc == chain::base);
+    owner_wc~impure_touch();
 
     ( builder wallet, _, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
 

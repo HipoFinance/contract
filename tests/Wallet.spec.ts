@@ -1541,6 +1541,7 @@ describe('Wallet', () => {
 
         await treasury.sendDepositCoins(staker1.getSender(), { value: toNano('10') + fees.depositCoinsFee })
         const mainnetAddress = await treasury.getLoanAddress(staker1.address, 1n)
+        const walletForMainnetAddress = await parent.getWalletAddress(mainnetAddress)
 
         expect(
             (
@@ -1551,16 +1552,6 @@ describe('Wallet', () => {
                 })
             ).transactions,
         ).toHaveTransaction({ exitCode: err.accessDenied })
-
-        expect(
-            (
-                await wallet1.sendSendTokens(staker1.getSender(), {
-                    value: fees.sendTokensFee,
-                    tokens: '0.05',
-                    recipient: mainnetAddress,
-                })
-            ).transactions,
-        ).toHaveTransaction({ exitCode: err.onlyBasechainAllowed })
 
         expect(
             (
@@ -1613,6 +1604,23 @@ describe('Wallet', () => {
         ).toHaveTransaction({
             from: wallet1.address,
             to: wallet2.address,
+            value: between('0', fees.sendTokensFee),
+            body: bodyOp(op.receiveTokens),
+            success: true,
+            outMessagesCount: 1,
+        })
+
+        expect(
+            (
+                await wallet1.sendSendTokens(staker1.getSender(), {
+                    value: fees.sendTokensFee,
+                    tokens: '0.05',
+                    recipient: mainnetAddress,
+                })
+            ).transactions,
+        ).toHaveTransaction({
+            from: wallet1.address,
+            to: walletForMainnetAddress,
             value: between('0', fees.sendTokensFee),
             body: bodyOp(op.receiveTokens),
             success: true,
