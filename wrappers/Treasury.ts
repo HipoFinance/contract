@@ -31,6 +31,8 @@ export interface Fees {
     unstakeTokensFee: bigint
     unstakeAllTokensFee: bigint
     requestLoanFee: bigint
+    loanStorageFee: bigint
+    walletStorageFee: bigint
 }
 
 export enum ParticipationState {
@@ -895,6 +897,8 @@ export class Treasury implements Contract {
             unstakeTokensFee: stack.readBigNumber(),
             unstakeAllTokensFee: stack.readBigNumber(),
             requestLoanFee: stack.readBigNumber(),
+            loanStorageFee: stack.readBigNumber(),
+            walletStorageFee: stack.readBigNumber(),
         }
     }
 

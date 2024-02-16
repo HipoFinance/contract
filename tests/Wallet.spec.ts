@@ -232,7 +232,7 @@ describe('Wallet', () => {
 
         const walletBalance = await wallet.getBalance()
         const [tokens, staking, unstaking] = await wallet.getWalletState()
-        expect(walletBalance).toBeTonValue('0')
+        expect(walletBalance).toBeBetween(fees.walletStorageFee - 5n, fees.walletStorageFee)
         expect(tokens).toBeTonValue(amount)
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('0')
@@ -520,7 +520,7 @@ describe('Wallet', () => {
 
         const walletBalance = await wallet.getBalance()
         const [tokens, staking, unstaking] = await wallet.getWalletState()
-        expect(walletBalance).toBeTonValue('0')
+        expect(walletBalance).toBeBetween(fees.walletStorageFee - 5n, fees.walletStorageFee)
         expect(tokens).toBeTonValue('3')
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('0')
@@ -628,7 +628,7 @@ describe('Wallet', () => {
 
         const walletBalance = await wallet.getBalance()
         const [tokens, staking, unstaking] = await wallet.getWalletState()
-        expect(walletBalance).toBeTonValue('0')
+        expect(walletBalance).toBeBetween(fees.walletStorageFee - 5n, fees.walletStorageFee)
         expect(tokens).toBeTonValue('3')
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('7')
@@ -1177,7 +1177,7 @@ describe('Wallet', () => {
 
         const walletBalance = await wallet.getBalance()
         const [tokens, staking, unstaking] = await wallet.getWalletState()
-        expect(walletBalance).toBeTonValue('0')
+        expect(walletBalance).toBeBetween(fees.walletStorageFee - 5n, fees.walletStorageFee)
         expect(tokens).toBeTonValue(amount - fees.depositCoinsFee)
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('0')
@@ -1272,7 +1272,7 @@ describe('Wallet', () => {
 
         const walletBalance = await wallet.getBalance()
         const [tokens, staking, unstaking] = await wallet.getWalletState()
-        expect(walletBalance).toBeTonValue('0')
+        expect(walletBalance).toBeBetween(fees.walletStorageFee - 5n, fees.walletStorageFee)
         expect(tokens).toBeTonValue('0')
         expect(staking.keys()).toHaveLength(0)
         expect(unstaking).toBeTonValue('0')
@@ -1663,7 +1663,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: staker1.address,
-            value: between('0.006', '0.007'),
+            value: between('0.002', '0.003'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
@@ -1681,14 +1681,14 @@ describe('Wallet', () => {
 
         const wallet1Balance = await wallet1.getBalance()
         const [tokens1, staking1, unstaking1] = await wallet1.getWalletState()
-        expect(wallet1Balance).toBeTonValue('0')
+        expect(wallet1Balance).toBeBetween(fees.walletStorageFee - 5n, fees.walletStorageFee)
         expect(tokens1).toBeTonValue('1')
         expect(staking1.keys()).toHaveLength(0)
         expect(unstaking1).toBeTonValue('0')
 
         const wallet2Balance = await wallet2.getBalance()
         const [tokens2, staking2, unstaking2] = await wallet2.getWalletState()
-        expect(wallet2Balance).toBeTonValue('0')
+        expect(wallet2Balance).toBeBetween(fees.walletStorageFee - 5n, fees.walletStorageFee)
         expect(tokens2).toBeTonValue('9')
         expect(staking2.keys()).toHaveLength(0)
         expect(unstaking2).toBeTonValue('0')
@@ -1744,7 +1744,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: excessReceiver.address,
-            value: between('0.004', '0.005'),
+            value: between('0', '0.001'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
@@ -1762,14 +1762,14 @@ describe('Wallet', () => {
 
         const wallet1Balance = await wallet1.getBalance()
         const [tokens1, staking1, unstaking1] = await wallet1.getWalletState()
-        expect(wallet1Balance).toBeTonValue('0')
+        expect(wallet1Balance).toBeBetween(fees.walletStorageFee - 5n, fees.walletStorageFee)
         expect(tokens1).toBeTonValue('1')
         expect(staking1.keys()).toHaveLength(0)
         expect(unstaking1).toBeTonValue('0')
 
         const wallet2Balance = await wallet2.getBalance()
         const [tokens2, staking2, unstaking2] = await wallet2.getWalletState()
-        expect(wallet2Balance).toBeTonValue('0')
+        expect(wallet2Balance).toBeBetween(fees.walletStorageFee - 5n, fees.walletStorageFee)
         expect(tokens2).toBeTonValue('9')
         expect(staking2.keys()).toHaveLength(0)
         expect(unstaking2).toBeTonValue('0')
@@ -1848,14 +1848,14 @@ describe('Wallet', () => {
 
         const wallet1Balance = await wallet1.getBalance()
         const [tokens1, staking1, unstaking1] = await wallet1.getWalletState()
-        expect(wallet1Balance).toBeTonValue('0')
+        expect(wallet1Balance).toBeBetween(fees.walletStorageFee - 5n, fees.walletStorageFee)
         expect(tokens1).toBeTonValue('1')
         expect(staking1.keys()).toHaveLength(0)
         expect(unstaking1).toBeTonValue('0')
 
         const wallet2Balance = await wallet2.getBalance()
         const [tokens2, staking2, unstaking2] = await wallet2.getWalletState()
-        expect(wallet2Balance).toBeTonValue('0')
+        expect(wallet2Balance).toBeBetween(fees.walletStorageFee - 5n, fees.walletStorageFee)
         expect(tokens2).toBeTonValue('14')
         expect(staking2.keys()).toHaveLength(0)
         expect(unstaking2).toBeTonValue('0')
