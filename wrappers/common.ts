@@ -74,6 +74,7 @@ export const op = {
     acceptGovernance: 0x06e237e3,
     setHalter: 0x16bb5b17,
     setStopped: 0x0e5e9773,
+    setInstantMint: 0x535b09d2,
     setGovernanceFee: 0x470fe5f6,
     setRoundsImbalance: 0x1b4463b6,
     sendMessageToLoan: 0x2b93b447,

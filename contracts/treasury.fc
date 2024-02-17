@@ -9,6 +9,7 @@ global slice parent;
 global cell participations;
 global int rounds_imbalance;
 global int stopped?;
+global int instant_mint?;
 global cell loan_codes;
 global cell extension;
 
@@ -33,6 +34,7 @@ global cell old_parents;
         .store_dict(participations)
         .store_uint(rounds_imbalance, 8)
         .store_int(stopped?, 1)
+        .store_int(instant_mint?, 1)
         .store_ref(loan_codes)
         .store_ref(extension)
         .end_cell()
@@ -50,6 +52,7 @@ global cell old_parents;
     participations = ds~load_dict();
     rounds_imbalance = ds~load_uint(8);
     stopped? = ds~load_int(1);
+    instant_mint? = ds~load_int(1);
     loan_codes = ds~load_ref();
     extension = ds~load_ref();
     ds.end_parse();
@@ -201,18 +204,20 @@ cell find_code(cell dict, int round_since) inline {
     throw_if(err::stopped, stopped?);
 
     int round_since = 0;
-    int k = 1 << 32;
-    do {
-        ( k, slice v, int f? ) = participations.udict_get_prev?(32, k);
-        if f? {
-            int state = v~load_uint(4);
-            if (state > participation::open) & (state < participation::burning) {
-                ;; stake after rewards for this round has been distributed
-                round_since = k;
-                f? = false;
+    ifnot instant_mint? {
+        int k = 1 << 32;
+        do {
+            ( k, slice v, int f? ) = participations.udict_get_prev?(32, k);
+            if f? {
+                int state = v~load_uint(4);
+                if (state > participation::open) & (state < participation::burning) {
+                    ;; stake after rewards for this round has been distributed
+                    round_since = k;
+                    f? = false;
+                }
             }
-        }
-    } until ~ f?;
+        } until ~ f?;
+    }
 
     raw_reserve(coins, reserve::add_original_balance);
 
@@ -1336,6 +1341,23 @@ cell find_code(cell dict, int round_since) inline {
     save_data();
 }
 
+() set_instant_mint(slice src, slice s) impure inline {
+    unpack_extension();
+
+    int query_id = s~load_uint(64);
+    instant_mint? = s~load_int(1);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+
+    save_data();
+}
+
 () set_governance_fee(slice src, slice s) impure inline {
     unpack_extension();
 
@@ -1801,6 +1823,10 @@ int calculate_min_coins() inline_ref {
         return set_stopped(src, s);
     }
 
+    if op == op::set_instant_mint {
+        return set_instant_mint(src, s);
+    }
+
     if op == op::set_governance_fee {
         return set_governance_fee(src, s);
     }
@@ -1902,6 +1928,7 @@ var get_treasury_state() method_id {
         , participations
         , rounds_imbalance
         , stopped?
+        , instant_mint?
         , loan_codes
         , last_staked
         , last_recovered

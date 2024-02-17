@@ -38,6 +38,7 @@ describe('Librarian', () => {
                     participations: Dictionary.empty(),
                     roundsImbalance: 255n,
                     stopped: false,
+                    instantMint: false,
                     loanCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         Cell.EMPTY,

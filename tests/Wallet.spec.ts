@@ -95,6 +95,7 @@ describe('Wallet', () => {
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                     roundsImbalance: 255n,
                     stopped: false,
+                    instantMint: false,
                     loanCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         loanCode,
@@ -447,6 +448,89 @@ describe('Wallet', () => {
         storeComputeGas('mint_tokens', op.mintTokens, result2.transactions[6])
         storeComputeGas('proxy_tokens_minted', op.proxyTokensMinted, result2.transactions[7])
         storeComputeGas('tokens_minted', op.tokensMinted, result2.transactions[8])
+    })
+
+    it('should deposit and mint tokens when instant mint flag is set', async () => {
+        const roundSince = 1n
+        const fakeState1 = await treasury.getTreasuryState()
+        fakeState1.participations.set(roundSince, { state: ParticipationState.Staked })
+        fakeState1.instantMint = true
+        const fakeData1 = treasuryConfigToCell(fakeState1)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData1,
+                balance: await treasury.getBalance(),
+            }),
+        )
+
+        const amount = toNano('10')
+        const staker = await blockchain.treasury('staker')
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const result = await treasury.sendDepositCoins(staker.getSender(), {
+            value: amount + fees.depositCoinsFee,
+        })
+
+        expect(result.transactions).toHaveTransaction({
+            from: staker.address,
+            to: treasury.address,
+            value: amount + fees.depositCoinsFee,
+            body: bodyOp(op.depositCoins),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: parent.address,
+            value: between('0', fees.depositCoinsFee),
+            body: bodyOp(op.proxyTokensMinted),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet.address,
+            value: between('0', fees.depositCoinsFee),
+            body: bodyOp(op.tokensMinted),
+            deploy: true,
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            // value: between('0.03', '0.04'),
+            body: bodyOp(op.stakeNotification),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(5)
+
+        const treasuryBalance = await treasury.getBalance()
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryBalance).toBeBetween(treasuryStorage + amount - 5n, treasuryStorage + amount)
+        expect(treasuryState.totalCoins).toBeTonValue(amount)
+        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
+        expect(treasuryState.totalStaking).toBeTonValue('0')
+        expect(treasuryState.totalUnstaking).toBeTonValue('0')
+        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+
+        const [parentTotalTokens] = await parent.getJettonData()
+        expect(parentTotalTokens).toBeTonValue(amount)
+
+        const walletBalance = await wallet.getBalance()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
+        expect(walletBalance).toBeBetween(fees.walletStorageFee - 5n, fees.walletStorageFee)
+        expect(tokens).toBeTonValue(amount)
+        expect(staking.keys()).toHaveLength(0)
+        expect(unstaking).toBeTonValue('0')
+
+        accumulateFees(result.transactions)
+        storeComputeGas('deposit_coins', op.depositCoins, result.transactions[1])
     })
 
     it('should unstake and withdraw coins when there is no active round', async () => {

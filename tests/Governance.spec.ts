@@ -71,6 +71,7 @@ describe('Governance', () => {
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                     roundsImbalance: 255n,
                     stopped: false,
+                    instantMint: false,
                     loanCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         loanCode,

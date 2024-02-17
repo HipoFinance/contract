@@ -305,6 +305,11 @@ set_stopped#0e5e9773
     new_stopped:Bool
         = InternalMsgBody;
 
+set_instant_mint#535b09d2
+    query_id:uint64
+    new_instant_mint:Bool
+        = InternalMsgBody;
+
 set_governance_fee#470fe5f6
     query_id:uint64
     new_governance_fee:uint16
@@ -698,6 +703,7 @@ treasury_storage#_
     participations:(HashmapE 32 Participation)
     rounds_imbalance:uint8
     stopped:Bool
+    instant_mint:Bool
     loan_codes:(Hashmap 32 ^Cell)
     extension:^Extension
         = TreasuryStorage;

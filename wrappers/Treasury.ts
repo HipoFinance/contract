@@ -81,6 +81,7 @@ export interface TreasuryConfig {
     participations: Dictionary<bigint, Participation>
     roundsImbalance: bigint
     stopped: boolean
+    instantMint: boolean
     loanCodes: Dictionary<bigint, Cell>
     lastStaked: bigint
     lastRecovered: bigint
@@ -114,6 +115,7 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeDict(config.participations)
         .storeUint(config.roundsImbalance, 8)
         .storeBit(config.stopped)
+        .storeBit(config.instantMint)
         .storeRef(beginCell().storeDictDirect(config.loanCodes))
         .storeRef(treasuryExtension)
         .endCell()
@@ -823,6 +825,7 @@ export class Treasury implements Contract {
             ),
             roundsImbalance: stack.readBigNumber(),
             stopped: stack.readBoolean(),
+            instantMint: stack.readBoolean(),
             loanCodes: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell(), stack.readCell()),
             lastStaked: stack.readBigNumber(),
             lastRecovered: stack.readBigNumber(),

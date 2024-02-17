@@ -9,7 +9,8 @@ global slice parent;
 global cell participations;
 global int rounds_imbalance;
 global int stopped?;
-global cell loan_code;
+global int instant_mint?;
+global cell loan_codes;
 global cell extension;
 
 global int last_staked;
@@ -18,8 +19,8 @@ global slice halter;
 global slice governor;
 global cell proposed_governor;
 global int governance_fee;
-global cell collection_code;
-global cell bill_code;
+global cell collection_codes;
+global cell bill_codes;
 global cell old_parents;
 
 () load_data() impure {
@@ -33,7 +34,8 @@ global cell old_parents;
     participations = ds~load_dict();
     rounds_imbalance = ds~load_uint(8);
     stopped? = ds~load_int(1);
-    loan_code = ds~load_ref();
+    instant_mint? = ds~load_int(1);
+    loan_codes = ds~load_ref();
     extension = ds~load_ref();
     ds.end_parse();
 }
@@ -46,8 +48,8 @@ global cell old_parents;
     governor = s~load_msg_addr();
     proposed_governor = s~load_maybe_ref();
     governance_fee = s~load_uint(16);
-    collection_code = s~load_ref();
-    bill_code = s~load_ref();
+    collection_codes = s~load_ref();
+    bill_codes = s~load_ref();
     old_parents = s~load_dict();
     s.end_parse();
 }
