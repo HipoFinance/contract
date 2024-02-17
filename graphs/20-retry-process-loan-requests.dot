@@ -1,5 +1,5 @@
 digraph {
-    label="the current halter sends process-loan-requests"
+    label="the current halter retries process-loan-requests"
     node [ colorscheme=pastel19 style=filled ]
 
     /* Entities */
