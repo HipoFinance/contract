@@ -549,7 +549,7 @@ export class Treasury implements Contract {
         })
     }
 
-    async sendRetryProcessLoanRequests(
+    async sendRetryDistribute(
         provider: ContractProvider,
         via: Sender,
         opts: {
@@ -565,7 +565,7 @@ export class Treasury implements Contract {
             bounce: opts.bounce,
             sendMode: opts.sendMode,
             body: beginCell()
-                .storeUint(op.retryProcessLoanRequests, 32)
+                .storeUint(op.retryDistribute, 32)
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeUint(opts.roundSince, 32)
                 .endCell(),

@@ -638,25 +638,14 @@ cell find_code(cell dict, int round_since) inline {
     save_data();
 }
 
-() participate_in_election(slice s) impure inline_ref {
-    int query_id = s~load_uint(64);
-    int round_since = s~load_uint(32);
-    s.end_parse();
-
+() distribute(int query_id, int round_since) impure inline_ref {
     ifnot query_id {
         ;; force reply from elector when staking
         query_id = cur_lt();
     }
     ( slice ps, _ ) = participations.udict_get?(32, round_since);
     ( int state, int size, cell sorted, cell requests, _, _, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
-    ( _, int participate_since, int participate_until, _, int next_round_until, int stake_held_for ) = get_times();
-
-    throw_unless(err::unable_to_participate, state == participation::open);
-    throw_unless(err::too_soon_to_participate, now() >= min(participate_since, round_since));
-
-    accept_message();
-
-    state = participation::distributing;
+    ( _, _, int participate_until, _, int next_round_until, int stake_held_for ) = get_times();
 
     int current_vset_hash = config_param(config::current_validators).cell_hash();
     int stake_held_until = next_round_until + stake_held_for + 60;
@@ -710,6 +699,47 @@ cell find_code(cell dict, int round_since) inline {
     }
 
     save_data();
+}
+
+() participate_in_election(slice s) impure inline_ref {
+    int query_id = s~load_uint(64);
+    int round_since = s~load_uint(32);
+    s.end_parse();
+
+    ( slice ps, _ ) = participations.udict_get?(32, round_since);
+    ( int state
+    , int size
+    , cell sorted
+    , cell requests
+    , cell rejected
+    , cell accepted
+    , cell accrued
+    , cell staked
+    , cell recovering
+    , int total_staked
+    , int total_recovered
+    , int current_vset_hash
+    , int stake_held_for
+    , int stake_held_until
+    ) = unpack_participation(ps);
+    ( _, int participate_since, _, _, _, _ ) = get_times();
+
+    throw_unless(err::unable_to_participate, state == participation::open);
+    throw_unless(err::too_soon_to_participate, now() >= min(participate_since, round_since));
+
+    state = participation::distributing;
+
+    builder pb = pack_participation(
+        state, size, sorted, requests, rejected, accepted, accrued, staked, recovering,
+        total_staked, total_recovered, current_vset_hash, stake_held_for, stake_held_until
+    );
+    participations~udict_set_builder(32, round_since, pb);
+
+    save_data();
+    commit();
+    accept_message();
+
+    distribute(query_id, round_since);
 }
 
 () decide_loan_requests(slice src, slice s) impure inline {
@@ -948,8 +978,6 @@ cell find_code(cell dict, int round_since) inline {
     throw_unless(err::vset_not_changed, new_vset_hash != current_vset_hash);
     throw_unless(err::vset_not_changeable, (state == participation::staked) | (state == participation::validating));
 
-    accept_message();
-
     if state == participation::staked {
         state = participation::validating;
         ( _, int next_round_since ) = get_vset_times(config::current_validators);
@@ -966,6 +994,8 @@ cell find_code(cell dict, int round_since) inline {
     participations~udict_set_builder(32, round_since, pb);
 
     save_data();
+    commit();
+    accept_message();
 }
 
 () finish_participation(slice s) impure inline_ref {
@@ -993,8 +1023,6 @@ cell find_code(cell dict, int round_since) inline {
     throw_unless(err::not_ready_to_finish_participation, state == participation::held);
     throw_unless(err::too_soon_to_finish_participation, now() >= stake_held_until);
 
-    accept_message();
-
     state = participation::recovering;
 
     builder pb = pack_participation(
@@ -1003,15 +1031,15 @@ cell find_code(cell dict, int round_since) inline {
     );
     participations~udict_set_builder(32, round_since, pb);
 
-    ( int total_fee, _, _ ) = request_loan_fee();
+    save_data();
+    commit();
+    accept_message();
 
     builder continue = begin_cell()
         .store_uint(op::recover_stakes, 32)
         .store_uint(query_id, 64)
         .store_uint(round_since, 32);
-    send_msg(false, my_address().to_builder(), null(), continue, total_fee, send::pay_gas_separately);
-
-    save_data();
+    send_msg(false, my_address().to_builder(), null(), continue, max_gas_fee(), send::pay_gas_separately);
 }
 
 () recover_stakes(slice src, slice s) impure inline {
@@ -1043,8 +1071,6 @@ cell find_code(cell dict, int round_since) inline {
     cell loan_code = loan_codes.find_code(round_since);
 
     int incoming_ton = get_incoming_value().pair_first();
-
-    accept_message();
 
     ( _, int gas_limit ) = get_compute_prices(config::gas_prices);
     int soft_gas_limit = muldiv(gas_limit, 8, 10);
@@ -1097,8 +1123,6 @@ cell find_code(cell dict, int round_since) inline {
     ( int src_wc, int src_addr ) = parse_std_addr(src);
 
     throw_unless(err::access_denied, (src_wc == chain::main) & (src_addr == loan_addr));
-
-    accept_message();
 
     int reserve_amount = 0;
     int stake_amount = 0;
@@ -1422,7 +1446,7 @@ cell find_code(cell dict, int round_since) inline {
     send_msg(true, loan, null(), message.begin_parse().to_builder(), 0, send::remaining_value);
 }
 
-() retry_process_loan_requests(slice src, slice s) impure inline {
+() retry_distribute(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1438,11 +1462,30 @@ cell find_code(cell dict, int round_since) inline {
     throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
     throw_unless(err::unable_to_participate, state == participation::distributing);
 
-    builder process = begin_cell()
-        .store_uint(op::process_loan_requests, 32)
+    distribute(query_id, round_since);
+}
+
+() retry_recover_stakes(slice src, slice s) impure inline {
+    unpack_extension();
+
+    int query_id = s~load_uint(64);
+    int round_since = s~load_uint(32);
+    s.end_parse();
+
+    int state = -1;
+    ( slice ps, int f? ) = participations.udict_get?(32, round_since);
+    if f? {
+        ( state, _, _, _, _, _, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
+    }
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
+    throw_unless(err::unable_to_participate, state == participation::recovering);
+
+    builder continue = begin_cell()
+        .store_uint(op::recover_stakes, 32)
         .store_uint(query_id, 64)
         .store_uint(round_since, 32);
-    send_msg(false, my_address().to_builder(), null(), process, 0, send::remaining_value);
+    send_msg(false, my_address().to_builder(), null(), continue, max_gas_fee(), send::pay_gas_separately);
 }
 
 () retry_burn_all(slice src, slice s) impure inline {
@@ -1839,8 +1882,12 @@ int calculate_min_coins() inline_ref {
         return send_message_to_loan(src, s);
     }
 
-    if op == op::retry_process_loan_requests {
-        return retry_process_loan_requests(src, s);
+    if op == op::retry_distribute {
+        return retry_distribute(src, s);
+    }
+
+    if op == op::retry_recover_stakes {
+        return retry_recover_stakes(src, s);
     }
 
     if op == op::retry_burn_all {

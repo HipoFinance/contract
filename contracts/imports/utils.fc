@@ -609,7 +609,7 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
 }
 
 (int, int, int) request_loan_fee() {
-    ( int loan_storage_fee, int request_storage_fee ) = loan_storage_fee();
+    ( int mc_storage_fee, int storage_fee ) = loan_storage_fee();
 
     ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
     ( int mc_gas_price, _ ) = get_compute_prices(config::mc_gas_prices);
@@ -662,7 +662,7 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
         s_fwd_fee + ;; burn_all
         s_fwd_fee; ;; last_bill_burned
 
-    int total = loan_storage_fee + request_storage_fee + compute_fee + forward_fee;
+    int total = mc_storage_fee + storage_fee + compute_fee + forward_fee;
 
     int proxy_mc_compute_gas =
         gas::proxy_new_stake +
@@ -691,7 +691,7 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
         mc_s_fwd_fee + ;; recover_stake_ok
         m_fwd_fee; ;; recover_stake_result
 
-    int recover_stake_fee = loan_storage_fee + recover_compute_fee + recover_forward_fee;
+    int recover_stake_fee = mc_storage_fee + recover_compute_fee + recover_forward_fee;
 
     return ( total, proxy_new_stake_fee, recover_stake_fee );
 }
@@ -760,4 +760,9 @@ int upgrade_wallet_fee() {
         l_fwd_fee; ;; merge_wallet
 
     return compute_fee + forward_fee;
+}
+
+int max_gas_fee() {
+    ( int gas_price, int gas_limit ) = get_compute_prices(config::gas_prices);
+    return gas_price * gas_limit >> 16;
 }

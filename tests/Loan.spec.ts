@@ -617,7 +617,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: treasury.address,
-            value: between('0.7', '0.8'),
+            value: toNano('1'),
             body: bodyOp(op.recoverStakes),
             success: true,
             outMessagesCount: 2,

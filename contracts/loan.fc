@@ -54,7 +54,7 @@ global int round_since;
     send_msg(true, elector.to_builder(), null(), recover, 0, send::unreserved_balance);
 }
 
-() recover_stake_result(slice src, int op, slice s) impure inline_ref {
+() recover_stake_handler(slice src, int op, slice s) impure inline_ref {
     int query_id = 0;
     if s.slice_bits() >= 64 { ;; in case the elector's behavior changed, don't throw
         query_id = s~load_uint(64);
@@ -88,12 +88,12 @@ int src_is_elector?(slice src) inline {
     if op == op::new_stake {
         ;; the elector does not throw because format of new_stake_msg is already checked,
         ;; however, its code might change in the future, so let's handle a potential throw
-        return recover_stake_result(src, op::new_stake_error, s);
+        return recover_stake_handler(src, op::new_stake_error, s);
     }
 
     if op == op::recover_stake {
         ;; the elector does not throw, but we'll handle it in case the elector's code has changed
-        return recover_stake_result(src, op::recover_stake_error, s);
+        return recover_stake_handler(src, op::recover_stake_error, s);
     }
 }
 
@@ -118,7 +118,7 @@ int src_is_elector?(slice src) inline {
     }
 
     if op == op::new_stake_error {
-        return recover_stake_result(src, op, s);
+        return recover_stake_handler(src, op, s);
     }
 
     if op == op::new_stake_ok {
@@ -130,11 +130,11 @@ int src_is_elector?(slice src) inline {
     }
 
     if op == op::recover_stake_error {
-        return recover_stake_result(src, op, s);
+        return recover_stake_handler(src, op, s);
     }
 
     if op == op::recover_stake_ok {
-        return recover_stake_result(src, op, s);
+        return recover_stake_handler(src, op, s);
     }
 
     if op == op::top_up {

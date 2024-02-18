@@ -548,7 +548,7 @@ describe('Governance', () => {
             }),
         )
 
-        const result = await treasury.sendRetryProcessLoanRequests(halter.getSender(), {
+        const result = await treasury.sendRetryDistribute(halter.getSender(), {
             value: '1',
             roundSince: 0n,
         })
@@ -557,7 +557,7 @@ describe('Governance', () => {
             from: halter.address,
             to: treasury.address,
             value: toNano('1'),
-            body: bodyOp(op.retryProcessLoanRequests),
+            body: bodyOp(op.retryDistribute),
             success: true,
             outMessagesCount: 1,
         })
