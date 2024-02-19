@@ -46,8 +46,6 @@ global cell content;
         .store_slice(owner) ;; when bounced message limit is increased it can be useful to find the owner
         .store_uint(round_since, 32);
     send_msg(false, wallet, state_init, minted, 0, send::remaining_value);
-
-    save_data();
 }
 
 () proxy_save_coins(slice src, slice s) impure inline {
@@ -68,6 +66,8 @@ global cell content;
         .store_slice(owner) ;; when bounced message limit is increased it can be useful to find the owner
         .store_uint(round_since, 32);
     send_msg(false, wallet, state_init, save, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () proxy_reserve_tokens(slice src, slice s) impure inline {
@@ -91,6 +91,8 @@ global cell content;
         .store_uint(mode, 4)
         .store_coins(ownership_assigned_amount);
     send_msg(false, treasury.to_builder(), null(), reserve, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () proxy_rollback_unstake(slice src, slice s) impure inline {
@@ -108,6 +110,8 @@ global cell content;
         .store_uint(query_id, 64)
         .store_coins(tokens);
     send_msg(false, wallet, null(), rollback, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () proxy_tokens_burned(slice src, slice s) impure inline {
@@ -129,8 +133,6 @@ global cell content;
         .store_coins(tokens)
         .store_coins(coins);
     send_msg(false, wallet, null(), burned, 0, send::remaining_value);
-
-    save_data();
 }
 
 () proxy_unstake_tokens(slice src, slice s) impure inline {
@@ -147,6 +149,8 @@ global cell content;
         .store_uint(query_id, 64)
         .store_uint(0, 7); ;; 0000 (amount) + 00 (addr_none) + 0 (custom_payload)
     send_msg(false, wallet, null(), unstake, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () proxy_upgrade_wallet(slice src, slice s) impure inline {
@@ -162,6 +166,8 @@ global cell content;
         .store_uint(op::upgrade_wallet, 32)
         .store_uint(query_id, 64);
     send_msg(true, wallet, null(), upgrade, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () proxy_migrate_wallet(slice src, slice s) impure inline {
@@ -183,8 +189,6 @@ global cell content;
         .store_coins(tokens)
         .store_slice(owner);
     send_msg(false, treasury.to_builder(), null(), migrate, 0, send::remaining_value);
-
-    save_data();
 }
 
 () proxy_merge_wallet(slice src, slice s) impure inline {
@@ -204,8 +208,6 @@ global cell content;
         .store_uint(query_id, 64)
         .store_coins(tokens);
     send_msg(false, wallet, state_init, merge, 0, send::remaining_value);
-
-    save_data();
 }
 
 () provide_wallet_address(slice src, slice s) impure inline {
@@ -230,6 +232,8 @@ global cell content;
         .store_builder(wallet)
         .store_maybe_ref(included_address);
     send_msg(false, src.to_builder(), null(), take, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () set_content(slice src, slice s) impure inline {
@@ -244,8 +248,6 @@ global cell content;
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, return_excess.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
-
-    save_data();
 }
 
 () withdraw_surplus(slice src, slice s) impure inline {
@@ -265,6 +267,8 @@ global cell content;
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, return_excess.to_builder(), null(), excess, 0, send::unreserved_balance + send::ignore_errors);
+
+    throw(0);
 }
 
 () upgrade_data(slice src, int query_id, cell new_data, slice return_excess) impure method_id {
@@ -307,16 +311,10 @@ global cell content;
     int op = s~load_uint(32);
     int query_id = s~load_uint(64);
 
-    return ();
+    throw(0);
 }
 
-() recv_internal(cell in_msg_full, slice s) impure {
-    load_data();
-
-    slice cs = in_msg_full.begin_parse();
-    int flags = cs~load_uint(4);
-    slice src = cs~load_msg_addr();
-
+() route_internal_message(int flags, slice src, slice s) impure inline {
     if flags & 1 {
         return on_bounce(src, s);
     }
@@ -376,10 +374,20 @@ global cell content;
     }
 
     if op == op::top_up {
-        return (); ;; top up TON balance, do nothing
+        throw(0); ;; top up TON balance, do nothing
     }
 
     throw(err::invalid_op);
+}
+
+() recv_internal(cell in_msg_full, slice s) impure {
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    slice src = cs~load_msg_addr();
+
+    load_data();
+    route_internal_message(flags, src, s);
+    save_data();
 }
 
 ;;

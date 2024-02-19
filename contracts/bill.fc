@@ -48,8 +48,6 @@ global int amount;
             .store_uint(0, 3); ;; 00 (addr_none) + 0 (left forward payload)
         send_msg(false, owner.to_builder(), null(), assigned, notify, send::pay_gas_separately + send::ignore_errors);
     }
-
-    save_data();
 }
 
 () burn_bill(slice src, slice s) impure inline {
@@ -72,8 +70,6 @@ global int amount;
     parent = "2_"s; ;; 00 (addr_none)
     unstake? = 0;
     amount = 0;
-
-    save_data();
 }
 
 builder create_bill_name() inline {
@@ -118,6 +114,8 @@ cell create_bill_metadata() {
         .store_uint(0, 64)
         .store_maybe_ref(content);
     send_msg(true, destination.to_builder(), null(), proof, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () request_owner(slice src, slice s) impure inline {
@@ -139,6 +137,8 @@ cell create_bill_metadata() {
         .store_uint(0, 64)
         .store_maybe_ref(content);
     send_msg(true, destination.to_builder(), null(), info, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () get_static_data(slice src, slice s) impure inline {
@@ -151,6 +151,8 @@ cell create_bill_metadata() {
         .store_uint(index, 256)
         .store_slice(collection);
     send_msg(false, src.to_builder(), null(), data, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () on_bounce(slice src, slice s) impure inline {
@@ -170,16 +172,10 @@ cell create_bill_metadata() {
         ;; just accept bounced coins
     }
 
-    return ();
+    throw(0);
 }
 
-() recv_internal(cell in_msg_full, slice s) impure {
-    load_data();
-
-    slice cs = in_msg_full.begin_parse();
-    int flags = cs~load_uint(4);
-    slice src = cs~load_msg_addr();
-
+() route_internal_message(int flags, slice src, slice s) impure inline {
     if flags & 1 {
         return on_bounce(src, s);
     }
@@ -207,6 +203,16 @@ cell create_bill_metadata() {
     }
 
     throw(err::invalid_op);
+}
+
+() recv_internal(cell in_msg_full, slice s) impure {
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    slice src = cs~load_msg_addr();
+
+    load_data();
+    route_internal_message(flags, src, s);
+    save_data();
 }
 
 ;;

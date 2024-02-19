@@ -269,8 +269,6 @@ cell find_code(cell dict, int round_since) inline {
             .store_coins(ownership_assigned_amount);
         send_msg(false, collection, state_init, mint, 0, send::unreserved_balance);
     }
-
-    save_data();
 }
 
 () reserve_tokens(slice src, slice s) impure inline {
@@ -320,7 +318,7 @@ cell find_code(cell dict, int round_since) inline {
             .store_slice(owner);
         send_msg(false, src.to_builder(), null(), rollback, 0, send::remaining_value);
 
-        return ();
+        throw(0);
     }
 
     if (available_ton >= coins) & ((mode <= unstake::instant) | (round_since == 0)) {
@@ -363,8 +361,6 @@ cell find_code(cell dict, int round_since) inline {
             .store_coins(ownership_assigned_amount);
         send_msg(false, collection, state_init, mint, 0, send::remaining_value);
     }
-
-    save_data();
 }
 
 () mint_tokens(slice src, slice s) impure inline {
@@ -402,8 +398,6 @@ cell find_code(cell dict, int round_since) inline {
         .store_slice(owner)
         .store_uint(round_since, 32);
     send_msg(false, fixed_parent.to_builder(), null(), minted, 0, send::remaining_value);
-
-    save_data();
 }
 
 () burn_tokens(slice src, slice s) impure inline {
@@ -470,7 +464,7 @@ cell find_code(cell dict, int round_since) inline {
             send_msg(false, collection, state_init, mint, 0, send::remaining_value);
         }
 
-        return ();
+        throw(0);
     }
 
     total_coins -= coins;
@@ -490,8 +484,6 @@ cell find_code(cell dict, int round_since) inline {
         .store_coins(coins)
         .store_slice(owner);
     send_msg(false, fixed_parent.to_builder(), null(), burned, 0, send::unreserved_balance);
-
-    save_data();
 }
 
 () send_unstake_tokens(slice src, slice s) impure inline {
@@ -506,6 +498,8 @@ cell find_code(cell dict, int round_since) inline {
         .store_uint(query_id, 64)
         .store_slice(src);
     send_msg(false, parent.to_builder(), null(), unstake, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () provide_current_quote(slice src, slice s) impure inline {
@@ -520,6 +514,8 @@ cell find_code(cell dict, int round_since) inline {
         .store_uint(total_tokens, 128)
         .store_maybe_ref(custom_payload);
     send_msg(false, src.to_builder(), null(), quote, 0, send::remaining_value);
+
+    throw(0);
 }
 
 (int, int, int, int, int, int) get_times() inline_ref method_id {
@@ -634,8 +630,6 @@ cell find_code(cell dict, int round_since) inline {
         0, 0, 0, 0, 0
     );
     participations~udict_set_builder(32, next_round_since, pb);
-
-    save_data();
 }
 
 () distribute(int query_id, int round_since) impure inline_ref {
@@ -697,8 +691,6 @@ cell find_code(cell dict, int round_since) inline {
             .store_uint(round_since, 32);
         send_msg(false, my_address().to_builder(), null(), decide, amount, send::pay_gas_separately);
     }
-
-    save_data();
 }
 
 () participate_in_election(slice s) impure inline_ref {
@@ -846,8 +838,6 @@ cell find_code(cell dict, int round_since) inline {
         total_staked, total_recovered, current_vset_hash, stake_held_for, stake_held_until
     );
     participations~udict_set_builder(32, round_since, pb);
-
-    save_data();
 }
 
 () process_loan_requests(slice src, slice s) impure inline {
@@ -912,7 +902,7 @@ cell find_code(cell dict, int round_since) inline {
         log_loan(round_since, min_payment, validator_reward_share, loan_amount, accrue_amount, stake_amount, validator);
     }
 
-    ;; return staked amount of rejected requests
+    ;; send back staked amount of rejected requests
     while remain & (gas_consumed() < soft_gas_limit) & ~ rejected.dict_empty?() {
         remain -= 1;
         size -= 1;
@@ -948,8 +938,6 @@ cell find_code(cell dict, int round_since) inline {
         );
         participations~udict_set_builder(32, round_since, pb);
     }
-
-    save_data();
 }
 
 () vset_changed(slice s) impure inline_ref {
@@ -996,6 +984,8 @@ cell find_code(cell dict, int round_since) inline {
     save_data();
     commit();
     accept_message();
+
+    throw(0);
 }
 
 () finish_participation(slice s) impure inline_ref {
@@ -1040,6 +1030,8 @@ cell find_code(cell dict, int round_since) inline {
         .store_uint(query_id, 64)
         .store_uint(round_since, 32);
     send_msg(false, my_address().to_builder(), null(), continue, max_gas_fee(), send::pay_gas_separately);
+
+    throw(0);
 }
 
 () recover_stakes(slice src, slice s) impure inline {
@@ -1104,8 +1096,6 @@ cell find_code(cell dict, int round_since) inline {
         total_staked, total_recovered, current_vset_hash, stake_held_for, stake_held_until
     );
     participations~udict_set_builder(32, round_since, pb);
-
-    save_data();
 }
 
 () recover_stake_result(slice src, slice s) impure inline {
@@ -1235,7 +1225,6 @@ cell find_code(cell dict, int round_since) inline {
     send_msg(false, governor.to_builder(), null(), profit, 0, send::unreserved_balance + send::ignore_errors);
 
     pack_extension();
-    save_data();
 }
 
 () last_bill_burned(slice src, slice s) impure inline {
@@ -1273,8 +1262,6 @@ cell find_code(cell dict, int round_since) inline {
 
         log_finish(round_since, total_staked, total_recovered, total_coins, total_tokens);
     }
-
-    save_data();
 }
 
 () propose_governor(slice src, slice s) impure inline {
@@ -1300,7 +1287,6 @@ cell find_code(cell dict, int round_since) inline {
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
     pack_extension();
-    save_data();
 }
 
 () accept_governance(slice src, slice s) impure inline {
@@ -1324,7 +1310,6 @@ cell find_code(cell dict, int round_since) inline {
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
     pack_extension();
-    save_data();
 }
 
 () set_halter(slice src, slice s) impure inline {
@@ -1345,7 +1330,6 @@ cell find_code(cell dict, int round_since) inline {
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
     pack_extension();
-    save_data();
 }
 
 () set_stopped(slice src, slice s) impure inline {
@@ -1361,8 +1345,6 @@ cell find_code(cell dict, int round_since) inline {
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
-
-    save_data();
 }
 
 () set_instant_mint(slice src, slice s) impure inline {
@@ -1378,8 +1360,6 @@ cell find_code(cell dict, int round_since) inline {
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
-
-    save_data();
 }
 
 () set_governance_fee(slice src, slice s) impure inline {
@@ -1397,7 +1377,6 @@ cell find_code(cell dict, int round_since) inline {
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
     pack_extension();
-    save_data();
 }
 
 () set_rounds_imbalance(slice src, slice s) impure inline {
@@ -1415,7 +1394,6 @@ cell find_code(cell dict, int round_since) inline {
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
     pack_extension();
-    save_data();
 }
 
 () send_message_to_loan(slice src, slice s) impure inline {
@@ -1444,6 +1422,8 @@ cell find_code(cell dict, int round_since) inline {
     throw_unless(err::not_ready_to_finish_participation, now() >= stake_held_until);
 
     send_msg(true, loan, null(), message.begin_parse().to_builder(), 0, send::remaining_value);
+
+    throw(0);
 }
 
 () retry_distribute(slice src, slice s) impure inline {
@@ -1486,6 +1466,8 @@ cell find_code(cell dict, int round_since) inline {
         .store_uint(query_id, 64)
         .store_uint(round_since, 32);
     send_msg(false, my_address().to_builder(), null(), continue, max_gas_fee(), send::pay_gas_separately);
+
+    throw(0);
 }
 
 () retry_burn_all(slice src, slice s) impure inline {
@@ -1515,6 +1497,8 @@ cell find_code(cell dict, int round_since) inline {
         .store_uint(query_id, 64)
         .store_uint(start_index, 64);
     send_msg(false, collection, null(), burn, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () set_parent(slice src, slice s) impure inline {
@@ -1538,7 +1522,6 @@ cell find_code(cell dict, int round_since) inline {
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
     pack_extension();
-    save_data();
 }
 
 () proxy_set_content(slice src, slice s) impure inline {
@@ -1557,6 +1540,8 @@ cell find_code(cell dict, int round_since) inline {
         .store_slice(src)
         .store_ref(content);
     send_msg(true, destination.to_builder(), null(), set, 0, send::remaining_value);
+
+    throw(0);
 }
 
 int calculate_min_coins() inline_ref {
@@ -1608,6 +1593,8 @@ int calculate_min_coins() inline_ref {
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, return_excess.to_builder(), null(), excess, 0, send::unreserved_balance + send::ignore_errors);
+
+    throw(0);
 }
 
 () proxy_withdraw_surplus(slice src, slice s) impure inline {
@@ -1624,6 +1611,8 @@ int calculate_min_coins() inline_ref {
         .store_uint(query_id, 64)
         .store_slice(src);
     send_msg(true, destination.to_builder(), null(), withdraw, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () upgrade_data(slice src, int query_id, cell new_data, slice return_excess) impure method_id {
@@ -1686,6 +1675,8 @@ int calculate_min_coins() inline_ref {
         .store_maybe_ref(new_data)
         .store_slice(src);
     send_msg(true, destination.to_builder(), null(), upgrade, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () send_proxy_upgrade_wallet(slice src, slice s) impure inline {
@@ -1703,6 +1694,8 @@ int calculate_min_coins() inline_ref {
         .store_uint(query_id, 64)
         .store_slice(owner);
     send_msg(false, destination.to_builder(), null(), proxy, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () migrate_wallet(slice src, slice s) impure inline {
@@ -1716,7 +1709,7 @@ int calculate_min_coins() inline_ref {
     ( int src_wc, int src_addr ) = parse_std_addr(src);
     ( _, int f? ) = old_parents.udict_get?(256, src_addr);
 
-    ;; Return back if src is not one of the old parents.
+    ;; send back if src is not one of the old parents.
     slice destination = src;
     if f? & (src_wc == chain::base) {
         destination = parent;
@@ -1728,6 +1721,8 @@ int calculate_min_coins() inline_ref {
         .store_coins(tokens)
         .store_slice(owner);
     send_msg(false, destination.to_builder(), null(), merge, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () proxy_set_library(slice src, slice s) impure inline {
@@ -1747,6 +1742,8 @@ int calculate_min_coins() inline_ref {
         .store_uint(mode, 256)
         .store_ref(code);
     send_msg(false, destination.to_builder(), null(), library, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () on_bounce(slice src, slice s) impure inline {
@@ -1754,17 +1751,10 @@ int calculate_min_coins() inline_ref {
     int op = s~load_uint(32);
     int query_id = s~load_uint(64);
 
-    ;; just accept bounced TON
-    return ();
+    throw(0); ;; just accept bounced TON
 }
 
-() recv_internal(cell in_msg_full, slice s) impure {
-    load_data();
-
-    slice cs = in_msg_full.begin_parse();
-    int flags = cs~load_uint(4);
-    slice src = cs~load_msg_addr();
-
+() route_internal_message(int flags, slice src, slice s) impure inline {
     if flags & 1 {
         return on_bounce(src, s);
     }
@@ -1931,15 +1921,13 @@ int calculate_min_coins() inline_ref {
     }
 
     if op == op::top_up {
-        return (); ;; top up TON balance, do nothing
+        throw(0); ;; top up TON balance, do nothing
     }
 
     throw(err::invalid_op);
 }
 
-() recv_external(slice s) impure {
-    load_data();
-
+() route_external_message(slice s) impure inline {
     int op = s~load_uint(32);
 
     if op == op::participate_in_election {
@@ -1955,6 +1943,22 @@ int calculate_min_coins() inline_ref {
     }
 
     throw(err::invalid_op);
+}
+
+() recv_internal(cell in_msg_full, slice s) impure {
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    slice src = cs~load_msg_addr();
+
+    load_data();
+    route_internal_message(flags, src, s);
+    save_data();
+}
+
+() recv_external(slice s) impure {
+    load_data();
+    route_external_message(s);
+    save_data();
 }
 
 ;;

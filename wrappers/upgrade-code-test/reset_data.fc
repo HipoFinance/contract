@@ -97,13 +97,7 @@ global cell old_parents;
     upgrade_data(src, query_id, new_data, return_excess);
 }
 
-() recv_internal(cell in_msg_full, slice in_msg_body) impure {
-    load_data();
-
-    slice cs = in_msg_full.begin_parse();
-    int flags = cs~load_uint(4);
-    slice src = cs~load_msg_addr();
-
+() route_internal_message(int flags, slice src, slice s) impure inline {
     if flags & 1 {
         return ();
     }
@@ -115,4 +109,13 @@ global cell old_parents;
     }
 
     throw(err::invalid_op);
+}
+
+() recv_internal(cell in_msg_full, slice in_msg_body) impure {
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    slice src = cs~load_msg_addr();
+
+    load_data();
+    route_internal_message(flags, src, s);
 }

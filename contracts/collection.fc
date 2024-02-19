@@ -47,8 +47,6 @@ global cell bill_code;
         .store_slice(parent)
         .store_coins(ownership_assigned_amount);
     send_msg(false, bill, state_init, body, 0, send::remaining_value);
-
-    save_data();
 }
 
 () burn_next(int query_id, int index) impure inline {
@@ -92,6 +90,8 @@ global cell bill_code;
         .store_slice(parent)
         .store_uint(round_since, 32);
     send_msg(false, treasury.to_builder(), null(), body, 0, send::unreserved_balance);
+
+    throw(0);
 }
 
 () burn_all(slice src, slice s) impure inline {
@@ -102,6 +102,8 @@ global cell bill_code;
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
     burn_next(query_id, start_index);
+
+    throw(0);
 }
 
 () on_bounce(slice src, slice s) impure inline {
@@ -109,16 +111,10 @@ global cell bill_code;
     int op = s~load_uint(32);
     int query_id = s~load_uint(64);
 
-    return ();
+    throw(0);
 }
 
-() recv_internal(cell in_msg_full, slice s) impure {
-    load_data();
-
-    slice cs = in_msg_full.begin_parse();
-    int flags = cs~load_uint(4);
-    slice src = cs~load_msg_addr();
-
+() route_internal_message(int flags, slice src, slice s) impure inline {
     if flags & 1 {
         return on_bounce(src, s);
     }
@@ -138,6 +134,16 @@ global cell bill_code;
     }
 
     throw(err::invalid_op);
+}
+
+() recv_internal(cell in_msg_full, slice s) impure {
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    slice src = cs~load_msg_addr();
+
+    load_data();
+    route_internal_message(flags, src, s);
+    save_data();
 }
 
 ;;

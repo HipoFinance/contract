@@ -65,8 +65,6 @@ global int unstaking;
         .store_coins(forward_ton_amount)
         .store_slice(forward_payload);
     send_msg(true, wallet, state_init, receive, 0, send::remaining_value);
-
-    save_data();
 }
 
 () receive_tokens(slice src, slice s) impure inline {
@@ -100,8 +98,6 @@ global int unstaking;
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, return_excess.to_builder(), null(), excess, 0, send::unreserved_balance + send::ignore_errors);
-
-    save_data();
 }
 
 () tokens_minted(slice src, slice s) impure inline {
@@ -133,8 +129,6 @@ global int unstaking;
         .store_uint(query_id, 64)
         .store_coins(amount);
     send_msg(false, owner.to_builder(), null(), notification, 0, send::unreserved_balance + send::ignore_errors);
-
-    save_data();
 }
 
 () save_coins(slice src, slice s) impure inline {
@@ -152,8 +146,6 @@ global int unstaking;
         v.end_parse();
     }
     staking~udict_set_builder(32, round_since, begin_cell().store_coins(coins));
-
-    save_data();
 }
 
 () unstake_tokens(slice src, slice s) impure inline_ref {
@@ -200,8 +192,6 @@ global int unstaking;
         .store_uint(mode, 4)
         .store_coins(ownership_assigned_amount);
     send_msg(true, parent.to_builder(), null(), reserve, 0, send::remaining_value);
-
-    save_data();
 }
 
 () rollback_unstake(slice src, slice s) impure inline {
@@ -218,8 +208,6 @@ global int unstaking;
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, owner.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
-
-    save_data();
 }
 
 () tokens_burned(slice src, slice s) impure inline {
@@ -240,8 +228,6 @@ global int unstaking;
         .store_coins(amount)
         .store_coins(coins);
     send_msg(false, owner.to_builder(), null(), notification, coins, send::unreserved_balance + send::ignore_errors);
-
-    save_data();
 }
 
 () upgrade_wallet(slice src, slice s) impure inline {
@@ -264,8 +250,6 @@ global int unstaking;
     send_msg(true, parent.to_builder(), null(), migrate, 0, send::remaining_value);
 
     tokens = 0;
-
-    save_data();
 }
 
 () merge_wallet(slice src, slice s) impure inline {
@@ -283,8 +267,6 @@ global int unstaking;
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, owner.to_builder(), null(), excess, 0, send::unreserved_balance + send::ignore_errors);
-
-    save_data();
 }
 
 () withdraw_surplus(slice src, slice s) impure inline {
@@ -304,6 +286,8 @@ global int unstaking;
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, return_excess.to_builder(), null(), excess, 0, send::unreserved_balance + send::ignore_errors);
+
+    throw(0);
 }
 
 () withdraw_jettons(slice src, slice s) impure inline {
@@ -325,6 +309,8 @@ global int unstaking;
         .store_coins(0)
         .store_int(false, 1);
     send_msg(true, child_wallet.to_builder(), null(), send, 0, send::remaining_value);
+
+    throw(0);
 }
 
 () on_bounce(slice src, slice s) impure inline {
@@ -354,22 +340,14 @@ global int unstaking;
         ;; do nothing
     }
 
-    ;; return excess gas to owner which is usually the original sender
+    ;; send back excess gas to owner which is usually the original sender
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, owner.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
-
-    save_data();
 }
 
-() recv_internal(cell in_msg_full, slice s) impure {
-    load_data();
-
-    slice cs = in_msg_full.begin_parse();
-    int flags = cs~load_uint(4);
-    slice src = cs~load_msg_addr();
-
+() route_internal_message(int flags, slice src, slice s) impure inline {
     if flags & 1 {
         return on_bounce(src, s);
     }
@@ -421,10 +399,20 @@ global int unstaking;
     }
 
     if op == op::top_up {
-        return (); ;; top up TON balance, do nothing
+        throw(0); ;; top up TON balance, do nothing
     }
 
     throw(err::invalid_op);
+}
+
+() recv_internal(cell in_msg_full, slice s) impure {
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    slice src = cs~load_msg_addr();
+
+    load_data();
+    route_internal_message(flags, src, s);
+    save_data();
 }
 
 ;;
