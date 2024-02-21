@@ -1,13 +1,22 @@
 import { compile } from '@ton/blueprint'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
 import { between, bodyOp, createVset, logTotalFees, setConfig, createNewStakeMsg } from './helper'
 import { config, err, op } from '../wrappers/common'
-import { Fees, Treasury, emptyDictionaryValue, participationDictionaryValue } from '../wrappers/Treasury'
+import {
+    Fees,
+    ParticipationState,
+    Treasury,
+    emptyDictionaryValue,
+    participationDictionaryValue,
+    treasuryConfigToCell,
+} from '../wrappers/Treasury'
 import { Parent } from '../wrappers/Parent'
 import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
 import { Loan } from '../wrappers/Loan'
 import { Wallet } from '../wrappers/Wallet'
+import { Collection } from '../wrappers/Collection'
+import { Bill } from '../wrappers/Bill'
 
 describe('Access', () => {
     let treasuryCode: Cell
@@ -943,7 +952,7 @@ describe('Access', () => {
                 .storeAddress(someone.address)
                 .storeAddress(someone.address)
                 .storeCoins(0)
-                .storeUint(0, 1)
+                .storeBit(0)
                 .endCell(),
         })
         expect(result2.transactions).toHaveTransaction({
@@ -1098,5 +1107,88 @@ describe('Access', () => {
             exitCode: err.accessDenied,
         })
         expect(result11.transactions).toHaveLength(3)
+    })
+
+    it('should check access in collection', async () => {
+        const roundSince = 1n
+        const fakeState1 = await treasury.getTreasuryState()
+        fakeState1.participations.set(roundSince, { state: ParticipationState.Staked })
+        const fakeData1 = treasuryConfigToCell(fakeState1)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData1,
+                balance: await treasury.getBalance(),
+            }),
+        )
+
+        const someone = await blockchain.treasury('someone')
+        const staker = await blockchain.treasury('staker')
+        const collectionAddress = await treasury.getCollectionAddress(roundSince)
+        const collection = blockchain.openContract(Collection.createFromAddress(collectionAddress))
+        await treasury.sendDepositCoins(staker.getSender(), {
+            value: toNano('10') + fees.depositCoinsFee,
+        })
+
+        const result1 = await collection.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.mintBill, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('1'))
+                .storeBit(0)
+                .storeAddress(someone.address)
+                .storeAddress(parent.address)
+                .storeCoins(0n)
+                .endCell(),
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: someone.address,
+            to: collection.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.mintBill),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result1.transactions).toHaveLength(3)
+
+        const result2 = await collection.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.billBurned, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('1'))
+                .storeBit(0)
+                .storeAddress(someone.address)
+                .storeAddress(parent.address)
+                .storeUint(0, 64)
+                .endCell(),
+        })
+        expect(result2.transactions).toHaveTransaction({
+            from: someone.address,
+            to: collection.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.billBurned),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result2.transactions).toHaveLength(3)
+
+        const result3 = await collection.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell().storeUint(op.burnAll, 32).storeUint(0, 64).storeUint(0, 64).endCell(),
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: someone.address,
+            to: collection.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.burnAll),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result3.transactions).toHaveLength(3)
     })
 })
