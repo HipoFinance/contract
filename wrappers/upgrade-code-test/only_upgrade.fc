@@ -59,16 +59,16 @@ global slice governor;
         return ();
     }
 
-    int op = in_msg_body~load_uint(32);
+    int op = s~load_uint(32);
 
     if op == op::upgrade_code {
-        return upgrade_code(src, in_msg_body);
+        return upgrade_code(src, s);
     }
 
     throw(err::invalid_op);
 }
 
-() recv_internal(cell in_msg_full, slice in_msg_body) impure {
+() recv_internal(cell in_msg_full, slice s) impure {
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
     slice src = cs~load_msg_addr();

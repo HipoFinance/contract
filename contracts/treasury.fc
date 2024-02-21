@@ -1316,13 +1316,15 @@ cell find_code(cell dict, int round_since) inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
-    halter = s~load_msg_addr();
+    slice new_halter = s~load_msg_addr();
     s.end_parse();
 
-    ( int halter_wc, _ ) = parse_std_addr(halter);
-    halter_wc~impure_touch();
+    ( int new_halter_wc, _ ) = parse_std_addr(new_halter);
+    new_halter_wc~impure_touch();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
+
+    halter = new_halter;
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)

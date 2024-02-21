@@ -476,6 +476,29 @@ export class Treasury implements Contract {
         })
     }
 
+    async sendSetInstantMint(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            newInstantMint: boolean
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.setInstantMint, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .storeBit(opts.newInstantMint)
+                .endCell(),
+        })
+    }
+
     async sendSetGovernanceFee(
         provider: ContractProvider,
         via: Sender,
@@ -566,6 +589,29 @@ export class Treasury implements Contract {
             sendMode: opts.sendMode,
             body: beginCell()
                 .storeUint(op.retryDistribute, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .storeUint(opts.roundSince, 32)
+                .endCell(),
+        })
+    }
+
+    async sendRetryRecoverStakes(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            roundSince: bigint
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.retryRecoverStakes, 32)
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeUint(opts.roundSince, 32)
                 .endCell(),
