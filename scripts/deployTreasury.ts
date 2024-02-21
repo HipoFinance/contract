@@ -77,56 +77,98 @@ export async function run(provider: NetworkProvider) {
         ),
     )
 
-    const confirm = await ui.input('\n\nDeploy treasury, parent, wallet, collection, bill, and librarian? [yN]')
+    const confirm = await ui.input('Deploy treasury, parent, wallet, collection, bill, loan, and librarian? [yN]')
     if (confirm.toLowerCase() !== 'y') {
         return
     }
-
-    await treasury.sendDeploy(provider.sender(), { value: '0.1' })
-    await parent.sendDeploy(provider.sender(), { value: '0.1' })
-    await librarian.sendDeploy(provider.sender(), { value: '0.1' })
-
-    await provider.waitForDeploy(treasury.address)
-    await provider.waitForDeploy(parent.address)
-    await provider.waitForDeploy(librarian.address)
-
-    await treasury.sendSetParent(provider.sender(), { value: '0.1', newParent: parent.address })
-    await treasury.sendProxySetLibrary(provider.sender(), {
-        value: '0.1',
-        destination: librarian.address,
-        mode: 2n,
-        code: mainWalletCode,
-    })
-    await treasury.sendProxySetLibrary(provider.sender(), {
-        value: '0.1',
-        destination: librarian.address,
-        mode: 2n,
-        code: mainCollectionCode,
-    })
-    await treasury.sendProxySetLibrary(provider.sender(), {
-        value: '0.1',
-        destination: librarian.address,
-        mode: 2n,
-        code: mainBillCode,
-    })
-    await treasury.sendProxySetLibrary(provider.sender(), {
-        value: '0.1',
-        destination: librarian.address,
-        mode: 2n,
-        code: mainLoanCode,
-    })
 
     const testOnly = provider.network() !== 'mainnet'
     const treasuryAddress = treasury.address.toString({ bounceable: true, urlSafe: true, testOnly })
     const parentAddress = parent.address.toString({ bounceable: true, urlSafe: true, testOnly })
     const librarianAddress = librarian.address.toString({ bounceable: true, urlSafe: true, testOnly })
 
+    console.info('Deploying treasury')
+    if (await provider.isContractDeployed(treasury.address)) {
+        console.info('    Already deployed at address: %s', treasuryAddress)
+    } else {
+        await treasury.sendDeploy(provider.sender(), { value: '0.01' })
+        await provider.waitForDeploy(treasury.address)
+        console.info('    Deployed at address: %s', treasuryAddress)
+    }
+
+    console.info('Deploying parent')
+    if (await provider.isContractDeployed(parent.address)) {
+        console.info('    Already deployed at address: %s', parentAddress)
+    } else {
+        await parent.sendDeploy(provider.sender(), { value: '0.01' })
+        await provider.waitForDeploy(parent.address)
+        console.info('    Deployed at address: %s', parentAddress)
+    }
+
+    console.info('Deploying librarian')
+    if (await provider.isContractDeployed(librarian.address)) {
+        console.info('    Already deployed at address: %s', librarianAddress)
+    } else {
+        await librarian.sendDeploy(provider.sender(), { value: '0.02' })
+        await provider.waitForDeploy(librarian.address)
+        console.info('    Deployed at address: %s', librarianAddress)
+    }
+
+    console.info('Setting parent address in treasury')
+    const treasuryState = await treasury.getTreasuryState()
+    if (treasuryState.parent != null && parent.address.equals(treasuryState.parent)) {
+        console.info('    Already set')
+    } else {
+        await treasury.sendSetParent(provider.sender(), { value: '0.02', newParent: parent.address })
+        await waitForStateChange(10, 2000, async () => {
+            const state = await treasury.getTreasuryState()
+            return state.parent != null && parent.address.equals(state.parent)
+        })
+        console.info('    Set')
+    }
+
+    console.info('Deploying wallet as a library')
+    await treasury.sendProxySetLibrary(provider.sender(), {
+        value: '0.3',
+        destination: librarian.address,
+        mode: 2n,
+        code: mainWalletCode,
+    })
+    await sleep(10000)
+
+    console.info('Deploying collection as a library')
+    await treasury.sendProxySetLibrary(provider.sender(), {
+        value: '0.2',
+        destination: librarian.address,
+        mode: 2n,
+        code: mainCollectionCode,
+    })
+    await sleep(10000)
+
+    console.info('Deploying bill as a library')
+    await treasury.sendProxySetLibrary(provider.sender(), {
+        value: '0.2',
+        destination: librarian.address,
+        mode: 2n,
+        code: mainBillCode,
+    })
+    await sleep(10000)
+
+    console.info('Deploying loan as a library')
+    await treasury.sendProxySetLibrary(provider.sender(), {
+        value: '0.1',
+        destination: librarian.address,
+        mode: 2n,
+        code: mainLoanCode,
+    })
+    await sleep(10000)
+
     ui.clearActionPrompt()
-    ui.write(`Address of treasury: ${treasuryAddress}`)
-    ui.write(`Address of parent: ${parentAddress}`)
+    ui.write(`Address of treasury:  ${treasuryAddress}`)
+    ui.write(`Address of parent:    ${parentAddress}`)
     ui.write(`Address of librarian: ${librarianAddress}`)
     ui.write('')
-    ui.write(`Don't forget to top up treasury and librarian.`)
+    ui.write(`Don't forget to top them up.`)
 }
 
 const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
@@ -144,4 +186,19 @@ function toSha256(s: string): bigint {
 
 function toTextCell(s: string): Cell {
     return beginCell().storeUint(0, 8).storeStringTail(s).endCell()
+}
+
+function sleep(ms: number) {
+    return new Promise((r) => setTimeout(r, ms))
+}
+
+async function waitForStateChange(attempts: number, sleepDuration: number, check: () => Promise<boolean>) {
+    for (let i = 0; i < attempts; i += 1) {
+        const done = await check()
+        if (done) {
+            return
+        }
+        await sleep(sleepDuration)
+    }
+    throw new Error('State check failed after ' + attempts + ' attempts')
 }

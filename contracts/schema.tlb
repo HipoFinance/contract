@@ -390,10 +390,10 @@ migrate_wallet#325aacfa
     owner:MsgAddress
         = InternalMsgBody;
 
-proxy_set_library#0046ae45
+proxy_set_library#0930c8d7
     query_id:uint64
     destination:MsgAddress
-    mode:uint256
+    mode:(## 7)
     code:^Cell
         = InternalMsgBody;
 
@@ -603,9 +603,9 @@ withdrawal_notification#f0fa223b
 // Librarian Ops
 //
 
-set_library#354dfc8f
+set_library#7deaf806
     query_id:uint64
-    mode:uint256
+    mode:(## 7)
     code:^Cell
         = InternalMsgBody;
 

@@ -12,7 +12,7 @@ global slice treasury;
 
 () set_library(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
-    int mode = s~load_uint(256);
+    int mode = s~load_uint(7);
     cell code = s~load_ref();
     s.end_parse();
 

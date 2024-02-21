@@ -1734,7 +1734,7 @@ int calculate_min_coins() inline_ref {
 
     int query_id = s~load_uint(64);
     slice destination = s~load_msg_addr();
-    int mode = s~load_uint(256);
+    int mode = s~load_uint(7);
     cell code = s~load_ref();
     s.end_parse();
 
@@ -1743,7 +1743,7 @@ int calculate_min_coins() inline_ref {
     builder library = begin_cell()
         .store_uint(op::set_library, 32)
         .store_uint(query_id, 64)
-        .store_uint(mode, 256)
+        .store_uint(mode, 7)
         .store_ref(code);
     send_msg(false, destination.to_builder(), null(), library, 0, send::remaining_value);
 

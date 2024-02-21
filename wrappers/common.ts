@@ -89,7 +89,7 @@ export const op = {
     proxyUpgradeCode: 0x78570010,
     sendProxyUpgradeWallet: 0x1c1c5a0f,
     migrateWallet: 0x325aacfa,
-    proxySetLibrary: 0x0046ae45,
+    proxySetLibrary: 0x0930c8d7,
     topUp: 0x5372158c,
 
     proxyTokensMinted: 0x5be57626,
@@ -127,7 +127,7 @@ export const op = {
     stakeNotification: 0xd401b82b,
     withdrawalNotification: 0xf0fa223b,
 
-    setLibrary: 0x354dfc8f,
+    setLibrary: 0x7deaf806,
 }
 
 export const config = {

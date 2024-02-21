@@ -837,7 +837,7 @@ export class Treasury implements Contract {
                 .storeUint(op.proxySetLibrary, 32)
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeAddress(opts.destination)
-                .storeUint(opts.mode, 256)
+                .storeUint(opts.mode, 7)
                 .storeRef(opts.code)
                 .endCell(),
         })
@@ -863,7 +863,7 @@ export class Treasury implements Contract {
             totalStaking: stack.readBigNumber(),
             totalUnstaking: stack.readBigNumber(),
             totalValidatorsStake: stack.readBigNumber(),
-            parent: stack.readAddress(),
+            parent: stack.readAddressOpt(),
             participations: Dictionary.loadDirect(
                 Dictionary.Keys.BigUint(32),
                 participationDictionaryValue,

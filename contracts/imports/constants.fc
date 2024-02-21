@@ -102,7 +102,7 @@ const int op::upgrade_code = 0x3d6a29b5;
 const int op::proxy_upgrade_code = 0x78570010;
 const int op::send_proxy_upgrade_wallet = 0x1c1c5a0f;
 const int op::migrate_wallet = 0x325aacfa;
-const int op::proxy_set_library = 0x0046ae45;
+const int op::proxy_set_library = 0x0930c8d7;
 const int op::top_up = 0x5372158c;
 
 const int op::proxy_tokens_minted = 0x5be57626;
@@ -140,7 +140,7 @@ const int op::take_profit = 0x8b556813;
 const int op::stake_notification = 0xd401b82b;
 const int op::withdrawal_notification = 0xf0fa223b;
 
-const int op::set_library = 0x354dfc8f;
+const int op::set_library = 0x7deaf806;
 
 
 const int gas::send_tokens = 15058;
