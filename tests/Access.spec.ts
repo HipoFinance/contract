@@ -12,7 +12,7 @@ import {
     treasuryConfigToCell,
 } from '../wrappers/Treasury'
 import { Parent } from '../wrappers/Parent'
-import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
+import { Librarian, buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
 import { Loan } from '../wrappers/Loan'
 import { Wallet } from '../wrappers/Wallet'
 import { Collection } from '../wrappers/Collection'
@@ -21,6 +21,7 @@ import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-t
 
 describe('Access', () => {
     let electorCode: Cell
+    let librarianCode: Cell
     let treasuryCode: Cell
     let parentCode: Cell
     let walletCode: Cell
@@ -35,6 +36,7 @@ describe('Access', () => {
 
     beforeAll(async () => {
         electorCode = await compile('elector-test/Elector')
+        librarianCode = await compile('Librarian')
         treasuryCode = await compile('Treasury')
         parentCode = await compile('Parent')
         const mainWalletCode = await compile('Wallet')
@@ -1422,5 +1424,55 @@ describe('Access', () => {
             exitCode: err.accessDenied,
         })
         expect(result5.transactions).toHaveLength(3)
+    })
+
+    it('should check access in librarian', async () => {
+        const someone = await blockchain.treasury('someone')
+        const librarian = blockchain.openContract(
+            Librarian.createFromConfig(
+                {
+                    treasury: treasury.address,
+                },
+                librarianCode,
+            ),
+        )
+        await librarian.sendDeploy(governor.getSender(), { value: '1' })
+
+        const result1 = await librarian.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.setLibrary, 32)
+                .storeUint(0, 64)
+                .storeUint(2, 256)
+                .storeRef(Cell.EMPTY)
+                .endCell(),
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: someone.address,
+            to: librarian.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.setLibrary),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result1.transactions).toHaveLength(3)
+
+        const result2 = await librarian.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.withdrawSurplus, 32)
+                .storeUint(0, 64)
+                .storeAddress(someone.address)
+                .endCell(),
+        })
+        expect(result2.transactions).toHaveTransaction({
+            from: someone.address,
+            to: librarian.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.withdrawSurplus),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result2.transactions).toHaveLength(3)
     })
 })
