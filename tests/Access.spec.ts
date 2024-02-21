@@ -7,6 +7,7 @@ import { Fees, Treasury, emptyDictionaryValue, participationDictionaryValue } fr
 import { Parent } from '../wrappers/Parent'
 import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
 import { Loan } from '../wrappers/Loan'
+import { Wallet } from '../wrappers/Wallet'
 
 describe('Access', () => {
     let treasuryCode: Cell
@@ -907,5 +908,195 @@ describe('Access', () => {
             exitCode: err.accessDenied,
         })
         expect(result12.transactions).toHaveLength(3)
+    })
+
+    it('should check access in wallet', async () => {
+        const someone = await blockchain.treasury('someone')
+        const staker = await blockchain.treasury('staker')
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        await treasury.sendDepositCoins(staker.getSender(), {
+            value: toNano('10') + fees.depositCoinsFee,
+        })
+
+        const result1 = await wallet.sendSendTokens(someone.getSender(), {
+            value: '0.1',
+            tokens: '1',
+            recipient: someone.address,
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: someone.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.sendTokens),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result1.transactions).toHaveLength(3)
+
+        const result2 = await wallet.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.receiveTokens, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('1'))
+                .storeAddress(someone.address)
+                .storeAddress(someone.address)
+                .storeCoins(0)
+                .storeUint(0, 1)
+                .endCell(),
+        })
+        expect(result2.transactions).toHaveTransaction({
+            from: someone.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.receiveTokens),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result2.transactions).toHaveLength(3)
+
+        const result3 = await wallet.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.tokensMinted, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('1'))
+                .storeCoins(toNano('1'))
+                .storeAddress(someone.address)
+                .storeUint(0, 32)
+                .endCell(),
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: someone.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.tokensMinted),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result3.transactions).toHaveLength(3)
+
+        const result4 = await wallet.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.saveCoins, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('1'))
+                .storeAddress(someone.address)
+                .storeUint(0, 32)
+                .endCell(),
+        })
+        expect(result4.transactions).toHaveTransaction({
+            from: someone.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.saveCoins),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result4.transactions).toHaveLength(3)
+
+        const result5 = await wallet.sendUnstakeTokens(someone.getSender(), {
+            value: '0.1',
+            tokens: '1',
+        })
+        expect(result5.transactions).toHaveTransaction({
+            from: someone.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.unstakeTokens),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result5.transactions).toHaveLength(3)
+
+        const result6 = await wallet.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell().storeUint(op.rollbackUnstake, 32).storeUint(0, 64).storeCoins(toNano('1')).endCell(),
+        })
+        expect(result6.transactions).toHaveTransaction({
+            from: someone.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.rollbackUnstake),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result6.transactions).toHaveLength(3)
+
+        const result7 = await wallet.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.tokensBurned, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('1'))
+                .storeCoins(toNano('1'))
+                .endCell(),
+        })
+        expect(result7.transactions).toHaveTransaction({
+            from: someone.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.tokensBurned),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result7.transactions).toHaveLength(3)
+
+        const result8 = await wallet.sendUpgradeWallet(someone.getSender(), {
+            value: '0.1',
+        })
+        expect(result8.transactions).toHaveTransaction({
+            from: someone.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.upgradeWallet),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result8.transactions).toHaveLength(3)
+
+        const result9 = await wallet.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell().storeUint(op.mergeWallet, 32).storeUint(0, 64).storeCoins(toNano('1')).endCell(),
+        })
+        expect(result9.transactions).toHaveTransaction({
+            from: someone.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.mergeWallet),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result9.transactions).toHaveLength(3)
+
+        const result10 = await wallet.sendWithdrawSurplus(someone.getSender(), {
+            value: '0.1',
+        })
+        expect(result10.transactions).toHaveTransaction({
+            from: someone.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.withdrawSurplus),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result10.transactions).toHaveLength(3)
+
+        const result11 = await wallet.sendWithdrawJettons(someone.getSender(), {
+            value: '0.1',
+            childWallet: wallet.address,
+            tokens: toNano('1'),
+        })
+        expect(result11.transactions).toHaveTransaction({
+            from: someone.address,
+            to: wallet.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.withdrawJettons),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result11.transactions).toHaveLength(3)
     })
 })
