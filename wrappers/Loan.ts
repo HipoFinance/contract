@@ -1,4 +1,4 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider } from '@ton/core'
+import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode } from '@ton/core'
 
 export interface LoanConfig {
     elector?: Address
@@ -30,6 +30,19 @@ export class Loan implements Contract {
         const data = loanConfigToCell(config)
         const init = { code, data }
         return new Loan(contractAddress(workchain, init), init)
+    }
+
+    async sendMessage(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            body?: Cell | string
+        },
+    ) {
+        await provider.internal(via, opts)
     }
 
     async getLoanState(provider: ContractProvider): Promise<LoanConfig> {

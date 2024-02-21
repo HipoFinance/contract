@@ -1,7 +1,7 @@
 import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
-import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
-import { between, bodyOp, createVset, logTotalFees, setConfig, createNewStakeMsg } from './helper'
+import { Address, Cell, Dictionary, beginCell, toNano } from '@ton/core'
+import { between, bodyOp, createVset, logTotalFees, setConfig, createNewStakeMsg, getElector } from './helper'
 import { config, err, op } from '../wrappers/common'
 import {
     Fees,
@@ -17,8 +17,10 @@ import { Loan } from '../wrappers/Loan'
 import { Wallet } from '../wrappers/Wallet'
 import { Collection } from '../wrappers/Collection'
 import { Bill } from '../wrappers/Bill'
+import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-test/Elector'
 
 describe('Access', () => {
+    let electorCode: Cell
     let treasuryCode: Cell
     let parentCode: Cell
     let walletCode: Cell
@@ -32,6 +34,7 @@ describe('Access', () => {
     })
 
     beforeAll(async () => {
+        electorCode = await compile('elector-test/Elector')
         treasuryCode = await compile('Treasury')
         parentCode = await compile('Parent')
         const mainWalletCode = await compile('Wallet')
@@ -51,6 +54,7 @@ describe('Access', () => {
     let treasury: SandboxContract<Treasury>
     let parent: SandboxContract<Parent>
     let fees: Fees
+    let electorAddress: Address
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
@@ -147,6 +151,8 @@ describe('Access', () => {
         await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10' })
         const treasuryBalance = await treasury.getBalance()
         expect(treasuryBalance).toBeTonValue('10')
+
+        electorAddress = getElector(blockchain)
     })
 
     it('should check access in treasury', async () => {
@@ -1275,5 +1281,146 @@ describe('Access', () => {
             exitCode: err.accessDenied,
         })
         expect(result3.transactions).toHaveLength(3)
+    })
+
+    it('should check access in loan', async () => {
+        const times = await treasury.getTimes()
+        const electedFor = times.nextRoundSince - times.currentRoundSince
+        const since1 = BigInt(Math.floor(Date.now() / 1000))
+        const until1 = since1 + electedFor
+        const vset1 = createVset(since1, until1)
+        setConfig(blockchain, config.currentValidators, vset1)
+
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('700000') + fees.depositCoinsFee })
+
+        await blockchain.setShardAccount(
+            electorAddress,
+            createShardAccount({
+                workchain: -1,
+                address: electorAddress,
+                code: electorCode,
+                data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: 0n }) }),
+                balance: toNano('1'),
+            }),
+        )
+
+        const validator1 = await blockchain.treasury('validator1')
+        const validator2 = await blockchain.treasury('validator2')
+        const validator3 = await blockchain.treasury('validator3')
+        const loanAddress1 = await treasury.getLoanAddress(validator1.address, until1)
+        const loanAddress2 = await treasury.getLoanAddress(validator2.address, until1)
+        const loanAddress3 = await treasury.getLoanAddress(validator3.address, until1)
+        const loan1 = blockchain.openContract(Loan.createFromAddress(loanAddress1))
+        const loan2 = blockchain.openContract(Loan.createFromAddress(loanAddress2))
+        const loan3 = blockchain.openContract(Loan.createFromAddress(loanAddress3))
+        const newStakeMsg1 = await createNewStakeMsg(loan1.address, until1)
+        const newStakeMsg2 = await createNewStakeMsg(loan2.address, until1)
+        const newStakeMsg3 = await createNewStakeMsg(loan3.address, until1)
+        await treasury.sendRequestLoan(validator1.getSender(), {
+            value: toNano('151') + fees.requestLoanFee, // 101 (max punishment) + 50 (min payment) + fee
+            roundSince: until1,
+            loanAmount: '300000',
+            minPayment: '50',
+            validatorRewardShare: 102n, // 40%
+            newStakeMsg: newStakeMsg1,
+        })
+        await treasury.sendRequestLoan(validator2.getSender(), {
+            value: toNano('161') + fees.requestLoanFee, // 101 (max punishment) + 60 (min payment) + fee
+            roundSince: until1,
+            loanAmount: '300000',
+            minPayment: '60',
+            validatorRewardShare: 102n, // 40%
+            newStakeMsg: newStakeMsg2,
+        })
+        await treasury.sendRequestLoan(validator3.getSender(), {
+            value: toNano('171') + fees.requestLoanFee, // 101 (max punishment) + 70 (min payment) + fee
+            roundSince: until1,
+            loanAmount: '300000',
+            minPayment: '70',
+            validatorRewardShare: 102n, // 40%
+            newStakeMsg: newStakeMsg3,
+        })
+
+        const since2 = BigInt(Math.floor(Date.now() / 1000)) - times.participateSince + times.currentRoundSince
+        const until2 = since2 + electedFor
+        const vset2 = createVset(since2, until2)
+        setConfig(blockchain, config.currentValidators, vset2)
+
+        await treasury.sendParticipateInElection({ roundSince: until1 })
+
+        const someone = await blockchain.treasury('someone')
+        const loanAddress = await treasury.getLoanAddress(validator2.address, until1)
+        const loan = blockchain.openContract(Loan.createFromAddress(loanAddress))
+
+        const result1 = await loan.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell().storeUint(op.proxyNewStake, 32).storeUint(0, 64).storeRef(Cell.EMPTY).endCell(),
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: someone.address,
+            to: loan.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.proxyNewStake),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result1.transactions).toHaveLength(3)
+
+        const result2 = await loan.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell().storeUint(op.proxyRecoverStake, 32).storeUint(0, 64).endCell(),
+        })
+        expect(result2.transactions).toHaveTransaction({
+            from: someone.address,
+            to: loan.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.proxyRecoverStake),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result2.transactions).toHaveLength(3)
+
+        const result3 = await loan.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell().storeUint(op.newStakeError, 32).storeUint(0, 64).endCell(),
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: someone.address,
+            to: loan.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.newStakeError),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result3.transactions).toHaveLength(3)
+
+        const result4 = await loan.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell().storeUint(op.recoverStakeError, 32).storeUint(0, 64).endCell(),
+        })
+        expect(result4.transactions).toHaveTransaction({
+            from: someone.address,
+            to: loan.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.recoverStakeError),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result4.transactions).toHaveLength(3)
+
+        const result5 = await loan.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell().storeUint(op.recoverStakeOk, 32).storeUint(0, 64).endCell(),
+        })
+        expect(result5.transactions).toHaveTransaction({
+            from: someone.address,
+            to: loan.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.recoverStakeOk),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result5.transactions).toHaveLength(3)
     })
 })
