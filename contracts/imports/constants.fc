@@ -170,12 +170,12 @@ const int gas::proxy_merge_wallet = 7815;
 const int gas::merge_wallet = 8868;
 
 const int gas::request_loan = 26512;
-const int gas::participate_in_election = 27420;
+const int gas::participate_in_election = 27410;
 const int gas::decide_loan_requests = 18691;
 const int gas::process_loan_requests = 29866;
 const int gas::proxy_new_stake = 6870;
 const int gas::vset_changed = 7494;
-const int gas::finish_participation = 10614;
+const int gas::finish_participation = 10606;
 const int gas::recover_stakes = 26047;
 const int gas::proxy_recover_stake = 4540;
 const int gas::recover_stake_result = 31611;

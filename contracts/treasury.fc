@@ -662,6 +662,7 @@ cell find_code(cell dict, int round_since) inline {
     int available = min(available_now, available_max);
     int amount = max(size * total_fee, available);
 
+    builder myself = my_address().to_builder();
     int elected? = ~ config_param(config::next_validators).null?();
     int too_late? = now() >= min(participate_until, round_since);
     if elected? | too_late? {
@@ -676,7 +677,7 @@ cell find_code(cell dict, int round_since) inline {
             .store_uint(op::process_loan_requests, 32)
             .store_uint(query_id, 64)
             .store_uint(round_since, 32);
-        send_msg(false, my_address().to_builder(), null(), process, amount, send::pay_gas_separately);
+        send_msg(false, myself, null(), process, amount, send::pay_gas_separately + send::ignore_errors);
     } else {
         ;; use total_staked field as a temp var for storing available amount
         builder pb = pack_participation(
@@ -689,7 +690,7 @@ cell find_code(cell dict, int round_since) inline {
             .store_uint(op::decide_loan_requests, 32)
             .store_uint(query_id, 64)
             .store_uint(round_since, 32);
-        send_msg(false, my_address().to_builder(), null(), decide, amount, send::pay_gas_separately);
+        send_msg(false, myself, null(), decide, amount, send::pay_gas_separately + send::ignore_errors);
     }
 }
 
@@ -1025,11 +1026,12 @@ cell find_code(cell dict, int round_since) inline {
     commit();
     accept_message();
 
+    builder myself = my_address().to_builder();
     builder continue = begin_cell()
         .store_uint(op::recover_stakes, 32)
         .store_uint(query_id, 64)
         .store_uint(round_since, 32);
-    send_msg(false, my_address().to_builder(), null(), continue, max_gas_fee(), send::pay_gas_separately);
+    send_msg(false, myself, null(), continue, max_gas_fee(), send::pay_gas_separately + send::ignore_errors);
 
     throw(0);
 }
