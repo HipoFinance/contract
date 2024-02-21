@@ -1191,4 +1191,89 @@ describe('Access', () => {
         })
         expect(result3.transactions).toHaveLength(3)
     })
+
+    it('should check access in bill', async () => {
+        const roundSince = 1n
+        const fakeState1 = await treasury.getTreasuryState()
+        fakeState1.participations.set(roundSince, { state: ParticipationState.Staked })
+        const fakeData1 = treasuryConfigToCell(fakeState1)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData1,
+                balance: await treasury.getBalance(),
+            }),
+        )
+
+        const someone = await blockchain.treasury('someone')
+        const staker = await blockchain.treasury('staker')
+        const billAddress = await treasury.getBillAddress(roundSince, 0n)
+        const bill = blockchain.openContract(Bill.createFromAddress(billAddress))
+        await treasury.sendDepositCoins(staker.getSender(), {
+            value: toNano('10') + fees.depositCoinsFee,
+        })
+
+        // Operations that are open to anyone:
+        // - request_owner
+        // - get_static_data
+
+        const result1 = await bill.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.assignBill, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('1'))
+                .storeBit(0)
+                .storeAddress(someone.address)
+                .storeAddress(parent.address)
+                .storeCoins(0n)
+                .endCell(),
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: someone.address,
+            to: bill.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.assignBill),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result1.transactions).toHaveLength(3)
+
+        const result2 = await bill.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell().storeUint(op.burnBill, 32).storeUint(0, 64).endCell(),
+        })
+        expect(result2.transactions).toHaveTransaction({
+            from: someone.address,
+            to: bill.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.burnBill),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result2.transactions).toHaveLength(3)
+
+        const result3 = await bill.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.proveOwnership, 32)
+                .storeUint(0, 64)
+                .storeAddress(someone.address)
+                .storeRef(Cell.EMPTY)
+                .storeBit(0)
+                .endCell(),
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: someone.address,
+            to: bill.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.proveOwnership),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result3.transactions).toHaveLength(3)
+    })
 })
