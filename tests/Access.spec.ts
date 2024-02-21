@@ -148,6 +148,15 @@ describe('Access', () => {
         const maxBurnableTokens = await treasury.getMaxBurnableTokens()
         expect(maxBurnableTokens).toBeBetween(toNano('10') - 5n, '10')
 
+        // Operations that are open to anyone:
+        // - deposit_coins
+        // - send_unstake_tokens
+        // - provide_current_quote
+        // - request_loan
+        // - participate_in_election
+        // - vset_changed
+        // - finish_participation
+
         const result1 = await treasury.sendMessage(someone.getSender(), {
             value: '0.1',
             body: beginCell()
@@ -659,5 +668,244 @@ describe('Access', () => {
             exitCode: err.accessDenied,
         })
         expect(result31.transactions).toHaveLength(3)
+    })
+
+    it('should check access in parent', async () => {
+        const someone = await blockchain.treasury('someone')
+
+        // Operations that are open to anyone:
+        // - provide_wallet_address
+
+        const result1 = await parent.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.proxyTokensMinted, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('1'))
+                .storeCoins(toNano('1'))
+                .storeAddress(someone.address)
+                .storeUint(0, 32)
+                .endCell(),
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: someone.address,
+            to: parent.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.proxyTokensMinted),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result1.transactions).toHaveLength(3)
+
+        const result2 = await parent.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.proxySaveCoins, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('1'))
+                .storeAddress(someone.address)
+                .storeUint(0, 32)
+                .endCell(),
+        })
+        expect(result2.transactions).toHaveTransaction({
+            from: someone.address,
+            to: parent.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.proxySaveCoins),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result2.transactions).toHaveLength(3)
+
+        const result3 = await parent.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.proxyReserveTokens, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('1'))
+                .storeAddress(someone.address)
+                .storeUint(0, 4)
+                .storeCoins(0n)
+                .endCell(),
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: someone.address,
+            to: parent.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.proxyReserveTokens),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result3.transactions).toHaveLength(3)
+
+        const result4 = await parent.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.proxyRollbackUnstake, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('1'))
+                .storeAddress(someone.address)
+                .endCell(),
+        })
+        expect(result4.transactions).toHaveTransaction({
+            from: someone.address,
+            to: parent.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.proxyRollbackUnstake),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result4.transactions).toHaveLength(3)
+
+        const result5 = await parent.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.proxyTokensBurned, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('1'))
+                .storeCoins(toNano('1'))
+                .storeAddress(someone.address)
+                .endCell(),
+        })
+        expect(result5.transactions).toHaveTransaction({
+            from: someone.address,
+            to: parent.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.proxyTokensBurned),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result5.transactions).toHaveLength(3)
+
+        const result6 = await parent.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.proxyUnstakeTokens, 32)
+                .storeUint(0, 64)
+                .storeAddress(someone.address)
+                .endCell(),
+        })
+        expect(result6.transactions).toHaveTransaction({
+            from: someone.address,
+            to: parent.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.proxyUnstakeTokens),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result6.transactions).toHaveLength(3)
+
+        const result7 = await parent.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.proxyUpgradeWallet, 32)
+                .storeUint(0, 64)
+                .storeAddress(someone.address)
+                .endCell(),
+        })
+        expect(result7.transactions).toHaveTransaction({
+            from: someone.address,
+            to: parent.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.proxyUpgradeWallet),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result7.transactions).toHaveLength(3)
+
+        const result8 = await parent.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.proxyMigrateWallet, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('1'))
+                .storeAddress(someone.address)
+                .endCell(),
+        })
+        expect(result8.transactions).toHaveTransaction({
+            from: someone.address,
+            to: parent.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.proxyMigrateWallet),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result8.transactions).toHaveLength(3)
+
+        const result9 = await parent.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.proxyMergeWallet, 32)
+                .storeUint(0, 64)
+                .storeCoins(toNano('1'))
+                .storeAddress(someone.address)
+                .endCell(),
+        })
+        expect(result9.transactions).toHaveTransaction({
+            from: someone.address,
+            to: parent.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.proxyMergeWallet),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result9.transactions).toHaveLength(3)
+
+        const result10 = await parent.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.setContent, 32)
+                .storeUint(0, 64)
+                .storeAddress(someone.address)
+                .storeRef(Cell.EMPTY)
+                .endCell(),
+        })
+        expect(result10.transactions).toHaveTransaction({
+            from: someone.address,
+            to: parent.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.setContent),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result10.transactions).toHaveLength(3)
+
+        const result11 = await parent.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.withdrawSurplus, 32)
+                .storeUint(0, 64)
+                .storeAddress(someone.address)
+                .endCell(),
+        })
+        expect(result11.transactions).toHaveTransaction({
+            from: someone.address,
+            to: parent.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.withdrawSurplus),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result11.transactions).toHaveLength(3)
+
+        const result12 = await parent.sendMessage(someone.getSender(), {
+            value: '0.1',
+            body: beginCell()
+                .storeUint(op.upgradeCode, 32)
+                .storeUint(0, 64)
+                .storeRef(Cell.EMPTY)
+                .storeMaybeRef(Cell.EMPTY)
+                .storeAddress(someone.address)
+                .endCell(),
+        })
+        expect(result12.transactions).toHaveTransaction({
+            from: someone.address,
+            to: parent.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.upgradeCode),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result12.transactions).toHaveLength(3)
     })
 })
