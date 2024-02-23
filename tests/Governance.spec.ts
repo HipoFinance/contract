@@ -714,16 +714,19 @@ describe('Governance', () => {
     it('should withdraw surplus', async () => {
         const state = await treasury.getTreasuryState()
         const participation1: Participation = {
+            state: ParticipationState.Held,
             size: 5n,
             totalStaked: toNano('1000000'),
             totalRecovered: toNano('1001000'),
         }
         const participation2: Participation = {
+            state: ParticipationState.Validating,
             size: 10n,
             totalStaked: toNano('500000'),
             totalRecovered: 0n,
         }
         const participation3: Participation = {
+            state: ParticipationState.Staked,
             size: 1n,
             totalStaked: 0n,
             totalRecovered: 0n,

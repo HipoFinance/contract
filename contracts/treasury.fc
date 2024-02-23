@@ -1554,7 +1554,7 @@ int calculate_min_coins() inline_ref {
     do {
         ( k, slice ps, int f? ) = participations.udict_get_next?(32, k);
         if f? {
-            ( _
+            ( int state
             , int size
             , _
             , _
@@ -1569,8 +1569,10 @@ int calculate_min_coins() inline_ref {
             , _
             , _
             ) = unpack_participation(ps);
-            total_coins -= total_staked;
-            total_coins += total_recovered;
+            if (state >= participation::staked) & (state <= participation::recovering) {
+                total_coins -= total_staked;
+                total_coins += total_recovered;
+            }
             total_coins += size * total_fee;
         }
     } until ~ f?;

@@ -1443,7 +1443,7 @@ describe('Access', () => {
             body: beginCell()
                 .storeUint(op.setLibrary, 32)
                 .storeUint(0, 64)
-                .storeUint(2, 256)
+                .storeUint(2, 7)
                 .storeRef(Cell.EMPTY)
                 .endCell(),
         })
