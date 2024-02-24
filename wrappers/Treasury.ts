@@ -938,8 +938,11 @@ export class Treasury implements Contract {
         return stack.readAddress()
     }
 
-    async getFees(provider: ContractProvider): Promise<Fees> {
-        const { stack } = await provider.get('get_fees', [])
+    async getFees(provider: ContractProvider, forwardTonAmount: bigint, forwardPayload: Slice): Promise<Fees> {
+        const tb = new TupleBuilder()
+        tb.writeNumber(forwardTonAmount)
+        tb.writeSlice(forwardPayload)
+        const { stack } = await provider.get('get_fees', tb.build())
         return {
             sendTokensFee: stack.readBigNumber(),
             depositCoinsFee: stack.readBigNumber(),

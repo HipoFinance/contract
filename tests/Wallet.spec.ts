@@ -169,7 +169,7 @@ describe('Wallet', () => {
         })
         expect(setParentResult.transactions).toHaveLength(3)
 
-        fees = await treasury.getFees()
+        fees = await treasury.getFees(0n, Cell.EMPTY.beginParse())
 
         await treasury.sendWithdrawSurplus(governor.getSender(), { value: treasuryStorage })
         const treasuryBalance = await treasury.getBalance()
@@ -732,7 +732,7 @@ describe('Wallet', () => {
             }),
         )
 
-        const fee2 = toNano('0.2')
+        const fee2 = toNano('0.1')
         const result2 = await treasury.sendRetryBurnAll(halter.getSender(), { value: fee2, roundSince })
 
         expect(result2.transactions).toHaveTransaction({
@@ -754,7 +754,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: collectionAddress,
             to: billAddress,
-            value: between('0', fee2),
+            value: between('0.02', '0.03'),
             body: bodyOp(op.burnBill),
             success: true,
             outMessagesCount: 1,
@@ -762,7 +762,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: billAddress,
             to: collectionAddress,
-            value: between('0', fee2),
+            value: between('0.13', '0.14'),
             body: bodyOp(op.billBurned),
             success: true,
             outMessagesCount: 2,
@@ -770,7 +770,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: collectionAddress,
             to: treasury.address,
-            value: between('0', fee2),
+            value: between('0.01', '0.02'),
             body: bodyOp(op.lastBillBurned),
             success: true,
             outMessagesCount: 0 + 1,
@@ -778,7 +778,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: collectionAddress,
             to: treasury.address,
-            // value: between('0', fee2),
+            value: between('0.15', '0.16'),
             body: bodyOp(op.burnTokens),
             success: true,
             outMessagesCount: 1,
@@ -786,7 +786,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: treasury.address,
             to: parent.address,
-            value: between('7', toNano('7.1') + fee2),
+            value: between('7', '7.15'),
             body: bodyOp(op.proxyTokensBurned),
             success: true,
             outMessagesCount: 1,
@@ -794,7 +794,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: parent.address,
             to: wallet.address,
-            value: between('7', toNano('7') + fee2),
+            value: between('7', '7.15'),
             body: bodyOp(op.tokensBurned),
             success: true,
             outMessagesCount: 1,
@@ -802,7 +802,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: wallet.address,
             to: staker.address,
-            value: between('7', toNano('7') + fee2),
+            value: between('7', '7.15'),
             body: bodyOp(op.withdrawalNotification),
             success: true,
             outMessagesCount: 0,
@@ -1271,7 +1271,7 @@ describe('Wallet', () => {
         storeComputeGas('deposit_coins', op.depositCoins, result.transactions[1])
     })
 
-    it('should unstake all tokens for comment w', async () => {
+    it('should unstake all tokens for comment w sent to treasury', async () => {
         const staker = await blockchain.treasury('staker')
         await treasury.sendMessage(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee, body: 'D' })
         const walletAddress = await parent.getWalletAddress(staker.address)
@@ -1374,6 +1374,92 @@ describe('Wallet', () => {
         storeComputeGas('send_unstake_all', op.sendUnstakeAll, result.transactions[1])
         storeComputeGas('proxy_unstake_all', op.proxyUnstakeAll, result.transactions[2])
         storeComputeGas('unstake_all', op.unstakeAll, result.transactions[3])
+    })
+
+    it('should unstake all tokens for comment w sent to wallet', async () => {
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendMessage(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee, body: 'd' })
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const fee = fees.unstakeAllTokensFee
+        const result = await wallet.sendMessage(staker.getSender(), { value: fee, body: 'W' })
+
+        expect(result.transactions).toHaveTransaction({
+            from: staker.address,
+            to: wallet.address,
+            value: fee,
+            body: bodyOp(0),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: wallet.address,
+            value: between('0', fee),
+            body: bodyOp(op.unstakeTokens),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: parent.address,
+            value: between('0', fee),
+            body: bodyOp(op.proxyReserveTokens),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: parent.address,
+            to: treasury.address,
+            value: between('0', fee),
+            body: bodyOp(op.reserveTokens),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: parent.address,
+            value: between('10', toNano('10') + fee),
+            body: bodyOp(op.proxyTokensBurned),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet.address,
+            value: between('10', toNano('10') + fee),
+            body: bodyOp(op.tokensBurned),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            value: between('10', toNano('10') + fee),
+            body: bodyOp(op.withdrawalNotification),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(8)
+
+        const treasuryBalance = await treasury.getBalance()
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryBalance).toBeBetween(treasuryStorage, treasuryStorage + 5n)
+        expect(treasuryState.totalCoins).toBeTonValue('0')
+        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
+        expect(treasuryState.totalStaking).toBeTonValue('0')
+        expect(treasuryState.totalUnstaking).toBeTonValue('0')
+        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+
+        const walletBalance = await wallet.getBalance()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
+        expect(walletBalance).toBeBetween(fees.walletStorageFee - 5n, fees.walletStorageFee)
+        expect(tokens).toBeTonValue('0')
+        expect(staking.keys()).toHaveLength(0)
+        expect(unstaking).toBeTonValue('0')
+
+        accumulateFees(result.transactions)
+        storeComputeGas('unstake_all', op.unstakeAll, result.transactions[1])
     })
 
     it('should handle multiple deposits, unstakes, and sends', async () => {

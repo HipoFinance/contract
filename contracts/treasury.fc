@@ -1770,22 +1770,6 @@ int calculate_min_coins() inline_ref {
         op = s~load_uint(32);
     }
 
-    if op == 0 {
-        if (s.slice_bits() == 8) & (s.slice_refs() == 0) {
-            int c = s~load_uint(8);
-            c |= 0x20; ;; convert to lowercase
-            if c == "d"u {
-                return deposit_coins(src, "000000000000000002_"s);
-            }
-
-            if c == "w"u {
-                return send_unstake_all(src, "0000000000000000"s);
-            }
-        }
-
-        throw(err::invalid_comment);
-    }
-
     if op == op::deposit_coins {
         return deposit_coins(src, s);
     }
@@ -1930,6 +1914,22 @@ int calculate_min_coins() inline_ref {
         throw(0); ;; top up TON balance, do nothing
     }
 
+    if op == 0 {
+        int c = s~load_uint(8);
+        s.end_parse();
+        c |= 0x20; ;; convert to lowercase
+
+        if c == "d"u {
+            return deposit_coins(src, "000000000000000002_"s);
+        }
+
+        if c == "w"u {
+            return send_unstake_all(src, "0000000000000000"s);
+        }
+
+        throw(err::invalid_comment);
+    }
+
     throw(err::invalid_op);
 }
 
@@ -2045,20 +2045,19 @@ slice get_loan_address(slice validator, int round_since) method_id {
     return loan.end_cell().begin_parse();
 }
 
-var get_fees() method_id {
+var get_fees(int forward_ton_amount, slice forward_payload) method_id {
     load_data();
 
-    int send_fee = send_tokens_fee(0, ""s);
-    ( int deposit_fee, _ ) = deposit_coins_fee(0);
-    ( int unstake_fee, int unstake_all_fee ) = unstake_tokens_fee(0);
+    int send_fee = send_tokens_fee(forward_ton_amount, forward_payload);
+    ( int deposit_fee, _ ) = deposit_coins_fee(forward_ton_amount);
     ( int loan_fee, _, _ ) = request_loan_fee();
     ( int loan_storage, _ ) = loan_storage_fee();
     int wallet_storage = wallet_storage_fee();
     return
         ( send_fee
         , deposit_fee
-        , unstake_fee
-        , unstake_all_fee
+        , unstake_tokens_fee(forward_ton_amount)
+        , unstake_all_fee()
         , loan_fee
         , loan_storage
         , wallet_storage

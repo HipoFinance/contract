@@ -144,7 +144,7 @@ describe('Governance', () => {
         })
         expect(setParentResult.transactions).toHaveLength(3)
 
-        fees = await treasury.getFees()
+        fees = await treasury.getFees(0n, Cell.EMPTY.beginParse())
 
         await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10' })
         const treasuryBalance = await treasury.getBalance()

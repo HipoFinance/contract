@@ -164,7 +164,7 @@ global int unstaking;
         ss.end_parse();
     }
 
-    ( int unstake_fee, _ ) = unstake_tokens_fee(ownership_assigned_amount);
+    int unstake_fee = unstake_tokens_fee(ownership_assigned_amount);
     int incoming_ton = get_incoming_value().pair_first();
     int ton_balance = get_balance().pair_first();
     int enough_fee? = (ton_balance >= incoming_ton) & (incoming_ton >= unstake_fee);
@@ -229,7 +229,7 @@ global int unstaking;
     int query_id = s~load_uint(64);
     s.end_parse();
 
-    throw_unless(err::access_denied, equal_slice_bits(src, parent));
+    throw_unless(err::access_denied, equal_slice_bits(src, parent) | equal_slice_bits(src, owner));
 
     builder unstake = begin_cell()
         .store_uint(op::unstake_tokens, 32)
@@ -415,6 +415,18 @@ global int unstaking;
         throw(0); ;; top up TON balance, do nothing
     }
 
+    if op == 0 {
+        int c = s~load_uint(8);
+        s.end_parse();
+        c |= 0x20; ;; convert to lowercase
+
+        if c == "w"u {
+            return unstake_all(src, "0000000000000000"s);
+        }
+
+        throw(err::invalid_comment);
+    }
+
     throw(err::invalid_op);
 }
 
@@ -445,6 +457,5 @@ global int unstaking;
 }
 
 int get_unstake_fee(int ownership_assigned_amount) method_id {
-    ( int unstake_fee, _) = unstake_tokens_fee(ownership_assigned_amount);
-    return unstake_fee;
+    return unstake_tokens_fee(ownership_assigned_amount);
 }
