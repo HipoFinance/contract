@@ -46,8 +46,9 @@ describe('Wallet', () => {
             'burn_tokens',
             'proxy_tokens_burned',
             'tokens_burned',
-            'send_unstake_tokens',
-            'proxy_unstake_tokens',
+            'send_unstake_all',
+            'proxy_unstake_all',
+            'unstake_all',
             'upgrade_wallet',
             'proxy_migrate_wallet',
             'migrate_wallet',
@@ -1291,12 +1292,20 @@ describe('Wallet', () => {
             from: treasury.address,
             to: parent.address,
             value: between('0', fee),
-            body: bodyOp(op.proxyUnstakeTokens),
+            body: bodyOp(op.proxyUnstakeAll),
             success: true,
             outMessagesCount: 1,
         })
         expect(result.transactions).toHaveTransaction({
             from: parent.address,
+            to: wallet.address,
+            value: between('0', fee),
+            body: bodyOp(op.unstakeAll),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet.address,
             to: wallet.address,
             value: between('0', fee),
             body: bodyOp(op.unstakeTokens),
@@ -1343,7 +1352,7 @@ describe('Wallet', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(result.transactions).toHaveLength(9)
+        expect(result.transactions).toHaveLength(10)
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
@@ -1362,8 +1371,9 @@ describe('Wallet', () => {
         expect(unstaking).toBeTonValue('0')
 
         accumulateFees(result.transactions)
-        storeComputeGas('send_unstake_tokens', op.sendUnstakeTokens, result.transactions[1])
-        storeComputeGas('proxy_unstake_tokens', op.proxyUnstakeTokens, result.transactions[2])
+        storeComputeGas('send_unstake_all', op.sendUnstakeAll, result.transactions[1])
+        storeComputeGas('proxy_unstake_all', op.proxyUnstakeAll, result.transactions[2])
+        storeComputeGas('unstake_all', op.unstakeAll, result.transactions[3])
     })
 
     it('should handle multiple deposits, unstakes, and sends', async () => {

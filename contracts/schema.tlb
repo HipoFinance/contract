@@ -199,7 +199,7 @@ deposit_coins#40ef2953
     referrer:MsgAddress
         = InternalMsgBody;
 
-send_unstake_tokens#3a50f43e
+send_unstake_all#45baeda9
     query_id:uint64
         = InternalMsgBody;
 
@@ -441,7 +441,7 @@ proxy_tokens_burned#4476fde0
     owner:MsgAddress
         = InternalMsgBody;
 
-proxy_unstake_tokens#68cd97db
+proxy_unstake_all#76bd2760
     query_id:uint64
     owner:MsgAddress
         = InternalMsgBody;
@@ -497,6 +497,10 @@ tokens_burned#5b512e25
     query_id:uint64
     tokens:Coins
     coins:Coins
+        = InternalMsgBody;
+
+unstake_all#5ae30148
+    query_id:uint64
         = InternalMsgBody;
 
 upgrade_wallet#01d9ae1c

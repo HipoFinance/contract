@@ -164,11 +164,6 @@ global int unstaking;
         ss.end_parse();
     }
 
-    int from_parent? = equal_slice_bits(src, parent);
-    if from_parent? & (amount == 0) {
-        amount = tokens;
-    }
-
     ( int unstake_fee, _ ) = unstake_tokens_fee(ownership_assigned_amount);
     int incoming_ton = get_incoming_value().pair_first();
     int ton_balance = get_balance().pair_first();
@@ -176,7 +171,7 @@ global int unstaking;
     int valid? = equal_slice_bits(return_excess, owner) | (return_excess.preload_uint(2) == 0);
     valid? &= (mode >= unstake::auto) & (mode <= unstake::best);
 
-    throw_unless(err::access_denied, equal_slice_bits(src, owner) | from_parent?);
+    throw_unless(err::access_denied, equal_slice_bits(src, owner) | equal_slice_bits(src, my_address()));
     throw_unless(err::invalid_parameters, valid?);
     throw_unless(err::insufficient_fee, enough_fee?);
     throw_unless(err::insufficient_funds, (amount > 0) & (amount <= tokens));
@@ -228,6 +223,20 @@ global int unstaking;
         .store_coins(amount)
         .store_coins(coins);
     send_msg(false, owner.to_builder(), null(), notification, coins, send::unreserved_balance + send::ignore_errors);
+}
+
+() unstake_all(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, parent));
+
+    builder unstake = begin_cell()
+        .store_uint(op::unstake_tokens, 32)
+        .store_uint(query_id, 64)
+        .store_coins(tokens)
+        .store_uint(0, 3); ;; 00 (addr_none) + 0 (custom_payload)
+    send_msg(false, my_address().to_builder(), null(), unstake, 0, send::remaining_value);
 }
 
 () upgrade_wallet(slice src, slice s) impure inline {
@@ -380,6 +389,10 @@ global int unstaking;
 
     if op == op::tokens_burned {
         return tokens_burned(src, s);
+    }
+
+    if op == op::unstake_all {
+        return unstake_all(src, s);
     }
 
     if op == op::upgrade_wallet {

@@ -1,7 +1,7 @@
 import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import { Address, Cell, Dictionary, beginCell, toNano } from '@ton/core'
-import { between, bodyOp, createVset, logTotalFees, setConfig, createNewStakeMsg, getElector } from './helper'
+import { between, bodyOp, createVset, setConfig, createNewStakeMsg, getElector } from './helper'
 import { config, err, op } from '../wrappers/common'
 import {
     Fees,
@@ -29,10 +29,6 @@ describe('Access', () => {
     let billCode: Cell
     let loanCode: Cell
     let blockchainLibs: Cell
-
-    afterAll(() => {
-        logTotalFees()
-    })
 
     beforeAll(async () => {
         electorCode = await compile('elector-test/Elector')
@@ -168,7 +164,7 @@ describe('Access', () => {
 
         // Operations that are open to anyone:
         // - deposit_coins
-        // - send_unstake_tokens
+        // - send_unstake_all
         // - provide_current_quote
         // - request_loan
         // - participate_in_election
@@ -798,7 +794,7 @@ describe('Access', () => {
         const result6 = await parent.sendMessage(someone.getSender(), {
             value: '0.1',
             body: beginCell()
-                .storeUint(op.proxyUnstakeTokens, 32)
+                .storeUint(op.proxyUnstakeAll, 32)
                 .storeUint(0, 64)
                 .storeAddress(someone.address)
                 .endCell(),
@@ -807,7 +803,7 @@ describe('Access', () => {
             from: someone.address,
             to: parent.address,
             value: toNano('0.1'),
-            body: bodyOp(op.proxyUnstakeTokens),
+            body: bodyOp(op.proxyUnstakeAll),
             success: false,
             exitCode: err.accessDenied,
         })
