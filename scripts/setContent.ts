@@ -1,7 +1,7 @@
-import { Address, beginCell, Cell, Dictionary } from '@ton/core'
+import { Address, beginCell, Dictionary } from '@ton/core'
 import { Treasury } from '../wrappers/Treasury'
 import { NetworkProvider } from '@ton/blueprint'
-import { sha256_sync } from 'ton-crypto'
+import { metadataDictionaryValue, toMetadataKey } from '../wrappers/Parent'
 
 const name = 'hTON'
 const description = 'Hipo liquid staking protocol'
@@ -31,19 +31,11 @@ export async function run(provider: NetworkProvider) {
     ui.write('Done')
 }
 
-const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
-    .set(toSha256('decimals'), toTextCell('9'))
-    .set(toSha256('symbol'), toTextCell('hTON'))
-    .set(toSha256('name'), toTextCell(name))
-    .set(toSha256('description'), toTextCell(description))
-    .set(toSha256('image'), toTextCell(image))
+const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), metadataDictionaryValue)
+    .set(toMetadataKey('decimals'), '9')
+    .set(toMetadataKey('symbol'), 'hTON')
+    .set(toMetadataKey('name'), name)
+    .set(toMetadataKey('description'), description)
+    .set(toMetadataKey('image'), image)
 
 const content = beginCell().storeUint(0, 8).storeDict(contentDict).endCell()
-
-function toSha256(s: string): bigint {
-    return BigInt('0x' + sha256_sync(s).toString('hex'))
-}
-
-function toTextCell(s: string): Cell {
-    return beginCell().storeUint(0, 8).storeStringTail(s).endCell()
-}

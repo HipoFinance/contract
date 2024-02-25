@@ -4,13 +4,22 @@ import '@ton/test-utils'
 import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core'
 import { bodyOp, createNewStakeMsg, createVset, getElector, logCodeCost, logFees, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
-import { Fees, Treasury, emptyDictionaryValue, participationDictionaryValue } from '../wrappers/Treasury'
+import {
+    Fees,
+    ParticipationState,
+    Treasury,
+    emptyDictionaryValue,
+    participationDictionaryValue,
+    treasuryConfigToCell,
+} from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
 import { Loan } from '../wrappers/Loan'
 import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-test/Elector'
-import { Parent } from '../wrappers/Parent'
+import { Parent, toMetadataKey } from '../wrappers/Parent'
 import { StorageCost } from '../wrappers/storage-cost/StorageCost'
 import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
+import { Collection } from '../wrappers/Collection'
+import { Bill } from '../wrappers/Bill'
 
 describe('Getters', () => {
     let electorCode: Cell
@@ -322,5 +331,91 @@ describe('Getters', () => {
 
         const surplus = await treasury.getSurplus()
         expect(surplus).toBeBetween(-5n, 5n)
+    })
+
+    it('should return metadata for SBTs', async () => {
+        const staker = await blockchain.treasury('staker')
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+
+        const roundSince = 1n
+        const fakeState = await treasury.getTreasuryState()
+        fakeState.participations.set(roundSince, { state: ParticipationState.Staked })
+        const fakeData = treasuryConfigToCell(fakeState)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData,
+                balance: toNano('10'),
+            }),
+        )
+        const collectionAddress = await treasury.getCollectionAddress(roundSince)
+        const collection = blockchain.openContract(Collection.createFromAddress(collectionAddress))
+        const billAddress1 = await treasury.getBillAddress(roundSince, 0n)
+        const bill1 = blockchain.openContract(Bill.createFromAddress(billAddress1))
+        const billAddress2 = await treasury.getBillAddress(roundSince, 1n)
+        const bill2 = blockchain.openContract(Bill.createFromAddress(billAddress2))
+
+        await wallet.sendUnstakeTokens(staker.getSender(), { value: fees.unstakeTokensFee, tokens: '7.123456' })
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('5') + fees.depositCoinsFee })
+
+        const [nextItemIndex, metadata, treasuryAddress] = await collection.getCollectionData()
+        expect(nextItemIndex).toEqual(2n)
+        expect(metadata.size).toEqual(3)
+        expect(metadata.get(toMetadataKey('name'))).toEqual('Hipo Payout 1')
+        expect(metadata.get(toMetadataKey('description'))).toEqual('For validation round starting at Unix time 1')
+        expect(metadata.get(toMetadataKey('image'))).toEqual('https://app.hipo.finance/bill.png')
+        expect(treasuryAddress).toEqualAddress(treasury.address)
+
+        const nftAddress1 = await collection.getNftAddressByIndex(0n)
+        const nftAddress2 = await collection.getNftAddressByIndex(1n)
+        expect(nftAddress1).toEqualAddress(billAddress1)
+        expect(nftAddress2).toEqualAddress(billAddress2)
+
+        const [initialized1, index1, collectionAddress1, ownerAddress1, billMetadata1] = await bill1.getNftData()
+        expect(initialized1).toEqual(true)
+        expect(index1).toEqual(0n)
+        expect(collectionAddress1).toEqualAddress(collection.address)
+        expect(ownerAddress1).toEqualAddress(staker.address)
+        expect(billMetadata1.size).toEqual(2)
+        expect(billMetadata1.get(toMetadataKey('name'))).toEqual('Hipo Bill #0')
+        expect(billMetadata1.get(toMetadataKey('description'))).toEqual('Withdraw 7.123456000 hTON')
+
+        const [initialized2, index2, collectionAddress2, ownerAddress2, billMetadata2] = await bill2.getNftData()
+        expect(initialized2).toEqual(true)
+        expect(index2).toEqual(1n)
+        expect(collectionAddress2).toEqualAddress(collection.address)
+        expect(ownerAddress2).toEqualAddress(staker.address)
+        expect(billMetadata2.size).toEqual(2)
+        expect(billMetadata2.get(toMetadataKey('name'))).toEqual('Hipo Bill #1')
+        expect(billMetadata2.get(toMetadataKey('description'))).toEqual('Deposit 5.000000000 TON')
+
+        const nftContent1 = await collection.getNftContent(0n, billMetadata1)
+        expect(nftContent1.size).toEqual(3)
+        expect(nftContent1.get(toMetadataKey('name'))).toEqual('Hipo Bill #0')
+        expect(nftContent1.get(toMetadataKey('description'))).toEqual('Withdraw 7.123456000 hTON')
+        expect(nftContent1.get(toMetadataKey('image'))).toEqual('https://app.hipo.finance/bill.png')
+
+        const nftContent2 = await collection.getNftContent(1n, billMetadata2)
+        expect(nftContent2.size).toEqual(3)
+        expect(nftContent2.get(toMetadataKey('name'))).toEqual('Hipo Bill #1')
+        expect(nftContent2.get(toMetadataKey('description'))).toEqual('Deposit 5.000000000 TON')
+        expect(nftContent2.get(toMetadataKey('image'))).toEqual('https://app.hipo.finance/bill.png')
+
+        const authorityAddress1 = await bill1.getAuthorityAddress()
+        expect(authorityAddress1).toEqualAddress(collection.address)
+
+        const authorityAddress2 = await bill2.getAuthorityAddress()
+        expect(authorityAddress2).toEqualAddress(collection.address)
+
+        const revokedTime1 = await bill1.getRevokedTime()
+        expect(revokedTime1).toEqual(0n)
+
+        const revokedTime2 = await bill2.getRevokedTime()
+        expect(revokedTime2).toEqual(0n)
     })
 })

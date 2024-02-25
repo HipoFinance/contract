@@ -5,10 +5,12 @@ import {
     Contract,
     contractAddress,
     ContractProvider,
+    Dictionary,
     Sender,
     SendMode,
     TupleBuilder,
 } from '@ton/core'
+import { metadataDictionaryValue } from './Parent'
 
 interface CollectionConfig {
     treasury: Address
@@ -55,9 +57,13 @@ export class Collection implements Contract {
         await provider.internal(via, opts)
     }
 
-    async getCollectionData(provider: ContractProvider): Promise<[bigint, Cell, Address]> {
+    async getCollectionData(provider: ContractProvider): Promise<[bigint, Dictionary<bigint, string>, Address]> {
         const { stack } = await provider.get('get_collection_data', [])
-        return [stack.readBigNumber(), stack.readCell(), stack.readAddress()]
+        return [
+            stack.readBigNumber(),
+            Dictionary.loadDirect(Dictionary.Keys.BigUint(256), metadataDictionaryValue, stack.readCellOpt()),
+            stack.readAddress(),
+        ]
     }
 
     async getNftAddressByIndex(provider: ContractProvider, index: bigint): Promise<Address> {
@@ -67,12 +73,18 @@ export class Collection implements Contract {
         return stack.readAddress()
     }
 
-    async getNftContent(provider: ContractProvider, index: bigint, individualContent: Cell): Promise<Cell> {
+    async getNftContent(
+        provider: ContractProvider,
+        index: bigint,
+        individualContent: Dictionary<bigint, string>,
+    ): Promise<Dictionary<bigint, string>> {
+        const b = beginCell()
+        individualContent.storeDirect(b)
         const tb = new TupleBuilder()
         tb.writeNumber(index)
-        tb.writeCell(individualContent)
+        tb.writeCell(b.endCell())
         const { stack } = await provider.get('get_nft_content', tb.build())
-        return stack.readCell()
+        return Dictionary.loadDirect(Dictionary.Keys.BigUint(256), metadataDictionaryValue, stack.readCellOpt())
     }
 
     async getBalance(provider: ContractProvider): Promise<bigint> {

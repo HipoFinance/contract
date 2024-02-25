@@ -1,8 +1,7 @@
-import { beginCell, Cell, Dictionary } from '@ton/core'
+import { beginCell, Dictionary } from '@ton/core'
 import { emptyDictionaryValue, participationDictionaryValue, Treasury } from '../wrappers/Treasury'
 import { compile, NetworkProvider } from '@ton/blueprint'
-import { sha256_sync } from 'ton-crypto'
-import { Parent } from '../wrappers/Parent'
+import { metadataDictionaryValue, Parent, toMetadataKey } from '../wrappers/Parent'
 import { exportLibCode, Librarian } from '../wrappers/Librarian'
 
 export async function run(provider: NetworkProvider) {
@@ -171,22 +170,14 @@ export async function run(provider: NetworkProvider) {
     ui.write(`Don't forget to top them up.`)
 }
 
-const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
-    .set(toSha256('decimals'), toTextCell('9'))
-    .set(toSha256('symbol'), toTextCell('hTON'))
-    .set(toSha256('name'), toTextCell('hTON'))
-    .set(toSha256('description'), toTextCell('Hipo liquid staking protocol, version 2'))
-    .set(toSha256('image'), toTextCell('https://app.hipo.finance/hton.png'))
+const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), metadataDictionaryValue)
+    .set(toMetadataKey('decimals'), '9')
+    .set(toMetadataKey('symbol'), 'hTON')
+    .set(toMetadataKey('name'), 'hTON')
+    .set(toMetadataKey('description'), 'Hipo liquid staking protocol, version 2')
+    .set(toMetadataKey('image'), 'https://app.hipo.finance/hton.png')
 
 const content = beginCell().storeUint(0, 8).storeDict(contentDict).endCell()
-
-function toSha256(s: string): bigint {
-    return BigInt('0x' + sha256_sync(s).toString('hex'))
-}
-
-function toTextCell(s: string): Cell {
-    return beginCell().storeUint(0, 8).storeStringTail(s).endCell()
-}
 
 function sleep(ms: number) {
     return new Promise((r) => setTimeout(r, ms))

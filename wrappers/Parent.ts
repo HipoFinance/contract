@@ -1,15 +1,19 @@
 import {
     Address,
     beginCell,
+    Builder,
     Cell,
     Contract,
     contractAddress,
     ContractProvider,
+    DictionaryValue,
     Sender,
     SendMode,
+    Slice,
     TupleBuilder,
 } from '@ton/core'
 import { op } from './common'
+import { sha256_sync } from 'ton-crypto'
 
 interface ParentConfig {
     totalTokens: bigint
@@ -25,6 +29,23 @@ export function parentConfigToCell(config: ParentConfig): Cell {
         .storeRef(config.walletCode)
         .storeRef(config.content)
         .endCell()
+}
+
+export function toMetadataKey(key: string): bigint {
+    return BigInt('0x' + sha256_sync(key).toString('hex'))
+}
+
+export const metadataDictionaryValue: DictionaryValue<string> = {
+    serialize: function (src: string, builder: Builder) {
+        builder.storeUint(0, 8).storeStringTail(src)
+    },
+    parse: function (src: Slice): string {
+        const prefix = src.loadUint(8)
+        if (prefix !== 0) {
+            throw new Error('Expected metadata dictionary value to start with a zero')
+        }
+        return src.loadStringTail()
+    },
 }
 
 export class Parent implements Contract {
