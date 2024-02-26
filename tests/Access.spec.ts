@@ -4,9 +4,9 @@ import { Address, Cell, Dictionary, beginCell, toNano } from '@ton/core'
 import { between, bodyOp, createVset, setConfig, createNewStakeMsg, getElector } from './helper'
 import { config, err, op } from '../wrappers/common'
 import {
-    Fees,
     ParticipationState,
     Treasury,
+    TreasuryFees,
     emptyDictionaryValue,
     participationDictionaryValue,
     treasuryConfigToCell,
@@ -51,7 +51,7 @@ describe('Access', () => {
     let governor: SandboxContract<TreasuryContract>
     let treasury: SandboxContract<Treasury>
     let parent: SandboxContract<Parent>
-    let fees: Fees
+    let fees: TreasuryFees
     let electorAddress: Address
 
     beforeEach(async () => {
@@ -144,7 +144,7 @@ describe('Access', () => {
         })
         expect(setParentResult.transactions).toHaveLength(3)
 
-        fees = await treasury.getFees(0n, Cell.EMPTY.beginParse())
+        fees = await treasury.getTreasuryFees(0n)
 
         await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10' })
         const treasuryBalance = await treasury.getBalance()

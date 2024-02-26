@@ -490,8 +490,12 @@ cell find_code(cell dict, int round_since) inline {
     int query_id = s~load_uint(64);
     s.end_parse();
 
+    int fee = unstake_all_fee();
+    int incoming_ton = get_incoming_value().pair_first();
     ( int src_wc, _ ) = parse_std_addr(src);
     src_wc~impure_touch();
+
+    throw_unless(err::insufficient_fee, incoming_ton >= fee);
 
     builder unstake = begin_cell()
         .store_uint(op::proxy_unstake_all, 32)
@@ -2045,22 +2049,13 @@ slice get_loan_address(slice validator, int round_since) method_id {
     return loan.end_cell().begin_parse();
 }
 
-var get_fees(int forward_ton_amount, slice forward_payload) method_id {
-    load_data();
-
-    int send_fee = send_tokens_fee(forward_ton_amount, forward_payload);
-    ( int deposit_fee, _ ) = deposit_coins_fee(forward_ton_amount);
+var get_treasury_fees(int ownership_assigned_amount) method_id {
+    ( int deposit_fee, _ ) = deposit_coins_fee(ownership_assigned_amount);
     ( int loan_fee, _, _ ) = request_loan_fee();
-    ( int loan_storage, _ ) = loan_storage_fee();
-    int wallet_storage = wallet_storage_fee();
     return
-        ( send_fee
+        ( loan_fee
         , deposit_fee
-        , unstake_tokens_fee(forward_ton_amount)
         , unstake_all_fee()
-        , loan_fee
-        , loan_storage
-        , wallet_storage
         );
 }
 

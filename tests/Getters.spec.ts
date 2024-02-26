@@ -2,12 +2,21 @@ import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import '@ton/test-utils'
 import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core'
-import { bodyOp, createNewStakeMsg, createVset, getElector, logCodeCost, logFees, setConfig } from './helper'
+import {
+    bodyOp,
+    createNewStakeMsg,
+    createVset,
+    getElector,
+    logCodeCost,
+    logTreasuryFees,
+    logWalletFees,
+    setConfig,
+} from './helper'
 import { config, op } from '../wrappers/common'
 import {
-    Fees,
     ParticipationState,
     Treasury,
+    TreasuryFees,
     emptyDictionaryValue,
     participationDictionaryValue,
     treasuryConfigToCell,
@@ -57,7 +66,7 @@ describe('Getters', () => {
     let governor: SandboxContract<TreasuryContract>
     let treasury: SandboxContract<Treasury>
     let parent: SandboxContract<Parent>
-    let fees: Fees
+    let fees: TreasuryFees
     let electorAddress: Address
 
     beforeEach(async () => {
@@ -150,7 +159,7 @@ describe('Getters', () => {
         })
         expect(setParentResult.transactions).toHaveLength(3)
 
-        fees = await treasury.getFees(0n, Cell.EMPTY.beginParse())
+        fees = await treasury.getTreasuryFees(0n)
 
         await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10' })
         const treasuryBalance = await treasury.getBalance()
@@ -305,16 +314,27 @@ describe('Getters', () => {
         expect(unstaking).toBeTonValue('0')
     })
 
+    it('should return treasury fees', () => {
+        expect(fees.requestLoanFee).toBeGreaterThan(0n)
+        expect(fees.depositCoinsFee).toBeGreaterThan(0n)
+        expect(fees.unstakeAllTokensFee).toBeGreaterThan(0n)
+
+        logTreasuryFees(fees)
+    })
+
     it('should return wallet fees', async () => {
         const staker = await blockchain.treasury('staker')
         const walletAddress = await parent.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
 
-        const unstakeFee = await wallet.getUnstakeFee(0n)
-        expect(unstakeFee).toEqual(fees.unstakeTokensFee)
+        const walletFees = await wallet.getWalletFees(0n, Cell.EMPTY.beginParse())
+        expect(walletFees.sendTokensFee).toBeGreaterThan(0n)
+        expect(walletFees.unstakeTokensFee).toBeGreaterThan(0n)
+        expect(walletFees.upgradeWalletFee).toBeGreaterThan(0n)
+        expect(walletFees.walletStorageFee).toBeGreaterThan(0n)
 
-        logFees(fees)
+        logWalletFees(walletFees)
     })
 
     it('should return max burnable tokens', async () => {
@@ -338,6 +358,7 @@ describe('Getters', () => {
         const walletAddress = await parent.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+        const walletFees = await wallet.getWalletFees(0n, Cell.EMPTY.beginParse())
 
         const roundSince = 1n
         const fakeState = await treasury.getTreasuryState()
@@ -360,7 +381,7 @@ describe('Getters', () => {
         const billAddress2 = await treasury.getBillAddress(roundSince, 1n)
         const bill2 = blockchain.openContract(Bill.createFromAddress(billAddress2))
 
-        await wallet.sendUnstakeTokens(staker.getSender(), { value: fees.unstakeTokensFee, tokens: '7.123456' })
+        await wallet.sendUnstakeTokens(staker.getSender(), { value: walletFees.unstakeTokensFee, tokens: '7.123456' })
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('5') + fees.depositCoinsFee })
 
         const [nextItemIndex, metadata, treasuryAddress] = await collection.getCollectionData()

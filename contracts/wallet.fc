@@ -456,6 +456,11 @@ global int unstaking;
     return ( tokens, staking, unstaking );
 }
 
-int get_unstake_fee(int ownership_assigned_amount) method_id {
-    return unstake_tokens_fee(ownership_assigned_amount);
+var get_wallet_fees(int forward_ton_amount, slice forward_payload) method_id {
+    return
+        ( send_tokens_fee(forward_ton_amount, forward_payload)
+        , unstake_tokens_fee(forward_ton_amount)
+        , upgrade_wallet_fee()
+        , wallet_storage_fee()
+        );
 }

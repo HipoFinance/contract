@@ -13,10 +13,11 @@ import {
 } from '@ton/core'
 import { op, tonValue } from './common'
 
-export interface WalletFees1 {
+export interface WalletFees {
+    sendTokensFee: bigint
     unstakeTokensFee: bigint
-    storageFee: bigint
-    tonBalance: bigint
+    upgradeWalletFee: bigint
+    walletStorageFee: bigint
 }
 
 export enum UnstakeMode {
@@ -43,10 +44,6 @@ export function walletConfigToCell(config: WalletConfig): Cell {
         .storeCoins(config.unstaking)
         .storeRef(config.walletCode)
         .endCell()
-}
-
-function toStakingDict(dict: Cell | null): Dictionary<bigint, bigint> {
-    return Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.BigVarUint(4), dict)
 }
 
 export class Wallet implements Contract {
@@ -245,14 +242,28 @@ export class Wallet implements Contract {
 
     async getWalletState(provider: ContractProvider): Promise<[bigint, Dictionary<bigint, bigint>, bigint]> {
         const { stack } = await provider.get('get_wallet_state', [])
-        return [stack.readBigNumber(), toStakingDict(stack.readCellOpt()), stack.readBigNumber()]
+        return [
+            stack.readBigNumber(),
+            Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.BigVarUint(4), stack.readCellOpt()),
+            stack.readBigNumber(),
+        ]
     }
 
-    async getUnstakeFee(provider: ContractProvider, ownershipAssignedAmount: bigint): Promise<bigint> {
+    async getWalletFees(
+        provider: ContractProvider,
+        forwardTonAmount: bigint,
+        forwardPayload: Slice,
+    ): Promise<WalletFees> {
         const tb = new TupleBuilder()
-        tb.writeNumber(ownershipAssignedAmount)
-        const { stack } = await provider.get('get_unstake_fee', tb.build())
-        return stack.readBigNumber()
+        tb.writeNumber(forwardTonAmount)
+        tb.writeSlice(forwardPayload)
+        const { stack } = await provider.get('get_wallet_fees', tb.build())
+        return {
+            sendTokensFee: stack.readBigNumber(),
+            unstakeTokensFee: stack.readBigNumber(),
+            upgradeWalletFee: stack.readBigNumber(),
+            walletStorageFee: stack.readBigNumber(),
+        }
     }
 
     async getBalance(provider: ContractProvider): Promise<bigint> {

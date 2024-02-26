@@ -17,10 +17,10 @@ import {
 import { config, err, op } from '../wrappers/common'
 import { Loan } from '../wrappers/Loan'
 import {
-    Fees,
     Participation,
     ParticipationState,
     Treasury,
+    TreasuryFees,
     emptyDictionaryValue,
     participationDictionaryValue,
     requestDictionaryValue,
@@ -84,7 +84,7 @@ describe('Loan', () => {
     let governor: SandboxContract<TreasuryContract>
     let treasury: SandboxContract<Treasury>
     let parent: SandboxContract<Parent>
-    let fees: Fees
+    let fees: TreasuryFees
     let electorAddress: Address
 
     beforeEach(async () => {
@@ -177,7 +177,7 @@ describe('Loan', () => {
         })
         expect(setParentResult.transactions).toHaveLength(3)
 
-        fees = await treasury.getFees(0n, Cell.EMPTY.beginParse())
+        fees = await treasury.getTreasuryFees(0n)
 
         await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10' })
         const treasuryBalance = await treasury.getBalance()

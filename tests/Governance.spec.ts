@@ -4,10 +4,10 @@ import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
 import { between, bodyOp, createVset, emptyNewStakeMsg, logTotalFees, accumulateFees, setConfig } from './helper'
 import { config, op } from '../wrappers/common'
 import {
-    Fees,
     Participation,
     ParticipationState,
     Treasury,
+    TreasuryFees,
     emptyDictionaryValue,
     participationDictionaryValue,
     treasuryConfigToCell,
@@ -52,7 +52,7 @@ describe('Governance', () => {
     let governor: SandboxContract<TreasuryContract>
     let treasury: SandboxContract<Treasury>
     let parent: SandboxContract<Parent>
-    let fees: Fees
+    let fees: TreasuryFees
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
@@ -144,7 +144,7 @@ describe('Governance', () => {
         })
         expect(setParentResult.transactions).toHaveLength(3)
 
-        fees = await treasury.getFees(0n, Cell.EMPTY.beginParse())
+        fees = await treasury.getTreasuryFees(0n)
 
         await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10' })
         const treasuryBalance = await treasury.getBalance()

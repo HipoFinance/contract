@@ -25,14 +25,10 @@ export interface Times {
     stakeHeldFor: bigint
 }
 
-export interface Fees {
-    sendTokensFee: bigint
-    depositCoinsFee: bigint
-    unstakeTokensFee: bigint
-    unstakeAllTokensFee: bigint
+export interface TreasuryFees {
     requestLoanFee: bigint
-    loanStorageFee: bigint
-    walletStorageFee: bigint
+    depositCoinsFee: bigint
+    unstakeAllTokensFee: bigint
 }
 
 export enum ParticipationState {
@@ -938,19 +934,14 @@ export class Treasury implements Contract {
         return stack.readAddress()
     }
 
-    async getFees(provider: ContractProvider, forwardTonAmount: bigint, forwardPayload: Slice): Promise<Fees> {
+    async getTreasuryFees(provider: ContractProvider, ownershipAssignedAmount: bigint): Promise<TreasuryFees> {
         const tb = new TupleBuilder()
-        tb.writeNumber(forwardTonAmount)
-        tb.writeSlice(forwardPayload)
-        const { stack } = await provider.get('get_fees', tb.build())
+        tb.writeNumber(ownershipAssignedAmount)
+        const { stack } = await provider.get('get_treasury_fees', tb.build())
         return {
-            sendTokensFee: stack.readBigNumber(),
-            depositCoinsFee: stack.readBigNumber(),
-            unstakeTokensFee: stack.readBigNumber(),
-            unstakeAllTokensFee: stack.readBigNumber(),
             requestLoanFee: stack.readBigNumber(),
-            loanStorageFee: stack.readBigNumber(),
-            walletStorageFee: stack.readBigNumber(),
+            depositCoinsFee: stack.readBigNumber(),
+            unstakeAllTokensFee: stack.readBigNumber(),
         }
     }
 

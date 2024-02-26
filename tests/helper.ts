@@ -3,7 +3,8 @@ import { Blockchain, BlockchainTransaction } from '@ton/sandbox'
 import type { MatcherFunction } from 'expect'
 import { Address, Builder, Cell, Dictionary, beginCell, fromNano, toNano } from '@ton/core'
 import { mnemonicNew, mnemonicToPrivateKey, sign } from 'ton-crypto'
-import { Fees } from '../wrappers/Treasury'
+import { TreasuryFees } from '../wrappers/Treasury'
+import { WalletFees } from '../wrappers/Wallet'
 
 const muteLogComputeGas = false
 const muteLogTotalFees = false
@@ -233,15 +234,25 @@ export function logComputeGas(opLabels: string[]) {
     }
 }
 
-export function logFees(fees: Fees) {
+export function logTreasuryFees(fees: TreasuryFees) {
     if (!muteLogFees) {
         const logs = [
-            'Fees:',
-            '    send tokens:        ' + fromNano(fees.sendTokensFee),
-            '    deposit coins:      ' + fromNano(fees.depositCoinsFee),
-            '    unstake tokens:     ' + fromNano(fees.unstakeTokensFee),
-            '    unstake all tokens: ' + fromNano(fees.unstakeAllTokensFee),
+            'Treasury Fees:',
             '    request loan:       ' + fromNano(fees.requestLoanFee),
+            '    deposit coins:      ' + fromNano(fees.depositCoinsFee),
+            '    unstake all tokens: ' + fromNano(fees.unstakeAllTokensFee),
+        ]
+        console.info(logs.join('\n'))
+    }
+}
+
+export function logWalletFees(fees: WalletFees) {
+    if (!muteLogFees) {
+        const logs = [
+            'Treasury Fees:',
+            '    send tokens:        ' + fromNano(fees.sendTokensFee),
+            '    unstake tokens:     ' + fromNano(fees.unstakeTokensFee),
+            '    upgrade wallet:     ' + fromNano(fees.upgradeWalletFee),
         ]
         console.info(logs.join('\n'))
     }
