@@ -378,7 +378,7 @@ proxy_upgrade_code#78570010
     new_data:(Maybe ^Cell)
         = InternalMsgBody;
 
-send_proxy_upgrade_wallet#1c1c5a0f
+send_upgrade_wallet#7ade1ed8
     query_id:uint64
     destination:MsgAddress
     owner:MsgAddress

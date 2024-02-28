@@ -9,7 +9,6 @@ import {
     Sender,
     SendMode,
     Slice,
-    TupleBuilder,
 } from '@ton/core'
 import { op, tonValue } from './common'
 
@@ -28,21 +27,19 @@ export enum UnstakeMode {
 
 interface WalletConfig {
     owner: Address
-    treasury: Address
+    parent: Address
     tokens: bigint
     staking: Dictionary<bigint, bigint>
     unstaking: bigint
-    walletCode: Cell
 }
 
 export function walletConfigToCell(config: WalletConfig): Cell {
     return beginCell()
         .storeAddress(config.owner)
-        .storeAddress(config.treasury)
+        .storeAddress(config.parent)
         .storeCoins(config.tokens)
         .storeDict(config.staking)
         .storeCoins(config.unstaking)
-        .storeRef(config.walletCode)
         .endCell()
 }
 
@@ -249,15 +246,8 @@ export class Wallet implements Contract {
         ]
     }
 
-    async getWalletFees(
-        provider: ContractProvider,
-        forwardTonAmount: bigint,
-        forwardPayload: Slice,
-    ): Promise<WalletFees> {
-        const tb = new TupleBuilder()
-        tb.writeNumber(forwardTonAmount)
-        tb.writeSlice(forwardPayload)
-        const { stack } = await provider.get('get_wallet_fees', tb.build())
+    async getWalletFees(provider: ContractProvider): Promise<WalletFees> {
+        const { stack } = await provider.get('get_wallet_fees', [])
         return {
             sendTokensFee: stack.readBigNumber(),
             unstakeTokensFee: stack.readBigNumber(),

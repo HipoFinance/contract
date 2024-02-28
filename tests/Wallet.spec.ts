@@ -1,5 +1,5 @@
 import { compile } from '@ton/blueprint'
-import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
+import { Blockchain, EmulationError, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import '@ton/test-utils'
 import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
 import { between, bodyOp, storeComputeGas, logTotalFees, accumulateFees, logComputeGas } from './helper'
@@ -233,7 +233,7 @@ describe('Wallet', () => {
         expect(parentTotalTokens).toBeTonValue(amount)
 
         const walletBalance = await wallet.getBalance()
-        const walletFees = await wallet.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet.getWalletFees()
         const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(walletFees.walletStorageFee - 5n, walletFees.walletStorageFee)
         expect(tokens).toBeTonValue(amount)
@@ -341,7 +341,7 @@ describe('Wallet', () => {
 
         const walletBalance = await wallet.getBalance()
         const [tokens, staking, unstaking] = await wallet.getWalletState()
-        expect(walletBalance).toBeBetween('0.004', '0.005')
+        expect(walletBalance).toBeBetween('0.007', '0.008')
         expect(tokens).toBeTonValue('0')
         expect(staking.keys()).toHaveLength(1)
         expect(staking.get(roundSince)).toBeTonValue(amount)
@@ -525,7 +525,7 @@ describe('Wallet', () => {
         expect(parentTotalTokens).toBeTonValue(amount)
 
         const walletBalance = await wallet.getBalance()
-        const walletFees = await wallet.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet.getWalletFees()
         const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(walletFees.walletStorageFee - 5n, walletFees.walletStorageFee)
         expect(tokens).toBeTonValue(amount)
@@ -541,7 +541,7 @@ describe('Wallet', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
         const walletAddress = await parent.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        const walletFees = await wallet.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet.getWalletFees()
         const result = await wallet.sendUnstakeTokens(staker.getSender(), {
             value: walletFees.unstakeTokensFee,
             tokens: '7',
@@ -629,7 +629,7 @@ describe('Wallet', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
         const walletAddress = await parent.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        const walletFees = await wallet.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet.getWalletFees()
 
         const roundSince = 1n
         const fakeState1 = await treasury.getTreasuryState()
@@ -769,7 +769,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: billAddress,
             to: collectionAddress,
-            value: between('0.13', '0.14'),
+            value: between('0.15', '0.16'),
             body: bodyOp(op.billBurned),
             success: true,
             outMessagesCount: 2,
@@ -785,7 +785,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: collectionAddress,
             to: treasury.address,
-            value: between('0.15', '0.16'),
+            value: between('0.17', '0.18'),
             body: bodyOp(op.burnTokens),
             success: true,
             outMessagesCount: 1,
@@ -793,7 +793,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: treasury.address,
             to: parent.address,
-            value: between('7', '7.15'),
+            value: between('7', '7.17'),
             body: bodyOp(op.proxyTokensBurned),
             success: true,
             outMessagesCount: 1,
@@ -801,7 +801,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: parent.address,
             to: wallet.address,
-            value: between('7', '7.15'),
+            value: between('7', '7.17'),
             body: bodyOp(op.tokensBurned),
             success: true,
             outMessagesCount: 1,
@@ -809,7 +809,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: wallet.address,
             to: staker.address,
-            value: between('7', '7.15'),
+            value: between('7', '7.17'),
             body: bodyOp(op.withdrawalNotification),
             success: true,
             outMessagesCount: 0,
@@ -828,7 +828,7 @@ describe('Wallet', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
         const walletAddress = await parent.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        const walletFees = await wallet.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet.getWalletFees()
 
         const result1 = await wallet.sendUnstakeTokens(staker.getSender(), {
             value: walletFees.unstakeTokensFee,
@@ -1012,7 +1012,7 @@ describe('Wallet', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
         const walletAddress = await parent.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        const walletFees = await wallet.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet.getWalletFees()
 
         const roundSince = 1n
         const fakeState1 = await treasury.getTreasuryState()
@@ -1270,7 +1270,7 @@ describe('Wallet', () => {
         expect(parentTotalTokens).toBeTonValue(amount - fees.depositCoinsFee)
 
         const walletBalance = await wallet.getBalance()
-        const walletFees = await wallet.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet.getWalletFees()
         const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(walletFees.walletStorageFee - 5n, walletFees.walletStorageFee)
         expect(tokens).toBeTonValue(amount - fees.depositCoinsFee)
@@ -1374,7 +1374,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const walletFees = await wallet.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet.getWalletFees()
         const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(walletFees.walletStorageFee - 5n, walletFees.walletStorageFee)
         expect(tokens).toBeTonValue('0')
@@ -1389,6 +1389,7 @@ describe('Wallet', () => {
 
     it('should unstake all tokens for comment w sent to wallet', async () => {
         const staker = await blockchain.treasury('staker')
+        await treasury.sendTopUp(governor.getSender(), { value: 10n })
         await treasury.sendMessage(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee, body: 'd' })
         const walletAddress = await parent.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
@@ -1455,7 +1456,7 @@ describe('Wallet', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween(treasuryStorage, treasuryStorage + 5n)
+        expect(treasuryBalance).toBeBetween(treasuryStorage, treasuryStorage + 10n)
         expect(treasuryState.totalCoins).toBeTonValue('0')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
@@ -1463,7 +1464,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
-        const walletFees = await wallet.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet.getWalletFees()
         const [tokens, staking, unstaking] = await wallet.getWalletState()
         expect(walletBalance).toBeBetween(walletFees.walletStorageFee - 5n, walletFees.walletStorageFee)
         expect(tokens).toBeTonValue('0')
@@ -1488,7 +1489,7 @@ describe('Wallet', () => {
         await treasury.sendDepositCoins(staker1.getSender(), { value: toNano('1') + fees.depositCoinsFee })
         await treasury.sendDepositCoins(staker2.getSender(), { value: toNano('2') + fees.depositCoinsFee })
         await treasury.sendDepositCoins(staker3.getSender(), { value: toNano('3') + fees.depositCoinsFee })
-        const walletFees = await wallet1.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet1.getWalletFees()
 
         // tokens staking unstaking
         // 1 0 0 | 2 0 0 | 3 0 0
@@ -1654,13 +1655,16 @@ describe('Wallet', () => {
         expect(staking3.get(roundSince2)).toBeTonValue('2')
         expect(unstaking3).toBeTonValue('1')
 
-        await treasury.sendRetryBurnAll(halter.getSender(), { value: toNano('0.05'), roundSince: roundSince1 })
+        await treasury.sendRetryBurnAll(halter.getSender(), { value: toNano('0.1'), roundSince: roundSince1 })
 
         // 2 0 0 | 5 2 0 | 3 2 1
 
         treasuryBalance = await treasury.getBalance()
         treasuryState = await treasury.getTreasuryState()
-        // expect(treasuryBalance).toBeBetween(treasuryStorage + toNano('2'), treasuryStorage + toNano('2') + 5n)
+        expect(treasuryBalance).toBeBetween(
+            treasuryStorage + toNano('2'),
+            treasuryStorage + toNano('2') + toNano('0.005'),
+        )
         expect(treasuryState.totalCoins).toBeTonValue('11')
         expect(treasuryState.totalTokens).toBeTonValue('11')
         expect(treasuryState.totalStaking).toBeTonValue('4')
@@ -1696,16 +1700,16 @@ describe('Wallet', () => {
             }),
         )
 
-        await treasury.sendRetryBurnAll(halter.getSender(), { value: toNano('0.05'), roundSince: roundSince2 })
+        await treasury.sendRetryBurnAll(halter.getSender(), { value: toNano('0.1'), roundSince: roundSince2 })
 
         // 2 0 0 | 7 0 0 | 5 0 0
 
         treasuryBalance = await treasury.getBalance()
         treasuryState = await treasury.getTreasuryState()
-        // expect(treasuryBalance).toBeBetween(
-        //     treasuryStorage + toNano('14'),
-        //     treasuryStorage + toNano('14') + 5n,
-        // )
+        expect(treasuryBalance).toBeBetween(
+            treasuryStorage + toNano('14'),
+            treasuryStorage + toNano('14') + toNano('0.005'),
+        )
         expect(treasuryState.totalCoins).toBeTonValue('14')
         expect(treasuryState.totalTokens).toBeTonValue('14')
         expect(treasuryState.totalStaking).toBeTonValue('0')
@@ -1733,9 +1737,15 @@ describe('Wallet', () => {
         const wallet2 = blockchain.openContract(Wallet.createFromAddress(walletAddress2))
 
         await treasury.sendDepositCoins(staker1.getSender(), { value: toNano('10') + fees.depositCoinsFee })
-        const walletFees = await wallet1.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet1.getWalletFees()
+
         const mainnetAddress = await treasury.getLoanAddress(staker1.address, 1n)
-        const walletForMainnetAddress = await parent.getWalletAddress(mainnetAddress)
+        try {
+            await parent.getWalletAddress(mainnetAddress)
+            throw new Error('failed')
+        } catch (e) {
+            expect((e as EmulationError).exitCode).toEqual(err.onlyBasechainAllowed)
+        }
 
         expect(
             (
@@ -1756,16 +1766,6 @@ describe('Wallet', () => {
                 })
             ).transactions,
         ).toHaveTransaction({ exitCode: err.receiverIsSender })
-
-        expect(
-            (
-                await wallet1.sendSendTokens(staker1.getSender(), {
-                    value: walletFees.sendTokensFee - 1n,
-                    tokens: '0.05',
-                    recipient: staker2.address,
-                })
-            ).transactions,
-        ).toHaveTransaction({ exitCode: err.insufficientFee })
 
         expect(
             (
@@ -1813,12 +1813,12 @@ describe('Wallet', () => {
                 })
             ).transactions,
         ).toHaveTransaction({
-            from: wallet1.address,
-            to: walletForMainnetAddress,
+            from: staker1.address,
+            to: wallet1.address,
             value: between('0', walletFees.sendTokensFee),
-            body: bodyOp(op.receiveTokens),
-            success: true,
-            outMessagesCount: 1,
+            body: bodyOp(op.sendTokens),
+            success: false,
+            exitCode: err.onlyBasechainAllowed,
         })
     })
 
@@ -1831,7 +1831,7 @@ describe('Wallet', () => {
         const wallet2Address = await parent.getWalletAddress(staker2.address)
         const wallet1 = blockchain.openContract(Wallet.createFromAddress(wallet1Address))
         const wallet2 = blockchain.openContract(Wallet.createFromAddress(wallet2Address))
-        const walletFees = await wallet1.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet1.getWalletFees()
         const result = await wallet1.sendSendTokens(staker1.getSender(), {
             value: walletFees.sendTokensFee,
             tokens: '9',
@@ -1858,7 +1858,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: staker1.address,
-            value: between('0.002', '0.003'),
+            value: between('0.001', '0.002'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
@@ -1901,8 +1901,8 @@ describe('Wallet', () => {
         const wallet2Address = await parent.getWalletAddress(staker2.address)
         const wallet1 = blockchain.openContract(Wallet.createFromAddress(wallet1Address))
         const wallet2 = blockchain.openContract(Wallet.createFromAddress(wallet2Address))
-        const walletFees = await wallet1.getWalletFees(0n, Cell.EMPTY.beginParse())
-        const fee = walletFees.sendTokensFee + 1n + toNano('0.002') // 0.002 for forwarding notification
+        const walletFees = await wallet1.getWalletFees()
+        const fee = walletFees.sendTokensFee + 1n + toNano('0.003') // 0.003 for forwarding notification
         const result = await wallet1.sendSendTokens(staker1.getSender(), {
             value: fee,
             tokens: '9',
@@ -1940,7 +1940,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: excessReceiver.address,
-            value: between('0', '0.001'),
+            value: between('0.001', '0.002'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
@@ -1984,7 +1984,7 @@ describe('Wallet', () => {
         const wallet2Address = await parent.getWalletAddress(staker2.address)
         const wallet1 = blockchain.openContract(Wallet.createFromAddress(wallet1Address))
         const wallet2 = blockchain.openContract(Wallet.createFromAddress(wallet2Address))
-        const walletFees = await wallet1.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet1.getWalletFees()
         const forwardTonAmount = toNano('0.01')
         const forwardPayload = beginCell().storeUint(0, 256).storeUint(0, 56).endCell().beginParse()
         const fee = walletFees.sendTokensFee + forwardTonAmount + toNano('0.003') // 0.003 for forwarding notification
@@ -2024,7 +2024,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: staker1.address,
-            value: between('0.004', '0.005'),
+            value: between('0.003', '0.004'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
@@ -2432,7 +2432,7 @@ describe('Wallet', () => {
         const [parentTotalTokens2] = await parent2.getJettonData()
         expect(parentTotalTokens2).toBeTonValue('0')
 
-        const result = await treasury.sendSendProxyUpgradeWallet(halter.getSender(), {
+        const result = await treasury.sendSendUpgradeWallet(halter.getSender(), {
             value: '0.1',
             destination: parent.address,
             owner: staker.address,
@@ -2442,7 +2442,7 @@ describe('Wallet', () => {
             from: halter.address,
             to: treasury.address,
             value: toNano('0.1'),
-            body: bodyOp(op.sendProxyUpgradeWallet),
+            body: bodyOp(op.sendUpgradeWallet),
             success: true,
             outMessagesCount: 1,
         })

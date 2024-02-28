@@ -328,7 +328,7 @@ describe('Getters', () => {
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
 
-        const walletFees = await wallet.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet.getWalletFees()
         expect(walletFees.sendTokensFee).toBeGreaterThan(0n)
         expect(walletFees.unstakeTokensFee).toBeGreaterThan(0n)
         expect(walletFees.upgradeWalletFee).toBeGreaterThan(0n)
@@ -358,7 +358,7 @@ describe('Getters', () => {
         const walletAddress = await parent.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
-        const walletFees = await wallet.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet.getWalletFees()
 
         const roundSince = 1n
         const fakeState = await treasury.getTreasuryState()

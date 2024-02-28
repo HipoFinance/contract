@@ -787,7 +787,7 @@ export class Treasury implements Contract {
         })
     }
 
-    async sendSendProxyUpgradeWallet(
+    async sendSendUpgradeWallet(
         provider: ContractProvider,
         via: Sender,
         opts: {
@@ -804,7 +804,7 @@ export class Treasury implements Contract {
             bounce: opts.bounce,
             sendMode: opts.sendMode,
             body: beginCell()
-                .storeUint(op.sendProxyUpgradeWallet, 32)
+                .storeUint(op.sendUpgradeWallet, 32)
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeAddress(opts.destination)
                 .storeAddress(opts.owner)

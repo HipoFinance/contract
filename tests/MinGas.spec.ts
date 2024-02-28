@@ -9,7 +9,7 @@ import { Parent } from '../wrappers/Parent'
 import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
 import { Wallet } from '../wrappers/Wallet'
 
-describe('Getters', () => {
+describe('Min Gas', () => {
     let treasuryCode: Cell
     let parentCode: Cell
     let walletCode: Cell
@@ -240,17 +240,18 @@ describe('Getters', () => {
         const walletAddress = await parent.getWalletAddress(staker.address)
         const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') })
-        const walletFees = await wallet.getWalletFees(0n, Cell.EMPTY.beginParse())
+        const walletFees = await wallet.getWalletFees()
 
         const result1 = await wallet.sendSendTokens(staker.getSender(), {
-            value: walletFees.sendTokensFee - 1n,
+            value: toNano('0.033'),
             tokens: '7',
             recipient: halter.address,
+            forwardTonAmount: 1n,
         })
         expect(result1.transactions).toHaveTransaction({
             from: staker.address,
             to: wallet.address,
-            value: walletFees.sendTokensFee - 1n,
+            value: toNano('0.033'),
             body: bodyOp(op.sendTokens),
             success: false,
             exitCode: err.insufficientFee,
@@ -258,14 +259,15 @@ describe('Getters', () => {
         expect(result1.transactions).toHaveLength(3)
 
         const result2 = await wallet.sendSendTokens(staker.getSender(), {
-            value: walletFees.sendTokensFee,
+            value: toNano('0.034'),
             tokens: '7',
             recipient: halter.address,
+            forwardTonAmount: 1n,
         })
         expect(result2.transactions).toHaveTransaction({
             from: staker.address,
             to: wallet.address,
-            value: walletFees.sendTokensFee,
+            value: toNano('0.034'),
             body: bodyOp(op.sendTokens),
             success: true,
             outMessagesCount: 1,

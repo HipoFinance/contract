@@ -625,7 +625,7 @@ describe('Access', () => {
         })
         expect(result28.transactions).toHaveLength(3)
 
-        const result29 = await treasury.sendSendProxyUpgradeWallet(someone.getSender(), {
+        const result29 = await treasury.sendSendUpgradeWallet(someone.getSender(), {
             value: '0.1',
             destination: parent.address,
             owner: someone.address,
@@ -634,7 +634,7 @@ describe('Access', () => {
             from: someone.address,
             to: treasury.address,
             value: toNano('0.1'),
-            body: bodyOp(op.sendProxyUpgradeWallet),
+            body: bodyOp(op.sendUpgradeWallet),
             success: false,
             exitCode: err.accessDenied,
         })

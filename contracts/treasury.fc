@@ -198,8 +198,8 @@ cell find_code(cell dict, int round_since) inline {
     int incoming_ton = get_incoming_value().pair_first();
     int coins = incoming_ton - total_fee;
     ( int src_wc, _ ) = parse_std_addr(src);
-    src_wc~impure_touch();
 
+    throw_unless(err::only_basechain_allowed, src_wc == chain::base);
     throw_unless(err::insufficient_fee, coins > 0);
     throw_if(err::stopped, stopped?);
 
@@ -290,7 +290,7 @@ cell find_code(cell dict, int round_since) inline {
     int available_ton = ton_balance_before_msg - fee::treasury_storage - total_validators_stake;
 
     int round_since = 0;
-    int k = 0;
+    int k = -1;
     do {
         ( k, slice v, int f? ) = participations.udict_get_next?(32, k);
         if f? {
@@ -493,8 +493,8 @@ cell find_code(cell dict, int round_since) inline {
     int fee = unstake_all_fee();
     int incoming_ton = get_incoming_value().pair_first();
     ( int src_wc, _ ) = parse_std_addr(src);
-    src_wc~impure_touch();
 
+    throw_unless(err::only_basechain_allowed, src_wc == chain::base);
     throw_unless(err::insufficient_fee, incoming_ton >= fee);
 
     builder unstake = begin_cell()
@@ -1689,7 +1689,7 @@ int calculate_min_coins() inline_ref {
     throw(0);
 }
 
-() send_proxy_upgrade_wallet(slice src, slice s) impure inline {
+() send_upgrade_wallet(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
@@ -1902,8 +1902,8 @@ int calculate_min_coins() inline_ref {
         return proxy_upgrade_code(src, s);
     }
 
-    if op == op::send_proxy_upgrade_wallet {
-        return send_proxy_upgrade_wallet(src, s);
+    if op == op::send_upgrade_wallet {
+        return send_upgrade_wallet(src, s);
     }
 
     if op == op::migrate_wallet {
@@ -2040,7 +2040,7 @@ slice get_loan_address(slice validator, int round_since) method_id {
 
     ( int validator_wc, _ ) = parse_std_addr(validator);
 
-    throw_unless(err::invalid_parameters, validator_wc == chain::base);
+    throw_unless(err::only_basechain_allowed, validator_wc == chain::base);
 
     cell loan_code = loan_codes.find_code(round_since);
 

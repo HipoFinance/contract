@@ -249,7 +249,7 @@ export function logTreasuryFees(fees: TreasuryFees) {
 export function logWalletFees(fees: WalletFees) {
     if (!muteLogFees) {
         const logs = [
-            'Treasury Fees:',
+            'Wallet Fees:',
             '    send tokens:        ' + fromNano(fees.sendTokensFee),
             '    unstake tokens:     ' + fromNano(fees.unstakeTokensFee),
             '    upgrade wallet:     ' + fromNano(fees.upgradeWalletFee),

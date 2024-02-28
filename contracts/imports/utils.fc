@@ -485,7 +485,7 @@ int msg_fwd_fee(int lump_price, int bit_price, int cell_price, int rest_bits, in
     return lump_price + ((rest_bits * bit_price + rest_cells * cell_price + 65535) >> 16);
 }
 
-int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
+int send_tokens_fee() {
     int storage_fee = wallet_storage_fee();
 
     ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
@@ -494,18 +494,7 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
         gas::receive_tokens;
     int compute_fee = compute_gas * gas_price >> 16;
 
-    ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
-    int l_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023 * 2, 1 + 3);
-    int payload_fee = 0;
-    if forward_ton_amount {
-        ( int payload_cells, int payload_bits, _ ) = slice_compute_data_size(forward_payload, 1000);
-        payload_fee = msg_fwd_fee(lump_price, bit_price, cell_price, payload_bits, payload_cells);
-    }
-    int forward_fee =
-        l_fwd_fee + payload_fee + ;; receive_tokens (and possibly forward message)
-        payload_fee; ;; transfer_notification
-
-    return storage_fee + compute_fee + forward_fee + forward_ton_amount;
+    return storage_fee + compute_fee;
 }
 
 (int, int) deposit_coins_fee(int ownership_assigned_amount) {
@@ -556,7 +545,7 @@ int send_tokens_fee(int forward_ton_amount, slice forward_payload) {
     return ( total, proxy_save_coins_fee );
 }
 
-int unstake_tokens_fee(int ownership_assigned_amount) {
+int unstake_tokens_fee() {
     ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
     int compute_gas =
         gas::unstake_tokens +
@@ -597,7 +586,7 @@ int unstake_tokens_fee(int ownership_assigned_amount) {
         m_fwd_fee + ;; proxy_tokens_burned
         m_fwd_fee; ;; tokens_burned
 
-    return compute_fee + forward_fee + ownership_assigned_amount;
+    return compute_fee + forward_fee;
 }
 
 int unstake_all_fee() {

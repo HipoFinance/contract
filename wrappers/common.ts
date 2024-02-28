@@ -87,7 +87,7 @@ export const op = {
     proxyWithdrawSurplus: 0x77a0bf77,
     upgradeCode: 0x3d6a29b5,
     proxyUpgradeCode: 0x78570010,
-    sendProxyUpgradeWallet: 0x1c1c5a0f,
+    sendUpgradeWallet: 0x7ade1ed8,
     migrateWallet: 0x325aacfa,
     proxySetLibrary: 0x0930c8d7,
     topUp: 0x5372158c,
