@@ -785,7 +785,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: collectionAddress,
             to: treasury.address,
-            value: between('0.17', '0.18'),
+            value: between('0.16', '0.17'),
             body: bodyOp(op.burnTokens),
             success: true,
             outMessagesCount: 1,

@@ -1249,25 +1249,23 @@ cell find_code(cell dict, int round_since) inline {
     throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == collection_addr));
 
     ( slice ps, int f? ) = participations~udict_delete_get?(32, round_since);
-    if f? {
-        ( int state
-        , int size
-        , cell sorted
-        , cell requests
-        , cell rejected
-        , cell accepted
-        , cell accrued
-        , cell staked
-        , cell recovering
-        , int total_staked
-        , int total_recovered
-        , int current_vset_hash
-        , int stake_held_for
-        , int stake_held_until
-        ) = unpack_participation(ps);
+    ( int state
+    , int size
+    , cell sorted
+    , cell requests
+    , cell rejected
+    , cell accepted
+    , cell accrued
+    , cell staked
+    , cell recovering
+    , int total_staked
+    , int total_recovered
+    , int current_vset_hash
+    , int stake_held_for
+    , int stake_held_until
+    ) = unpack_participation(ps);
 
-        log_finish(round_since, total_staked, total_recovered, total_coins, total_tokens);
-    }
+    log_finish(round_since, total_staked, total_recovered, total_coins, total_tokens);
 }
 
 () propose_governor(slice src, slice s) impure inline {

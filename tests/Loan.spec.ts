@@ -1592,7 +1592,14 @@ describe('Loan', () => {
         )
         const result5 = await treasury.sendFinishParticipation({ roundSince: until1 })
 
+        expect(result5.transactions).toHaveTransaction({
+            to: treasury.address,
+            body: bodyOp(op.lastBillBurned),
+            success: true,
+            outMessagesCount: 1,
+        })
         expect(result5.transactions).toHaveLength(10)
+        expect(result5.externals).toHaveLength(2)
 
         accumulateFees(result1.transactions)
         accumulateFees(result2.transactions)

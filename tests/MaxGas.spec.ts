@@ -249,6 +249,9 @@ describe('Max Gas', () => {
             success: true,
             outMessagesCount: 1,
         })
+        expect(result1.transactions).not.toHaveTransaction({ success: false })
+        expect(result1.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result1.transactions).not.toHaveTransaction({ actionResultCode: 37 })
         expect(result1.transactions).toHaveLength(7)
 
         accumulateFees(result1.transactions)
@@ -273,7 +276,7 @@ describe('Max Gas', () => {
             }),
         )
 
-        const result2 = await treasury.sendRetryBurnAll(governor.getSender(), { value: '0.1', roundSince: 60n })
+        const result2 = await treasury.sendRetryBurnAll(governor.getSender(), { value: '0.2', roundSince: 60n })
         expect(result2.transactions).toHaveTransaction({
             from: parent.address,
             to: walletAddress1,
@@ -282,6 +285,9 @@ describe('Max Gas', () => {
             success: true,
             outMessagesCount: 1,
         })
+        expect(result2.transactions).not.toHaveTransaction({ success: false })
+        expect(result2.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result2.transactions).not.toHaveTransaction({ actionResultCode: 37 })
         expect(result2.transactions).toHaveLength(16)
 
         accumulateFees(result2.transactions)
@@ -309,6 +315,9 @@ describe('Max Gas', () => {
             success: true,
             outMessagesCount: 1,
         })
+        expect(result3.transactions).not.toHaveTransaction({ success: false })
+        expect(result3.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result3.transactions).not.toHaveTransaction({ actionResultCode: 37 })
         expect(result3.transactions).toHaveLength(5)
 
         accumulateFees(result3.transactions)
@@ -340,6 +349,9 @@ describe('Max Gas', () => {
             success: true,
             outMessagesCount: 2,
         })
+        expect(result4.transactions).not.toHaveTransaction({ success: false })
+        expect(result4.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result4.transactions).not.toHaveTransaction({ actionResultCode: 37 })
         expect(result4.transactions).toHaveLength(5)
 
         accumulateFees(result4.transactions)
@@ -359,6 +371,9 @@ describe('Max Gas', () => {
             success: true,
             outMessagesCount: 1,
         })
+        expect(result5.transactions).not.toHaveTransaction({ success: false })
+        expect(result5.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result5.transactions).not.toHaveTransaction({ actionResultCode: 37 })
         expect(result5.transactions).toHaveLength(4)
 
         accumulateFees(result4.transactions)
@@ -393,6 +408,9 @@ describe('Max Gas', () => {
             success: true,
             outMessagesCount: 1,
         })
+        expect(result6.transactions).not.toHaveTransaction({ success: false })
+        expect(result6.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result6.transactions).not.toHaveTransaction({ actionResultCode: 37 })
         expect(result6.transactions).toHaveLength(7)
 
         accumulateFees(result6.transactions)
@@ -427,6 +445,9 @@ describe('Max Gas', () => {
             success: true,
             outMessagesCount: 1,
         })
+        expect(result7.transactions).not.toHaveTransaction({ success: false })
+        expect(result7.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result7.transactions).not.toHaveTransaction({ actionResultCode: 37 })
         expect(result7.transactions).toHaveLength(7)
 
         accumulateFees(result7.transactions)
@@ -464,6 +485,9 @@ describe('Max Gas', () => {
             success: true,
             outMessagesCount: 1,
         })
+        expect(result8.transactions).not.toHaveTransaction({ success: false })
+        expect(result8.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result8.transactions).not.toHaveTransaction({ actionResultCode: 37 })
         expect(result8.transactions).toHaveLength(9)
 
         accumulateFees(result8.transactions)
@@ -496,6 +520,9 @@ describe('Max Gas', () => {
             success: true,
             outMessagesCount: 1,
         })
+        expect(result9.transactions).not.toHaveTransaction({ success: false })
+        expect(result9.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result9.transactions).not.toHaveTransaction({ actionResultCode: 37 })
         expect(result9.transactions).toHaveLength(10)
 
         accumulateFees(result9.transactions)
@@ -517,6 +544,9 @@ describe('Max Gas', () => {
             success: true,
             outMessagesCount: 1,
         })
+        expect(result10.transactions).not.toHaveTransaction({ success: false })
+        expect(result10.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result10.transactions).not.toHaveTransaction({ actionResultCode: 37 })
         expect(result10.transactions).toHaveLength(10)
 
         accumulateFees(result10.transactions)
@@ -563,6 +593,9 @@ describe('Max Gas', () => {
             success: true,
             outMessagesCount: 0,
         })
+        expect(result11.transactions).not.toHaveTransaction({ success: false })
+        expect(result11.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result11.transactions).not.toHaveTransaction({ actionResultCode: 37 })
         expect(result11.transactions).toHaveLength(6)
 
         accumulateFees(result11.transactions)
