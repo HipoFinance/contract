@@ -332,19 +332,25 @@ describe('Max Gas', () => {
         const someone = await blockchain.treasury('someone')
         const walletAddress2 = await parent.getWalletAddress(someone.address)
         const wallet2 = blockchain.openContract(Wallet.createFromAddress(walletAddress2))
+        const forwardPayload = beginCell()
+            .storeUint(0, 256)
+            .storeUint(0, 56)
+            .storeRef(treasuryCode)
+            .endCell()
+            .beginParse()
 
         const result4 = await wallet1.sendSendTokens(staker.getSender(), {
-            value: walletFees.sendTokensFee + toNano('0.047') + toNano('0.17'), // 0.17 for forwarding payload
+            value: walletFees.sendTokensFee + toNano('0.05') + toNano('0.17'), // 0.17 for forwarding payload
             tokens: '1',
             recipient: someone.address,
             customPayload: parentCode,
             forwardTonAmount: '0.05',
-            forwardPayload: treasuryCode.beginParse(),
+            forwardPayload,
         })
         expect(result4.transactions).toHaveTransaction({
             from: wallet1.address,
             to: wallet2.address,
-            value: between('0', walletFees.sendTokensFee + toNano('0.047') + toNano('0.17')),
+            value: between('0', walletFees.sendTokensFee + toNano('0.05') + toNano('0.17')),
             body: bodyOp(op.receiveTokens),
             success: true,
             outMessagesCount: 2,
@@ -376,9 +382,9 @@ describe('Max Gas', () => {
         expect(result5.transactions).not.toHaveTransaction({ actionResultCode: 37 })
         expect(result5.transactions).toHaveLength(4)
 
-        accumulateFees(result4.transactions)
-        storeComputeGas('send_tokens', op.sendTokens, result4.transactions[1])
-        storeComputeGas('receive_tokens', op.receiveTokens, result4.transactions[2])
+        accumulateFees(result5.transactions)
+        storeComputeGas('send_tokens', op.sendTokens, result5.transactions[1])
+        storeComputeGas('receive_tokens', op.receiveTokens, result5.transactions[2])
 
         // unstake
 
@@ -559,6 +565,29 @@ describe('Max Gas', () => {
         storeComputeGas('proxy_tokens_burned', op.proxyTokensBurned, result10.transactions[7])
         storeComputeGas('tokens_burned', op.tokensBurned, result10.transactions[8])
 
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('2') + fees.depositCoinsFee })
+        const result11 = await wallet1.sendMessage(staker.getSender(), { value: '0.2', body: 'W' })
+        expect(result11.transactions).toHaveTransaction({
+            from: wallet1.address,
+            to: wallet1.address,
+            value: between('0', '0.2'),
+            body: bodyOp(op.unstakeTokens),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result11.transactions).not.toHaveTransaction({ success: false })
+        expect(result11.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result11.transactions).not.toHaveTransaction({ actionResultCode: 37 })
+        expect(result11.transactions).toHaveLength(8)
+
+        accumulateFees(result11.transactions)
+        storeComputeGas('unstake_all', op.unstakeAll, result11.transactions[1])
+        storeComputeGas('unstake_tokens', op.unstakeTokens, result11.transactions[2])
+        storeComputeGas('proxy_reserve_tokens', op.proxyReserveTokens, result11.transactions[3])
+        storeComputeGas('reserve_tokens', op.reserveTokens, result11.transactions[4])
+        storeComputeGas('proxy_tokens_burned', op.proxyTokensBurned, result11.transactions[5])
+        storeComputeGas('tokens_burned', op.tokensBurned, result11.transactions[6])
+
         // upgrade wallet
 
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('6') + fees.depositCoinsFee })
@@ -582,10 +611,10 @@ describe('Max Gas', () => {
         const newWalletAddress = await newParent.getWalletAddress(staker.address)
         await treasury.sendSetParent(governor.getSender(), { value: '0.1', newParent: newParent.address })
 
-        const result11 = await wallet1.sendUpgradeWallet(staker.getSender(), {
+        const result12 = await wallet1.sendUpgradeWallet(staker.getSender(), {
             value: walletFees.upgradeWalletFee,
         })
-        expect(result11.transactions).toHaveTransaction({
+        expect(result12.transactions).toHaveTransaction({
             from: newParentAddress,
             to: newWalletAddress,
             value: between('0', walletFees.upgradeWalletFee),
@@ -593,17 +622,17 @@ describe('Max Gas', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(result11.transactions).not.toHaveTransaction({ success: false })
-        expect(result11.transactions).not.toHaveTransaction({ exitCode: -14 })
-        expect(result11.transactions).not.toHaveTransaction({ actionResultCode: 37 })
-        expect(result11.transactions).toHaveLength(6)
+        expect(result12.transactions).not.toHaveTransaction({ success: false })
+        expect(result12.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result12.transactions).not.toHaveTransaction({ actionResultCode: 37 })
+        expect(result12.transactions).toHaveLength(6)
 
-        accumulateFees(result11.transactions)
-        storeComputeGas('upgrade_wallet', op.upgradeWallet, result11.transactions[1])
-        storeComputeGas('proxy_migrate_wallet', op.proxyMigrateWallet, result11.transactions[2])
-        storeComputeGas('migrate_wallet', op.migrateWallet, result11.transactions[3])
-        storeComputeGas('proxy_merge_wallet', op.proxyMergeWallet, result11.transactions[4])
-        storeComputeGas('merge_wallet', op.mergeWallet, result11.transactions[5])
+        accumulateFees(result12.transactions)
+        storeComputeGas('upgrade_wallet', op.upgradeWallet, result12.transactions[1])
+        storeComputeGas('proxy_migrate_wallet', op.proxyMigrateWallet, result12.transactions[2])
+        storeComputeGas('migrate_wallet', op.migrateWallet, result12.transactions[3])
+        storeComputeGas('proxy_merge_wallet', op.proxyMergeWallet, result12.transactions[4])
+        storeComputeGas('merge_wallet', op.mergeWallet, result12.transactions[5])
 
         logComputeGas([
             'send_tokens',
