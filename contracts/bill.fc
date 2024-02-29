@@ -58,6 +58,7 @@ global int amount;
     s.end_parse();
 
     throw_unless(err::access_denied, equal_slice_bits(src, collection));
+    throw_if(err::stopped, revoked_at);
 
     revoked_at = now();
 

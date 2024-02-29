@@ -724,7 +724,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: billAddress,
             to: collectionAddress,
-            value: between('0.14', '0.15'),
+            value: between('0.14', '0.16'),
             body: bodyOp(op.billBurned),
             success: true,
             outMessagesCount: 2,

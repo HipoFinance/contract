@@ -3,6 +3,7 @@ import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } fro
 import '@ton/test-utils'
 import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core'
 import {
+    between,
     bodyOp,
     createNewStakeMsg,
     createVset,
@@ -12,7 +13,7 @@ import {
     logWalletFees,
     setConfig,
 } from './helper'
-import { config, op } from '../wrappers/common'
+import { config, err, op } from '../wrappers/common'
 import {
     ParticipationState,
     Treasury,
@@ -460,5 +461,30 @@ describe('Getters', () => {
 
         const revokedTime2After = await bill2.getRevokedTime()
         expect(revokedTime2After).toBeGreaterThan(0n)
+
+        const fakeState3 = await treasury.getTreasuryState()
+        fakeState3.participations.set(roundSince, { state: ParticipationState.Burning })
+        const fakeData3 = treasuryConfigToCell(fakeState3)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData3,
+                balance: toNano('10'),
+            }),
+        )
+
+        const result = await treasury.sendRetryBurnAll(halter.getSender(), { value: '0.1', roundSince })
+        expect(result.transactions).toHaveTransaction({
+            from: collection.address,
+            to: bill1.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.burnBill),
+            success: false,
+            exitCode: err.stopped,
+        })
+        expect(result.transactions).toHaveLength(4)
     })
 })
