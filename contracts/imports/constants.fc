@@ -145,7 +145,7 @@ const int op::withdrawal_notification = 0xf0fa223b;
 const int op::set_library = 0x7deaf806;
 
 
-const int gas::send_tokens = 13546;
+const int gas::send_tokens = 13484;
 const int gas::receive_tokens = 13574;
 const int gas::deposit_coins = 22843;
 const int gas::proxy_save_coins = 6149;

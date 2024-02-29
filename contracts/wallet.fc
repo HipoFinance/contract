@@ -51,7 +51,7 @@ global int unstaking;
     throw_unless(err::access_denied, equal_slice_bits(src, owner));
     throw_unless(err::only_basechain_allowed, recipient_wc == chain::base);
     throw_unless(err::insufficient_fee, enough_fee?);
-    throw_unless(err::insufficient_funds, (amount > 0) & (amount <= tokens));
+    throw_unless(err::insufficient_funds, amount <= tokens);
     throw_if(err::receiver_is_sender, equal_slice_bits(recipient, owner));
 
     tokens -= amount;

@@ -1728,16 +1728,6 @@ describe('Wallet', () => {
             (
                 await wallet1.sendSendTokens(staker1.getSender(), {
                     value: walletFees.sendTokensFee,
-                    tokens: '0',
-                    recipient: staker2.address,
-                })
-            ).transactions,
-        ).toHaveTransaction({ exitCode: err.insufficientFunds })
-
-        expect(
-            (
-                await wallet1.sendSendTokens(staker1.getSender(), {
-                    value: walletFees.sendTokensFee,
                     tokens: 1n,
                     recipient: staker2.address,
                 })
