@@ -724,7 +724,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: billAddress,
             to: collectionAddress,
-            value: between('0.15', '0.16'),
+            value: between('0.14', '0.15'),
             body: bodyOp(op.billBurned),
             success: true,
             outMessagesCount: 2,
@@ -1805,7 +1805,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: staker1.address,
-            value: between('0.001', '0.002'),
+            value: between('0.002', '0.003'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
@@ -1971,7 +1971,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: staker1.address,
-            value: between('0.003', '0.004'),
+            value: between('0.004', '0.005'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,

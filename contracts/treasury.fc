@@ -280,7 +280,9 @@ cell find_code(cell dict, int round_since) inline {
     s.end_parse();
 
     int coins = tokens;
-    if total_tokens {
+    if tokens == total_tokens {
+        coins = total_coins; ;; send all coins to last staker
+    } elseif total_tokens {
         coins = muldiv(tokens, total_coins, total_tokens);
     }
 
@@ -324,10 +326,6 @@ cell find_code(cell dict, int round_since) inline {
     if (available_ton >= coins) & ((mode <= unstake::instant) | (round_since == 0)) {
         total_coins -= coins;
         total_tokens -= tokens;
-        if (total_coins == 0) | (total_tokens == 0) {
-            total_coins = 0;
-            total_tokens = 0;
-        }
 
         raw_reserve(coins, reserve::negate + reserve::add_original_balance);
 
@@ -419,7 +417,9 @@ cell find_code(cell dict, int round_since) inline {
     throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == collection_addr));
 
     int coins = tokens;
-    if total_tokens {
+    if tokens == total_tokens {
+        coins = total_coins; ;; send all coins to last staker
+    } elseif total_tokens {
         coins = muldiv(tokens, total_coins, total_tokens);
     }
 
@@ -470,10 +470,6 @@ cell find_code(cell dict, int round_since) inline {
     total_coins -= coins;
     total_tokens -= tokens;
     total_unstaking -= tokens;
-    if (total_coins == 0) | (total_tokens == 0) {
-        total_coins = 0;
-        total_tokens = 0;
-    }
 
     raw_reserve(coins, reserve::negate + reserve::add_original_balance);
 
