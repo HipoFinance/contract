@@ -249,6 +249,7 @@ cell create_bill_data(int index, slice collection) inline {
     return begin_cell()
         .store_uint(index, 64)
         .store_slice(collection)
+        .store_uint(0, 32)
         .store_uint(0, 9) ;; 00 (addr_none) + 00 (addr_none) + 0 (unstake) + 0000 (amount)
         .end_cell();
 }

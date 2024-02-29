@@ -742,6 +742,7 @@ collection_storage#_
 bill_storage#_
     index:uint64
     collection:MsgAddress
+    revoked_at:uint32
     parent:MsgAddress
     owner:MsgAddress
     unstake:Bool

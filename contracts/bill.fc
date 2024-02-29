@@ -2,6 +2,7 @@
 
 global int index;
 global slice collection;
+global int revoked_at;
 global slice parent;
 global slice owner;
 global int unstake?;
@@ -11,6 +12,7 @@ global int amount;
     begin_cell()
         .store_uint(index, 64)
         .store_slice(collection)
+        .store_uint(revoked_at, 32)
         .store_slice(parent)
         .store_slice(owner)
         .store_int(unstake?, 1)
@@ -23,6 +25,7 @@ global int amount;
     slice ds = get_data().begin_parse();
     index = ds~load_uint(64);
     collection = ds~load_msg_addr();
+    revoked_at = ds~load_uint(32);
     parent = ds~load_msg_addr();
     owner = ds~load_msg_addr();
     unstake? = ds~load_int(1);
@@ -56,6 +59,8 @@ global int amount;
 
     throw_unless(err::access_denied, equal_slice_bits(src, collection));
 
+    revoked_at = now();
+
     builder burn = begin_cell()
         .store_uint(op::bill_burned, 32)
         .store_uint(query_id, 64)
@@ -65,11 +70,6 @@ global int amount;
         .store_slice(parent)
         .store_uint(index, 64);
     send_msg(false, collection.to_builder(), null(), burn, 0, send::unreserved_balance);
-
-    owner = "2_"s; ;; 00 (addr_none)
-    parent = "2_"s; ;; 00 (addr_none)
-    unstake? = 0;
-    amount = 0;
 }
 
 builder create_bill_name() inline {
@@ -111,7 +111,7 @@ cell create_bill_metadata() {
         .store_uint(index, 256)
         .store_slice(owner)
         .store_ref(forward_payload)
-        .store_uint(0, 64)
+        .store_uint(revoked_at, 64)
         .store_maybe_ref(content);
     send_msg(true, destination.to_builder(), null(), proof, 0, send::remaining_value);
 
@@ -134,7 +134,7 @@ cell create_bill_metadata() {
         .store_slice(src)
         .store_slice(owner)
         .store_ref(forward_payload)
-        .store_uint(0, 64)
+        .store_uint(revoked_at, 64)
         .store_maybe_ref(content);
     send_msg(true, destination.to_builder(), null(), info, 0, send::remaining_value);
 
@@ -232,5 +232,7 @@ slice get_authority_address() method_id {
 }
 
 int get_revoked_time() method_id {
-    return 0;
+    load_data();
+
+    return revoked_at;
 }

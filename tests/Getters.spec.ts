@@ -361,16 +361,16 @@ describe('Getters', () => {
         const walletFees = await wallet.getWalletFees()
 
         const roundSince = 1n
-        const fakeState = await treasury.getTreasuryState()
-        fakeState.participations.set(roundSince, { state: ParticipationState.Staked })
-        const fakeData = treasuryConfigToCell(fakeState)
+        const fakeState1 = await treasury.getTreasuryState()
+        fakeState1.participations.set(roundSince, { state: ParticipationState.Staked })
+        const fakeData1 = treasuryConfigToCell(fakeState1)
         await blockchain.setShardAccount(
             treasury.address,
             createShardAccount({
                 workchain: 0,
                 address: treasury.address,
                 code: treasuryCode,
-                data: fakeData,
+                data: fakeData1,
                 balance: toNano('10'),
             }),
         )
@@ -438,5 +438,27 @@ describe('Getters', () => {
 
         const revokedTime2 = await bill2.getRevokedTime()
         expect(revokedTime2).toEqual(0n)
+
+        const fakeState2 = await treasury.getTreasuryState()
+        fakeState2.participations.set(roundSince, { state: ParticipationState.Burning })
+        const fakeData2 = treasuryConfigToCell(fakeState2)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData2,
+                balance: toNano('10'),
+            }),
+        )
+
+        await treasury.sendRetryBurnAll(halter.getSender(), { value: '0.1', roundSince })
+
+        const revokedTime1After = await bill1.getRevokedTime()
+        expect(revokedTime1After).toBeGreaterThan(0n)
+
+        const revokedTime2After = await bill2.getRevokedTime()
+        expect(revokedTime2After).toBeGreaterThan(0n)
     })
 })

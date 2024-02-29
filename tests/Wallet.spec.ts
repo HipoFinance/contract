@@ -2,7 +2,7 @@ import { compile } from '@ton/blueprint'
 import { Blockchain, EmulationError, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import '@ton/test-utils'
 import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
-import { between, bodyOp, logTotalFees, accumulateFees, logComputeGas } from './helper'
+import { between, bodyOp, logTotalFees, accumulateFees } from './helper'
 import { err, op } from '../wrappers/common'
 import {
     ParticipationState,
