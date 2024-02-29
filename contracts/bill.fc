@@ -223,7 +223,7 @@ cell create_bill_metadata() {
 (int, int, slice, slice, cell) get_nft_data() method_id {
     load_data();
 
-    return ( owner.preload_uint(2) != 0 , index , collection , owner , create_bill_metadata() );
+    return ( ~ owner.addr_none?() , index , collection , owner , create_bill_metadata() );
 }
 
 slice get_authority_address() method_id {

@@ -1512,7 +1512,7 @@ cell find_code(cell dict, int round_since) inline {
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
-    if parent.preload_uint(2) {
+    ifnot parent.addr_none?() {
         ( _, int parent_addr ) = parse_std_addr(parent);
         old_parents~udict_set_builder(256, parent_addr, begin_cell());
     }
@@ -1585,7 +1585,7 @@ int calculate_min_coins() inline_ref {
     slice return_excess = s~load_msg_addr();
     s.end_parse();
 
-    ifnot return_excess.preload_uint(2) {
+    if return_excess.addr_none?() {
         return_excess = src;
     }
 
@@ -1650,7 +1650,7 @@ int calculate_min_coins() inline_ref {
     slice return_excess = s~load_msg_addr();
     s.end_parse();
 
-    ifnot return_excess.preload_uint(2) {
+    if return_excess.addr_none?() {
         return_excess = src;
     }
 

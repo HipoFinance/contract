@@ -145,7 +145,7 @@ const int op::withdrawal_notification = 0xf0fa223b;
 const int op::set_library = 0x7deaf806;
 
 
-const int gas::send_tokens = 13546;
+const int gas::send_tokens = 13542;
 const int gas::receive_tokens = 13582;
 const int gas::deposit_coins = 22843;
 const int gas::proxy_save_coins = 6149;
@@ -157,7 +157,7 @@ const int gas::bill_burned = 15408;
 const int gas::mint_tokens = 12230;
 const int gas::proxy_tokens_minted = 6815;
 const int gas::tokens_minted = 15230;
-const int gas::unstake_tokens = 12892;
+const int gas::unstake_tokens = 12880;
 const int gas::proxy_reserve_tokens = 6538;
 const int gas::reserve_tokens = 15495;
 const int gas::burn_tokens = 16601;

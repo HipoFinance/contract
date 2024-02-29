@@ -43,7 +43,7 @@ global slice governor;
     slice return_excess = s~load_msg_addr();
     s.end_parse();
 
-    ifnot return_excess.preload_uint(2) {
+    if return_excess.addr_none?() {
         return_excess = src;
     }
 

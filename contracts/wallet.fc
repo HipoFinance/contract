@@ -38,19 +38,19 @@ global int unstaking;
     s~skip_dict(); ;; check either field
     s~impure_touch();
 
-    ifnot return_excess.preload_uint(2) {
+    if return_excess.addr_none?() {
         return_excess = src;
     }
 
     ( int recipient_wc, _ ) = parse_std_addr(recipient);
     ( builder wallet, cell state_init, _ ) = create_wallet_address(recipient.to_builder(), parent, my_code());
-    int min_ton = send_tokens_fee() + forward_ton_amount + (forward_ton_amount ? 2 : 1) * fwd_fee;
+    int fee = send_tokens_fee() + forward_ton_amount + (forward_ton_amount ? 2 : 1) * fwd_fee;
     int incoming_ton = get_incoming_value().pair_first();
     int ton_balance = get_balance().pair_first();
-    int enough_fee? = (ton_balance >= incoming_ton) & (incoming_ton >= min_ton);
+    int enough_fee? = (ton_balance >= incoming_ton) & (incoming_ton >= fee);
 
-    throw_unless(err::access_denied, equal_slice_bits(src, owner));
     throw_unless(err::only_basechain_allowed, recipient_wc == chain::base);
+    throw_unless(err::access_denied, equal_slice_bits(src, owner));
     throw_unless(err::insufficient_fee, enough_fee?);
     throw_unless(err::insufficient_funds, amount <= tokens);
     throw_if(err::receiver_is_sender, equal_slice_bits(recipient, owner));
@@ -167,11 +167,11 @@ global int unstaking;
         ss.end_parse();
     }
 
-    int unstake_fee = unstake_tokens_fee() + ownership_assigned_amount;
+    int fee = unstake_tokens_fee() + ownership_assigned_amount;
     int incoming_ton = get_incoming_value().pair_first();
     int ton_balance = get_balance().pair_first();
-    int enough_fee? = (ton_balance >= incoming_ton) & (incoming_ton >= unstake_fee);
-    int valid? = equal_slice_bits(return_excess, owner) | (return_excess.preload_uint(2) == 0);
+    int enough_fee? = (ton_balance >= incoming_ton) & (incoming_ton >= fee);
+    int valid? = equal_slice_bits(return_excess, owner) | (return_excess.addr_none?());
     valid? &= (mode >= unstake::auto) & (mode <= unstake::best);
 
     throw_unless(err::access_denied, equal_slice_bits(src, owner) | equal_slice_bits(src, my_address()));
@@ -246,10 +246,10 @@ global int unstaking;
     int query_id = s~load_uint(64);
     s.end_parse();
 
-    int min_ton = upgrade_wallet_fee();
+    int fee = upgrade_wallet_fee();
     int incoming_ton = get_incoming_value().pair_first();
     int ton_balance = get_balance().pair_first();
-    int enough_fee? = (ton_balance >= incoming_ton) & (incoming_ton >= min_ton);
+    int enough_fee? = (ton_balance >= incoming_ton) & (incoming_ton >= fee);
 
     throw_unless(err::access_denied, equal_slice_bits(src, owner) | equal_slice_bits(src, parent));
     throw_unless(err::insufficient_fee, enough_fee?);
@@ -286,7 +286,7 @@ global int unstaking;
     slice return_excess = s~load_msg_addr();
     s.end_parse();
 
-    ifnot return_excess.preload_uint(2) {
+    if return_excess.addr_none?() {
         return_excess = src;
     }
 

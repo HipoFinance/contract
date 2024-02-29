@@ -634,3 +634,6 @@ int equal_slice_bits(slice a, slice b) asm "SDEQ";
 
 ;;; Concatenates two builders
 builder store_builder(builder to, builder from) asm "STBR";
+
+;;; Checking that `slice` [s] is a addr_none constuction;
+int addr_none?(slice s) asm "b{00} PUSHSLICE SDEQ";
