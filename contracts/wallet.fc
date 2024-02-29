@@ -35,7 +35,7 @@ global int unstaking;
     s~load_maybe_ref(); ;; skip custom_payload
     int forward_ton_amount = s~load_coins();
     slice forward_payload = s;
-    s~skip_bits(1); ;; check either field
+    s.skip_dict(); ;; check either field
 
     ifnot return_excess.preload_uint(2) {
         return_excess = src;
