@@ -90,7 +90,9 @@ global int unstaking;
             .store_coins(amount)
             .store_slice(sender)
             .store_slice(forward_payload);
-        send_msg(false, owner.to_builder(), null(), notification, forward_ton_amount, send::pay_gas_separately);
+        send_msg(false, owner.to_builder(), null(), notification, forward_ton_amount,
+            send::pay_gas_separately + send::bounce_if_failed
+        );
     }
 
     raw_reserve(wallet_storage_fee(), reserve::at_most);
