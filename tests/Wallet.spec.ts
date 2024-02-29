@@ -1728,7 +1728,7 @@ describe('Wallet', () => {
             (
                 await wallet1.sendSendTokens(staker1.getSender(), {
                     value: walletFees.sendTokensFee,
-                    tokens: 1n,
+                    tokens: 0n,
                     recipient: staker2.address,
                 })
             ).transactions,
@@ -1756,6 +1756,81 @@ describe('Wallet', () => {
             body: bodyOp(op.sendTokens),
             success: false,
             exitCode: err.onlyBasechainAllowed,
+        })
+
+        expect(
+            (
+                await wallet1.sendMessage(staker1.getSender(), {
+                    value: walletFees.sendTokensFee,
+                    body: beginCell()
+                        .storeUint(op.sendTokens, 32)
+                        .storeUint(0, 64)
+                        .storeCoins(toNano('0.05'))
+                        .storeAddress(staker2.address)
+                        .storeAddress(null)
+                        .storeMaybeRef(null)
+                        .storeCoins(0n)
+                        .storeSlice(beginCell().endCell().beginParse())
+                        .endCell(),
+                })
+            ).transactions,
+        ).toHaveTransaction({
+            from: staker1.address,
+            to: wallet1.address,
+            value: walletFees.sendTokensFee,
+            body: bodyOp(op.sendTokens),
+            success: false,
+            exitCode: 9,
+        })
+
+        expect(
+            (
+                await wallet1.sendMessage(staker1.getSender(), {
+                    value: walletFees.sendTokensFee,
+                    body: beginCell()
+                        .storeUint(op.sendTokens, 32)
+                        .storeUint(0, 64)
+                        .storeCoins(toNano('0.05'))
+                        .storeAddress(staker2.address)
+                        .storeAddress(null)
+                        .storeMaybeRef(null)
+                        .storeCoins(0n)
+                        .storeSlice(beginCell().storeUint(1, 1).endCell().beginParse())
+                        .endCell(),
+                })
+            ).transactions,
+        ).toHaveTransaction({
+            from: staker1.address,
+            to: wallet1.address,
+            value: walletFees.sendTokensFee,
+            body: bodyOp(op.sendTokens),
+            success: false,
+            exitCode: 9,
+        })
+
+        expect(
+            (
+                await wallet1.sendMessage(staker1.getSender(), {
+                    value: walletFees.sendTokensFee,
+                    body: beginCell()
+                        .storeUint(op.sendTokens, 32)
+                        .storeUint(0, 64)
+                        .storeCoins(toNano('0.05'))
+                        .storeAddress(staker2.address)
+                        .storeAddress(null)
+                        .storeMaybeRef(null)
+                        .storeCoins(0n)
+                        .storeSlice(beginCell().storeUint(1, 1).storeRef(Cell.EMPTY).endCell().beginParse())
+                        .endCell(),
+                })
+            ).transactions,
+        ).toHaveTransaction({
+            from: staker1.address,
+            to: wallet1.address,
+            value: walletFees.sendTokensFee,
+            body: bodyOp(op.sendTokens),
+            success: true,
+            outMessagesCount: 1,
         })
     })
 
