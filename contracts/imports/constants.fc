@@ -168,7 +168,7 @@ const int gas::proxy_unstake_all = 6553;
 const int gas::unstake_all = 7795;
 const int gas::upgrade_wallet = 11520;
 const int gas::proxy_migrate_wallet = 7978;
-const int gas::migrate_wallet = 11685;
+const int gas::migrate_wallet = 15969;
 const int gas::proxy_merge_wallet = 7815;
 const int gas::merge_wallet = 9334;
 

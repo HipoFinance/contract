@@ -763,7 +763,6 @@ int burn_bill_fee() {
     int compute_fee = compute_gas * gas_price >> 16;
 
     ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
-    int s_fwd_fee = lump_price;
     int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
     int forward_fee =
         m_fwd_fee; ;; bill_burned
@@ -782,12 +781,29 @@ int upgrade_wallet_fee() {
     int compute_fee = compute_gas * gas_price >> 16;
 
     ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
-    int s_fwd_fee = lump_price;
     int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
     int l_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023 * 2, 1 + 3);
     int forward_fee =
         m_fwd_fee + ;; proxy_migrate_wallet
         m_fwd_fee + ;; migrate_wallet
+        m_fwd_fee + ;; proxy_merge_wallet
+        l_fwd_fee; ;; merge_wallet
+
+    return compute_fee + forward_fee;
+}
+
+int merge_wallet_fee() {
+    ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
+    int compute_gas =
+        gas::migrate_wallet +
+        gas::proxy_merge_wallet +
+        gas::merge_wallet;
+    int compute_fee = compute_gas * gas_price >> 16;
+
+    ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
+    int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
+    int l_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023 * 2, 1 + 3);
+    int forward_fee =
         m_fwd_fee + ;; proxy_merge_wallet
         l_fwd_fee; ;; merge_wallet
 

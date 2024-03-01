@@ -1712,10 +1712,13 @@ int calculate_min_coins() inline_ref {
 
     ( int src_wc, int src_addr ) = parse_std_addr(src);
     ( _, int f? ) = old_parents.udict_get?(256, src_addr);
+    int fee = merge_wallet_fee();
+    int incoming_ton = get_incoming_value().pair_first();
+    int enough_fee? = incoming_ton >= fee;
 
     ;; send back if src is not one of the old parents.
     slice destination = src;
-    if f? & (src_wc == chain::base) {
+    if enough_fee? & f? & (src_wc == chain::base) {
         destination = parent;
     }
 
