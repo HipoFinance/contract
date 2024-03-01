@@ -704,7 +704,7 @@ extension#_
 
 treasury_storage#_
     total_coins:Coins
-    total_tokens:Coins
+    total_tokens:Coins { total_coins >= total_tokens }
     total_staking:Coins
     total_unstaking:Coins
     total_validators_stake:Coins
