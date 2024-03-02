@@ -9,6 +9,7 @@ export const err = {
     stopped: 106,
     invalidOp: 107,
     invalidComment: 108,
+    invalidParameters: 109,
 
     notAcceptingLoanRequests: 201,
     unableToParticipate: 202,
