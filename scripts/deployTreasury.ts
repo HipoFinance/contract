@@ -31,7 +31,7 @@ export async function run(provider: NetworkProvider) {
                 totalTokens: 0n,
                 totalStaking: 0n,
                 totalUnstaking: 0n,
-                totalValidatorsStake: 0n,
+                totalBorrowersStake: 0n,
                 parent: null,
                 participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                 roundsImbalance: 255n,

@@ -43,7 +43,7 @@ export enum ParticipationState {
 
 export interface Request {
     minPayment: bigint
-    validatorRewardShare: bigint
+    borrowerRewardShare: bigint
     loanAmount: bigint
     accrueAmount: bigint
     stakeAmount: bigint
@@ -72,7 +72,7 @@ export interface TreasuryConfig {
     totalTokens: bigint
     totalStaking: bigint
     totalUnstaking: bigint
-    totalValidatorsStake: bigint
+    totalBorrowersStake: bigint
     parent: Address | null
     participations: Dictionary<bigint, Participation>
     roundsImbalance: bigint
@@ -106,7 +106,7 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeCoins(config.totalTokens)
         .storeCoins(config.totalStaking)
         .storeCoins(config.totalUnstaking)
-        .storeCoins(config.totalValidatorsStake)
+        .storeCoins(config.totalBorrowersStake)
         .storeAddress(config.parent)
         .storeDict(config.participations)
         .storeUint(config.roundsImbalance, 8)
@@ -139,7 +139,7 @@ export const requestDictionaryValue: DictionaryValue<Request> = {
     serialize: function (src: Request, builder: Builder) {
         builder
             .storeCoins(src.minPayment)
-            .storeUint(src.validatorRewardShare, 8)
+            .storeUint(src.borrowerRewardShare, 8)
             .storeCoins(src.loanAmount)
             .storeCoins(src.accrueAmount)
             .storeCoins(src.stakeAmount)
@@ -148,7 +148,7 @@ export const requestDictionaryValue: DictionaryValue<Request> = {
     parse: function (src: Slice): Request {
         return {
             minPayment: src.loadCoins(),
-            validatorRewardShare: src.loadUintBig(8),
+            borrowerRewardShare: src.loadUintBig(8),
             loanAmount: src.loadCoins(),
             accrueAmount: src.loadCoins(),
             stakeAmount: src.loadCoins(),
@@ -317,7 +317,7 @@ export class Treasury implements Contract {
             roundSince: bigint
             loanAmount: bigint | string
             minPayment: bigint | string
-            validatorRewardShare: bigint
+            borrowerRewardShare: bigint
             newStakeMsg: Cell
         },
     ) {
@@ -331,7 +331,7 @@ export class Treasury implements Contract {
                 .storeUint(opts.roundSince, 32)
                 .storeCoins(tonValue(opts.loanAmount))
                 .storeCoins(tonValue(opts.minPayment))
-                .storeUint(opts.validatorRewardShare, 8)
+                .storeUint(opts.borrowerRewardShare, 8)
                 .storeRef(opts.newStakeMsg)
                 .endCell(),
         })
@@ -549,7 +549,7 @@ export class Treasury implements Contract {
             bounce?: boolean
             sendMode?: SendMode
             queryId?: bigint
-            validator: Address
+            borrower: Address
             roundSince: bigint
             message: Cell
         },
@@ -561,7 +561,7 @@ export class Treasury implements Contract {
             body: beginCell()
                 .storeUint(op.sendMessageToLoan, 32)
                 .storeUint(opts.queryId ?? 0, 64)
-                .storeAddress(opts.validator)
+                .storeAddress(opts.borrower)
                 .storeUint(opts.roundSince, 32)
                 .storeRef(opts.message)
                 .endCell(),
@@ -858,7 +858,7 @@ export class Treasury implements Contract {
             totalTokens: stack.readBigNumber(),
             totalStaking: stack.readBigNumber(),
             totalUnstaking: stack.readBigNumber(),
-            totalValidatorsStake: stack.readBigNumber(),
+            totalBorrowersStake: stack.readBigNumber(),
             parent: stack.readAddressOpt(),
             participations: Dictionary.loadDirect(
                 Dictionary.Keys.BigUint(32),
@@ -926,9 +926,9 @@ export class Treasury implements Contract {
         return stack.readAddress()
     }
 
-    async getLoanAddress(provider: ContractProvider, validator: Address, roundSince: bigint) {
+    async getLoanAddress(provider: ContractProvider, borrower: Address, roundSince: bigint) {
         const tb = new TupleBuilder()
-        tb.writeAddress(validator)
+        tb.writeAddress(borrower)
         tb.writeNumber(roundSince)
         const { stack } = await provider.get('get_loan_address', tb.build())
         return stack.readAddress()

@@ -3,7 +3,7 @@ import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, 
 export interface LoanConfig {
     elector?: Address
     treasury: Address
-    validator: Address
+    borrower: Address
     roundSince: bigint
 }
 
@@ -11,7 +11,7 @@ export function loanConfigToCell(config: LoanConfig): Cell {
     return beginCell()
         .storeAddress(config.elector)
         .storeAddress(config.treasury)
-        .storeAddress(config.validator)
+        .storeAddress(config.borrower)
         .storeUint(config.roundSince, 32)
         .endCell()
 }
@@ -50,7 +50,7 @@ export class Loan implements Contract {
         return {
             elector: stack.readAddress(),
             treasury: stack.readAddress(),
-            validator: stack.readAddress(),
+            borrower: stack.readAddress(),
             roundSince: stack.readBigNumber(),
         }
     }

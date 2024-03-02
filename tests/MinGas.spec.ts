@@ -55,7 +55,7 @@ describe('Min Gas', () => {
                     totalTokens: 0n,
                     totalStaking: 0n,
                     totalUnstaking: 0n,
-                    totalValidatorsStake: 0n,
+                    totalBorrowersStake: 0n,
                     parent: null,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                     roundsImbalance: 255n,
@@ -203,7 +203,7 @@ describe('Min Gas', () => {
             value: maxPunishment + fees.requestLoanFee - 1n,
             loanAmount: minStake - maxPunishment + newStakeConfirmation,
             minPayment: 0n,
-            validatorRewardShare: 0n,
+            borrowerRewardShare: 0n,
             newStakeMsg: emptyNewStakeMsg,
             roundSince: until,
         })
@@ -221,7 +221,7 @@ describe('Min Gas', () => {
             value: maxPunishment + fees.requestLoanFee,
             loanAmount: minStake - maxPunishment + newStakeConfirmation,
             minPayment: 0n,
-            validatorRewardShare: 0n,
+            borrowerRewardShare: 0n,
             newStakeMsg: emptyNewStakeMsg,
             roundSince: until,
         })

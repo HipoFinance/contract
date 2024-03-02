@@ -61,7 +61,7 @@ describe('Large', () => {
                     totalTokens: 0n,
                     totalStaking: 0n,
                     totalUnstaking: 0n,
-                    totalValidatorsStake: 0n,
+                    totalBorrowersStake: 0n,
                     parent: null,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                     roundsImbalance: 255n,
@@ -155,7 +155,7 @@ describe('Large', () => {
         const count = 100n
         const request = {
             minPayment: toNano('50'),
-            validatorRewardShare: 102n,
+            borrowerRewardShare: 102n,
             loanAmount: toNano('300000'),
             accrueAmount: 0n,
             stakeAmount: toNano('1000'),
@@ -217,7 +217,7 @@ describe('Large', () => {
         const requests = Dictionary.empty(Dictionary.Keys.BigUint(256), requestDictionaryValue)
         const request = {
             minPayment: toNano('50'),
-            validatorRewardShare: 102n,
+            borrowerRewardShare: 102n,
             loanAmount: toNano('300000'),
             accrueAmount: 0n,
             stakeAmount: toNano('101'),
@@ -248,7 +248,7 @@ describe('Large', () => {
 
         const state = await treasury.getTreasuryState()
         state.participations.set(until1, participation)
-        state.totalValidatorsStake = toNano('101') * (count1 + count2 + count3)
+        state.totalBorrowersStake = toNano('101') * (count1 + count2 + count3)
         const fakeData = treasuryConfigToCell(state)
         await blockchain.setShardAccount(
             treasury.address,
@@ -304,7 +304,7 @@ describe('Large', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             body: bodyOp(op.requestRejected),
-            aborted: true, // validator account is dummy and not initialized
+            aborted: true, // borrower account is dummy and not initialized
         })
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,

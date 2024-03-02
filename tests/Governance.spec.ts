@@ -66,7 +66,7 @@ describe('Governance', () => {
                     totalTokens: 0n,
                     totalStaking: 0n,
                     totalUnstaking: 0n,
-                    totalValidatorsStake: 0n,
+                    totalBorrowersStake: 0n,
                     parent: null,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                     roundsImbalance: 255n,
@@ -315,18 +315,18 @@ describe('Governance', () => {
         const vset = createVset(since, until)
         setConfig(blockchain, config.currentValidators, vset)
 
-        const validator = await blockchain.treasury('validator')
-        const result3 = await treasury.sendRequestLoan(validator.getSender(), {
+        const borrower = await blockchain.treasury('borrower')
+        const result3 = await treasury.sendRequestLoan(borrower.getSender(), {
             value: toNano('151') + fees.requestLoanFee, // 101 (max punishment) + 50 (min payment) + fee
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
-            validatorRewardShare: 102n, // 40%
+            borrowerRewardShare: 102n, // 40%
             newStakeMsg: emptyNewStakeMsg,
         })
 
         expect(result3.transactions).toHaveTransaction({
-            from: validator.address,
+            from: borrower.address,
             to: treasury.address,
             value: toNano('151') + fees.requestLoanFee,
             body: bodyOp(op.requestLoan),
@@ -335,7 +335,7 @@ describe('Governance', () => {
         })
         expect(result3.transactions).toHaveTransaction({
             from: treasury.address,
-            to: validator.address,
+            to: borrower.address,
             value: between('151', toNano('151') + fees.requestLoanFee),
             body: bodyOp(0xffffffff),
             success: true,
@@ -491,12 +491,12 @@ describe('Governance', () => {
     })
 
     it('should send message to loan', async () => {
-        const validator = await blockchain.treasury('validator')
-        const loanAddress = await treasury.getLoanAddress(validator.address, 0n)
+        const borrower = await blockchain.treasury('borrower')
+        const loanAddress = await treasury.getLoanAddress(borrower.address, 0n)
         const message = beginCell().storeUint(op.proxyRecoverStake, 32).storeUint(1, 64).endCell()
         const result = await treasury.sendSendMessageToLoan(halter.getSender(), {
             value: '1',
-            validator: validator.address,
+            borrower: borrower.address,
             roundSince: 0n,
             message,
         })
@@ -738,7 +738,7 @@ describe('Governance', () => {
         state.totalTokens = toNano('800000')
         state.totalStaking = toNano('100000')
         state.totalUnstaking = toNano('200000')
-        state.totalValidatorsStake = toNano('300000')
+        state.totalBorrowersStake = toNano('300000')
         const fakeData = treasuryConfigToCell(state)
         await blockchain.setShardAccount(
             treasury.address,

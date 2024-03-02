@@ -63,7 +63,7 @@ describe('Wallet', () => {
                     totalTokens: 0n,
                     totalStaking: 0n,
                     totalUnstaking: 0n,
-                    totalValidatorsStake: 0n,
+                    totalBorrowersStake: 0n,
                     parent: null,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                     roundsImbalance: 255n,
@@ -199,7 +199,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
-        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
 
         const [parentTotalTokens] = await parent.getJettonData()
         expect(parentTotalTokens).toBeTonValue(amount)
@@ -305,7 +305,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalTokens).toBeTonValue('0')
         expect(treasuryState.totalStaking).toBeTonValue(amount)
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
-        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
 
         const [parentTotalTokens] = await parent.getJettonData()
         expect(parentTotalTokens).toBeTonValue('0')
@@ -480,7 +480,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
-        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
 
         const [parentTotalTokens] = await parent.getJettonData()
         expect(parentTotalTokens).toBeTonValue(amount)
@@ -564,7 +564,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
-        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
 
         const [parentTotalTokens] = await parent.getJettonData()
         expect(parentTotalTokens).toBeTonValue('3')
@@ -668,7 +668,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('7')
-        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
 
         const [parentTotalTokens] = await parent.getJettonData()
         expect(parentTotalTokens).toBeTonValue('10')
@@ -1216,7 +1216,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
-        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
 
         const [parentTotalTokens] = await parent.getJettonData()
         expect(parentTotalTokens).toBeTonValue(amount - fees.depositCoinsFee)
@@ -1322,7 +1322,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
-        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
         const walletFees = await wallet.getWalletFees()
@@ -1409,7 +1409,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
-        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
 
         const walletBalance = await wallet.getBalance()
         const walletFees = await wallet.getWalletFees()
@@ -1884,7 +1884,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
-        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
 
         const wallet1Balance = await wallet1.getBalance()
         const [tokens1, staking1, unstaking1] = await wallet1.getWalletState()
@@ -1966,7 +1966,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
-        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
 
         const wallet1Balance = await wallet1.getBalance()
         const [tokens1, staking1, unstaking1] = await wallet1.getWalletState()
@@ -2053,7 +2053,7 @@ describe('Wallet', () => {
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
-        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
 
         const wallet1Balance = await wallet1.getBalance()
         const [tokens1, staking1, unstaking1] = await wallet1.getWalletState()

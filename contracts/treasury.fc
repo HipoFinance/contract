@@ -4,7 +4,7 @@ global int total_coins;
 global int total_tokens;
 global int total_staking;
 global int total_unstaking;
-global int total_validators_stake;
+global int total_borrowers_stake;
 global slice parent;
 global cell participations;
 global int rounds_imbalance;
@@ -29,7 +29,7 @@ global cell old_parents;
         .store_coins(total_tokens)
         .store_coins(total_staking)
         .store_coins(total_unstaking)
-        .store_coins(total_validators_stake)
+        .store_coins(total_borrowers_stake)
         .store_slice(parent)
         .store_dict(participations)
         .store_uint(rounds_imbalance, 8)
@@ -47,7 +47,7 @@ global cell old_parents;
     total_tokens = ds~load_coins();
     total_staking = ds~load_coins();
     total_unstaking = ds~load_coins();
-    total_validators_stake = ds~load_coins();
+    total_borrowers_stake = ds~load_coins();
     parent = ds~load_msg_addr();
     participations = ds~load_dict();
     rounds_imbalance = ds~load_uint(8);
@@ -155,7 +155,7 @@ var unpack_participation(slice s) inline_ref {
 
 builder pack_request
     ( int min_payment
-    , int validator_reward_share
+    , int borrower_reward_share
     , int loan_amount
     , int accrue_amount
     , int stake_amount
@@ -163,7 +163,7 @@ builder pack_request
     ) inline_ref {
     return begin_cell()
         .store_coins(min_payment)
-        .store_uint(validator_reward_share, 8)
+        .store_uint(borrower_reward_share, 8)
         .store_coins(loan_amount)
         .store_coins(accrue_amount)
         .store_coins(stake_amount)
@@ -172,13 +172,13 @@ builder pack_request
 
 (int, int, int, int, int, cell) unpack_request(slice s) inline_ref {
     int min_payment = s~load_coins();
-    int validator_reward_share = s~load_uint(8);
+    int borrower_reward_share = s~load_uint(8);
     int loan_amount = s~load_coins();
     int accrue_amount = s~load_coins();
     int stake_amount = s~load_coins();
     cell new_stake_msg = s~load_ref();
     s.end_parse();
-    return ( min_payment, validator_reward_share, loan_amount, accrue_amount, stake_amount, new_stake_msg );
+    return ( min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount, new_stake_msg );
 }
 
 cell find_code(cell dict, int round_since) inline {
@@ -289,7 +289,7 @@ cell find_code(cell dict, int round_since) inline {
     int incoming_ton = get_incoming_value().pair_first();
     int ton_balance = get_balance().pair_first();
     int ton_balance_before_msg = ton_balance - incoming_ton;
-    int available_ton = ton_balance_before_msg - fee::treasury_storage - total_validators_stake;
+    int available_ton = ton_balance_before_msg - fee::treasury_storage - total_borrowers_stake;
 
     int round_since = 0;
     int k = -1;
@@ -426,7 +426,7 @@ cell find_code(cell dict, int round_since) inline {
     int incoming_ton = get_incoming_value().pair_first();
     int ton_balance = get_balance().pair_first();
     int ton_balance_before_msg = ton_balance - incoming_ton;
-    int available_ton = ton_balance_before_msg - fee::treasury_storage - total_validators_stake;
+    int available_ton = ton_balance_before_msg - fee::treasury_storage - total_borrowers_stake;
 
     if available_ton < coins {
         ;; Insufficient funds to burn tokens now, try to create another bill for next round.
@@ -543,12 +543,12 @@ cell find_code(cell dict, int round_since) inline {
     int round_since = s~load_uint(32);
     int loan_amount = s~load_coins();
     int min_payment = s~load_coins();
-    int validator_reward_share = s~load_uint(8);
+    int borrower_reward_share = s~load_uint(8);
     cell new_stake_msg = s~load_ref();
     s.end_parse();
     check_new_stake_msg(new_stake_msg.begin_parse());
 
-    ( int validator_wc, int validator_addr ) = parse_std_addr(src);
+    ( int borrower_wc, int borrower_addr ) = parse_std_addr(src);
     ( int min_stake, _, _, _ ) = get_stake_config();
     ( _, int next_round_since ) = get_vset_times(config::current_validators);
     int state = participation::open;
@@ -559,21 +559,21 @@ cell find_code(cell dict, int round_since) inline {
     ( slice ps, int f? ) = participations.udict_get?(32, next_round_since);
     if f? {
         ( state, size, sorted, requests, _, _, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
-        ( slice old_request, int e? ) = requests~udict_delete_get?(256, validator_addr);
+        ( slice old_request, int e? ) = requests~udict_delete_get?(256, borrower_addr);
         if e? {
             size -= 1;
             ;; clean up old request
             ( int old_min_payment
-            , int old_validator_reward_share
+            , int old_borrower_reward_share
             , int old_loan_amount
             , _
             , old_stake_amount
             , _
             ) = unpack_request(old_request);
 
-            int old_sort_key = request_sort_key(old_min_payment, old_validator_reward_share, old_loan_amount);
+            int old_sort_key = request_sort_key(old_min_payment, old_borrower_reward_share, old_loan_amount);
             ( cell old_bucket, _ ) = sorted.udict_get_ref?(112, old_sort_key);
-            old_bucket~udict_delete?(256, validator_addr);
+            old_bucket~udict_delete?(256, borrower_addr);
             if old_bucket.null?() {
                 sorted~udict_delete?(112, old_sort_key);
             } else {
@@ -584,11 +584,11 @@ cell find_code(cell dict, int round_since) inline {
     ( int total_fee, _, _ ) = request_loan_fee();
     int incoming_ton = get_incoming_value().pair_first();
     int stake_amount = incoming_ton - total_fee + old_stake_amount;
-    total_validators_stake += stake_amount - old_stake_amount;
+    total_borrowers_stake += stake_amount - old_stake_amount;
     int max_punishment = max_recommended_punishment_for_validator_misbehaviour(loan_amount + stake_amount);
     ( _, int participate_since, _, _, _, _ ) = get_times();
 
-    throw_unless(err::access_denied, validator_wc == chain::base);
+    throw_unless(err::access_denied, borrower_wc == chain::base);
     throw_unless(err::not_accepting_loan_requests, state == participation::open);
     throw_unless(err::not_accepting_loan_requests, round_since == next_round_since);
     throw_unless(err::not_accepting_loan_requests, now() < participate_since);
@@ -596,33 +596,33 @@ cell find_code(cell dict, int round_since) inline {
     throw_unless(err::insufficient_funds, stake_amount >= min_payment + max_punishment);
     throw_if(err::stopped, stopped?);
 
-    builder request = pack_request(min_payment, validator_reward_share, loan_amount, 0, stake_amount, new_stake_msg);
-    requests~udict_set_builder(256, validator_addr, request);
+    builder request = pack_request(min_payment, borrower_reward_share, loan_amount, 0, stake_amount, new_stake_msg);
+    requests~udict_set_builder(256, borrower_addr, request);
     size += 1;
 
-    int sort_key = request_sort_key(min_payment, validator_reward_share, loan_amount);
+    int sort_key = request_sort_key(min_payment, borrower_reward_share, loan_amount);
     ( cell bucket, _ ) = sorted.udict_get_ref?(112, sort_key);
-    bucket~udict_set_builder(256, validator_addr, begin_cell());
+    bucket~udict_set_builder(256, borrower_addr, begin_cell());
     sorted~udict_set_ref(112, sort_key, bucket);
 
     ( int max_validators, _, _ ) = get_validators_config();
     if size > max_validators {
         ( int last_sort_key, slice v, _ ) = sorted~udict_delete_get_min?(112);
         cell last_bucket = v~load_ref();
-        ( int last_validator_addr, _, _ ) = last_bucket~udict_delete_get_max?(256);
-        ( slice last_request, _ ) = requests~udict_delete_get?(256, last_validator_addr);
+        ( int last_borrower_addr, _, _ ) = last_bucket~udict_delete_get_max?(256);
+        ( slice last_request, _ ) = requests~udict_delete_get?(256, last_borrower_addr);
         size -= 1;
         ifnot last_bucket.null?() {
             sorted~udict_set_ref(112, last_sort_key, last_bucket);
         }
-        builder last_validator = create_address(chain::base, last_validator_addr);
+        builder last_borrower = create_address(chain::base, last_borrower_addr);
         ( _, _, _, _, int last_stake_amount, _ ) = unpack_request(last_request);
-        total_validators_stake -= last_stake_amount;
+        total_borrowers_stake -= last_stake_amount;
 
         builder rejected = begin_cell()
             .store_uint(op::request_rejected, 32)
             .store_uint(query_id, 64);
-        send_msg(false, last_validator, null(), rejected, last_stake_amount, send::pay_gas_separately);
+        send_msg(false, last_borrower, null(), rejected, last_stake_amount, send::pay_gas_separately);
     }
 
     builder pb = pack_participation(
@@ -651,7 +651,7 @@ cell find_code(cell dict, int round_since) inline {
     ( int total_fee, _, _ ) = request_loan_fee();
     int ton_balance = get_balance().pair_first();
     int available_now =
-        max(0, ton_balance - fee::treasury_storage - total_validators_stake - size * total_fee - reserved_amount);
+        max(0, ton_balance - fee::treasury_storage - total_borrowers_stake - size * total_fee - reserved_amount);
 
     int last_total_staked = 0;
     ( _, ps, int f? ) = participations.udict_get_prev?(32, round_since);
@@ -772,20 +772,20 @@ cell find_code(cell dict, int round_since) inline {
         cell bucket = v~load_ref();
         while remain & (gas_consumed() < soft_gas_limit) & ~ bucket.dict_empty?() {
             remain -= 1;
-            ( int validator_addr, _, _ ) = bucket~udict_delete_get_min?(256);
+            ( int borrower_addr, _, _ ) = bucket~udict_delete_get_min?(256);
             if bucket.dict_empty?() {
                 sorted~udict_delete?(112, k);
             } else {
                 sorted~udict_set_ref(112, k, bucket);
             }
-            ( slice request, _ ) = requests~udict_delete_get?(256, validator_addr);
+            ( slice request, _ ) = requests~udict_delete_get?(256, borrower_addr);
             ( _, _, int loan_amount, _, _, _ ) = unpack_request(request);
             if available >= loan_amount {
                 available -= loan_amount;
                 allocated += loan_amount;
-                accepted~udict_set(256, validator_addr, request);
+                accepted~udict_set(256, borrower_addr, request);
             } else {
-                rejected~udict_set(256, validator_addr, request);
+                rejected~udict_set(256, borrower_addr, request);
             }
         }
     }
@@ -793,9 +793,9 @@ cell find_code(cell dict, int round_since) inline {
     ;; distribute remaining coins between accepted requests, when they have enough stake
     while remain & (gas_consumed() < soft_gas_limit) & ~ accepted.dict_empty?() {
         remain -= 1;
-        ( int validator_addr, slice request, _ ) = accepted~udict_delete_get_min?(256);
+        ( int borrower_addr, slice request, _ ) = accepted~udict_delete_get_min?(256);
         ( int min_payment
-        , int validator_reward_share
+        , int borrower_reward_share
         , int loan_amount
         , _
         , int stake_amount
@@ -806,11 +806,11 @@ cell find_code(cell dict, int round_since) inline {
         int max_punishment = max_recommended_punishment_for_validator_misbehaviour(total_loan_amount);
         if stake_amount >= min_payment + max_punishment {
             builder accrued_request = pack_request(
-                min_payment, validator_reward_share, loan_amount, accrue_amount, stake_amount, new_stake_msg
+                min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount, new_stake_msg
             );
-            accrued~udict_set_builder(256, validator_addr, accrued_request);
+            accrued~udict_set_builder(256, borrower_addr, accrued_request);
         } else {
-            accrued~udict_set(256, validator_addr, request);
+            accrued~udict_set(256, borrower_addr, request);
         }
     }
 
@@ -878,20 +878,20 @@ cell find_code(cell dict, int round_since) inline {
     ;; send new stake message for each accrued request
     while remain & (gas_consumed() < soft_gas_limit) & ~ accrued.dict_empty?() {
         remain -= 1;
-        ( int validator_addr, slice request, _ ) = accrued~udict_delete_get_min?(256);
+        ( int borrower_addr, slice request, _ ) = accrued~udict_delete_get_min?(256);
         ( int min_payment
-        , int validator_reward_share
+        , int borrower_reward_share
         , int loan_amount
         , int accrue_amount
         , int stake_amount
         , cell new_stake_msg
         ) = unpack_request(request);
-        builder validator = create_address(chain::base, validator_addr);
-        ( builder loan, cell state_init, _ ) = create_loan_address(my_address(), validator, round_since, loan_code);
+        builder borrower = create_address(chain::base, borrower_addr);
+        ( builder loan, cell state_init, _ ) = create_loan_address(my_address(), borrower, round_since, loan_code);
         int ton_amount = loan_amount + accrue_amount + stake_amount + proxy_new_stake_fee;
         total_staked += loan_amount + accrue_amount;
-        staked~udict_set(256, validator_addr, request);
-        total_validators_stake -= stake_amount;
+        staked~udict_set(256, borrower_addr, request);
+        total_borrowers_stake -= stake_amount;
         incoming_ton -= ton_amount;
 
         builder body = begin_cell()
@@ -900,22 +900,22 @@ cell find_code(cell dict, int round_since) inline {
             .store_ref(new_stake_msg);
         send_msg(true, loan, state_init, body, ton_amount, send::regular);
 
-        log_loan(round_since, min_payment, validator_reward_share, loan_amount, accrue_amount, stake_amount, validator);
+        log_loan(round_since, min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount, borrower);
     }
 
     ;; send back staked amount of rejected requests
     while remain & (gas_consumed() < soft_gas_limit) & ~ rejected.dict_empty?() {
         remain -= 1;
         size -= 1;
-        ( int validator_addr, slice request, _ ) = rejected~udict_delete_get_min?(256);
+        ( int borrower_addr, slice request, _ ) = rejected~udict_delete_get_min?(256);
         ( _, _, _, _, int stake_amount, _ ) = unpack_request(request);
-        builder validator = create_address(chain::base, validator_addr);
-        total_validators_stake -= stake_amount;
+        builder borrower = create_address(chain::base, borrower_addr);
+        total_borrowers_stake -= stake_amount;
 
         builder rejected = begin_cell()
             .store_uint(op::request_rejected, 32)
             .store_uint(query_id, 64);
-        send_msg(false, validator, null(), rejected, stake_amount, send::pay_gas_separately);
+        send_msg(false, borrower, null(), rejected, stake_amount, send::pay_gas_separately);
     }
 
     ifnot rejected.dict_empty?() & accrued.dict_empty?() {
@@ -1073,10 +1073,10 @@ cell find_code(cell dict, int round_since) inline {
     ;; send recover stake message from each given loan
     while remain & (gas_consumed() < soft_gas_limit) & ~ staked.dict_empty?() {
         remain -= 1;
-        ( int validator_addr, slice request, _ ) = staked~udict_delete_get_min?(256);
-        recovering~udict_set(256, validator_addr, request);
-        builder validator = create_address(chain::base, validator_addr);
-        ( builder loan, _, _ ) = create_loan_address(my_address(), validator, round_since, loan_code);
+        ( int borrower_addr, slice request, _ ) = staked~udict_delete_get_min?(256);
+        recovering~udict_set(256, borrower_addr, request);
+        builder borrower = create_address(chain::base, borrower_addr);
+        ( builder loan, _, _ ) = create_loan_address(my_address(), borrower, round_since, loan_code);
 
         builder recover = begin_cell()
             .store_uint(op::proxy_recover_stake, 32)
@@ -1105,20 +1105,20 @@ cell find_code(cell dict, int round_since) inline {
 
     int query_id = s~load_uint(64);
     int ok? = s~load_int(1);
-    slice validator = s~load_msg_addr();
+    slice borrower = s~load_msg_addr();
     int round_since = s~load_uint(32);
     s.end_parse();
 
     cell loan_code = loan_codes.find_code(round_since);
 
-    ( _, _, int loan_addr ) = create_loan_address(my_address(), validator.to_builder(), round_since, loan_code);
+    ( _, _, int loan_addr ) = create_loan_address(my_address(), borrower.to_builder(), round_since, loan_code);
     ( int src_wc, int src_addr ) = parse_std_addr(src);
 
     throw_unless(err::access_denied, (src_wc == chain::main) & (src_addr == loan_addr));
 
     int reserve_amount = 0;
     int stake_amount = 0;
-    ( _, int validator_addr ) = parse_std_addr(validator);
+    ( _, int borrower_addr ) = parse_std_addr(borrower);
     ( slice ps, int f? ) = participations.udict_get?(32, round_since);
     if f? {
         ( int state
@@ -1137,15 +1137,15 @@ cell find_code(cell dict, int round_since) inline {
         , int stake_held_until
         ) = unpack_participation(ps);
 
-        ( slice request, int e? ) = recovering~udict_delete_get?(256, validator_addr);
+        ( slice request, int e? ) = recovering~udict_delete_get?(256, borrower_addr);
         ifnot e? {
             ;; for the case that the elector rejects new stake instantly
-            ( request, e? ) = staked~udict_delete_get?(256, validator_addr);
+            ( request, e? ) = staked~udict_delete_get?(256, borrower_addr);
         }
         if e? {
             size -= 1;
             ( int min_payment
-            , int validator_reward_share
+            , int borrower_reward_share
             , int loan_amount
             , int accrue_amount
             , stake_amount
@@ -1157,17 +1157,17 @@ cell find_code(cell dict, int round_since) inline {
             int incoming_ton = get_incoming_value().pair_first();
             int reward = incoming_ton - loan_amount - accrue_amount - stake_amount;
             if reward >= 0 {
-                int treasury_reward_share = 255 - validator_reward_share;
+                int treasury_reward_share = 255 - borrower_reward_share;
                 int treasury_reward = max(min_payment, muldiv(reward, treasury_reward_share, 255));
-                int validator_reward = reward - treasury_reward;
-                stake_amount += validator_reward;
+                int borrower_reward = reward - treasury_reward;
+                stake_amount += borrower_reward;
                 fee = muldiv(treasury_reward, governance_fee, 65535);
                 new_coins = treasury_reward - fee;
                 total_coins += new_coins;
                 reserve_amount = loan_amount + accrue_amount + new_coins;
                 total_recovered += reserve_amount;
             } else {
-                ;; when reward is negative, punish the validator first
+                ;; when reward is negative, punish the borrower first
                 int compensation = min(stake_amount, - reward);
                 stake_amount -= compensation;
                 ;; then try to take at most min_payment
@@ -1181,7 +1181,7 @@ cell find_code(cell dict, int round_since) inline {
             }
 
             log_repayment(
-                round_since, incoming_ton, loan_amount, accrue_amount, new_coins, fee, stake_amount, validator
+                round_since, incoming_ton, loan_amount, accrue_amount, new_coins, fee, stake_amount, borrower
             );
 
             if rejected.dict_empty?() & accrued.dict_empty?() & staked.dict_empty?() & recovering.dict_empty?() {
@@ -1218,7 +1218,7 @@ cell find_code(cell dict, int round_since) inline {
         builder result = begin_cell()
             .store_uint(op::loan_result, 32)
             .store_uint(query_id, 64);
-        send_msg(false, validator.to_builder(), null(), result, stake_amount, send::ignore_errors);
+        send_msg(false, borrower.to_builder(), null(), result, stake_amount, send::ignore_errors);
     }
 
     builder profit = begin_cell()
@@ -1402,14 +1402,14 @@ cell find_code(cell dict, int round_since) inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
-    slice validator = s~load_msg_addr();
+    slice borrower = s~load_msg_addr();
     int round_since = s~load_uint(32);
     cell message = s~load_ref();
     s.end_parse();
 
     cell loan_code = loan_codes.find_code(round_since);
 
-    ( builder loan, _, _ ) = create_loan_address(my_address(), validator.to_builder(), round_since, loan_code);
+    ( builder loan, _, _ ) = create_loan_address(my_address(), borrower.to_builder(), round_since, loan_code);
     int vset_hash = -1;
     int stake_held_until = 0;
     ( slice ps, int f? ) = participations.udict_get?(32, round_since);
@@ -1575,7 +1575,7 @@ int calculate_min_coins() inline_ref {
         }
     } until ~ f?;
 
-    return fee::treasury_storage + total_validators_stake + total_staking + total_coins;
+    return fee::treasury_storage + total_borrowers_stake + total_staking + total_coins;
 }
 
 () withdraw_surplus(slice src, slice s) impure inline {
@@ -1981,7 +1981,7 @@ var get_treasury_state() method_id {
         , total_tokens
         , total_staking
         , total_unstaking
-        , total_validators_stake
+        , total_borrowers_stake
         , parent
         , participations
         , rounds_imbalance
@@ -2032,16 +2032,16 @@ slice get_bill_address(int round_since, int index) method_id {
     return bill.end_cell().begin_parse();
 }
 
-slice get_loan_address(slice validator, int round_since) method_id {
+slice get_loan_address(slice borrower, int round_since) method_id {
     load_data();
 
-    ( int validator_wc, _ ) = parse_std_addr(validator);
+    ( int borrower_wc, _ ) = parse_std_addr(borrower);
 
-    throw_unless(err::only_basechain_allowed, validator_wc == chain::base);
+    throw_unless(err::only_basechain_allowed, borrower_wc == chain::base);
 
     cell loan_code = loan_codes.find_code(round_since);
 
-    ( builder loan, _, _ ) = create_loan_address(my_address(), validator.to_builder(), round_since, loan_code);
+    ( builder loan, _, _ ) = create_loan_address(my_address(), borrower.to_builder(), round_since, loan_code);
 
     return loan.end_cell().begin_parse();
 }
@@ -2060,7 +2060,7 @@ int get_max_burnable_tokens() method_id {
     load_data();
 
     int ton_balance = get_balance().pair_first();
-    int available_ton = ton_balance - fee::treasury_storage - total_validators_stake;
+    int available_ton = ton_balance - fee::treasury_storage - total_borrowers_stake;
     int burnable_tokens = 0;
 
     if total_coins {

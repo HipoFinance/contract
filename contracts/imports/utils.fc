@@ -62,20 +62,20 @@ builder store_log(builder b, builder log) inline {
 () log_loan
 ( int round_since
 , int min_payment
-, int validator_reward_share
+, int borrower_reward_share
 , int loan_amount
 , int accrue_amount
 , int stake_amount
-, builder validator
+, builder borrower
 ) impure inline {
     builder log = begin_cell()
         .store_uint(round_since, 32)
         .store_coins(min_payment)
-        .store_uint(validator_reward_share, 8)
+        .store_uint(borrower_reward_share, 8)
         .store_coins(loan_amount)
         .store_coins(accrue_amount)
         .store_coins(stake_amount)
-        .store_builder(validator);
+        .store_builder(borrower);
     emit_log(log::loan, log);
 }
 
@@ -86,8 +86,8 @@ builder store_log(builder b, builder log) inline {
 , int accrue_amount
 , int stakers_share
 , int governor_share
-, int validator_share
-, slice validator
+, int borrower_share
+, slice borrower
 ) impure inline {
     builder log = begin_cell()
         .store_uint(round_since, 32)
@@ -96,8 +96,8 @@ builder store_log(builder b, builder log) inline {
         .store_coins(accrue_amount)
         .store_coins(stakers_share)
         .store_coins(governor_share)
-        .store_coins(validator_share)
-        .store_slice(validator);
+        .store_coins(borrower_share)
+        .store_slice(borrower);
     emit_log(log::repayment, log);
 }
 
@@ -264,11 +264,11 @@ cell create_wallet_data(builder owner, slice parent) inline {
         .end_cell();
 }
 
-cell create_loan_data(slice treasury, builder validator, int round_since) inline {
+cell create_loan_data(slice treasury, builder borrower, int round_since) inline {
     return begin_cell()
         .store_uint(0, 2) ;; addr_none for elector
         .store_slice(treasury)
-        .store_builder(validator)
+        .store_builder(borrower)
         .store_uint(round_since, 32)
         .end_cell();
 }
@@ -297,8 +297,8 @@ cell create_loan_data(slice treasury, builder validator, int round_since) inline
     return (wallet, state_init, addr);
 }
 
-(builder, cell, int) create_loan_address(slice treasury, builder validator, int round_since, cell loan_code) inline_ref {
-    cell loan_data = create_loan_data(treasury, validator, round_since);
+(builder, cell, int) create_loan_address(slice treasury, builder borrower, int round_since, cell loan_code) inline_ref {
+    cell loan_data = create_loan_data(treasury, borrower, round_since);
     cell state_init = create_state_init(loan_code, loan_data);
     int addr = state_init.cell_hash();
     builder loan = create_address(chain::main, addr);
@@ -349,12 +349,12 @@ builder int_to_ton(int n) inline {
     return chars_to_string(chars);
 }
 
-int request_sort_key(int min_payment, int validator_reward_share, int loan_amount) inline_ref {
+int request_sort_key(int min_payment, int borrower_reward_share, int loan_amount) inline_ref {
     ;; sort based on:
     ;;   1. efficieny
     ;;   2. treasury reward share
     ;;   3. least loan amount
-    int treasury_reward_share = 255 - validator_reward_share;
+    int treasury_reward_share = 255 - borrower_reward_share;
     int min_payment_round = min_payment >> 30; ;; round to around 1 TON
     int loan_amount_round = max(1, loan_amount >> 40); ;; round to around 1100 TON
     int loan_amount_round_comp = (1 << 80) - loan_amount_round;

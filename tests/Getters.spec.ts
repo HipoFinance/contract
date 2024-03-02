@@ -82,7 +82,7 @@ describe('Getters', () => {
                     totalTokens: 0n,
                     totalStaking: 0n,
                     totalUnstaking: 0n,
-                    totalValidatorsStake: 0n,
+                    totalBorrowersStake: 0n,
                     parent: null,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                     roundsImbalance: 255n,
@@ -236,16 +236,16 @@ describe('Getters', () => {
             }),
         )
 
-        const validator = await blockchain.treasury('validator')
-        const loanAddress = await treasury.getLoanAddress(validator.address, until1)
+        const borrower = await blockchain.treasury('borrower')
+        const loanAddress = await treasury.getLoanAddress(borrower.address, until1)
         const loan = blockchain.openContract(Loan.createFromAddress(loanAddress))
         const newStakeMsg = await createNewStakeMsg(loan.address, until1)
-        await treasury.sendRequestLoan(validator.getSender(), {
+        await treasury.sendRequestLoan(borrower.getSender(), {
             value: toNano('151') + fees.requestLoanFee, // 101 (max punishment) + 50 (min payment) + fee
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            validatorRewardShare: 102n, // 40%
+            borrowerRewardShare: 102n, // 40%
             newStakeMsg: newStakeMsg,
         })
 
@@ -258,7 +258,7 @@ describe('Getters', () => {
         const loanConfig = await loan.getLoanState()
         expect(loanConfig.elector).toEqualAddress(electorAddress)
         expect(loanConfig.treasury).toEqualAddress(treasury.address)
-        expect(loanConfig.validator).toEqualAddress(validator.address)
+        expect(loanConfig.borrower).toEqualAddress(borrower.address)
         expect(loanConfig.roundSince).toEqual(until1)
     })
 
@@ -284,7 +284,7 @@ describe('Getters', () => {
         expect(treasuryState.totalTokens).toBeTonValue('10')
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
-        expect(treasuryState.totalValidatorsStake).toBeTonValue('0')
+        expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
         expect(treasuryState.parent).toEqualAddress(parent.address)
         expect(treasuryState.participations.keys()).toHaveLength(0)
         expect(treasuryState.roundsImbalance).toEqual(255n)

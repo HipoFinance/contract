@@ -235,12 +235,12 @@ new_stake_msg#_
     signature:^bits512
         = NewStakeMsg;
 
-request_loan#12b808d3
+request_loan#36335da9
     query_id:uint64
     round_since:uint32
     loan_amount:Coins
     min_payment:Coins
-    validator_reward_share:uint8
+    borrower_reward_share:uint8
     new_stake_msg:^NewStakeMsg
         = InternalMsgBody;
 
@@ -274,10 +274,10 @@ recover_stakes#4f173d3e
     round_since:uint32
         = InternalMsgBody;
 
-recover_stake_result#c8310d2a
+recover_stake_result#0fca4c86
     query_id:uint64
     ok:Bool
-    validator:MsgAddress
+    borrower:MsgAddress
     round_since:uint32
         = InternalMsgBody;
 
@@ -320,9 +320,9 @@ set_rounds_imbalance#1b4463b6
     new_rounds_imbalance:uint8
         = InternalMsgBody;
 
-send_message_to_loan#2b93b447
+send_message_to_loan#0e93f65b
     query_id:uint64
-    validator:MsgAddress
+    borrower:MsgAddress
     round_since:uint32
     message:^Cell
         = InternalMsgBody;
@@ -573,7 +573,7 @@ proxy_recover_stake#407cb243
         = InternalMsgBody;
 
 //
-// Validator Ops
+// Borrower Ops
 //
 
 request_rejected#cd0f2116
@@ -620,11 +620,11 @@ set_library#7deaf806
 log_loan#1
     round_since:uint32
     min_payment:Coins
-    validator_reward_share:uint8
+    borrower_reward_share:uint8
     loan_amount:Coins
     accrue_amount:Coins
     stake_amount:Coins
-    validator:MsgAddress
+    borrower:MsgAddress
         = LogMsgBody;
 
 log_repayment#2
@@ -634,8 +634,8 @@ log_repayment#2
     accrue_amount:Coins
     stakers_share:Coins
     governor_share:Coins
-    validator_share:Coins
-    validator:MsgAddress
+    borrower_share:Coins
+    borrower:MsgAddress
         = LogMsgBody;
 
 log_finish#3
@@ -666,7 +666,7 @@ proposed_governor#_
 
 request#_
     min_payment:Coins
-    validator_reward_share:uint8
+    borrower_reward_share:uint8
     loan_amount:Coins
     accrue_amount:Coins
     stake_amount:Coins
@@ -707,7 +707,7 @@ treasury_storage#_
     total_tokens:Coins { total_coins >= total_tokens }
     total_staking:Coins
     total_unstaking:Coins
-    total_validators_stake:Coins
+    total_borrowers_stake:Coins
     parent:MsgAddress
     participations:(HashmapE 32 Participation)
     rounds_imbalance:uint8
@@ -752,7 +752,7 @@ bill_storage#_
 loan_storage#_
     elector:MsgAddress
     treasury:MsgAddress
-    validator:MsgAddress
+    borrower:MsgAddress
     round_since:uint32
         = LoanStorage;
 
