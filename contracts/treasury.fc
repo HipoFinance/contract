@@ -15,7 +15,7 @@ global cell loan_code;
 global cell extension;
 
 global slice driver;
-global slice halter;
+global slice next_treasury; ;; replace halter with next_treasury since we don't have enough space in extension part
 global slice governor;
 global cell proposed_governor;
 global int governance_fee;
@@ -60,7 +60,7 @@ global cell content;
 () pack_extension() impure inline_ref {
     extension = begin_cell()
         .store_slice(driver)
-        .store_slice(halter)
+        .store_slice(next_treasury)
         .store_slice(governor)
         .store_maybe_ref(proposed_governor)
         .store_uint(governance_fee, 16)
@@ -71,7 +71,7 @@ global cell content;
 () unpack_extension() impure inline_ref {
     slice s = extension.begin_parse();
     driver = s~load_msg_addr();
-    halter = s~load_msg_addr();
+    next_treasury = s~load_msg_addr();
     governor = s~load_msg_addr();
     proposed_governor = s~load_maybe_ref();
     governance_fee = s~load_uint(16);
@@ -299,17 +299,11 @@ builder pack_participation
 
     total_unstaking += amount;
 
-    raw_reserve(0, reserve::add_original_balance);
-
+    ;; send all remaining value to driver for later burning and upgrading to next treasury
     builder fee = begin_cell()
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
-    send_msg(false, driver.to_builder(), null(), fee, withdraw_tokens_fee(), send::pay_gas_separately);
-
-    builder excess = begin_cell()
-        .store_uint(op::gas_excess, 32)
-        .store_uint(query_id, 64);
-    send_msg(false, return_excess.to_builder(), null(), excess, 0, send::remaining_balance + send::ignore_errors);
+    send_msg(false, driver.to_builder(), null(), fee, 0, send::remaining_value);
 
     save_data();
 }
@@ -345,7 +339,7 @@ builder pack_participation
         withdrawal_amount = muldiv(tokens, total_coins, total_tokens);
     }
 
-    if (withdrawal_amount > available_ton) {
+    if ((withdrawal_amount > available_ton) | (msg_ton < 200000000)) {
         ;; insufficient funds for now, return back tokens
         builder body = begin_cell()
             .store_uint(op::burn_failed, 32)
@@ -367,10 +361,17 @@ builder pack_participation
 
     raw_reserve(withdrawal_amount, reserve::negate + reserve::add_original_balance);
 
+    ;; instead of withdrawal notification, deposit coins in the next treasury
+
+    unpack_extension();
+
     builder body = begin_cell()
-        .store_uint(op::withdrawal_notification, 32)
-        .store_uint(query_id, 64);
-    send_msg(false, owner.to_builder(), null(), body, withdrawal_amount, send::pay_gas_separately);
+        .store_uint(0x40ef2953, 32)
+        .store_uint(query_id, 64)
+        .store_slice(owner)
+        .store_coins(withdrawal_amount)
+        .store_uint(0, 6); ;; 0000 (ownership_assigned_amount) + 00 (addr_none)
+    send_msg(false, next_treasury.to_builder(), null(), body, withdrawal_amount + 150000000, send::pay_gas_separately);
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
@@ -1217,27 +1218,6 @@ builder pack_participation
     save_data();
 }
 
-() set_halter(slice src, slice s) impure inline {
-    unpack_extension();
-
-    int query_id = s~load_uint(64);
-    halter = s~load_msg_addr();
-    s.end_parse();
-
-    ( int halter_wc, _ ) = parse_std_addr(halter);
-
-    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
-    throw_unless(err::only_basechain_allowed, halter_wc == chain::base);
-
-    builder excess = begin_cell()
-        .store_uint(op::gas_excess, 32)
-        .store_uint(query_id, 64);
-    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
-
-    pack_extension();
-    save_data();
-}
-
 () set_stopped(slice src, slice s) impure inline {
     unpack_extension();
 
@@ -1245,7 +1225,7 @@ builder pack_participation
     stopped? = s~load_int(1);
     s.end_parse();
 
-    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
@@ -1264,7 +1244,7 @@ builder pack_participation
 
     ( int driver_wc, _ ) = parse_std_addr(driver); ;; just check it to be a valid standard address
 
-    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
     throw_unless(err::only_basechain_allowed, driver_wc == chain::base);
 
     builder excess = begin_cell()
@@ -1319,7 +1299,7 @@ builder pack_participation
     rounds_imbalance = s~load_uint(8);
     s.end_parse();
 
-    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     builder excess = begin_cell()
         .store_uint(op::gas_excess, 32)
@@ -1349,7 +1329,7 @@ builder pack_participation
     int previous = config_param(config::previous_validators).cell_hash();
     int current = config_param(config::current_validators).cell_hash();
 
-    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
     throw_unless(err::vset_not_changed, (vset_hash != current) & (vset_hash != previous));
     throw_unless(err::not_ready_to_finish_participation, now() >= stake_held_until);
 
@@ -1369,7 +1349,7 @@ builder pack_participation
         ( state, _, _, _, _, _, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
     }
 
-    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
     throw_unless(err::unable_to_participate, state == participation::distribution);
 
     builder body = begin_cell()
@@ -1612,10 +1592,6 @@ builder pack_participation
         return accept_governance(src, in_msg_body);
     }
 
-    if (op == op::set_halter) {
-        return set_halter(src, in_msg_body);
-    }
-
     if (op == op::set_stopped) {
         return set_stopped(src, in_msg_body);
     }
@@ -1732,7 +1708,7 @@ var get_treasury_state() method_id {
         , wallet_code
         , loan_code
         , driver
-        , halter
+        , next_treasury
         , governor
         , proposed_governor
         , governance_fee
