@@ -57,7 +57,7 @@ export const op = {
     provideCurrentQuote: 0xad83913f,
     takeCurrentQuote: 0x0a420458,
 
-    depositCoins: 0x40ef2953,
+    depositCoins: 0x3d3761a6,
     sendUnstakeAll: 0x45baeda9,
     reserveTokens: 0x386a358b,
     mintTokens: 0x42684479,

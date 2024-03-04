@@ -13,7 +13,7 @@ import {
     TupleBuilder,
 } from '@ton/core'
 import { op } from './common'
-import { sha256_sync } from 'ton-crypto'
+import { sha256_sync } from '@ton/crypto'
 
 interface ParentConfig {
     totalTokens: bigint

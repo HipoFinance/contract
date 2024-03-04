@@ -190,17 +190,27 @@ cell find_code(cell dict, int round_since) inline {
 
 () deposit_coins(slice src, slice s) impure inline_ref {
     int query_id = s~load_uint(64);
+    slice owner = s~load_msg_addr();
+    int coins = s~load_coins();
     int ownership_assigned_amount = s~load_coins();
     s~load_msg_addr(); ;; only used to mark the referrer of this deposit on-chain
     s.end_parse();
 
+    if owner.addr_none?() {
+        owner = src;
+    }
+
     ( int total_fee, int proxy_save_coins_fee ) = deposit_coins_fee(ownership_assigned_amount);
     int incoming_ton = get_incoming_value().pair_first();
-    int coins = incoming_ton - total_fee;
-    ( int src_wc, _ ) = parse_std_addr(src);
+    int max_coins = incoming_ton - total_fee;
+    ifnot coins {
+        coins = max_coins;
+    }
+    int enough_fee? = (max_coins >= coins) & (max_coins > 0);
+    ( int owner_wc, _ ) = parse_std_addr(owner);
 
-    throw_unless(err::only_basechain_allowed, src_wc == chain::base);
-    throw_unless(err::insufficient_fee, coins > 0);
+    throw_unless(err::only_basechain_allowed, owner_wc == chain::base);
+    throw_unless(err::insufficient_fee, enough_fee?);
     throw_if(err::stopped, stopped?);
 
     int round_since = 0;
@@ -235,7 +245,7 @@ cell find_code(cell dict, int round_since) inline {
             .store_uint(query_id, 64)
             .store_coins(tokens)
             .store_coins(coins)
-            .store_slice(src)
+            .store_slice(owner)
             .store_uint(round_since, 32);
         send_msg(false, parent.to_builder(), null(), minted, 0, send::unreserved_balance);
     } else {
@@ -255,7 +265,7 @@ cell find_code(cell dict, int round_since) inline {
             .store_uint(op::proxy_save_coins, 32)
             .store_uint(query_id, 64)
             .store_coins(coins)
-            .store_slice(src)
+            .store_slice(owner)
             .store_uint(round_since, 32);
         send_msg(false, parent.to_builder(), null(), save, proxy_save_coins_fee, send::pay_gas_separately);
 
@@ -264,7 +274,7 @@ cell find_code(cell dict, int round_since) inline {
             .store_uint(query_id, 64)
             .store_coins(coins)
             .store_int(false, 1)
-            .store_slice(src)
+            .store_slice(owner)
             .store_slice(parent)
             .store_coins(ownership_assigned_amount);
         send_msg(false, collection, state_init, mint, 0, send::unreserved_balance);
@@ -1921,7 +1931,7 @@ int calculate_min_coins() inline_ref {
         c |= 0x20; ;; convert to lowercase
 
         if c == "d"u {
-            return deposit_coins(src, "000000000000000002_"s);
+            return deposit_coins(src, "0000000000000000000"s);
         }
 
         if c == "w"u {

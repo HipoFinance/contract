@@ -266,6 +266,8 @@ export class Treasury implements Contract {
             bounce?: boolean
             sendMode?: SendMode
             queryId?: bigint
+            owner?: Address
+            coins?: bigint
             ownershipAssignedAmount?: bigint
             referrer?: Address
         },
@@ -277,6 +279,8 @@ export class Treasury implements Contract {
             body: beginCell()
                 .storeUint(op.depositCoins, 32)
                 .storeUint(opts.queryId ?? 0, 64)
+                .storeAddress(opts.owner)
+                .storeCoins(opts.coins ?? 0)
                 .storeCoins(opts.ownershipAssignedAmount ?? 0)
                 .storeAddress(opts.referrer)
                 .endCell(),

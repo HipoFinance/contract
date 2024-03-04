@@ -2,7 +2,7 @@
 import { Blockchain, BlockchainTransaction } from '@ton/sandbox'
 import type { MatcherFunction } from 'expect'
 import { Address, Builder, Cell, Dictionary, beginCell, fromNano, toNano } from '@ton/core'
-import { mnemonicNew, mnemonicToPrivateKey, sign } from 'ton-crypto'
+import { mnemonicNew, mnemonicToPrivateKey, sign } from '@ton/crypto'
 import { TreasuryFees } from '../wrappers/Treasury'
 import { WalletFees } from '../wrappers/Wallet'
 

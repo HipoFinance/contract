@@ -496,6 +496,106 @@ describe('Wallet', () => {
         accumulateFees(result.transactions)
     })
 
+    it('should deposit coins for a different owner', async () => {
+        const staker = await blockchain.treasury('staker')
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const other = await blockchain.treasury('other')
+
+        const result1 = await treasury.sendDepositCoins(other.getSender(), {
+            value: toNano('3') + toNano('0.2'), // 0.2 for fee
+            owner: staker.address,
+            coins: toNano('3'),
+            ownershipAssignedAmount: toNano('0.01'),
+            referrer: other.address,
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: other.address,
+            to: treasury.address,
+            value: toNano('3') + toNano('0.2'),
+            body: bodyOp(op.depositCoins),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: parent.address,
+            value: between('0', '0.2'),
+            body: bodyOp(op.proxyTokensMinted),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet.address,
+            value: between('0', '0.2'),
+            body: bodyOp(op.tokensMinted),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: wallet.address,
+            to: staker.address,
+            value: between('0', '0.2'),
+            body: bodyOp(op.stakeNotification),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result1.transactions).toHaveLength(5)
+
+        const result2 = await treasury.sendDepositCoins(other.getSender(), {
+            value: toNano('4') + fees.depositCoinsFee,
+            owner: staker.address,
+        })
+        expect(result2.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet.address,
+            value: between('0', fees.depositCoinsFee),
+            body: bodyOp(op.tokensMinted),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result2.transactions).toHaveLength(5)
+
+        const result3 = await treasury.sendDepositCoins(staker.getSender(), {
+            value: toNano('2') + toNano('0.2'), // 0.2 for fee
+            coins: toNano('2'),
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet.address,
+            value: between('0', '0.2'),
+            body: bodyOp(op.tokensMinted),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result3.transactions).toHaveLength(5)
+
+        const treasuryBalance = await treasury.getBalance()
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryBalance).toBeBetween(treasuryStorage + toNano('9') - 5n, treasuryStorage + toNano('9'))
+        expect(treasuryState.totalCoins).toBeTonValue('9')
+        expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
+        expect(treasuryState.totalStaking).toBeTonValue('0')
+        expect(treasuryState.totalUnstaking).toBeTonValue('0')
+        expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
+
+        const [parentTotalTokens] = await parent.getJettonData()
+        expect(parentTotalTokens).toBeTonValue('9')
+
+        const walletBalance = await wallet.getBalance()
+        const walletFees = await wallet.getWalletFees()
+        const [tokens, staking, unstaking] = await wallet.getWalletState()
+        expect(walletBalance).toBeBetween(walletFees.walletStorageFee - 5n, walletFees.walletStorageFee)
+        expect(tokens).toBeTonValue('9')
+        expect(staking.keys()).toHaveLength(0)
+        expect(unstaking).toBeTonValue('0')
+
+        accumulateFees(result1.transactions)
+        accumulateFees(result2.transactions)
+        accumulateFees(result3.transactions)
+    })
+
     it('should unstake and withdraw coins when there is no active round', async () => {
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
