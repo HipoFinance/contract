@@ -3,9 +3,10 @@ import { Treasury } from '../wrappers/Treasury'
 import { NetworkProvider } from '@ton-community/blueprint'
 import { sha256_sync } from 'ton-crypto'
 
-const name = 'hTON'
-const description = 'Hipo liquid staking protocol'
-const image = 'https://hipo.finance/hton.png'
+const symbol = 'thTON1'
+const name = 'testnet hTON v1'
+const description = 'Hipo liquid staking protocol on testnet, version 1'
+const image = 'https://app.hipo.finance/thton.png'
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
@@ -28,7 +29,7 @@ export async function run(provider: NetworkProvider) {
 
 const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
     .set(toSha256('decimals'), toTextCell('9'))
-    .set(toSha256('symbol'), toTextCell('hTON'))
+    .set(toSha256('symbol'), toTextCell(symbol))
     .set(toSha256('name'), toTextCell(name))
     .set(toSha256('description'), toTextCell(description))
     .set(toSha256('image'), toTextCell(image))
