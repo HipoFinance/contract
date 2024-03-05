@@ -150,31 +150,34 @@ global cell bill_code;
 ;; get methods
 ;;
 
-builder create_collection_name() inline {
+cell create_collection_name() inline {
     return begin_cell()
         .store_uint(0, 8)
         .store_slice("Hipo Payout ")
-        .store_builder(int_to_string(round_since));
+        .store_builder(int_to_string(round_since))
+        .end_cell();
 }
 
-builder create_collection_description() inline {
+cell create_collection_description() inline {
     return begin_cell()
         .store_uint(0, 8)
         .store_slice("For validation round starting at Unix time ")
-        .store_builder(int_to_string(round_since));
+        .store_builder(int_to_string(round_since))
+        .end_cell();
 }
 
-builder create_collection_image() inline {
+cell create_collection_image() inline {
     return begin_cell()
         .store_uint(0, 8)
-        .store_slice("https://app.hipo.finance/bill.png");
+        .store_slice("https://app.hipo.finance/bill.png")
+        .end_cell();
 }
 
 cell create_collection_metadata() {
     cell content = new_dict();
-    content~udict_set_builder(256, "name"H, create_collection_name());
-    content~udict_set_builder(256, "description"H, create_collection_description());
-    content~udict_set_builder(256, "image"H, create_collection_image());
+    content~udict_set_ref(256, "name"H, create_collection_name());
+    content~udict_set_ref(256, "description"H, create_collection_description());
+    content~udict_set_ref(256, "image"H, create_collection_image());
     return content;
 }
 
@@ -193,7 +196,7 @@ slice get_nft_address_by_index(int index) method_id {
 }
 
 cell get_nft_content(int index, cell individual_content) method_id {
-    individual_content~udict_set_builder(256, "image"H, create_collection_image());
+    individual_content~udict_set_ref(256, "image"H, create_collection_image());
 
     return individual_content;
 }

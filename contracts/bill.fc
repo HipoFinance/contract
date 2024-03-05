@@ -73,25 +73,27 @@ global int amount;
     send_msg(false, collection.to_builder(), null(), burn, 0, send::unreserved_balance);
 }
 
-builder create_bill_name() inline {
+cell create_bill_name() inline {
     return begin_cell()
         .store_uint(0, 8)
         .store_slice("Hipo Bill #")
-        .store_builder(int_to_string(index));
+        .store_builder(int_to_string(index))
+        .end_cell();
 }
 
-builder create_bill_description() inline {
+cell create_bill_description() inline {
     return begin_cell()
         .store_uint(0, 8)
         .store_slice(unstake? ? "Withdraw " : "Deposit ")
         .store_builder(int_to_ton(amount))
-        .store_slice(unstake? ? " hTON" : " TON");
+        .store_slice(unstake? ? " hTON" : " TON")
+        .end_cell();
 }
 
 cell create_bill_metadata() {
     cell content = new_dict();
-    content~udict_set_builder(256, "name"H, create_bill_name());
-    content~udict_set_builder(256, "description"H, create_bill_description());
+    content~udict_set_ref(256, "name"H, create_bill_name());
+    content~udict_set_ref(256, "description"H, create_bill_description());
     return content;
 }
 
