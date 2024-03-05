@@ -1521,6 +1521,7 @@ cell find_code(cell dict, int round_since) inline {
     s.end_parse();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
+    throw_if(err::invalid_parameters, equal_slice_bits(parent, new_parent));
 
     ifnot parent.addr_none?() {
         ( _, int parent_addr ) = parse_std_addr(parent);
