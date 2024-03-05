@@ -3,6 +3,7 @@
 global slice treasury;
 
 () set_lib_code(cell code, int mode) impure asm "SETLIBCODE";
+() change_lib(int code_hash, int mode) impure asm "CHANGELIB";
 
 () load_data() impure inline {
     slice ds = get_data().begin_parse();
@@ -10,15 +11,24 @@ global slice treasury;
     ds.end_parse();
 }
 
-() set_library(slice src, slice s) impure inline {
+() add_library(slice src, slice s) impure inline {
     int query_id = s~load_uint(64);
-    int mode = s~load_uint(7);
     cell code = s~load_ref();
     s.end_parse();
 
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
-    set_lib_code(code, mode);
+    set_lib_code(code, 2 + 16);
+}
+
+() remove_library(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    int code_hash = s~load_uint(256);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, treasury));
+
+    change_lib(code_hash, 0 + 16);
 }
 
 () withdraw_surplus(slice src, slice s) impure inline {
@@ -43,8 +53,12 @@ global slice treasury;
 () route_internal_message(int flags, slice src, slice s) impure inline {
     int op = s~load_uint(32);
 
-    if op == op::set_library {
-        return set_library(src, s);
+    if op == op::add_library {
+        return add_library(src, s);
+    }
+
+    if op == op::remove_library {
+        return remove_library(src, s);
     }
 
     if op == op::withdraw_surplus {

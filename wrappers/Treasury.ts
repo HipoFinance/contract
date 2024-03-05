@@ -816,7 +816,7 @@ export class Treasury implements Contract {
         })
     }
 
-    async sendProxySetLibrary(
+    async sendProxyAddLibrary(
         provider: ContractProvider,
         via: Sender,
         opts: {
@@ -825,7 +825,6 @@ export class Treasury implements Contract {
             sendMode?: SendMode
             queryId?: bigint
             destination: Address
-            mode: bigint
             code: Cell
         },
     ) {
@@ -834,11 +833,35 @@ export class Treasury implements Contract {
             bounce: opts.bounce,
             sendMode: opts.sendMode,
             body: beginCell()
-                .storeUint(op.proxySetLibrary, 32)
+                .storeUint(op.proxyAddLibrary, 32)
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeAddress(opts.destination)
-                .storeUint(opts.mode, 7)
                 .storeRef(opts.code)
+                .endCell(),
+        })
+    }
+
+    async sendProxyRemoveLibrary(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            destination: Address
+            codeHash: bigint
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.proxyRemoveLibrary, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .storeAddress(opts.destination)
+                .storeUint(opts.codeHash, 256)
                 .endCell(),
         })
     }

@@ -1742,22 +1742,39 @@ int calculate_min_coins() inline_ref {
     throw(0);
 }
 
-() proxy_set_library(slice src, slice s) impure inline {
+() proxy_add_library(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
     slice destination = s~load_msg_addr();
-    int mode = s~load_uint(7);
     cell code = s~load_ref();
     s.end_parse();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     builder library = begin_cell()
-        .store_uint(op::set_library, 32)
+        .store_uint(op::add_library, 32)
         .store_uint(query_id, 64)
-        .store_uint(mode, 7)
         .store_ref(code);
+    send_msg(false, destination.to_builder(), null(), library, 0, send::remaining_value);
+
+    throw(0);
+}
+
+() proxy_remove_library(slice src, slice s) impure inline {
+    unpack_extension();
+
+    int query_id = s~load_uint(64);
+    slice destination = s~load_msg_addr();
+    int code_hash = s~load_uint(256);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
+
+    builder library = begin_cell()
+        .store_uint(op::remove_library, 32)
+        .store_uint(query_id, 64)
+        .store_uint(code_hash, 256);
     send_msg(false, destination.to_builder(), null(), library, 0, send::remaining_value);
 
     throw(0);
@@ -1917,8 +1934,12 @@ int calculate_min_coins() inline_ref {
         return migrate_wallet(src, s);
     }
 
-    if op == op::proxy_set_library {
-        return proxy_set_library(src, s);
+    if op == op::proxy_add_library {
+        return proxy_add_library(src, s);
+    }
+
+    if op == op::proxy_remove_library {
+        return proxy_remove_library(src, s);
     }
 
     if op == op::top_up {

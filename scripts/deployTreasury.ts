@@ -127,37 +127,33 @@ export async function run(provider: NetworkProvider) {
     }
 
     console.info('Deploying wallet as a library')
-    await treasury.sendProxySetLibrary(provider.sender(), {
+    await treasury.sendProxyAddLibrary(provider.sender(), {
         value: '0.3',
         destination: librarian.address,
-        mode: 2n,
         code: mainWalletCode,
     })
     await sleep(10000)
 
     console.info('Deploying collection as a library')
-    await treasury.sendProxySetLibrary(provider.sender(), {
+    await treasury.sendProxyAddLibrary(provider.sender(), {
         value: '0.2',
         destination: librarian.address,
-        mode: 2n,
         code: mainCollectionCode,
     })
     await sleep(10000)
 
     console.info('Deploying bill as a library')
-    await treasury.sendProxySetLibrary(provider.sender(), {
+    await treasury.sendProxyAddLibrary(provider.sender(), {
         value: '0.2',
         destination: librarian.address,
-        mode: 2n,
         code: mainBillCode,
     })
     await sleep(10000)
 
     console.info('Deploying loan as a library')
-    await treasury.sendProxySetLibrary(provider.sender(), {
+    await treasury.sendProxyAddLibrary(provider.sender(), {
         value: '0.1',
         destination: librarian.address,
-        mode: 2n,
         code: mainLoanCode,
     })
     await sleep(10000)

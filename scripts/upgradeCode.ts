@@ -18,6 +18,10 @@ export async function run(provider: NetworkProvider) {
     console.info('==============')
     console.info()
 
+    console.info('New code hash hex:      %s', newCode.hash().toString('hex'))
+    console.info('New code hash base64:   %s', newCode.hash().toString('base64'))
+    console.info()
+
     const addressString = await ui.input('Enter the friendly address of the treasury')
     const treasuryAddress = Address.parse(addressString)
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))

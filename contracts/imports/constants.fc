@@ -103,7 +103,8 @@ const int op::upgrade_code = 0x3d6a29b5;
 const int op::proxy_upgrade_code = 0x78570010;
 const int op::send_upgrade_wallet = 0x7ade1ed8;
 const int op::migrate_wallet = 0x325aacfa;
-const int op::proxy_set_library = 0x0930c8d7;
+const int op::proxy_add_library = 0x31cb87f7;
+const int op::proxy_remove_library = 0x747bf3a2;
 const int op::top_up = 0x5372158c;
 
 const int op::proxy_tokens_minted = 0x5be57626;
@@ -142,7 +143,8 @@ const int op::take_profit = 0x8b556813;
 const int op::stake_notification = 0xd401b82b;
 const int op::withdrawal_notification = 0xf0fa223b;
 
-const int op::set_library = 0x7deaf806;
+const int op::add_library = 0x53d0473e;
+const int op::remove_library = 0x6bd0ce52;
 
 
 const int gas::send_tokens = 13542;
@@ -163,7 +165,7 @@ const int gas::reserve_tokens = 15495;
 const int gas::burn_tokens = 16601;
 const int gas::proxy_tokens_burned = 7307;
 const int gas::tokens_burned = 9070;
-const int gas::send_unstake_all = 15867;
+const int gas::send_unstake_all = 16052;
 const int gas::proxy_unstake_all = 6553;
 const int gas::unstake_all = 7795;
 const int gas::upgrade_wallet = 11520;

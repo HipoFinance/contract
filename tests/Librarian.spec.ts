@@ -83,11 +83,10 @@ describe('Librarian', () => {
         })
     })
 
-    it('should set a public library', async () => {
-        const result = await treasury.sendProxySetLibrary(governor.getSender(), {
+    it('should add a library', async () => {
+        const result = await treasury.sendProxyAddLibrary(governor.getSender(), {
             value: '1',
             destination: librarian.address,
-            mode: 2n,
             code: walletCode,
         })
 
@@ -95,7 +94,7 @@ describe('Librarian', () => {
             from: governor.address,
             to: treasury.address,
             value: toNano('1'),
-            body: bodyOp(op.proxySetLibrary),
+            body: bodyOp(op.proxyAddLibrary),
             success: true,
             outMessagesCount: 1,
         })
@@ -103,7 +102,7 @@ describe('Librarian', () => {
             from: treasury.address,
             to: librarian.address,
             value: between('0', '1'),
-            body: bodyOp(op.setLibrary),
+            body: bodyOp(op.addLibrary),
             success: true,
             outMessagesCount: 0,
         })
@@ -111,18 +110,17 @@ describe('Librarian', () => {
     })
 
     it('should remove a library', async () => {
-        const result = await treasury.sendProxySetLibrary(governor.getSender(), {
+        const result = await treasury.sendProxyRemoveLibrary(governor.getSender(), {
             value: '1',
             destination: librarian.address,
-            mode: 0n,
-            code: walletCode,
+            codeHash: BigInt('0x' + walletCode.hash().toString('hex')),
         })
 
         expect(result.transactions).toHaveTransaction({
             from: governor.address,
             to: treasury.address,
             value: toNano('1'),
-            body: bodyOp(op.proxySetLibrary),
+            body: bodyOp(op.proxyRemoveLibrary),
             success: true,
             outMessagesCount: 1,
         })
@@ -130,7 +128,7 @@ describe('Librarian', () => {
             from: treasury.address,
             to: librarian.address,
             value: between('0', '1'),
-            body: bodyOp(op.setLibrary),
+            body: bodyOp(op.removeLibrary),
             success: true,
             outMessagesCount: 0,
         })

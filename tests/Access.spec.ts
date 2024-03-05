@@ -667,21 +667,35 @@ describe('Access', () => {
         })
         expect(result30.transactions).toHaveLength(3)
 
-        const result31 = await treasury.sendProxySetLibrary(halter.getSender(), {
+        const result31 = await treasury.sendProxyAddLibrary(halter.getSender(), {
             value: '0.1',
             destination: someone.address,
-            mode: 2n,
             code: Cell.EMPTY,
         })
         expect(result31.transactions).toHaveTransaction({
             from: halter.address,
             to: treasury.address,
             value: toNano('0.1'),
-            body: bodyOp(op.proxySetLibrary),
+            body: bodyOp(op.proxyAddLibrary),
             success: false,
             exitCode: err.accessDenied,
         })
         expect(result31.transactions).toHaveLength(3)
+
+        const result32 = await treasury.sendProxyRemoveLibrary(halter.getSender(), {
+            value: '0.1',
+            destination: someone.address,
+            codeHash: 0n,
+        })
+        expect(result32.transactions).toHaveTransaction({
+            from: halter.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.proxyRemoveLibrary),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result32.transactions).toHaveLength(3)
     })
 
     it('should check access in parent', async () => {
@@ -1436,18 +1450,13 @@ describe('Access', () => {
 
         const result1 = await librarian.sendMessage(someone.getSender(), {
             value: '0.1',
-            body: beginCell()
-                .storeUint(op.setLibrary, 32)
-                .storeUint(0, 64)
-                .storeUint(2, 7)
-                .storeRef(Cell.EMPTY)
-                .endCell(),
+            body: beginCell().storeUint(op.addLibrary, 32).storeUint(0, 64).storeRef(Cell.EMPTY).endCell(),
         })
         expect(result1.transactions).toHaveTransaction({
             from: someone.address,
             to: librarian.address,
             value: toNano('0.1'),
-            body: bodyOp(op.setLibrary),
+            body: bodyOp(op.addLibrary),
             success: false,
             exitCode: err.accessDenied,
         })
@@ -1455,13 +1464,27 @@ describe('Access', () => {
 
         const result2 = await librarian.sendMessage(someone.getSender(), {
             value: '0.1',
+            body: beginCell().storeUint(op.removeLibrary, 32).storeUint(0, 64).storeUint(0, 256).endCell(),
+        })
+        expect(result2.transactions).toHaveTransaction({
+            from: someone.address,
+            to: librarian.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.removeLibrary),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result2.transactions).toHaveLength(3)
+
+        const result3 = await librarian.sendMessage(someone.getSender(), {
+            value: '0.1',
             body: beginCell()
                 .storeUint(op.withdrawSurplus, 32)
                 .storeUint(0, 64)
                 .storeAddress(someone.address)
                 .endCell(),
         })
-        expect(result2.transactions).toHaveTransaction({
+        expect(result3.transactions).toHaveTransaction({
             from: someone.address,
             to: librarian.address,
             value: toNano('0.1'),
@@ -1469,6 +1492,6 @@ describe('Access', () => {
             success: false,
             exitCode: err.accessDenied,
         })
-        expect(result2.transactions).toHaveLength(3)
+        expect(result3.transactions).toHaveLength(3)
     })
 })
