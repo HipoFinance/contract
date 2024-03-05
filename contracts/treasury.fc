@@ -366,7 +366,7 @@ builder pack_participation
     unpack_extension();
 
     builder body = begin_cell()
-        .store_uint(0x40ef2953, 32)
+        .store_uint(0x3d3761a6, 32)
         .store_uint(query_id, 64)
         .store_slice(owner)
         .store_coins(withdrawal_amount)
