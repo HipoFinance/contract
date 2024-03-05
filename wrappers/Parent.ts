@@ -37,14 +37,15 @@ export function toMetadataKey(key: string): bigint {
 
 export const metadataDictionaryValue: DictionaryValue<string> = {
     serialize: function (src: string, builder: Builder) {
-        builder.storeUint(0, 8).storeStringTail(src)
+        builder.storeRef(beginCell().storeUint(0, 8).storeStringTail(src))
     },
     parse: function (src: Slice): string {
-        const prefix = src.loadUint(8)
+        const ref = src.loadRef().beginParse()
+        const prefix = ref.loadUint(8)
         if (prefix !== 0) {
             throw new Error('Expected metadata dictionary value to start with a zero')
         }
-        return src.loadStringTail()
+        return ref.loadStringTail()
     },
 }
 

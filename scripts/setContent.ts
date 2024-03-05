@@ -3,19 +3,22 @@ import { Treasury } from '../wrappers/Treasury'
 import { NetworkProvider } from '@ton/blueprint'
 import { metadataDictionaryValue, toMetadataKey } from '../wrappers/Parent'
 
-const name = 'hTON'
-const description = 'Hipo liquid staking protocol'
-const image = 'https://hipo.finance/hton.png'
+const decimals = '9'
+const symbol = 'thTON'
+const name = 'testnet hTON'
+const description = 'Hipo liquid staking protocol on testnet, version 2'
+const image = 'https://app.hipo.finance/thton.png'
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
 
-    console.info(
-        'Setting metadata to:\n\tname: \t\t%s\n\tdescription: \t%s\n\timage: \t\t%s\n',
-        name,
-        description,
-        image,
-    )
+    console.info('Setting Metadata:')
+    console.info('       decimals: %s', decimals)
+    console.info('         symbol: %s', symbol)
+    console.info('           name: %s', name)
+    console.info('    description: %s', description)
+    console.info('          image: %s', image)
+    console.info()
 
     const treasuryAddress = await ui.input('Enter the friendly address of the treasury')
     const treasury = provider.open(Treasury.createFromAddress(Address.parse(treasuryAddress)))
@@ -32,8 +35,8 @@ export async function run(provider: NetworkProvider) {
 }
 
 const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), metadataDictionaryValue)
-    .set(toMetadataKey('decimals'), '9')
-    .set(toMetadataKey('symbol'), 'hTON')
+    .set(toMetadataKey('decimals'), decimals)
+    .set(toMetadataKey('symbol'), symbol)
     .set(toMetadataKey('name'), name)
     .set(toMetadataKey('description'), description)
     .set(toMetadataKey('image'), image)
