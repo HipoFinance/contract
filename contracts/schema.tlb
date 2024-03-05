@@ -193,7 +193,7 @@ take_current_quote#0a420458
 // Treasury Ops
 //
 
-deposit_coins#40ef2953
+deposit_coins#3d3761a6
     query_id:uint64
     owner:MsgAddress
     coins:Coins
