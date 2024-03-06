@@ -25,7 +25,9 @@ export async function run(provider: NetworkProvider) {
     labelsMap[toMetadataKey('description').toString()] = 'description'
     labelsMap[toMetadataKey('image').toString()] = 'image'
 
-    console.info('Jetton Metadata:')
+    console.info()
+    console.info('Jetton Metadata')
+    console.info('===============')
     for (const key of ['decimals', 'symbol', 'name', 'description', 'image']) {
         console.info('    %s: %s', key.padStart(12), metadata.get(toMetadataKey(key)) ?? '')
         metadata.delete(toMetadataKey(key))
@@ -33,7 +35,8 @@ export async function run(provider: NetworkProvider) {
     console.info()
 
     if (metadata.size > 0) {
-        console.info('Unknown Keys:')
+        console.info('Unknown Keys')
+        console.info('------------')
         for (const key of metadata.keys()) {
             console.info('    %s: %s', key.toString(), metadata.get(key))
         }
