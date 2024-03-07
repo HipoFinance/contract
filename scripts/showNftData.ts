@@ -23,10 +23,10 @@ export async function run(provider: NetworkProvider) {
     const testOnly = provider.network() !== 'mainnet'
 
     console.info()
-    console.log('Collection Data')
-    console.log('===============')
-    console.log('        length: %s', nextItemIndex.toString())
-    console.log('      treasury: %s', collectionOwner.toString({ testOnly }))
+    console.info('Collection Data')
+    console.info('===============')
+    console.info('        length: %s', nextItemIndex.toString())
+    console.info('      treasury: %s', collectionOwner.toString({ testOnly }))
     console.info()
 
     console.info('    Collection Metadata')
@@ -46,13 +46,13 @@ export async function run(provider: NetworkProvider) {
         console.info()
     }
 
-    console.log('Bill Data')
-    console.log('=========')
-    console.log('       revoked: %s', formatDate(revoked))
-    console.log('        inited: %s', inited)
-    console.log('         index: %s', index.toString())
-    console.log('    collection: %s', collectionAddress.toString({ testOnly }))
-    console.log('         owner: %s', owner.toString({ testOnly }))
+    console.info('Bill Data')
+    console.info('=========')
+    console.info('       revoked: %s', formatDate(revoked))
+    console.info('        inited: %s', inited)
+    console.info('         index: %s', index.toString())
+    console.info('    collection: %s', collectionAddress.toString({ testOnly }))
+    console.info('         owner: %s', owner.toString({ testOnly }))
     console.info()
 
     console.info('    Bill Metadata')

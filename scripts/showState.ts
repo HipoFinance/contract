@@ -66,6 +66,11 @@ export async function run(provider: NetworkProvider) {
     }
     console.info()
 
+    if (treasuryState.participations.size == 0) {
+        console.info('No Participations')
+        console.info()
+    }
+
     for (const key of treasuryState.participations.keys()) {
         const participation = treasuryState.participations.get(key)
         if (participation == null) {
@@ -91,43 +96,43 @@ export async function run(provider: NetworkProvider) {
         console.info()
 
         if (participation.requests != null && participation.requests.size > 0) {
-            console.log('    Requests')
-            console.log('    --------')
+            console.info('    Requests')
+            console.info('    --------')
             showRequests(participation.requests, testOnly)
             console.info()
         }
 
         if (participation.rejected != null && participation.rejected.size > 0) {
-            console.log('    Rejected')
-            console.log('    --------')
+            console.info('    Rejected')
+            console.info('    --------')
             showRequests(participation.rejected, testOnly)
             console.info()
         }
 
         if (participation.accepted != null && participation.accepted.size > 0) {
-            console.log('    Accepted')
-            console.log('    --------')
+            console.info('    Accepted')
+            console.info('    --------')
             showRequests(participation.accepted, testOnly)
             console.info()
         }
 
         if (participation.accrued != null && participation.accrued.size > 0) {
-            console.log('    Accrued')
-            console.log('    --------')
+            console.info('    Accrued')
+            console.info('    --------')
             showRequests(participation.accrued, testOnly)
             console.info()
         }
 
         if (participation.staked != null && participation.staked.size > 0) {
-            console.log('    Staked')
-            console.log('    --------')
+            console.info('    Staked')
+            console.info('    --------')
             showRequests(participation.staked, testOnly)
             console.info()
         }
 
         if (participation.recovering != null && participation.recovering.size > 0) {
-            console.log('    Recovering')
-            console.log('    --------')
+            console.info('    Recovering')
+            console.info('    --------')
             showRequests(participation.recovering, testOnly)
             console.info()
         }
