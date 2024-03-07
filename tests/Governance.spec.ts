@@ -772,4 +772,83 @@ describe('Governance', () => {
 
         accumulateFees(result.transactions)
     })
+
+    it('should gift coins', async () => {
+        const someone = await blockchain.treasury('someone')
+
+        const totalCoinsBefore1 = (await treasury.getTreasuryState()).totalCoins
+        const result1 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: 0n })
+        const totalCoinsAfter1 = (await treasury.getTreasuryState()).totalCoins
+
+        expect(result1.transactions).toHaveTransaction({
+            from: someone.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.giftCoins),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result1.transactions).toHaveLength(3)
+        expect(totalCoinsAfter1).toEqual(totalCoinsBefore1)
+
+        const totalCoinsBefore2 = (await treasury.getTreasuryState()).totalCoins
+        const result2 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: 1n })
+        const totalCoinsAfter2 = (await treasury.getTreasuryState()).totalCoins
+
+        expect(result2.transactions).toHaveTransaction({
+            from: someone.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.giftCoins),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result2.transactions).toHaveLength(3)
+        expect(totalCoinsAfter2).toEqual(totalCoinsBefore2 + 1n)
+
+        const totalCoinsBefore3 = (await treasury.getTreasuryState()).totalCoins
+        const result3 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.08') })
+        const totalCoinsAfter3 = (await treasury.getTreasuryState()).totalCoins
+
+        expect(result3.transactions).toHaveTransaction({
+            from: someone.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.giftCoins),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result3.transactions).toHaveLength(3)
+        expect(totalCoinsAfter3).toEqual(totalCoinsBefore3 + toNano('0.08'))
+
+        const totalCoinsBefore4 = (await treasury.getTreasuryState()).totalCoins
+        const result4 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.087') })
+        const totalCoinsAfter4 = (await treasury.getTreasuryState()).totalCoins
+
+        expect(result4.transactions).toHaveTransaction({
+            from: someone.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.giftCoins),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result4.transactions).toHaveLength(2)
+        expect(totalCoinsAfter4).toEqual(totalCoinsBefore4 + toNano('0.087'))
+
+        const totalCoinsBefore5 = (await treasury.getTreasuryState()).totalCoins
+        const result5 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.088') })
+        const totalCoinsAfter5 = (await treasury.getTreasuryState()).totalCoins
+
+        expect(result5.transactions).toHaveTransaction({
+            from: someone.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.giftCoins),
+            success: false,
+            actionResultCode: 37,
+        })
+        expect(result5.transactions).toHaveLength(2)
+        expect(totalCoinsAfter5).toEqual(totalCoinsBefore5)
+    })
 })

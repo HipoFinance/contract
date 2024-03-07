@@ -1781,6 +1781,21 @@ int calculate_min_coins() inline_ref {
     throw(0);
 }
 
+() gift_coins(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    int coins = s~load_coins();
+    s.end_parse();
+
+    total_coins += coins;
+
+    raw_reserve(coins, reserve::add_original_balance);
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::unreserved_balance + send::ignore_errors);
+}
+
 () on_bounce(slice src, slice s) impure inline {
     s~skip_bits(32);
     int op = s~load_uint(32);
@@ -1941,6 +1956,10 @@ int calculate_min_coins() inline_ref {
 
     if op == op::proxy_remove_library {
         return proxy_remove_library(src, s);
+    }
+
+    if op == op::gift_coins {
+        return gift_coins(src, s);
     }
 
     if op == op::top_up {

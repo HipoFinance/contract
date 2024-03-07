@@ -404,6 +404,11 @@ proxy_remove_library#747bf3a2
     code_hash:uint256
         = InternalMsgBody;
 
+gift_coins#3496db80
+    query_id:uint64
+    coins:Coins
+        = InternalMsgBody;
+
 top_up#5372158c
     query_id:uint64
         = InternalMsgBody;

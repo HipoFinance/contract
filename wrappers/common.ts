@@ -92,6 +92,7 @@ export const op = {
     migrateWallet: 0x325aacfa,
     proxyAddLibrary: 0x31cb87f7,
     proxyRemoveLibrary: 0x747bf3a2,
+    giftCoins: 0x3496db80,
     topUp: 0x5372158c,
 
     proxyTokensMinted: 0x5be57626,
