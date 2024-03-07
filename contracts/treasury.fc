@@ -1786,7 +1786,11 @@ int calculate_min_coins() inline_ref {
     int coins = s~load_coins();
     s.end_parse();
 
-    total_coins += coins;
+    if total_tokens {
+        total_coins += coins;
+    } else {
+        coins = 0;
+    }
 
     raw_reserve(coins, reserve::add_original_balance);
 

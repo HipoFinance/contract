@@ -775,6 +775,8 @@ describe('Governance', () => {
 
     it('should gift coins', async () => {
         const someone = await blockchain.treasury('someone')
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('1') })
 
         const totalCoinsBefore1 = (await treasury.getTreasuryState()).totalCoins
         const result1 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: 0n })
@@ -850,5 +852,21 @@ describe('Governance', () => {
         })
         expect(result5.transactions).toHaveLength(2)
         expect(totalCoinsAfter5).toEqual(totalCoinsBefore5)
+
+        await treasury.sendMessage(staker.getSender(), { value: fees.unstakeAllTokensFee, body: 'w' })
+        const totalCoinsBefore6 = (await treasury.getTreasuryState()).totalCoins
+        const result6 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.08') })
+        const totalCoinsAfter6 = (await treasury.getTreasuryState()).totalCoins
+
+        expect(result6.transactions).toHaveTransaction({
+            from: someone.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.giftCoins),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result6.transactions).toHaveLength(3)
+        expect(totalCoinsAfter6).toEqual(totalCoinsBefore6)
     })
 })
