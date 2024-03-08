@@ -1211,7 +1211,7 @@ cell find_code(cell dict, int round_since) inline {
                     .store_uint(op::burn_all, 32)
                     .store_uint(query_id, 64)
                     .store_uint(0, 64);
-                send_msg(false, collection, state_init, burn, burn_all_fee(), send::regular);
+                send_msg(false, collection, state_init, burn, burn_all_fee(), send::pay_gas_separately);
             }
 
             builder pb = pack_participation(

@@ -739,7 +739,6 @@ int burn_all_fee() {
     ( int lump_price, _, _ ) = get_forward_prices(config::fwd_prices);
     int s_fwd_fee = lump_price;
     int forward_fee =
-        s_fwd_fee + ;; burn_all
         s_fwd_fee + ;; burn_bill
         s_fwd_fee; ;; last_bill_burned
 
