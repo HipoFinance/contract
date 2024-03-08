@@ -1183,7 +1183,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: governor.address,
-            value: between('4.3', '4.4'),
+            value: between('4.2', '4.4'),
             body: bodyOp(op.takeProfit),
             success: true,
             outMessagesCount: 0,

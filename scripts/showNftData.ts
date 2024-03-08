@@ -57,7 +57,7 @@ export async function run(provider: NetworkProvider) {
 
     console.info('    Bill Metadata')
     console.info('    -------------')
-    for (const key of ['name', 'description', 'image']) {
+    for (const key of ['name', 'description', 'image', 'render_type']) {
         console.info('        %s: %s', key.padStart(12), billMetadata.get(toMetadataKey(key)) ?? '')
         billMetadata.delete(toMetadataKey(key))
     }

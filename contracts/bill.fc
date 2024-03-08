@@ -90,10 +90,20 @@ cell create_bill_description() inline {
         .end_cell();
 }
 
+cell create_bill_render_type() inline {
+    return begin_cell()
+        .store_uint(0, 8)
+        .store_slice("hidden")
+        .end_cell();
+}
+
 cell create_bill_metadata() {
     cell content = new_dict();
     content~udict_set_ref(256, "name"H, create_bill_name());
     content~udict_set_ref(256, "description"H, create_bill_description());
+    if revoked_at {
+        content~udict_set_ref(256, "render_type"H, create_bill_render_type());
+    }
     return content;
 }
 
