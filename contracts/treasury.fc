@@ -1165,7 +1165,8 @@ cell find_code(cell dict, int round_since) inline {
             int fee = 0;
             int new_coins = 0;
             int incoming_ton = get_incoming_value().pair_first();
-            int reward = incoming_ton - loan_amount - accrue_amount - stake_amount;
+            ( _, _, int recover_stake_fee ) = request_loan_fee();
+            int reward = incoming_ton - loan_amount - accrue_amount - stake_amount - recover_stake_fee;
             if reward >= 0 {
                 int treasury_reward_share = 255 - borrower_reward_share;
                 int treasury_reward = max(min_payment, muldiv(reward, treasury_reward_share, 255));

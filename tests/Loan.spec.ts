@@ -796,7 +796,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: borrower2.address,
-            value: between('201', '202'),
+            value: between('200', '201'),
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
@@ -804,7 +804,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: borrower3.address,
-            value: between('201', '202'),
+            value: between('200', '201'),
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
@@ -1159,7 +1159,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: borrower2.address,
-            value: between('101.1', '101.2'),
+            value: between('100', '101'),
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
@@ -1167,7 +1167,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: borrower3.address,
-            value: between('101.1', '101.2'),
+            value: between('100', '101'),
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
@@ -1216,7 +1216,7 @@ describe('Loan', () => {
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
         expect(treasuryState.lastStaked).toBeBetween('699999', '700000')
-        expect(treasuryState.lastRecovered).toBeBetween('700121', '700122')
+        expect(treasuryState.lastRecovered).toBeBetween('700122', '700123')
         expect(treasuryState.participations.size).toEqual(0)
 
         accumulateFees(result.transactions)
