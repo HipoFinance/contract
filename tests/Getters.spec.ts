@@ -25,7 +25,7 @@ import {
 import { Wallet } from '../wrappers/Wallet'
 import { Loan } from '../wrappers/Loan'
 import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-test/Elector'
-import { Parent, toMetadataKey } from '../wrappers/Parent'
+import { Parent, metadataDictionaryValue, toMetadataKey } from '../wrappers/Parent'
 import { StorageCost } from '../wrappers/storage-cost/StorageCost'
 import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
 import { Collection } from '../wrappers/Collection'
@@ -398,7 +398,12 @@ describe('Getters', () => {
         expect(nftAddress1).toEqualAddress(billAddress1)
         expect(nftAddress2).toEqualAddress(billAddress2)
 
-        const [initialized1, index1, collectionAddress1, ownerAddress1, billMetadata1] = await bill1.getNftData()
+        const [initialized1, index1, collectionAddress1, ownerAddress1, billMetadataCell1] = await bill1.getNftData()
+        const billMetadata1 = Dictionary.load(
+            Dictionary.Keys.BigUint(256),
+            metadataDictionaryValue,
+            billMetadataCell1.beginParse().skip(8),
+        )
         expect(initialized1).toEqual(true)
         expect(index1).toEqual(0n)
         expect(collectionAddress1).toEqualAddress(collection.address)
@@ -407,7 +412,12 @@ describe('Getters', () => {
         expect(billMetadata1.get(toMetadataKey('name'))).toEqual('Hipo Bill #0')
         expect(billMetadata1.get(toMetadataKey('description'))).toEqual('Withdraw 7.123456000 hTON')
 
-        const [initialized2, index2, collectionAddress2, ownerAddress2, billMetadata2] = await bill2.getNftData()
+        const [initialized2, index2, collectionAddress2, ownerAddress2, billMetadataCell2] = await bill2.getNftData()
+        const billMetadata2 = Dictionary.load(
+            Dictionary.Keys.BigUint(256),
+            metadataDictionaryValue,
+            billMetadataCell2.beginParse().skip(8),
+        )
         expect(initialized2).toEqual(true)
         expect(index2).toEqual(1n)
         expect(collectionAddress2).toEqualAddress(collection.address)
@@ -416,13 +426,13 @@ describe('Getters', () => {
         expect(billMetadata2.get(toMetadataKey('name'))).toEqual('Hipo Bill #1')
         expect(billMetadata2.get(toMetadataKey('description'))).toEqual('Deposit 5.000000000 TON')
 
-        const nftContent1 = await collection.getNftContent(0n, billMetadata1)
+        const nftContent1 = await collection.getNftContent(0n, billMetadataCell1)
         expect(nftContent1.size).toEqual(3)
         expect(nftContent1.get(toMetadataKey('name'))).toEqual('Hipo Bill #0')
         expect(nftContent1.get(toMetadataKey('description'))).toEqual('Withdraw 7.123456000 hTON')
         expect(nftContent1.get(toMetadataKey('image'))).toEqual('https://app.hipo.finance/bill.png')
 
-        const nftContent2 = await collection.getNftContent(1n, billMetadata2)
+        const nftContent2 = await collection.getNftContent(1n, billMetadataCell2)
         expect(nftContent2.size).toEqual(3)
         expect(nftContent2.get(toMetadataKey('name'))).toEqual('Hipo Bill #1')
         expect(nftContent2.get(toMetadataKey('description'))).toEqual('Deposit 5.000000000 TON')
@@ -462,7 +472,13 @@ describe('Getters', () => {
         const revokedTime2After = await bill2.getRevokedTime()
         expect(revokedTime2After).toBeGreaterThan(0n)
 
-        const [initializedA1, indexA1, collectionAddressA1, ownerAddressA1, billMetadataA1] = await bill1.getNftData()
+        const [initializedA1, indexA1, collectionAddressA1, ownerAddressA1, billMetadataCellA1] =
+            await bill1.getNftData()
+        const billMetadataA1 = Dictionary.load(
+            Dictionary.Keys.BigUint(256),
+            metadataDictionaryValue,
+            billMetadataCellA1.beginParse().skip(8),
+        )
         expect(initializedA1).toEqual(true)
         expect(indexA1).toEqual(0n)
         expect(collectionAddressA1).toEqualAddress(collection.address)
@@ -472,7 +488,13 @@ describe('Getters', () => {
         expect(billMetadataA1.get(toMetadataKey('description'))).toEqual('Withdraw 7.123456000 hTON')
         expect(billMetadataA1.get(toMetadataKey('render_type'))).toEqual('hidden')
 
-        const [initializedA2, indexA2, collectionAddressA2, ownerAddressA2, billMetadataA2] = await bill2.getNftData()
+        const [initializedA2, indexA2, collectionAddressA2, ownerAddressA2, billMetadataCellA2] =
+            await bill2.getNftData()
+        const billMetadataA2 = Dictionary.load(
+            Dictionary.Keys.BigUint(256),
+            metadataDictionaryValue,
+            billMetadataCellA2.beginParse().skip(8),
+        )
         expect(initializedA2).toEqual(true)
         expect(indexA2).toEqual(1n)
         expect(collectionAddressA2).toEqualAddress(collection.address)

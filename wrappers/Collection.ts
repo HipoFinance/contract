@@ -80,13 +80,11 @@ export class Collection implements Contract {
     async getNftContent(
         provider: ContractProvider,
         index: bigint,
-        individualContent: Dictionary<bigint, string>,
+        individualContent: Cell,
     ): Promise<Dictionary<bigint, string>> {
-        const b = beginCell().storeUint(0, 8)
-        individualContent.store(b)
         const tb = new TupleBuilder()
         tb.writeNumber(index)
-        tb.writeCell(b.endCell())
+        tb.writeCell(individualContent)
         const { stack } = await provider.get('get_nft_content', tb.build())
         return Dictionary.load(
             Dictionary.Keys.BigUint(256),

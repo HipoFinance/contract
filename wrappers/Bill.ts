@@ -1,15 +1,4 @@
-import {
-    Address,
-    beginCell,
-    Cell,
-    Contract,
-    contractAddress,
-    ContractProvider,
-    Dictionary,
-    Sender,
-    SendMode,
-} from '@ton/core'
-import { metadataDictionaryValue } from './Parent'
+import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode } from '@ton/core'
 
 interface BillConfig {
     index: bigint
@@ -60,21 +49,9 @@ export class Bill implements Contract {
         await provider.internal(via, opts)
     }
 
-    async getNftData(
-        provider: ContractProvider,
-    ): Promise<[boolean, bigint, Address, Address, Dictionary<bigint, string>]> {
+    async getNftData(provider: ContractProvider): Promise<[boolean, bigint, Address, Address, Cell]> {
         const { stack } = await provider.get('get_nft_data', [])
-        return [
-            stack.readBoolean(),
-            stack.readBigNumber(),
-            stack.readAddress(),
-            stack.readAddress(),
-            Dictionary.load(
-                Dictionary.Keys.BigUint(256),
-                metadataDictionaryValue,
-                stack.readCell().beginParse().skip(8),
-            ),
-        ]
+        return [stack.readBoolean(), stack.readBigNumber(), stack.readAddress(), stack.readAddress(), stack.readCell()]
     }
 
     async getAuthorityAddress(provider: ContractProvider): Promise<Address> {
