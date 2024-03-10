@@ -465,8 +465,7 @@ global int unstaking;
 }
 
 var get_wallet_fees() method_id {
-    ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
-    int forward_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023 * 2, 1 + 3);
+    int forward_fee = get_forward_fee(1 + 3, 1023 * 2, false);
 
     return
         ( send_tokens_fee() + forward_fee

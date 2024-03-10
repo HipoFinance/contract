@@ -158,20 +158,6 @@ builder store_log(builder b, builder log) inline {
     return ( cs~load_coins(), cs~load_coins(), cs~load_coins(), cs~load_uint(32) );
 }
 
-(int, int, int) get_forward_prices(int i) inline_ref {
-    ;; msg_forward_prices#ea lump_price:uint64 bit_price:uint64 cell_price:uint64
-    ;;   ihr_price_factor:uint32 first_frac:uint16 next_frac:uint16 = MsgForwardPrices;
-
-    ;; // used for messages to/from masterchain
-    ;; config_mc_fwd_prices#_ MsgForwardPrices = ConfigParam 24;
-    ;; // used for all other messages
-    ;; config_fwd_prices#_ MsgForwardPrices = ConfigParam 25;
-    slice cs = config_param(i).begin_parse();
-    int t = cs~load_uint(8);
-    throw_unless(err::unexpected_msg_forward_prices_format, t == 0xea);
-    return ( cs~load_uint(64), cs~load_uint(64), cs~load_uint(64) );
-}
-
 (int, int) get_vset_times(int i) inline_ref {
     ;; validators_ext#12 utime_since:uint32 utime_until:uint32
     ;;   total:(## 16) main:(## 16) { main <= total } { main >= 1 }
@@ -434,13 +420,6 @@ int bill_storage_fee() inline_ref {
     return ( mc_fee, fee ); ;; currently near 0.0006 TON
 }
 
-int msg_fwd_fee(int lump_price, int bit_price, int cell_price, int rest_bits, int rest_cells) inline_ref {
-    ;; // msg_fwd_fees = (lump_price + ceil((bit_price * msg.bits + cell_price * msg.cells)/2^16)) nanograms
-    ;; // ihr_fwd_fees = ceil((msg_fwd_fees * ihr_price_factor)/2^16) nanograms
-    ;; // bits in the root cell of a message are not included in msg.bits (lump_price pays for them)
-    return lump_price + ((rest_bits * bit_price + rest_cells * cell_price + 65535) >> 16);
-}
-
 int send_tokens_fee() {
     int storage_fee = wallet_storage_fee();
 
@@ -468,10 +447,9 @@ int send_tokens_fee() {
         gas::tokens_minted;
     int compute_fee = get_compute_fee(compute_gas, false);
 
-    ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
-    int s_fwd_fee = lump_price;
-    int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
-    int l_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023 * 2, 1 + 3);
+    int s_fwd_fee = get_forward_fee(0, 0, false);
+    int m_fwd_fee = get_forward_fee(1, 1023, false);
+    int l_fwd_fee = get_forward_fee(1 + 3, 1023 * 2, false);
     int forward_fee =
         m_fwd_fee + ;; proxy_save_coins
         l_fwd_fee + ;; save_coins
@@ -518,10 +496,9 @@ int unstake_tokens_fee() {
         gas::tokens_burned;
     int compute_fee = get_compute_fee(compute_gas, false);
 
-    ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
-    int s_fwd_fee = lump_price;
-    int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
-    int l_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023 * 2, 1 + 3);
+    int s_fwd_fee = get_forward_fee(0, 0, false);
+    int m_fwd_fee = get_forward_fee(1, 1023, false);
+    int l_fwd_fee = get_forward_fee(1 + 3, 1023 * 2, false);
     int forward_fee =
         m_fwd_fee + ;; proxy_reserve_tokens
         m_fwd_fee + ;; reserve_tokens
@@ -564,10 +541,9 @@ int unstake_all_fee() {
         gas::tokens_burned;
     int compute_fee = get_compute_fee(compute_gas, false);
 
-    ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
-    int s_fwd_fee = lump_price;
-    int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
-    int l_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023 * 2, 1 + 3);
+    int s_fwd_fee = get_forward_fee(0, 0, false);
+    int m_fwd_fee = get_forward_fee(1, 1023, false);
+    int l_fwd_fee = get_forward_fee(1 + 3, 1023 * 2, false);
     int forward_fee =
         m_fwd_fee + ;; proxy_unstake_all
         s_fwd_fee + ;; unstake_all
@@ -616,13 +592,11 @@ int unstake_all_fee() {
         gas::recover_stake_ok;
     int compute_fee = get_compute_fee(compute_gas, false) + get_compute_fee(mc_compute_gas, true);
 
-    ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
-    ( int mc_lump_price, int mc_bit_price, int mc_cell_price ) = get_forward_prices(config::mc_fwd_prices);
-    int s_fwd_fee = lump_price;
-    int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
-    int mc_s_fwd_fee = mc_lump_price;
-    int mc_m_fwd_fee = msg_fwd_fee(mc_lump_price, mc_bit_price, mc_cell_price, 1023 * 2, 2);
-    int mc_l_fwd_fee = msg_fwd_fee(mc_lump_price, mc_bit_price, mc_cell_price, 1023 * 2, 2 + 3);
+    int s_fwd_fee = get_forward_fee(0, 0, false);
+    int m_fwd_fee = get_forward_fee(1, 1023, false);
+    int mc_s_fwd_fee = get_forward_fee(0, 0, true);
+    int mc_m_fwd_fee = get_forward_fee(2, 1023 * 2, true);
+    int mc_l_fwd_fee = get_forward_fee(2 + 3, 1023 * 2, true);
     int forward_fee =
         s_fwd_fee + ;; participate_in_election
         s_fwd_fee + ;; decide_loan_requests
@@ -684,8 +658,7 @@ int burn_all_fee() {
         gas::last_bill_burned;
     int compute_fee = get_compute_fee(compute_gas, false);
 
-    ( int lump_price, _, _ ) = get_forward_prices(config::fwd_prices);
-    int s_fwd_fee = lump_price;
+    int s_fwd_fee = get_forward_fee(0, 0, false);
     int forward_fee =
         s_fwd_fee + ;; burn_bill
         s_fwd_fee; ;; last_bill_burned
@@ -707,8 +680,7 @@ int burn_bill_fee() {
         gas::bill_burned;
     int compute_fee = get_compute_fee(compute_gas, false);
 
-    ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
-    int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
+    int m_fwd_fee = get_forward_fee(1, 1023, false);
     int forward_fee =
         m_fwd_fee; ;; bill_burned
 
@@ -724,9 +696,8 @@ int upgrade_wallet_fee() {
         gas::merge_wallet;
     int compute_fee = get_compute_fee(compute_gas, false);
 
-    ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
-    int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
-    int l_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023 * 2, 1 + 3);
+    int m_fwd_fee = get_forward_fee(1, 1023, false);
+    int l_fwd_fee = get_forward_fee(1 + 3, 1023 * 2, false);
     int forward_fee =
         m_fwd_fee + ;; proxy_migrate_wallet
         m_fwd_fee + ;; migrate_wallet
@@ -743,9 +714,8 @@ int merge_wallet_fee() {
         gas::merge_wallet;
     int compute_fee = get_compute_fee(compute_gas, false);
 
-    ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
-    int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
-    int l_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023 * 2, 1 + 3);
+    int m_fwd_fee = get_forward_fee(1, 1023, false);
+    int l_fwd_fee = get_forward_fee(1 + 3, 1023 * 2, false);
     int forward_fee =
         m_fwd_fee + ;; proxy_merge_wallet
         l_fwd_fee; ;; merge_wallet
