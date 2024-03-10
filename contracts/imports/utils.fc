@@ -593,7 +593,6 @@ int unstake_all_fee() {
     int compute_fee = get_compute_fee(compute_gas, false) + get_compute_fee(mc_compute_gas, true);
 
     int s_fwd_fee = get_forward_fee(0, 0, false);
-    int m_fwd_fee = get_forward_fee(1, 1023, false);
     int mc_s_fwd_fee = get_forward_fee(0, 0, true);
     int mc_m_fwd_fee = get_forward_fee(2, 1023 * 2, true);
     int mc_l_fwd_fee = get_forward_fee(2 + 3, 1023 * 2, true);
@@ -611,7 +610,7 @@ int unstake_all_fee() {
         mc_s_fwd_fee + ;; proxy_recover_stake
         mc_s_fwd_fee + ;; recover_stake
         mc_s_fwd_fee + ;; recover_stake_ok
-        m_fwd_fee + ;; recover_stake_result
+        mc_m_fwd_fee + ;; recover_stake_result
         s_fwd_fee + ;; loan_result
         s_fwd_fee + ;; take_profit
         s_fwd_fee + ;; burn_all
@@ -630,7 +629,7 @@ int unstake_all_fee() {
         mc_l_fwd_fee + ;; proxy_new_stake
         mc_m_fwd_fee + ;; new_stake
         mc_s_fwd_fee + ;; new_stake_error or new_stake_ok
-        m_fwd_fee; ;; recover_stake_result
+        mc_m_fwd_fee; ;; recover_stake_result
 
     int proxy_new_stake_fee = proxy_compute_fee + proxy_forward_fee;
 
@@ -644,7 +643,7 @@ int unstake_all_fee() {
         mc_s_fwd_fee + ;; proxy_recover_stake
         mc_s_fwd_fee + ;; recover_stake
         mc_s_fwd_fee + ;; recover_stake_ok
-        m_fwd_fee; ;; recover_stake_result
+        mc_m_fwd_fee; ;; recover_stake_result
 
     int recover_stake_fee = mc_storage_fee + recover_compute_fee + recover_forward_fee;
 

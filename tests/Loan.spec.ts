@@ -748,7 +748,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: loan2.address,
             to: electorAddress,
-            value: between('1', '1.1'),
+            value: between('1.1', '1.2'),
             body: bodyOp(op.recoverStake),
             success: true,
             outMessagesCount: 1,
@@ -756,7 +756,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: loan3.address,
             to: electorAddress,
-            value: between('1', '1.1'),
+            value: between('1.1', '1.2'),
             body: bodyOp(op.recoverStake),
             success: true,
             outMessagesCount: 1,
@@ -1337,7 +1337,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('11.8', '11.9')
+        expect(treasuryBalance).toBeBetween('11.9', '12')
         expect(treasuryState.totalCoins).toBeTonValue('0')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
