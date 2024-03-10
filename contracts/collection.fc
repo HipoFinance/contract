@@ -169,7 +169,7 @@ cell create_collection_description() inline {
 cell create_collection_image() inline {
     return begin_cell()
         .store_uint(0, 8)
-        .store_slice("https://app.hipo.finance/bill.png")
+        .store_slice("https://app.hipo.finance/collection.png")
         .end_cell();
 }
 
@@ -197,12 +197,5 @@ slice get_nft_address_by_index(int index) method_id {
 }
 
 cell get_nft_content(int index, cell individual_content) method_id {
-    slice cs = individual_content.begin_parse();
-    cs~skip_bits(8);
-    cell content = cs~load_dict();
-    cs.end_parse();
-
-    content~udict_set_ref(256, "image"H, create_collection_image());
-    cell onchain = begin_cell().store_uint(0, 8).store_dict(content).end_cell();
-    return onchain;
+    return individual_content;
 }
