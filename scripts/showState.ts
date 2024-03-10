@@ -40,7 +40,7 @@ export async function run(provider: NetworkProvider) {
         console.info('    Old Parents')
         console.info('    -----------')
         for (const key of treasuryState.oldParents.keys()) {
-            console.info(Address.parseRaw('0:' + key.toString(16)).toString({ testOnly }))
+            console.info('    %s', Address.parseRaw('0:' + key.toString(16)).toString({ testOnly }))
         }
         console.info()
     }
