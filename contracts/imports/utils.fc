@@ -158,30 +158,6 @@ builder store_log(builder b, builder log) inline {
     return ( cs~load_coins(), cs~load_coins(), cs~load_coins(), cs~load_uint(32) );
 }
 
-(int, int) get_compute_prices(int i) inline_ref {
-    ;; gas_prices#dd gas_price:uint64 gas_limit:uint64 gas_credit:uint64
-    ;;   block_gas_limit:uint64 freeze_due_limit:uint64 delete_due_limit:uint64
-    ;;   = GasLimitsPrices;
-
-    ;; gas_prices_ext#de gas_price:uint64 gas_limit:uint64 special_gas_limit:uint64 gas_credit:uint64
-    ;;   block_gas_limit:uint64 freeze_due_limit:uint64 delete_due_limit:uint64
-    ;;   = GasLimitsPrices;
-
-    ;; gas_flat_pfx#d1 flat_gas_limit:uint64 flat_gas_price:uint64 other:GasLimitsPrices
-    ;;   = GasLimitsPrices;
-
-    ;; config_mc_gas_prices#_ GasLimitsPrices = ConfigParam 20;
-    ;; config_gas_prices#_ GasLimitsPrices = ConfigParam 21;
-    slice cs = config_param(i).begin_parse();
-    int t = cs~load_uint(8);
-    if t == 0xd1 {
-        cs~skip_bits(64 + 64);
-        t = cs~load_uint(8);
-    }
-    throw_unless(err::unexpected_gas_price_format, (t == 0xdd) | (t == 0xde));
-    return ( cs~load_uint(64), cs~load_uint(64) );
-}
-
 (int, int, int) get_forward_prices(int i) inline_ref {
     ;; msg_forward_prices#ea lump_price:uint64 bit_price:uint64 cell_price:uint64
     ;;   ihr_price_factor:uint32 first_frac:uint16 next_frac:uint16 = MsgForwardPrices;
@@ -468,11 +444,10 @@ int msg_fwd_fee(int lump_price, int bit_price, int cell_price, int rest_bits, in
 int send_tokens_fee() {
     int storage_fee = wallet_storage_fee();
 
-    ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
     int compute_gas =
         gas::send_tokens +
         gas::receive_tokens;
-    int compute_fee = compute_gas * gas_price >> 16;
+    int compute_fee = get_compute_fee(compute_gas, false);
 
     return storage_fee + compute_fee;
 }
@@ -480,7 +455,6 @@ int send_tokens_fee() {
 (int, int) deposit_coins_fee(int ownership_assigned_amount) {
     int storage_fee = wallet_storage_fee();
 
-    ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
     int compute_gas =
         gas::deposit_coins +
         gas::proxy_save_coins +
@@ -492,7 +466,7 @@ int send_tokens_fee() {
         gas::mint_tokens +
         gas::proxy_tokens_minted +
         gas::tokens_minted;
-    int compute_fee = compute_gas * gas_price >> 16;
+    int compute_fee = get_compute_fee(compute_gas, false);
 
     ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
     int s_fwd_fee = lump_price;
@@ -515,7 +489,7 @@ int send_tokens_fee() {
     int proxy_compute_gas =
         gas::proxy_save_coins +
         gas::save_coins;
-    int proxy_compute_fee = proxy_compute_gas * gas_price >> 16;
+    int proxy_compute_fee = get_compute_fee(proxy_compute_gas, false);
 
     int proxy_forward_fee =
         l_fwd_fee; ;; save_coins
@@ -526,7 +500,6 @@ int send_tokens_fee() {
 }
 
 int unstake_tokens_fee() {
-    ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
     int compute_gas =
         gas::unstake_tokens +
         gas::proxy_reserve_tokens +
@@ -543,7 +516,7 @@ int unstake_tokens_fee() {
         gas::burn_tokens + ;; second try
         gas::proxy_tokens_burned +
         gas::tokens_burned;
-    int compute_fee = compute_gas * gas_price >> 16;
+    int compute_fee = get_compute_fee(compute_gas, false);
 
     ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
     int s_fwd_fee = lump_price;
@@ -570,7 +543,6 @@ int unstake_tokens_fee() {
 }
 
 int unstake_all_fee() {
-    ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
     int compute_gas =
         gas::send_unstake_all +
         gas::proxy_unstake_all +
@@ -590,7 +562,7 @@ int unstake_all_fee() {
         gas::burn_tokens + ;; second try
         gas::proxy_tokens_burned +
         gas::tokens_burned;
-    int compute_fee = compute_gas * gas_price >> 16;
+    int compute_fee = get_compute_fee(compute_gas, false);
 
     ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
     int s_fwd_fee = lump_price;
@@ -622,8 +594,6 @@ int unstake_all_fee() {
 (int, int, int) request_loan_fee() {
     ( int mc_storage_fee, int storage_fee ) = loan_storage_fee();
 
-    ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
-    ( int mc_gas_price, _ ) = get_compute_prices(config::mc_gas_prices);
     int compute_gas =
         gas::request_loan +
         gas::participate_in_election +
@@ -644,7 +614,7 @@ int unstake_all_fee() {
         gas::proxy_recover_stake +
         gas::recover_stake + ;; beware, it's out of our control since it's in elector
         gas::recover_stake_ok;
-    int compute_fee = (compute_gas * gas_price >> 16) + (mc_compute_gas * mc_gas_price >> 16);
+    int compute_fee = get_compute_fee(compute_gas, false) + get_compute_fee(mc_compute_gas, true);
 
     ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
     ( int mc_lump_price, int mc_bit_price, int mc_cell_price ) = get_forward_prices(config::mc_fwd_prices);
@@ -680,7 +650,7 @@ int unstake_all_fee() {
         gas::new_stake + ;; beware, it's out of our control since it's in elector
         gas::new_stake_error +
         gas::new_stake_ok;
-    int proxy_compute_fee = proxy_mc_compute_gas * mc_gas_price >> 16;
+    int proxy_compute_fee = get_compute_fee(proxy_mc_compute_gas, true);
 
     int proxy_forward_fee =
         mc_l_fwd_fee + ;; proxy_new_stake
@@ -694,7 +664,7 @@ int unstake_all_fee() {
         gas::proxy_recover_stake +
         gas::recover_stake + ;; beware, it's out of our control since it's in elector
         gas::recover_stake_ok;
-    int recover_compute_fee = recover_mc_compute_gas * mc_gas_price >> 16;
+    int recover_compute_fee = get_compute_fee(recover_mc_compute_gas, true);
 
     int recover_forward_fee =
         mc_s_fwd_fee + ;; proxy_recover_stake
@@ -708,12 +678,11 @@ int unstake_all_fee() {
 }
 
 int burn_all_fee() {
-    ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
     int compute_gas =
         gas::burn_all +
         gas::burn_bill +
         gas::last_bill_burned;
-    int compute_fee = compute_gas * gas_price >> 16;
+    int compute_fee = get_compute_fee(compute_gas, false);
 
     ( int lump_price, _, _ ) = get_forward_prices(config::fwd_prices);
     int s_fwd_fee = lump_price;
@@ -725,20 +694,18 @@ int burn_all_fee() {
 }
 
 int last_bill_burned_fee() {
-    ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
     int compute_gas =
         gas::last_bill_burned;
-    int compute_fee = compute_gas * gas_price >> 16;
+    int compute_fee = get_compute_fee(compute_gas, false);
 
     return compute_fee;
 }
 
 int burn_bill_fee() {
-    ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
     int compute_gas =
         gas::burn_bill +
         gas::bill_burned;
-    int compute_fee = compute_gas * gas_price >> 16;
+    int compute_fee = get_compute_fee(compute_gas, false);
 
     ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
     int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
@@ -749,14 +716,13 @@ int burn_bill_fee() {
 }
 
 int upgrade_wallet_fee() {
-    ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
     int compute_gas =
         gas::upgrade_wallet +
         gas::proxy_migrate_wallet +
         gas::migrate_wallet +
         gas::proxy_merge_wallet +
         gas::merge_wallet;
-    int compute_fee = compute_gas * gas_price >> 16;
+    int compute_fee = get_compute_fee(compute_gas, false);
 
     ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
     int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
@@ -771,12 +737,11 @@ int upgrade_wallet_fee() {
 }
 
 int merge_wallet_fee() {
-    ( int gas_price, _ ) = get_compute_prices(config::gas_prices);
     int compute_gas =
         gas::migrate_wallet +
         gas::proxy_merge_wallet +
         gas::merge_wallet;
-    int compute_fee = compute_gas * gas_price >> 16;
+    int compute_fee = get_compute_fee(compute_gas, false);
 
     ( int lump_price, int bit_price, int cell_price ) = get_forward_prices(config::fwd_prices);
     int m_fwd_fee = msg_fwd_fee(lump_price, bit_price, cell_price, 1023, 1);
@@ -789,6 +754,5 @@ int merge_wallet_fee() {
 }
 
 int max_gas_fee() {
-    ( int gas_price, int gas_limit ) = get_compute_prices(config::gas_prices);
-    return gas_price * gas_limit >> 16;
+    return get_compute_fee(gas_limit, false);
 }

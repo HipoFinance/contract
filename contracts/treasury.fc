@@ -772,7 +772,6 @@ cell find_code(cell dict, int round_since) inline {
     int available = total_staked; ;; use the total_staked field as a temp var for available amount
     int allocated = total_recovered; ;; use the total_recovered field as a temp var for allocated amount
 
-    ( _, int gas_limit ) = get_compute_prices(config::gas_prices);
     int soft_gas_limit = muldiv(gas_limit, 8, 10);
     int remain = 255 - 1; ;; keep the last one for continue message
 
@@ -881,7 +880,6 @@ cell find_code(cell dict, int round_since) inline {
 
     int incoming_ton = get_incoming_value().pair_first();
 
-    ( _, int gas_limit ) = get_compute_prices(config::gas_prices);
     int soft_gas_limit = muldiv(gas_limit, 8, 10);
     int remain = 255 - 1; ;; keep the last one for continue message
 
@@ -1076,7 +1074,6 @@ cell find_code(cell dict, int round_since) inline {
 
     int incoming_ton = get_incoming_value().pair_first();
 
-    ( _, int gas_limit ) = get_compute_prices(config::gas_prices);
     int soft_gas_limit = muldiv(gas_limit, 8, 10);
     int remain = 255 - 1; ;; keep the last one for continue message
 

@@ -639,3 +639,4 @@ builder store_builder(builder to, builder from) asm "STBR";
 int addr_none?(slice s) asm "b{00} PUSHSLICE SDEQ";
 
 int get_storage_fee(int cells, int bits, int seconds, int is_mc?) asm "GETSTORAGEFEE";
+int get_compute_fee(int gas_used, int is_mc?) asm "GETGASFEE";
