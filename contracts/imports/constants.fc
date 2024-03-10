@@ -94,6 +94,7 @@ const int op::set_rounds_imbalance = 0x1b4463b6;
 const int op::send_message_to_loan = 0x0e93f65b;
 const int op::retry_distribute = 0x6ec00c48;
 const int op::retry_recover_stakes = 0x2b7ad9e8;
+const int op::retry_mint_bill = 0x654de488;
 const int op::retry_burn_all = 0x106b8001;
 const int op::set_parent = 0x4f6f6eed;
 const int op::proxy_set_content = 0x2b1c8e37;

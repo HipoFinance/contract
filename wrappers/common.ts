@@ -81,6 +81,7 @@ export const op = {
     sendMessageToLoan: 0x0e93f65b,
     retryDistribute: 0x6ec00c48,
     retryRecoverStakes: 0x2b7ad9e8,
+    retryMintBill: 0x654de488,
     retryBurnAll: 0x106b8001,
     setParent: 0x4f6f6eed,
     proxySetContent: 0x2b1c8e37,

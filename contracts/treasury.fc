@@ -1483,6 +1483,48 @@ cell find_code(cell dict, int round_since) inline {
     throw(0);
 }
 
+() retry_mint_bill(slice src, slice s) impure inline {
+    unpack_extension();
+
+    int query_id = s~load_uint(64);
+    int round_since = s~load_uint(32);
+    int amount = s~load_coins();
+    int unstake? = s~load_int(1);
+    slice owner = s~load_msg_addr();
+    slice fixed_parent = s~load_msg_addr();
+    int ownership_assigned_amount = s~load_coins();
+    s.end_parse();
+
+    ( slice ps, _ ) = participations.udict_get?(32, round_since);
+    ( int state, _, _, _, _, _, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
+    ( _, int fixed_parent_addr ) = parse_std_addr(fixed_parent);
+    int f? = old_parents.udict_get?(256, fixed_parent_addr);
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
+    throw_unless(err::invalid_parameters, equal_slice_bits(fixed_parent, parent) | f?);
+    throw_unless(err::invalid_parameters, (state > participation::open) & (state < participation::burning));
+
+    cell collection_code = collection_codes.find_code(round_since);
+    cell bill_code = bill_codes.find_code(round_since);
+
+    ( builder collection
+    , cell state_init
+    , _
+    ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
+
+    builder mint = begin_cell()
+        .store_uint(op::mint_bill, 32)
+        .store_uint(query_id, 64)
+        .store_coins(amount)
+        .store_int(unstake?, 1)
+        .store_slice(owner)
+        .store_slice(parent)
+        .store_coins(ownership_assigned_amount);
+    send_msg(false, collection, state_init, mint, 0, send::remaining_value);
+
+    throw(0);
+}
+
 () retry_burn_all(slice src, slice s) impure inline {
     unpack_extension();
 
@@ -1917,6 +1959,10 @@ int calculate_min_coins() inline_ref {
 
     if op == op::retry_recover_stakes {
         return retry_recover_stakes(src, s);
+    }
+
+    if op == op::retry_mint_bill {
+        return retry_mint_bill(src, s);
     }
 
     if op == op::retry_burn_all {

@@ -21,7 +21,7 @@ export async function run(provider: NetworkProvider) {
     }
 
     await treasury.sendProxyRemoveLibrary(provider.sender(), {
-        value: '0.3',
+        value: '0.1',
         destination: Address.parse(librarianAddress),
         codeHash,
     })

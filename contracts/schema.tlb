@@ -339,6 +339,16 @@ retry_recover_stakes#2b7ad9e8
     round_since:uint32
         = InternalMsgBody;
 
+retry_mint_bill#654de488
+    query_id:uint64
+    round_since:uint32
+    amount:Coins
+    unstake:Bool
+    owner:MsgAddress
+    parent:MsgAddress
+    ownership_assigned_amount:Coins
+        = InternalMsgBody;
+
 retry_burn_all#106b8001
     query_id:uint64
     round_since:uint32
