@@ -618,6 +618,39 @@ export class Treasury implements Contract {
         })
     }
 
+    async sendRetryMintBill(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            roundSince: bigint
+            amount: bigint
+            unstake: boolean
+            owner: Address
+            parent: Address
+            ownershipAssignedAmount: bigint
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.retryMintBill, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .storeUint(opts.roundSince, 32)
+                .storeCoins(opts.amount)
+                .storeBit(opts.unstake)
+                .storeAddress(opts.owner)
+                .storeAddress(opts.parent)
+                .storeCoins(opts.ownershipAssignedAmount)
+                .endCell(),
+        })
+    }
+
     async sendRetryBurnAll(
         provider: ContractProvider,
         via: Sender,
