@@ -104,7 +104,8 @@ cell create_bill_metadata() {
     if revoked_at {
         content~udict_set_ref(256, "render_type"H, create_bill_render_type());
     }
-    return content;
+    cell onchain = begin_cell().store_uint(0, 8).store_dict(content).end_cell();
+    return onchain;
 }
 
 () prove_ownership(slice src, slice s) impure inline {

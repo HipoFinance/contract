@@ -61,7 +61,11 @@ export class Collection implements Contract {
         const { stack } = await provider.get('get_collection_data', [])
         return [
             stack.readBigNumber(),
-            Dictionary.loadDirect(Dictionary.Keys.BigUint(256), metadataDictionaryValue, stack.readCellOpt()),
+            Dictionary.load(
+                Dictionary.Keys.BigUint(256),
+                metadataDictionaryValue,
+                stack.readCell().beginParse().skip(8),
+            ),
             stack.readAddress(),
         ]
     }
@@ -78,13 +82,17 @@ export class Collection implements Contract {
         index: bigint,
         individualContent: Dictionary<bigint, string>,
     ): Promise<Dictionary<bigint, string>> {
-        const b = beginCell()
-        individualContent.storeDirect(b)
+        const b = beginCell().storeUint(0, 8)
+        individualContent.store(b)
         const tb = new TupleBuilder()
         tb.writeNumber(index)
         tb.writeCell(b.endCell())
         const { stack } = await provider.get('get_nft_content', tb.build())
-        return Dictionary.loadDirect(Dictionary.Keys.BigUint(256), metadataDictionaryValue, stack.readCellOpt())
+        return Dictionary.load(
+            Dictionary.Keys.BigUint(256),
+            metadataDictionaryValue,
+            stack.readCell().beginParse().skip(8),
+        )
     }
 
     async getBalance(provider: ContractProvider): Promise<bigint> {

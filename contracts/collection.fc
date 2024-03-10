@@ -178,7 +178,8 @@ cell create_collection_metadata() {
     content~udict_set_ref(256, "name"H, create_collection_name());
     content~udict_set_ref(256, "description"H, create_collection_description());
     content~udict_set_ref(256, "image"H, create_collection_image());
-    return content;
+    cell onchain = begin_cell().store_uint(0, 8).store_dict(content).end_cell();
+    return onchain;
 }
 
 (int, cell, slice) get_collection_data() method_id {
@@ -196,7 +197,12 @@ slice get_nft_address_by_index(int index) method_id {
 }
 
 cell get_nft_content(int index, cell individual_content) method_id {
-    individual_content~udict_set_ref(256, "image"H, create_collection_image());
+    slice cs = individual_content.begin_parse();
+    cs~skip_bits(8);
+    cell content = cs~load_dict();
+    cs.end_parse();
 
-    return individual_content;
+    content~udict_set_ref(256, "image"H, create_collection_image());
+    cell onchain = begin_cell().store_uint(0, 8).store_dict(content).end_cell();
+    return onchain;
 }

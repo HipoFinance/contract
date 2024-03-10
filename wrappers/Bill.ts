@@ -69,7 +69,11 @@ export class Bill implements Contract {
             stack.readBigNumber(),
             stack.readAddress(),
             stack.readAddress(),
-            Dictionary.loadDirect(Dictionary.Keys.BigUint(256), metadataDictionaryValue, stack.readCellOpt()),
+            Dictionary.load(
+                Dictionary.Keys.BigUint(256),
+                metadataDictionaryValue,
+                stack.readCell().beginParse().skip(8),
+            ),
         ]
     }
 
