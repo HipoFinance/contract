@@ -1498,7 +1498,7 @@ cell find_code(cell dict, int round_since) inline {
     ( slice ps, _ ) = participations.udict_get?(32, round_since);
     ( int state, _, _, _, _, _, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
     ( _, int fixed_parent_addr ) = parse_std_addr(fixed_parent);
-    int f? = old_parents.udict_get?(256, fixed_parent_addr);
+    ( _, int f?) = old_parents.udict_get?(256, fixed_parent_addr);
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
     throw_unless(err::invalid_parameters, equal_slice_bits(fixed_parent, parent) | f?);
