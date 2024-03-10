@@ -637,3 +637,5 @@ builder store_builder(builder to, builder from) asm "STBR";
 
 ;;; Checking that `slice` [s] is a addr_none constuction;
 int addr_none?(slice s) asm "b{00} PUSHSLICE SDEQ";
+
+int get_storage_fee(int cells, int bits, int seconds, int is_mc?) asm "GETSTORAGEFEE";

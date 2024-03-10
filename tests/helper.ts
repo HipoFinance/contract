@@ -160,6 +160,13 @@ function toBytes(bits: bigint): string {
 
 export function logCodeCost(cost: [bigint, bigint, bigint][]) {
     if (!muteLogCodeCost) {
+        const [totalBits, totalCells, totalYearCost] = cost.reduce(
+            ([totalBits, totalCells, totalYearCost], [bits, cells, yearCost]) => [
+                totalBits + bits,
+                totalCells + cells,
+                totalYearCost + yearCost,
+            ],
+        )
         console.info(
             [
                 'Code Storage Cost:',
@@ -171,6 +178,7 @@ export function logCodeCost(cost: [bigint, bigint, bigint][]) {
                 '    Bill       | %s | %s | %s',
                 '    Loan       | %s | %s | %s',
                 '    Librarian  | %s | %s | %s',
+                '    Total      | %s | %s | %s',
             ].join('\n'),
             toBytes(cost[0][0]),
             cost[0][1].toString().padStart(5),
@@ -193,6 +201,9 @@ export function logCodeCost(cost: [bigint, bigint, bigint][]) {
             toBytes(cost[6][0]),
             cost[6][1].toString().padStart(5),
             fromNano(cost[6][2]).padEnd(11, '0').padStart(12),
+            toBytes(totalBits),
+            totalCells.toString().padStart(5),
+            fromNano(totalYearCost),
         )
     }
 }
