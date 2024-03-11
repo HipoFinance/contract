@@ -452,6 +452,36 @@ describe('Getters', () => {
         const revokedTime2 = await bill2.getRevokedTime()
         expect(revokedTime2).toEqual(0n)
 
+        const result1 = await bill1.sendDestroy(governor.getSender(), { value: '0.1' })
+        expect(result1.transactions).toHaveTransaction({
+            from: governor.address,
+            to: bill1.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.destroy),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result1.transactions).toHaveLength(3)
+
+        const result2 = await bill1.sendDestroy(staker.getSender(), { value: '0.1' })
+        expect(result2.transactions).toHaveTransaction({
+            from: staker.address,
+            to: bill1.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.destroy),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result2.transactions).toHaveTransaction({
+            from: bill1.address,
+            to: staker.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result2.transactions).toHaveLength(3)
+
         const fakeState2 = await treasury.getTreasuryState()
         fakeState2.participations.set(roundSince, { state: ParticipationState.Burning })
         const fakeData2 = treasuryConfigToCell(fakeState2)
@@ -484,7 +514,7 @@ describe('Getters', () => {
         expect(initializedA1).toEqual(true)
         expect(indexA1).toEqual(0n)
         expect(collectionAddressA1).toEqualAddress(collection.address)
-        expect(ownerAddressA1).toEqualAddress(staker.address)
+        expect(ownerAddressA1).toBeNull()
         expect(billMetadataA1.size).toEqual(4)
         expect(billMetadataA1.get(toMetadataKey('name'))).toEqual('Hipo Bill #0')
         expect(billMetadataA1.get(toMetadataKey('description'))).toEqual('Withdraw 7.123456000 hTON')
@@ -522,8 +552,8 @@ describe('Getters', () => {
             }),
         )
 
-        const result = await treasury.sendRetryBurnAll(halter.getSender(), { value: '0.1', roundSince })
-        expect(result.transactions).toHaveTransaction({
+        const result3 = await treasury.sendRetryBurnAll(halter.getSender(), { value: '0.1', roundSince })
+        expect(result3.transactions).toHaveTransaction({
             from: collection.address,
             to: bill1.address,
             value: between('0', '0.1'),
@@ -531,6 +561,6 @@ describe('Getters', () => {
             success: false,
             exitCode: err.stopped,
         })
-        expect(result.transactions).toHaveLength(4)
+        expect(result3.transactions).toHaveLength(4)
     })
 })

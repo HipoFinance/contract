@@ -1,4 +1,5 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode } from '@ton/core'
+import { op } from './common'
 
 interface BillConfig {
     index: bigint
@@ -49,9 +50,36 @@ export class Bill implements Contract {
         await provider.internal(via, opts)
     }
 
-    async getNftData(provider: ContractProvider): Promise<[boolean, bigint, Address, Address, Cell]> {
+    async sendDestroy(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.destroy, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .endCell(),
+        })
+    }
+
+    async getNftData(provider: ContractProvider): Promise<[boolean, bigint, Address, Address | null, Cell]> {
         const { stack } = await provider.get('get_nft_data', [])
-        return [stack.readBoolean(), stack.readBigNumber(), stack.readAddress(), stack.readAddress(), stack.readCell()]
+        return [
+            stack.readBoolean(),
+            stack.readBigNumber(),
+            stack.readAddress(),
+            stack.readAddressOpt(),
+            stack.readCell(),
+        ]
     }
 
     async getAuthorityAddress(provider: ContractProvider): Promise<Address> {

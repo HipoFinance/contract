@@ -169,6 +169,10 @@ owner_info#0dd607e3
     content:(Maybe ^Cell)
         = InternalMsgBody;
 
+destroy#1f04537a
+    query_id:uint64
+        = InternalMsgBody;
+
 burn_bill#6f89f5e3 // originally named 'revoke'
     query_id:uint64
         = InternalMsgBody;

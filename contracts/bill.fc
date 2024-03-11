@@ -73,6 +73,20 @@ global int amount;
     send_msg(false, collection.to_builder(), null(), burn, 0, send::unreserved_balance);
 }
 
+() destroy(slice src, slice s) impure inline {
+    int query_id = s~load_uint(64);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, owner));
+
+    owner = "2_"s;
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+}
+
 cell create_bill_name() inline {
     return begin_cell()
         .store_uint(0, 8)
@@ -212,6 +226,10 @@ cell create_bill_metadata() {
         return burn_bill(src, s);
     }
 
+    if op == op::destroy {
+        return destroy(src, s);
+    }
+
     if op == op::prove_ownership {
         return prove_ownership(src, s);
     }
@@ -244,7 +262,7 @@ cell create_bill_metadata() {
 (int, int, slice, slice, cell) get_nft_data() method_id {
     load_data();
 
-    return ( ~ owner.addr_none?() , index , collection , owner , create_bill_metadata() );
+    return ( ~ parent.addr_none?() , index , collection , owner , create_bill_metadata() );
 }
 
 slice get_authority_address() method_id {

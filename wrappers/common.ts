@@ -52,6 +52,7 @@ export const op = {
     ownershipProofBounced: 0xc18e86d2,
     requestOwner: 0xd0c3bfea,
     ownerInfo: 0x0dd607e3,
+    destroy: 0x1f04537a,
     burnBill: 0x6f89f5e3,
 
     provideCurrentQuote: 0xad83913f,
