@@ -62,7 +62,7 @@ const int op::ownership_proof = 0x0524c7ae;
 const int op::ownership_proof_bounced = 0xc18e86d2;
 const int op::request_owner = 0xd0c3bfea;
 const int op::owner_info = 0x0dd607e3;
-const int op::burn_bill = 0x1f04537a;
+const int op::burn_bill = 0x6f89f5e3;
 
 const int op::provide_current_quote = 0xad83913f;
 const int op::take_current_quote = 0x0a420458;
