@@ -147,7 +147,7 @@ const int op::add_library = 0x53d0473e;
 const int op::remove_library = 0x6bd0ce52;
 
 
-const int gas::send_tokens = 10447;
+const int gas::send_tokens = 10341;
 const int gas::receive_tokens = 11691;
 const int gas::deposit_coins = 18715;
 const int gas::proxy_save_coins = 6149;
@@ -159,7 +159,7 @@ const int gas::bill_burned = 12316;
 const int gas::mint_tokens = 12230;
 const int gas::proxy_tokens_minted = 6815;
 const int gas::tokens_minted = 13339;
-const int gas::unstake_tokens = 9164;
+const int gas::unstake_tokens = 9040;
 const int gas::proxy_reserve_tokens = 6538;
 const int gas::reserve_tokens = 15495;
 const int gas::burn_tokens = 16601;
@@ -168,7 +168,7 @@ const int gas::tokens_burned = 7179;
 const int gas::send_unstake_all = 12967;
 const int gas::proxy_unstake_all = 6553;
 const int gas::unstake_all = 7423;
-const int gas::upgrade_wallet = 7742;
+const int gas::upgrade_wallet = 7618;
 const int gas::proxy_migrate_wallet = 7978;
 const int gas::migrate_wallet = 12802;
 const int gas::proxy_merge_wallet = 7815;

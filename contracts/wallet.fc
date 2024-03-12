@@ -40,10 +40,9 @@ global int unstaking;
 
     ( int recipient_wc, _ ) = parse_std_addr(recipient);
     ( builder wallet, cell state_init, _ ) = create_wallet_address(recipient.to_builder(), parent, my_code());
-    int fee = send_tokens_fee() + forward_ton_amount + (forward_ton_amount ? 2 : 1) * fwd_fee;
     int incoming_ton = get_incoming_value().pair_first();
-    int ton_balance = get_balance().pair_first();
-    int enough_fee? = (ton_balance >= incoming_ton) & (incoming_ton >= fee);
+    int fee = send_tokens_fee() + forward_ton_amount + (forward_ton_amount ? 2 : 1) * fwd_fee;
+    int enough_fee? = incoming_ton >= fee;
 
     throw_unless(err::only_basechain_allowed, recipient_wc == chain::base);
     throw_unless(err::access_denied, equal_slice_bits(src, owner));
@@ -163,10 +162,9 @@ global int unstaking;
         ss.end_parse();
     }
 
-    int fee = unstake_tokens_fee() + ownership_assigned_amount;
     int incoming_ton = get_incoming_value().pair_first();
-    int ton_balance = get_balance().pair_first();
-    int enough_fee? = (ton_balance >= incoming_ton) & (incoming_ton >= fee);
+    int fee = unstake_tokens_fee() + ownership_assigned_amount;
+    int enough_fee? = incoming_ton >= fee;
     int valid? = equal_slice_bits(return_excess, owner) | (return_excess.addr_none?());
     valid? &= (mode >= unstake::auto) & (mode <= unstake::best);
 
@@ -242,10 +240,9 @@ global int unstaking;
     int query_id = s~load_uint(64);
     s.end_parse();
 
-    int fee = upgrade_wallet_fee();
     int incoming_ton = get_incoming_value().pair_first();
-    int ton_balance = get_balance().pair_first();
-    int enough_fee? = (ton_balance >= incoming_ton) & (incoming_ton >= fee);
+    int fee = upgrade_wallet_fee();
+    int enough_fee? = incoming_ton >= fee;
 
     throw_unless(err::access_denied, equal_slice_bits(src, owner) | equal_slice_bits(src, parent));
     throw_unless(err::insufficient_fee, enough_fee?);
