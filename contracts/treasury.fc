@@ -1636,10 +1636,6 @@ int calculate_min_coins() inline_ref {
     slice return_excess = s~load_msg_addr();
     s.end_parse();
 
-    if return_excess.addr_none?() {
-        return_excess = src;
-    }
-
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     raw_reserve(calculate_min_coins(), reserve::exact);
@@ -1700,10 +1696,6 @@ int calculate_min_coins() inline_ref {
     cell new_data = s~load_maybe_ref();
     slice return_excess = s~load_msg_addr();
     s.end_parse();
-
-    if return_excess.addr_none?() {
-        return_excess = src;
-    }
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
 

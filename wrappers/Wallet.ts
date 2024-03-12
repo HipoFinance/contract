@@ -118,7 +118,7 @@ export class Wallet implements Contract {
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeCoins(tonValue(opts.tokens))
                 .storeAddress(opts.recipient)
-                .storeAddress(opts.returnExcess)
+                .storeAddress(opts.returnExcess ?? via.address)
                 .storeMaybeRef(opts.customPayload)
                 .storeCoins(tonValue(opts.forwardTonAmount ?? 0n))
                 .storeSlice(opts.forwardPayload ?? beginCell().storeUint(0, 1).endCell().beginParse())
@@ -179,7 +179,7 @@ export class Wallet implements Contract {
             body: beginCell()
                 .storeUint(op.withdrawSurplus, 32)
                 .storeUint(opts.queryId ?? 0, 64)
-                .storeAddress(opts.returnExcess)
+                .storeAddress(opts.returnExcess ?? via.address)
                 .endCell(),
         })
     }

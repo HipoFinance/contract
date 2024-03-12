@@ -43,10 +43,6 @@ global slice governor;
     slice return_excess = s~load_msg_addr();
     s.end_parse();
 
-    if return_excess.addr_none?() {
-        return_excess = src;
-    }
-
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
 
     set_code(new_code);

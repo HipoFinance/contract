@@ -38,10 +38,6 @@ global int unstaking;
     s~skip_dict(); ;; check either field
     s~impure_touch();
 
-    if return_excess.addr_none?() {
-        return_excess = src;
-    }
-
     ( int recipient_wc, _ ) = parse_std_addr(recipient);
     ( builder wallet, cell state_init, _ ) = create_wallet_address(recipient.to_builder(), parent, my_code());
     int fee = send_tokens_fee() + forward_ton_amount + (forward_ton_amount ? 2 : 1) * fwd_fee;
@@ -285,10 +281,6 @@ global int unstaking;
     int query_id = s~load_uint(64);
     slice return_excess = s~load_msg_addr();
     s.end_parse();
-
-    if return_excess.addr_none?() {
-        return_excess = src;
-    }
 
     throw_unless(err::access_denied, equal_slice_bits(src, owner));
 

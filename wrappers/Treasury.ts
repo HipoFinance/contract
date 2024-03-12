@@ -742,7 +742,7 @@ export class Treasury implements Contract {
             body: beginCell()
                 .storeUint(op.withdrawSurplus, 32)
                 .storeUint(opts.queryId ?? 0, 64)
-                .storeAddress(opts.returnExcess)
+                .storeAddress(opts.returnExcess ?? via.address)
                 .endCell(),
         })
     }
@@ -792,7 +792,7 @@ export class Treasury implements Contract {
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeRef(opts.newCode)
                 .storeMaybeRef(opts.newData)
-                .storeAddress(opts.returnExcess)
+                .storeAddress(opts.returnExcess ?? via.address)
                 .endCell(),
         })
     }

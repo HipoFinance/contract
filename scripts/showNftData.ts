@@ -52,7 +52,7 @@ export async function run(provider: NetworkProvider) {
     console.info('        inited: %s', inited)
     console.info('         index: %s', index.toString())
     console.info('    collection: %s', collectionAddress.toString({ testOnly }))
-    console.info('         owner: %s', owner.toString({ testOnly }))
+    console.info('         owner: %s', owner?.toString({ testOnly }) ?? '')
     console.info()
 
     console.info('    Bill Metadata')

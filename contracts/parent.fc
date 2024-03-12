@@ -254,10 +254,6 @@ global cell content;
     slice return_excess = s~load_msg_addr();
     s.end_parse();
 
-    if return_excess.addr_none?() {
-        return_excess = src;
-    }
-
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
     raw_reserve(parent_storage_fee(), reserve::exact);
