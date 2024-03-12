@@ -1,6 +1,7 @@
 import { Address, Dictionary } from '@ton/core'
 import { NetworkProvider } from '@ton/blueprint'
 import { ParticipationState, Request, Treasury } from '../wrappers/Treasury'
+import { Parent } from '../wrappers/Parent'
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
@@ -10,6 +11,11 @@ export async function run(provider: NetworkProvider) {
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
     const treasuryState = await treasury.getTreasuryState()
+    let walletCode = null
+    if (treasuryState.parent != null) {
+        const parent = provider.open(Parent.createFromAddress(treasuryState.parent))
+        walletCode = (await parent.getJettonData())[4]
+    }
     const testOnly = provider.network() !== 'mainnet'
     const proposedGovernor =
         treasuryState.proposedGovernor?.beginParse().skip(32).loadAddress().toString({ testOnly }) ?? ''
@@ -24,7 +30,6 @@ export async function run(provider: NetworkProvider) {
     console.info('            total_staking: %s', formatNano(treasuryState.totalStaking))
     console.info('          total_unstaking: %s', formatNano(treasuryState.totalUnstaking))
     console.info('    total_borrowers_stake: %s', formatNano(treasuryState.totalBorrowersStake))
-    console.info('                   parent: %s', treasuryState.parent?.toString({ testOnly }))
     console.info('         rounds_imbalance: %s (%s)', Number(treasuryState.roundsImbalance), roundsImbalancePercent)
     console.info('                  stopped: %s', treasuryState.stopped)
     console.info('             instant_mint: %s', treasuryState.instantMint)
@@ -36,14 +41,19 @@ export async function run(provider: NetworkProvider) {
     console.info('           governance_fee: %s (%s)', Number(treasuryState.governanceFee), governanceFeePercent)
     console.info()
 
+    console.info('    Current Parent')
+    console.info('    --------------')
+    console.info('    %s    wallet code: %s', treasuryState.parent?.toString({ testOnly }), walletCode)
+    console.info()
+
+    console.info('    Old Parents')
+    console.info('    -----------')
     if (treasuryState.oldParents.size > 0) {
-        console.info('    Old Parents')
-        console.info('    -----------')
         for (const key of treasuryState.oldParents.keys()) {
             console.info('    %s', Address.parseRaw('0:' + key.toString(16)).toString({ testOnly }))
         }
-        console.info()
     }
+    console.info()
 
     console.info('    Collection Codes')
     console.info('    ----------------')
@@ -91,7 +101,7 @@ export async function run(provider: NetworkProvider) {
         console.info('           total_staked: %s', formatNano(participation.totalStaked ?? 0n))
         console.info('        total_recovered: %s', formatNano(participation.totalRecovered ?? 0n))
         console.info('      current_vset_hash: %s', participation.currentVsetHash?.toString(16))
-        console.info('         stake_held_for: %s', Number(participation.stakeHeldFor) / 60 / 60)
+        console.info('         stake_held_for: %s', Number(participation.stakeHeldFor) / 60 / 60 + ' hours')
         console.info('       stake_held_until: %s', formatDate(participation.stakeHeldUntil ?? 0n))
         console.info()
 
