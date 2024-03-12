@@ -351,7 +351,7 @@ global int unstaking;
     send_msg(false, owner.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 }
 
-() route_internal_message(int flags, slice src, slice s, int fwd_fee) impure inline {
+() route_internal_message(int flags, slice src, slice s, slice cs) impure inline {
     if flags & 1 {
         return on_bounce(src, s);
     }
@@ -359,6 +359,11 @@ global int unstaking;
     int op = s~load_uint(32);
 
     if op == op::send_tokens {
+        cs~load_msg_addr(); ;; skip dst
+        cs~load_coins(); ;; skip value
+        cs~skip_bits(1); ;; skip extracurrency collection
+        cs~load_coins(); ;; skip ihr fee
+        int fwd_fee = get_original_fwd_fee(cs~load_coins(), false); ;; use fwd_fee to estimate forward_payload cost
         return send_tokens(src, s, fwd_fee);
     }
 
@@ -429,14 +434,9 @@ global int unstaking;
     slice cs = in_msg_full.begin_parse();
     int flags = cs~load_uint(4);
     slice src = cs~load_msg_addr();
-    cs~load_msg_addr(); ;; skip dst
-    cs~load_coins(); ;; skip value
-    cs~skip_bits(1); ;; skip extracurrency collection
-    cs~load_coins(); ;; skip ihr fee
-    int fwd_fee = muldiv(cs~load_coins(), 3, 2); ;; use fwd_fee for estimation of forward_payload cost
 
     load_data();
-    route_internal_message(flags, src, s, fwd_fee);
+    route_internal_message(flags, src, s, cs);
     save_data();
 }
 
