@@ -76,32 +76,19 @@ export async function run(provider: NetworkProvider) {
         ),
     )
 
-    const confirm = await ui.input('Deploy treasury, parent, wallet, collection, bill, loan, and librarian? [yN]')
-    if (confirm.toLowerCase() !== 'y') {
-        return
-    }
-
     const testOnly = provider.network() !== 'mainnet'
     const treasuryAddress = treasury.address.toString({ bounceable: true, urlSafe: true, testOnly })
     const parentAddress = parent.address.toString({ bounceable: true, urlSafe: true, testOnly })
     const librarianAddress = librarian.address.toString({ bounceable: true, urlSafe: true, testOnly })
 
-    console.info('Deploying treasury')
-    if (await provider.isContractDeployed(treasury.address)) {
-        console.info('    Already deployed at address: %s', treasuryAddress)
-    } else {
-        await treasury.sendDeploy(provider.sender(), { value: '0.01' })
-        await provider.waitForDeploy(treasury.address)
-        console.info('    Deployed at address: %s', treasuryAddress)
-    }
+    ui.write(`Address of treasury:  ${treasuryAddress}`)
+    ui.write(`Address of parent:    ${parentAddress}`)
+    ui.write(`Address of librarian: ${librarianAddress}`)
+    ui.write('')
 
-    console.info('Deploying parent')
-    if (await provider.isContractDeployed(parent.address)) {
-        console.info('    Already deployed at address: %s', parentAddress)
-    } else {
-        await parent.sendDeploy(provider.sender(), { value: '0.01' })
-        await provider.waitForDeploy(parent.address)
-        console.info('    Deployed at address: %s', parentAddress)
+    const confirm = await ui.input('Deploy treasury, parent, wallet, collection, bill, loan, and librarian? [yN]')
+    if (confirm.toLowerCase() !== 'y') {
+        return
     }
 
     console.info('Deploying librarian')
@@ -113,24 +100,11 @@ export async function run(provider: NetworkProvider) {
         console.info('    Deployed at address: %s', librarianAddress)
     }
 
-    console.info('Setting parent address in treasury')
-    const treasuryState = await treasury.getTreasuryState()
-    if (treasuryState.parent != null && parent.address.equals(treasuryState.parent)) {
-        console.info('    Already set')
-    } else {
-        await treasury.sendSetParent(provider.sender(), { value: '0.02', newParent: parent.address })
-        await waitForStateChange(10, 2000, async () => {
-            const state = await treasury.getTreasuryState()
-            return state.parent != null && parent.address.equals(state.parent)
-        })
-        console.info('    Set')
-    }
-
-    console.info('Deploying wallet as a library')
+    console.info('Deploying loan as a library')
     await treasury.sendProxyAddLibrary(provider.sender(), {
-        value: '0.3',
+        value: '0.1',
         destination: librarian.address,
-        code: mainWalletCode,
+        code: mainLoanCode,
     })
     await sleep(10000)
 
@@ -150,20 +124,47 @@ export async function run(provider: NetworkProvider) {
     })
     await sleep(10000)
 
-    console.info('Deploying loan as a library')
+    console.info('Deploying wallet as a library')
     await treasury.sendProxyAddLibrary(provider.sender(), {
-        value: '0.1',
+        value: '0.3',
         destination: librarian.address,
-        code: mainLoanCode,
+        code: mainWalletCode,
     })
     await sleep(10000)
 
+    console.info('Deploying parent')
+    if (await provider.isContractDeployed(parent.address)) {
+        console.info('    Already deployed at address: %s', parentAddress)
+    } else {
+        await parent.sendDeploy(provider.sender(), { value: '0.01' })
+        await provider.waitForDeploy(parent.address)
+        console.info('    Deployed at address: %s', parentAddress)
+    }
+
+    console.info('Deploying treasury')
+    if (await provider.isContractDeployed(treasury.address)) {
+        console.info('    Already deployed at address: %s', treasuryAddress)
+    } else {
+        await treasury.sendDeploy(provider.sender(), { value: '0.01' })
+        await provider.waitForDeploy(treasury.address)
+        console.info('    Deployed at address: %s', treasuryAddress)
+    }
+
+    console.info('Setting parent address in treasury')
+    const treasuryState = await treasury.getTreasuryState()
+    if (treasuryState.parent != null && parent.address.equals(treasuryState.parent)) {
+        console.info('    Already set')
+    } else {
+        await treasury.sendSetParent(provider.sender(), { value: '0.02', newParent: parent.address })
+        await waitForStateChange(10, 2000, async () => {
+            const state = await treasury.getTreasuryState()
+            return state.parent != null && parent.address.equals(state.parent)
+        })
+        console.info('    Set')
+    }
+
     ui.clearActionPrompt()
-    ui.write(`Address of treasury:  ${treasuryAddress}`)
-    ui.write(`Address of parent:    ${parentAddress}`)
-    ui.write(`Address of librarian: ${librarianAddress}`)
-    ui.write('')
-    ui.write(`Don't forget to top them up.`)
+    ui.write(`Don't forget to top-up librarian and treasury.`)
 }
 
 const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), metadataDictionaryValue)

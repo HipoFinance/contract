@@ -13,7 +13,7 @@ export async function run(provider: NetworkProvider) {
     const treasuryAddress = Address.parse(await ui.input('Enter the friendly address of the treasury'))
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
-    const destination = Address.parse(await ui.input('Enter the friendly address of the parent'))
+    const destination = Address.parse(await ui.input('Enter the friendly address of the old parent'))
     const owner = Address.parse(await ui.input('Enter the friendly address of the owner'))
 
     const confirm = await ui.input(`Send upgrade wallet? [yN]`)
