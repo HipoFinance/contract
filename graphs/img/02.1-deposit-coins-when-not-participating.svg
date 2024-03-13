@@ -12,67 +12,67 @@
 <!-- staker -->
 <g id="node1" class="node">
 <title>staker</title>
-<ellipse fill="#b3cde3" stroke="#b3cde3" cx="211.54" cy="-483.5" rx="42.79" ry="18"/>
-<text text-anchor="middle" x="211.54" y="-478.82" font-family="Times,serif" font-size="14.00">staker</text>
+<ellipse fill="#b3cde3" stroke="#b3cde3" cx="201.79" cy="-483.5" rx="42.79" ry="18"/>
+<text text-anchor="middle" x="201.79" y="-478.82" font-family="Times,serif" font-size="14.00">staker</text>
 </g>
 <!-- treasury -->
 <g id="node3" class="node">
 <title>treasury</title>
-<ellipse fill="#decbe4" stroke="#decbe4" cx="109.54" cy="-359.75" rx="53.84" ry="18"/>
-<text text-anchor="middle" x="109.54" y="-355.07" font-family="Times,serif" font-size="14.00">treasury</text>
+<ellipse fill="#decbe4" stroke="#decbe4" cx="99.79" cy="-359.75" rx="53.84" ry="18"/>
+<text text-anchor="middle" x="99.79" y="-355.07" font-family="Times,serif" font-size="14.00">treasury</text>
 </g>
 <!-- staker&#45;&gt;treasury -->
 <g id="edge1" class="edge">
 <title>staker&#45;&gt;treasury</title>
-<path fill="none" stroke="black" d="M185.28,-468.93C175.85,-463.19 165.62,-455.89 157.79,-447.5 141.58,-430.12 128.83,-406.28 120.52,-388"/>
-<polygon fill="black" stroke="black" points="123.35,-386.73 116.15,-378.96 116.93,-389.52 123.35,-386.73"/>
-<text text-anchor="start" x="158.54" y="-434.2" font-family="Times,serif" font-size="14.00">1</text>
-<text text-anchor="start" x="158.54" y="-416.95" font-family="Times,serif" font-size="14.00"> op::deposit_coins</text>
-<text text-anchor="start" x="158.54" y="-399.7" font-family="Times,serif" font-size="14.00"> 10.10 TON</text>
+<path fill="none" stroke="black" d="M175.53,-468.93C166.1,-463.19 155.87,-455.89 148.04,-447.5 131.83,-430.12 119.08,-406.28 110.77,-388"/>
+<polygon fill="black" stroke="black" points="113.6,-386.73 106.4,-378.96 107.18,-389.52 113.6,-386.73"/>
+<text text-anchor="start" x="148.79" y="-434.2" font-family="Times,serif" font-size="14.00">1</text>
+<text text-anchor="start" x="148.79" y="-416.95" font-family="Times,serif" font-size="14.00"> op::deposit_coins</text>
+<text text-anchor="start" x="148.79" y="-399.7" font-family="Times,serif" font-size="14.00"> 10.10 TON</text>
 </g>
 <!-- wallet -->
 <g id="node2" class="node">
 <title>wallet</title>
-<ellipse fill="#ccebc5" stroke="#ccebc5" cx="209.54" cy="-43.25" rx="41.74" ry="18"/>
-<text text-anchor="middle" x="209.54" y="-38.58" font-family="Times,serif" font-size="14.00">wallet</text>
+<ellipse fill="#ccebc5" stroke="#ccebc5" cx="199.79" cy="-43.25" rx="41.74" ry="18"/>
+<text text-anchor="middle" x="199.79" y="-38.58" font-family="Times,serif" font-size="14.00">wallet</text>
 </g>
 <!-- wallet&#45;&gt;staker -->
 <g id="edge4" class="edge">
 <title>wallet&#45;&gt;staker</title>
-<path fill="none" stroke="black" d="M246.23,-52.27C260.74,-57.43 275.98,-65.8 284.54,-79.25 372.46,-217.3 371.74,-308.99 284.54,-447.5 278.42,-457.23 268.74,-464.32 258.42,-469.46"/>
-<polygon fill="black" stroke="black" points="257.19,-466.61 249.42,-473.81 259.99,-473.03 257.19,-466.61"/>
-<text text-anchor="start" x="349.54" y="-301.82" font-family="Times,serif" font-size="14.00">4</text>
-<text text-anchor="start" x="349.54" y="-284.57" font-family="Times,serif" font-size="14.00"> op::stake_notification</text>
-<text text-anchor="start" x="349.54" y="-267.32" font-family="Times,serif" font-size="14.00"> 0.07 TON</text>
-<text text-anchor="start" x="349.54" y="-250.07" font-family="Times,serif" font-size="14.00"> tokens: ~10</text>
+<path fill="none" stroke="black" d="M236.48,-52.27C250.99,-57.43 266.23,-65.8 274.79,-79.25 362.71,-217.3 361.99,-308.99 274.79,-447.5 268.67,-457.23 258.99,-464.32 248.67,-469.46"/>
+<polygon fill="black" stroke="black" points="247.44,-466.61 239.67,-473.81 250.24,-473.03 247.44,-466.61"/>
+<text text-anchor="start" x="339.79" y="-301.82" font-family="Times,serif" font-size="14.00">4</text>
+<text text-anchor="start" x="339.79" y="-284.57" font-family="Times,serif" font-size="14.00"> op::transfer_notification</text>
+<text text-anchor="start" x="339.79" y="-267.32" font-family="Times,serif" font-size="14.00"> 0.07 TON</text>
+<text text-anchor="start" x="339.79" y="-250.07" font-family="Times,serif" font-size="14.00"> tokens: ~10</text>
 </g>
 <!-- parent -->
 <g id="node4" class="node">
 <title>parent</title>
-<ellipse fill="#fed9a6" stroke="#fed9a6" cx="120.54" cy="-201.5" rx="44.37" ry="18"/>
-<text text-anchor="middle" x="120.54" y="-196.82" font-family="Times,serif" font-size="14.00">parent</text>
+<ellipse fill="#fed9a6" stroke="#fed9a6" cx="110.79" cy="-201.5" rx="44.37" ry="18"/>
+<text text-anchor="middle" x="110.79" y="-196.82" font-family="Times,serif" font-size="14.00">parent</text>
 </g>
 <!-- treasury&#45;&gt;parent -->
 <g id="edge2" class="edge">
 <title>treasury&#45;&gt;parent</title>
-<path fill="none" stroke="black" d="M100.48,-341.77C97.96,-336.19 95.57,-329.85 94.29,-323.75 86.47,-286.22 82.17,-273.87 94.29,-237.5 95.42,-234.11 97.02,-230.79 98.88,-227.62"/>
-<polygon fill="black" stroke="black" points="102.25,-229.9 105.03,-219.67 96.48,-225.94 102.25,-229.9"/>
-<text text-anchor="start" x="94.54" y="-310.45" font-family="Times,serif" font-size="14.00">2</text>
-<text text-anchor="start" x="94.54" y="-293.2" font-family="Times,serif" font-size="14.00"> op::proxy_tokens_minted</text>
-<text text-anchor="start" x="94.54" y="-275.95" font-family="Times,serif" font-size="14.00"> 0.09 TON</text>
-<text text-anchor="start" x="94.54" y="-258.7" font-family="Times,serif" font-size="14.00"> tokens: ~10</text>
-<text text-anchor="start" x="94.54" y="-241.45" font-family="Times,serif" font-size="14.00"> coins: 10</text>
+<path fill="none" stroke="black" d="M90.73,-341.77C88.21,-336.19 85.82,-329.85 84.54,-323.75 76.72,-286.22 72.42,-273.87 84.54,-237.5 85.67,-234.11 87.27,-230.79 89.13,-227.62"/>
+<polygon fill="black" stroke="black" points="92.5,-229.9 95.28,-219.67 86.73,-225.94 92.5,-229.9"/>
+<text text-anchor="start" x="84.79" y="-310.45" font-family="Times,serif" font-size="14.00">2</text>
+<text text-anchor="start" x="84.79" y="-293.2" font-family="Times,serif" font-size="14.00"> op::proxy_tokens_minted</text>
+<text text-anchor="start" x="84.79" y="-275.95" font-family="Times,serif" font-size="14.00"> 0.09 TON</text>
+<text text-anchor="start" x="84.79" y="-258.7" font-family="Times,serif" font-size="14.00"> tokens: ~10</text>
+<text text-anchor="start" x="84.79" y="-241.45" font-family="Times,serif" font-size="14.00"> coins: 10</text>
 </g>
 <!-- parent&#45;&gt;wallet -->
 <g id="edge3" class="edge">
 <title>parent&#45;&gt;wallet</title>
-<path fill="none" stroke="black" d="M120.55,-183.06C121.42,-157.77 126.32,-110.53 149.54,-79.25 154.86,-72.09 162.11,-66.15 169.73,-61.32"/>
-<polygon fill="black" stroke="black" points="171.16,-63.96 178.11,-55.96 167.69,-57.88 171.16,-63.96"/>
-<text text-anchor="start" x="149.54" y="-152.2" font-family="Times,serif" font-size="14.00">3</text>
-<text text-anchor="start" x="149.54" y="-134.95" font-family="Times,serif" font-size="14.00"> op::tokens_minted</text>
-<text text-anchor="start" x="149.54" y="-117.7" font-family="Times,serif" font-size="14.00"> 0.08 TON</text>
-<text text-anchor="start" x="149.54" y="-100.45" font-family="Times,serif" font-size="14.00"> tokens: ~10</text>
-<text text-anchor="start" x="149.54" y="-83.2" font-family="Times,serif" font-size="14.00"> coins: 10</text>
+<path fill="none" stroke="black" d="M110.8,-183.06C111.67,-157.77 116.57,-110.53 139.79,-79.25 145.11,-72.09 152.36,-66.15 159.98,-61.32"/>
+<polygon fill="black" stroke="black" points="161.41,-63.96 168.36,-55.96 157.94,-57.88 161.41,-63.96"/>
+<text text-anchor="start" x="139.79" y="-152.2" font-family="Times,serif" font-size="14.00">3</text>
+<text text-anchor="start" x="139.79" y="-134.95" font-family="Times,serif" font-size="14.00"> op::tokens_minted</text>
+<text text-anchor="start" x="139.79" y="-117.7" font-family="Times,serif" font-size="14.00"> 0.08 TON</text>
+<text text-anchor="start" x="139.79" y="-100.45" font-family="Times,serif" font-size="14.00"> tokens: ~10</text>
+<text text-anchor="start" x="139.79" y="-83.2" font-family="Times,serif" font-size="14.00"> coins: 10</text>
 </g>
 </g>
 </svg>

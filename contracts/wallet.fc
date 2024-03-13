@@ -123,9 +123,11 @@ global int unstaking;
     raw_reserve(wallet_storage_fee(), reserve::at_most);
 
     builder notification = begin_cell()
-        .store_uint(op::stake_notification, 32)
+        .store_uint(op::transfer_notification, 32)
         .store_uint(query_id, 64)
-        .store_coins(amount);
+        .store_coins(amount)
+        .store_slice(owner)
+        .store_int(false, 1);
     send_msg(false, owner.to_builder(), null(), notification, 0, send::unreserved_balance + send::ignore_errors);
 }
 

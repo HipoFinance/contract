@@ -618,11 +618,6 @@ take_profit#8b556813
 // Staker Ops
 //
 
-stake_notification#d401b82b
-    query_id:uint64
-    tokens:Coins
-        = InternalMsgBody;
-
 withdrawal_notification#f0fa223b
     query_id:uint64
     tokens:Coins

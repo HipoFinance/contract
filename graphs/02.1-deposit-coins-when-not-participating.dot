@@ -12,7 +12,7 @@ digraph {
     staker -> treasury [ label="1\l op::deposit_coins\l 10.10 TON\l" ]
     treasury -> parent [ label="2\l op::proxy_tokens_minted\l 0.09 TON\l tokens: ~10\l coins: 10\l" ]
     parent -> wallet [ label="3\l op::tokens_minted\l 0.08 TON\l tokens: ~10\l coins: 10\l" ]
-    wallet -> staker [ label="4\l op::stake_notification\l 0.07 TON\l tokens: ~10\l" ]
+    wallet -> staker [ label="4\l op::transfer_notification\l 0.07 TON\l tokens: ~10\l" ]
 
     /* Ranks */
     { rank=min staker }

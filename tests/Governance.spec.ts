@@ -379,7 +379,7 @@ describe('Governance', () => {
             from: wallet.address,
             to: staker.address,
             value: between('0', fees.depositCoinsFee),
-            body: bodyOp(op.stakeNotification),
+            body: bodyOp(op.transferNotification),
             success: true,
             outMessagesCount: 0,
         })

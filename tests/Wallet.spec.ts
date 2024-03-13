@@ -185,8 +185,8 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet.address,
             to: staker.address,
-            // value: between('0.03', '0.04'),
-            body: bodyOp(op.stakeNotification),
+            value: between('0.09', '0.1'),
+            body: bodyOp(op.transferNotification),
             success: true,
             outMessagesCount: 0,
         })
@@ -403,7 +403,7 @@ describe('Wallet', () => {
             from: wallet.address,
             to: staker.address,
             value: between('0', '0.2'),
-            body: bodyOp(op.stakeNotification),
+            body: bodyOp(op.transferNotification),
             success: true,
             outMessagesCount: 0,
         })
@@ -466,8 +466,8 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet.address,
             to: staker.address,
-            // value: between('0.03', '0.04'),
-            body: bodyOp(op.stakeNotification),
+            value: between('0.09', '0.1'),
+            body: bodyOp(op.transferNotification),
             success: true,
             outMessagesCount: 0,
         })
@@ -537,7 +537,7 @@ describe('Wallet', () => {
             from: wallet.address,
             to: staker.address,
             value: between('0', '0.2'),
-            body: bodyOp(op.stakeNotification),
+            body: bodyOp(op.transferNotification),
             success: true,
             outMessagesCount: 0,
         })
@@ -1299,8 +1299,8 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet.address,
             to: staker.address,
-            // value: between('0.03', '0.04'),
-            body: bodyOp(op.stakeNotification),
+            value: between('0.08', '0.09'),
+            body: bodyOp(op.transferNotification),
             success: true,
             outMessagesCount: 0,
         })

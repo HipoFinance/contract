@@ -130,7 +130,6 @@ export const op = {
     loanResult: 0xfaaa8366,
     takeProfit: 0x8b556813,
 
-    stakeNotification: 0xd401b82b,
     withdrawalNotification: 0xf0fa223b,
 
     addLibrary: 0x53d0473e,

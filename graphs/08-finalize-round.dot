@@ -19,7 +19,7 @@ digraph {
     collection -> treasury [ label="4\l op::mint_tokens\l" color=1 ]
     treasury -> parent [ label="5\l op::proxy_tokens_minted\l" color=1 ]
     parent -> wallet1 [ label="6\l op::tokens_minted\l" color=1 ]
-    wallet1 -> staker1 [ label="7\l op::stake_notification\l" color=1 ]
+    wallet1 -> staker1 [ label="7\l op::transfer_notification\l" color=1 ]
 
     collection -> bill2 [ label="8\l op::burn_bill\l" color=4 ]
     bill2 -> collection [ label="9\l op::bill_burned\l" color=4 ]

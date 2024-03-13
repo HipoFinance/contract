@@ -178,6 +178,7 @@ export function logCodeCost(cost: [bigint, bigint, bigint][]) {
                 '    Bill       | %s | %s | %s',
                 '    Loan       | %s | %s | %s',
                 '    Librarian  | %s | %s | %s',
+                '',
                 '        Total  | %s | %s | %s',
             ].join('\n'),
             toBytes(cost[0][0]),

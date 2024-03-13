@@ -12,20 +12,20 @@
 <!-- staker1 -->
 <g id="node1" class="node">
 <title>staker1</title>
-<ellipse fill="#b3cde3" stroke="#b3cde3" cx="224.28" cy="-43.25" rx="49.1" ry="18"/>
-<text text-anchor="middle" x="224.28" y="-38.58" font-family="Times,serif" font-size="14.00">staker1</text>
+<ellipse fill="#b3cde3" stroke="#b3cde3" cx="216.28" cy="-43.25" rx="49.1" ry="18"/>
+<text text-anchor="middle" x="216.28" y="-38.58" font-family="Times,serif" font-size="14.00">staker1</text>
 </g>
 <!-- wallet1 -->
 <g id="node3" class="node">
 <title>wallet1</title>
-<ellipse fill="#ccebc5" stroke="#ccebc5" cx="257.28" cy="-149.75" rx="48.05" ry="18"/>
-<text text-anchor="middle" x="257.28" y="-145.07" font-family="Times,serif" font-size="14.00">wallet1</text>
+<ellipse fill="#ccebc5" stroke="#ccebc5" cx="249.28" cy="-149.75" rx="48.05" ry="18"/>
+<text text-anchor="middle" x="249.28" y="-145.07" font-family="Times,serif" font-size="14.00">wallet1</text>
 </g>
 <!-- staker1&#45;&gt;wallet1 -->
 <g id="edge1" class="edge">
 <title>staker1&#45;&gt;wallet1</title>
-<path fill="none" stroke="black" stroke-dasharray="1,5" d="M226.3,-61.49C228.31,-75.79 232.03,-96.51 238.28,-113.75 239.39,-116.8 240.73,-119.92 242.18,-122.96"/>
-<polygon fill="black" stroke="black" points="243.41,-132.95 241.92,-122.46 249.63,-129.73 243.41,-132.95"/>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M218.3,-61.49C220.31,-75.79 224.03,-96.51 230.28,-113.75 231.39,-116.8 232.73,-119.92 234.18,-122.96"/>
+<polygon fill="black" stroke="black" points="235.41,-132.95 233.92,-122.46 241.63,-129.73 235.41,-132.95"/>
 </g>
 <!-- bill1 -->
 <g id="node5" class="node">
@@ -36,26 +36,26 @@
 <!-- staker1&#45;&gt;bill1 -->
 <g id="edge2" class="edge">
 <title>staker1&#45;&gt;bill1</title>
-<path fill="none" stroke="black" stroke-dasharray="1,5" d="M208.34,-60.42C190.97,-78.05 163.04,-106.39 143.51,-126.2"/>
-<polygon fill="black" stroke="black" points="134.34,-130.52 143.85,-125.85 139.32,-135.43 134.34,-130.52"/>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M201.26,-60.77C185.28,-78.36 159.86,-106.31 141.98,-125.98"/>
+<polygon fill="black" stroke="black" points="133.05,-130.61 142.36,-125.56 138.22,-135.32 133.05,-130.61"/>
 </g>
 <!-- staker2 -->
 <g id="node2" class="node">
 <title>staker2</title>
-<ellipse fill="#b3cde3" stroke="#b3cde3" cx="664.28" cy="-43.25" rx="49.1" ry="18"/>
-<text text-anchor="middle" x="664.28" y="-38.58" font-family="Times,serif" font-size="14.00">staker2</text>
+<ellipse fill="#b3cde3" stroke="#b3cde3" cx="668.28" cy="-43.25" rx="49.1" ry="18"/>
+<text text-anchor="middle" x="668.28" y="-38.58" font-family="Times,serif" font-size="14.00">staker2</text>
 </g>
 <!-- wallet2 -->
 <g id="node4" class="node">
 <title>wallet2</title>
-<ellipse fill="#ccebc5" stroke="#ccebc5" cx="451.28" cy="-149.75" rx="48.05" ry="18"/>
-<text text-anchor="middle" x="451.28" y="-145.07" font-family="Times,serif" font-size="14.00">wallet2</text>
+<ellipse fill="#ccebc5" stroke="#ccebc5" cx="455.28" cy="-149.75" rx="48.05" ry="18"/>
+<text text-anchor="middle" x="455.28" y="-145.07" font-family="Times,serif" font-size="14.00">wallet2</text>
 </g>
 <!-- staker2&#45;&gt;wallet2 -->
 <g id="edge3" class="edge">
 <title>staker2&#45;&gt;wallet2</title>
-<path fill="none" stroke="black" stroke-dasharray="1,5" d="M665.83,-61.64C666.22,-77.47 664.02,-100.34 650.28,-113.75 630.57,-132.98 560.16,-141.79 508.67,-145.73"/>
-<polygon fill="black" stroke="black" points="498.89,-142.92 509.12,-145.69 499.4,-149.9 498.89,-142.92"/>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M669.83,-61.64C670.22,-77.47 668.02,-100.34 654.28,-113.75 634.57,-132.98 564.16,-141.79 512.67,-145.73"/>
+<polygon fill="black" stroke="black" points="502.89,-142.92 513.12,-145.69 503.4,-149.9 502.89,-142.92"/>
 </g>
 <!-- bill2 -->
 <g id="node6" class="node">
@@ -66,24 +66,24 @@
 <!-- staker2&#45;&gt;bill2 -->
 <g id="edge4" class="edge">
 <title>staker2&#45;&gt;bill2</title>
-<path fill="none" stroke="black" stroke-dasharray="1,5" d="M671.48,-61.35C678.51,-78.04 689.3,-103.66 697.38,-122.86"/>
-<polygon fill="black" stroke="black" points="697.79,-132.86 697.14,-122.28 704.24,-130.14 697.79,-132.86"/>
+<path fill="none" stroke="black" stroke-dasharray="1,5" d="M675.19,-61.31C677.48,-67 680.01,-73.39 682.28,-79.25 687.8,-93.52 693.79,-109.5 698.63,-122.54"/>
+<polygon fill="black" stroke="black" points="698.63,-132.6 698.44,-122.01 705.19,-130.17 698.63,-132.6"/>
 </g>
 <!-- wallet1&#45;&gt;staker1 -->
 <g id="edge11" class="edge">
 <title>wallet1&#45;&gt;staker1</title>
-<path fill="none" stroke="#8dd3c7" d="M251.83,-131.49C246.72,-115.31 238.99,-90.83 233.02,-71.92"/>
-<polygon fill="#8dd3c7" stroke="#8dd3c7" points="236.09,-71.01 229.74,-62.53 229.41,-73.12 236.09,-71.01"/>
-<text text-anchor="start" x="246.28" y="-100.45" font-family="Times,serif" font-size="14.00">7</text>
-<text text-anchor="start" x="246.28" y="-83.2" font-family="Times,serif" font-size="14.00"> op::stake_notification</text>
+<path fill="none" stroke="#8dd3c7" d="M243.83,-131.49C238.72,-115.31 230.99,-90.83 225.02,-71.92"/>
+<polygon fill="#8dd3c7" stroke="#8dd3c7" points="228.09,-71.01 221.74,-62.53 221.41,-73.12 228.09,-71.01"/>
+<text text-anchor="start" x="238.28" y="-100.45" font-family="Times,serif" font-size="14.00">7</text>
+<text text-anchor="start" x="238.28" y="-83.2" font-family="Times,serif" font-size="14.00"> op::transfer_notification</text>
 </g>
 <!-- wallet2&#45;&gt;staker2 -->
 <g id="edge17" class="edge">
 <title>wallet2&#45;&gt;staker2</title>
-<path fill="none" stroke="#fb8072" d="M444.58,-131.49C439.81,-115.98 436.15,-93.51 448.28,-79.25 468,-56.08 547.6,-48.2 604.43,-45.55"/>
-<polygon fill="#fb8072" stroke="#fb8072" points="604.27,-49.02 614.12,-45.1 603.98,-42.03 604.27,-49.02"/>
-<text text-anchor="start" x="448.28" y="-100.45" font-family="Times,serif" font-size="14.00">13</text>
-<text text-anchor="start" x="448.28" y="-83.2" font-family="Times,serif" font-size="14.00"> op::withdrawal_notification</text>
+<path fill="none" stroke="#fb8072" d="M448.58,-131.49C443.81,-115.98 440.15,-93.51 452.28,-79.25 472,-56.08 551.6,-48.2 608.43,-45.55"/>
+<polygon fill="#fb8072" stroke="#fb8072" points="608.27,-49.02 618.12,-45.1 607.98,-42.03 608.27,-49.02"/>
+<text text-anchor="start" x="452.28" y="-100.45" font-family="Times,serif" font-size="14.00">13</text>
+<text text-anchor="start" x="452.28" y="-83.2" font-family="Times,serif" font-size="14.00"> op::withdrawal_notification</text>
 </g>
 <!-- collection -->
 <g id="node9" class="node">
@@ -116,24 +116,24 @@
 <!-- parent -->
 <g id="node8" class="node">
 <title>parent</title>
-<ellipse fill="#fed9a6" stroke="#fed9a6" cx="286.28" cy="-256.25" rx="44.37" ry="18"/>
-<text text-anchor="middle" x="286.28" y="-251.57" font-family="Times,serif" font-size="14.00">parent</text>
+<ellipse fill="#fed9a6" stroke="#fed9a6" cx="281.28" cy="-256.25" rx="44.37" ry="18"/>
+<text text-anchor="middle" x="281.28" y="-251.57" font-family="Times,serif" font-size="14.00">parent</text>
 </g>
 <!-- treasury&#45;&gt;parent -->
 <g id="edge9" class="edge">
 <title>treasury&#45;&gt;parent</title>
-<path fill="none" stroke="#8dd3c7" d="M325.13,-357.91C304.19,-353.49 281.99,-344.56 269.03,-326.75 259.91,-314.21 263.77,-297.39 270.13,-283.44"/>
-<polygon fill="#8dd3c7" stroke="#8dd3c7" points="273.58,-285.38 275.05,-274.89 267.36,-282.18 273.58,-285.38"/>
-<text text-anchor="start" x="268.28" y="-313.45" font-family="Times,serif" font-size="14.00">5</text>
-<text text-anchor="start" x="268.28" y="-296.2" font-family="Times,serif" font-size="14.00"> op::proxy_tokens_minted</text>
+<path fill="none" stroke="#8dd3c7" d="M324.95,-358.09C303.73,-353.72 281.18,-344.77 268.03,-326.75 259.15,-314.57 261.82,-298.1 267.02,-284.25"/>
+<polygon fill="#8dd3c7" stroke="#8dd3c7" points="270.58,-285.85 271.34,-275.28 264.15,-283.07 270.58,-285.85"/>
+<text text-anchor="start" x="267.28" y="-313.45" font-family="Times,serif" font-size="14.00">5</text>
+<text text-anchor="start" x="267.28" y="-296.2" font-family="Times,serif" font-size="14.00"> op::proxy_tokens_minted</text>
 </g>
 <!-- treasury&#45;&gt;parent -->
 <g id="edge15" class="edge">
 <title>treasury&#45;&gt;parent</title>
-<path fill="none" stroke="#fb8072" d="M419.31,-351.33C431.75,-346.08 443.98,-338.28 451.28,-326.75 459.48,-313.8 460.93,-304.16 451.28,-292.25 437.46,-275.19 383.22,-266.11 340.66,-261.51"/>
-<polygon fill="#fb8072" stroke="#fb8072" points="341.14,-257.94 330.84,-260.41 340.43,-264.9 341.14,-257.94"/>
-<text text-anchor="start" x="457.28" y="-313.45" font-family="Times,serif" font-size="14.00">11</text>
-<text text-anchor="start" x="457.28" y="-296.2" font-family="Times,serif" font-size="14.00"> op::proxy_tokens_burned</text>
+<path fill="none" stroke="#fb8072" d="M419.14,-351.04C431.28,-345.78 443.17,-338.05 450.28,-326.75 458.45,-313.77 459.96,-304.14 450.28,-292.25 435.98,-274.68 379.63,-265.66 335.88,-261.21"/>
+<polygon fill="#fb8072" stroke="#fb8072" points="336.35,-257.65 326.06,-260.18 335.68,-264.62 336.35,-257.65"/>
+<text text-anchor="start" x="456.28" y="-313.45" font-family="Times,serif" font-size="14.00">11</text>
+<text text-anchor="start" x="456.28" y="-296.2" font-family="Times,serif" font-size="14.00"> op::proxy_tokens_burned</text>
 </g>
 <!-- treasury&#45;&gt;collection -->
 <g id="edge5" class="edge">
@@ -146,18 +146,18 @@
 <!-- parent&#45;&gt;wallet1 -->
 <g id="edge10" class="edge">
 <title>parent&#45;&gt;wallet1</title>
-<path fill="none" stroke="#8dd3c7" d="M281.49,-237.99C277,-221.81 270.21,-197.33 264.96,-178.42"/>
-<polygon fill="#8dd3c7" stroke="#8dd3c7" points="268.12,-177.73 262.08,-169.03 261.38,-179.6 268.12,-177.73"/>
-<text text-anchor="start" x="275.28" y="-206.95" font-family="Times,serif" font-size="14.00">6</text>
-<text text-anchor="start" x="275.28" y="-189.7" font-family="Times,serif" font-size="14.00"> op::tokens_minted</text>
+<path fill="none" stroke="#8dd3c7" d="M276,-237.99C271.04,-221.81 263.55,-197.33 257.75,-178.42"/>
+<polygon fill="#8dd3c7" stroke="#8dd3c7" points="260.85,-177.57 254.57,-169.03 254.15,-179.62 260.85,-177.57"/>
+<text text-anchor="start" x="269.28" y="-206.95" font-family="Times,serif" font-size="14.00">6</text>
+<text text-anchor="start" x="269.28" y="-189.7" font-family="Times,serif" font-size="14.00"> op::tokens_minted</text>
 </g>
 <!-- parent&#45;&gt;wallet2 -->
 <g id="edge16" class="edge">
 <title>parent&#45;&gt;wallet2</title>
-<path fill="none" stroke="#fb8072" d="M329.96,-252.02C356.73,-248.08 390.35,-239.38 414.28,-220.25 427.77,-209.47 436.96,-192.4 442.8,-177.88"/>
-<polygon fill="#fb8072" stroke="#fb8072" points="446.31,-179.47 446.48,-168.88 439.74,-177.06 446.31,-179.47"/>
-<text text-anchor="start" x="438.28" y="-206.95" font-family="Times,serif" font-size="14.00">12</text>
-<text text-anchor="start" x="438.28" y="-189.7" font-family="Times,serif" font-size="14.00"> op::tokens_burned</text>
+<path fill="none" stroke="#fb8072" d="M324.25,-251.01C350.51,-246.68 383.66,-237.92 408.28,-220.25 423.38,-209.42 435.1,-192.12 443.06,-177.5"/>
+<polygon fill="#fb8072" stroke="#fb8072" points="446.53,-179.41 447.97,-168.91 440.29,-176.22 446.53,-179.41"/>
+<text text-anchor="start" x="437.28" y="-206.95" font-family="Times,serif" font-size="14.00">12</text>
+<text text-anchor="start" x="437.28" y="-189.7" font-family="Times,serif" font-size="14.00"> op::tokens_burned</text>
 </g>
 <!-- collection&#45;&gt;bill1 -->
 <g id="edge6" class="edge">

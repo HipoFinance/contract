@@ -140,7 +140,6 @@ const int op::request_rejected = 0xcd0f2116;
 const int op::loan_result = 0xfaaa8366;
 const int op::take_profit = 0x8b556813;
 
-const int op::stake_notification = 0xd401b82b;
 const int op::withdrawal_notification = 0xf0fa223b;
 
 const int op::add_library = 0x53d0473e;
@@ -158,7 +157,7 @@ const int gas::burn_bill = 6558;
 const int gas::bill_burned = 12316;
 const int gas::mint_tokens = 12230;
 const int gas::proxy_tokens_minted = 6815;
-const int gas::tokens_minted = 13339;
+const int gas::tokens_minted = 13453;
 const int gas::unstake_tokens = 9040;
 const int gas::proxy_reserve_tokens = 6538;
 const int gas::reserve_tokens = 15495;
