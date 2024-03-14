@@ -5,14 +5,14 @@ builder to_builder(slice s) inline {
     return begin_cell().store_slice(s);
 }
 
-builder store_state_init(builder b, cell state_init) inline {
+builder store_state_init(builder b, builder state_init) inline {
     return state_init.null?()
         ? b.store_uint(0, 1)
-        : b.store_uint(2 + 1, 1 + 1).store_ref(state_init);
+        : b.store_uint(2 + 0, 1 + 1).store_builder(state_init);
 }
 
 builder store_body(builder b, builder body) inline {
-    return body.builder_bits() <= 518
+    return body.builder_bits() <= 513
         ? b.store_uint(0, 1).store_builder(body)
         : b.store_maybe_ref(body.end_cell());
 }
@@ -23,7 +23,7 @@ builder store_log(builder b, builder log) inline {
         : b.store_maybe_ref(log.end_cell());
 }
 
-() send_msg(int bounceable?, builder dst, cell state_init, builder body, int coins, int mode) impure inline_ref {
+() send_msg(int bounceable?, builder dst, builder state_init, builder body, int coins, int mode) impure inline_ref {
     ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
     ;;   src:MsgAddress dest:MsgAddressInt
     ;;   value:CurrencyCollection ihr_fee:Grams fwd_fee:Grams
@@ -167,15 +167,14 @@ builder store_log(builder b, builder log) inline {
     return ( cs~load_uint(32), cs~load_uint(32) );
 }
 
-cell create_state_init(cell code, cell data) inline {
+builder create_state_init(cell code, cell data) inline {
     ;; _ split_depth:(Maybe (## 5)) special:(Maybe TickTock)
     ;;   code:(Maybe ^Cell) data:(Maybe ^Cell)
     ;;   library:(HashmapE 256 SimpleLib) = StateInit;
     return begin_cell()
         .store_uint(6, 5) ;; 00110
         .store_ref(code)
-        .store_ref(data)
-        .end_cell();
+        .store_ref(data);
 }
 
 builder create_address(int wc, int addr) inline_ref {
@@ -224,34 +223,34 @@ cell create_loan_data(slice treasury, builder borrower, int round_since) inline 
         .end_cell();
 }
 
-(builder, cell, int) create_collection_address(slice treasury, int round_since, cell bill_code, cell code) inline_ref {
+(builder, builder, int) create_collection_address(slice treasury, int round_since, cell bill_code, cell code) inline_ref {
     cell collection_data = create_collection_data(treasury, round_since, bill_code);
-    cell state_init = create_state_init(code, collection_data);
-    int addr = state_init.cell_hash();
+    builder state_init = create_state_init(code, collection_data);
+    int addr = state_init.end_cell().cell_hash();
     builder collection = create_address(chain::base, addr);
     return (collection, state_init, addr);
 }
 
-(builder, cell, int) create_bill_address(int index, slice collection, cell bill_code) inline_ref {
+(builder, builder, int) create_bill_address(int index, slice collection, cell bill_code) inline_ref {
     cell bill_data = create_bill_data(index, collection);
-    cell state_init = create_state_init(bill_code, bill_data);
-    int addr = state_init.cell_hash();
+    builder state_init = create_state_init(bill_code, bill_data);
+    int addr = state_init.end_cell().cell_hash();
     builder bill = create_address(chain::base, addr);
     return (bill, state_init, addr);
 }
 
-(builder, cell, int) create_wallet_address(builder owner, slice parent, cell wallet_code) inline_ref {
+(builder, builder, int) create_wallet_address(builder owner, slice parent, cell wallet_code) inline_ref {
     cell wallet_data = create_wallet_data(owner, parent);
-    cell state_init = create_state_init(wallet_code, wallet_data);
-    int addr = state_init.cell_hash();
+    builder state_init = create_state_init(wallet_code, wallet_data);
+    int addr = state_init.end_cell().cell_hash();
     builder wallet = create_address(chain::base, addr);
     return (wallet, state_init, addr);
 }
 
-(builder, cell, int) create_loan_address(slice treasury, builder borrower, int round_since, cell loan_code) inline_ref {
+(builder, builder, int) create_loan_address(slice treasury, builder borrower, int round_since, cell loan_code) inline_ref {
     cell loan_data = create_loan_data(treasury, borrower, round_since);
-    cell state_init = create_state_init(loan_code, loan_data);
-    int addr = state_init.cell_hash();
+    builder state_init = create_state_init(loan_code, loan_data);
+    int addr = state_init.end_cell().cell_hash();
     builder loan = create_address(chain::main, addr);
     return (loan, state_init, addr);
 }

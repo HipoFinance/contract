@@ -39,7 +39,7 @@ global int unstaking;
     s~impure_touch();
 
     ( int recipient_wc, _ ) = parse_std_addr(recipient);
-    ( builder wallet, cell state_init, _ ) = create_wallet_address(recipient.to_builder(), parent, my_code());
+    ( builder wallet, builder state_init, _ ) = create_wallet_address(recipient.to_builder(), parent, my_code());
     int incoming_ton = get_incoming_value().pair_first();
     int fee = send_tokens_fee() + forward_ton_amount + (forward_ton_amount ? 2 : 1) * fwd_fee;
     int enough_fee? = incoming_ton >= fee;

@@ -257,7 +257,7 @@ cell find_code(cell dict, int round_since) inline {
         cell bill_code = bill_codes.find_code(round_since);
 
         ( builder collection
-        , cell state_init
+        , builder state_init
         , _
         ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
 
@@ -355,7 +355,7 @@ cell find_code(cell dict, int round_since) inline {
         cell bill_code = bill_codes.find_code(round_since);
 
         ( builder collection
-        , cell state_init
+        , builder state_init
         , _
         ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
 
@@ -459,7 +459,7 @@ cell find_code(cell dict, int round_since) inline {
             log_failed_burning_tokens(round_since, total_coins, total_tokens, coins, tokens, owner);
         } else {
             ( builder collection
-            , cell state_init
+            , builder state_init
             , _
             ) = create_collection_address(my_address(), next_round_since, bill_code, collection_code);
 
@@ -895,7 +895,7 @@ cell find_code(cell dict, int round_since) inline {
         , cell new_stake_msg
         ) = unpack_request(request);
         builder borrower = create_address(chain::base, borrower_addr);
-        ( builder loan, cell state_init, _ ) = create_loan_address(my_address(), borrower, round_since, loan_code);
+        ( builder loan, builder state_init, _ ) = create_loan_address(my_address(), borrower, round_since, loan_code);
         int ton_amount = loan_amount + accrue_amount + stake_amount + proxy_new_stake_fee;
         total_staked += loan_amount + accrue_amount;
         staked~udict_set(256, borrower_addr, request);
@@ -1201,7 +1201,7 @@ cell find_code(cell dict, int round_since) inline {
                 cell bill_code = bill_codes.find_code(round_since);
 
                 ( builder collection
-                , cell state_init
+                , builder state_init
                 , _
                 ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
 
@@ -1505,7 +1505,7 @@ cell find_code(cell dict, int round_since) inline {
     cell bill_code = bill_codes.find_code(round_since);
 
     ( builder collection
-    , cell state_init
+    , builder state_init
     , _
     ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
 

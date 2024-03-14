@@ -33,7 +33,7 @@ global cell bill_code;
     int ownership_assigned_amount = s~load_coins();
     s.end_parse();
 
-    ( builder bill, cell state_init, _ ) = create_bill_address(next_item_index, my_address(), bill_code);
+    ( builder bill, builder state_init, _ ) = create_bill_address(next_item_index, my_address(), bill_code);
     next_item_index += 1;
 
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));

@@ -32,7 +32,7 @@ global cell content;
     int round_since = s~load_uint(32);
     s.end_parse();
 
-    ( builder wallet, cell state_init, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
+    ( builder wallet, builder state_init, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
 
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
@@ -55,7 +55,7 @@ global cell content;
     int round_since = s~load_uint(32);
     s.end_parse();
 
-    ( builder wallet, cell state_init, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
+    ( builder wallet, builder state_init, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
 
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
@@ -196,7 +196,7 @@ global cell content;
     slice owner = s~load_msg_addr();
     s.end_parse();
 
-    ( builder wallet, cell state_init, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
+    ( builder wallet, builder state_init, _ ) = create_wallet_address(owner.to_builder(), my_address(), wallet_code);
 
     throw_unless(err::access_denied, equal_slice_bits(src, treasury));
 
