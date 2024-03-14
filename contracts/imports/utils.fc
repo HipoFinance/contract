@@ -612,7 +612,7 @@ int unstake_all_fee() {
         mc_m_fwd_fee + ;; recover_stake_result
         s_fwd_fee + ;; loan_result
         s_fwd_fee + ;; take_profit
-        s_fwd_fee + ;; burn_all
+        l_fwd_fee + ;; burn_all
         s_fwd_fee; ;; last_bill_burned
 
     int total = mc_storage_fee + storage_fee + compute_fee + forward_fee;
@@ -658,7 +658,7 @@ int burn_all_fee() {
 
     int s_fwd_fee = get_forward_fee(0, 0, false);
     int forward_fee =
-        s_fwd_fee + ;; burn_bill
+        l_fwd_fee + ;; burn_all
         s_fwd_fee; ;; last_bill_burned
 
     return compute_fee + forward_fee;
