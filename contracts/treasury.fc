@@ -590,6 +590,17 @@ cell find_code(cell dict, int round_since) inline {
                 sorted~udict_set_ref(112, old_sort_key, old_bucket);
             }
         }
+    } else {
+        ;; do not create a new participation if there are already 7 participation
+        int participations_count = 0;
+        int k = -1;
+        do {
+            ( k, _, int more? ) = participations.udict_get_next?(32, k);
+            if more? {
+                participations_count += 1;
+            }
+        } until ~ more?;
+        throw_unless(err::not_accepting_loan_requests, participations_count <= 7);
     }
     ( int total_fee, _, _ ) = request_loan_fee();
     int incoming_ton = get_incoming_value().pair_first();

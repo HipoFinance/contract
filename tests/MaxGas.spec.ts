@@ -416,7 +416,7 @@ describe('Max Gas', () => {
             .beginParse()
 
         const result4 = await wallet1.sendSendTokens(staker.getSender(), {
-            value: walletFees.sendTokensFee + toNano('0.05') + toNano('0.167'), // 0.167 for forwarding payload
+            value: walletFees.sendTokensFee + toNano('0.05') + toNano('0.168'), // 0.168 for forwarding payload
             tokens: '1',
             recipient: someone.address,
             customPayload: parentCode,
@@ -426,7 +426,7 @@ describe('Max Gas', () => {
         expect(result4.transactions).toHaveTransaction({
             from: wallet1.address,
             to: wallet2.address,
-            value: between('0', walletFees.sendTokensFee + toNano('0.05') + toNano('0.167')),
+            value: between('0', walletFees.sendTokensFee + toNano('0.05') + toNano('0.168')),
             body: bodyOp(op.receiveTokens),
             success: true,
             outMessagesCount: 2,
