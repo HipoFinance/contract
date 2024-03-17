@@ -560,7 +560,7 @@ cell find_code(cell dict, int round_since) inline {
 
     ( int borrower_wc, int borrower_addr ) = parse_std_addr(src);
     ( int min_stake, _, _, _ ) = get_stake_config();
-    ( _, int next_round_since ) = get_vset_times(config::current_validators);
+    ( _, int participate_since, _, int next_round_since, _, _ ) = get_times();
     int state = participation::open;
     int size = 0;
     cell sorted = new_dict();
@@ -596,7 +596,6 @@ cell find_code(cell dict, int round_since) inline {
     int stake_amount = incoming_ton - total_fee + old_stake_amount;
     total_borrowers_stake += stake_amount - old_stake_amount;
     int max_punishment = max_recommended_punishment_for_validator_misbehaviour(loan_amount + stake_amount);
-    ( _, int participate_since, _, _, _, _ ) = get_times();
 
     throw_unless(err::access_denied, borrower_wc == chain::base);
     throw_unless(err::not_accepting_loan_requests, state == participation::open);
