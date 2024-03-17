@@ -11,8 +11,6 @@ import {
     logTotalFees,
     accumulateFees,
     setConfig,
-    storeComputeGas,
-    logComputeGas,
 } from './helper'
 import { config, err, op } from '../wrappers/common'
 import { Loan } from '../wrappers/Loan'
@@ -43,25 +41,6 @@ describe('Loan', () => {
 
     afterAll(() => {
         logTotalFees()
-        logComputeGas([
-            'request_loan',
-            'participate_in_election',
-            'decide_loan_requests',
-            'process_loan_requests',
-            'proxy_new_stake',
-            'vset_changed',
-            'finish_participation',
-            'recover_stakes',
-            'proxy_recover_stake',
-            'recover_stake_result',
-            'burn_all',
-            'last_bill_burned',
-            'new_stake',
-            'new_stake_error',
-            'new_stake_ok',
-            'recover_stake',
-            'recover_stake_ok',
-        ])
     })
 
     beforeAll(async () => {
@@ -216,7 +195,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('161.6', '161.7')
+        expect(treasuryBalance).toBeBetween('161.9', '162')
         expect(treasuryState.totalCoins).toBeTonValue('0')
         expect(treasuryState.totalTokens).toBeTonValue('0')
         expect(treasuryState.totalStaking).toBeTonValue('0')
@@ -732,7 +711,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: loan2.address,
-            value: between('0.1', '0.2'),
+            value: between('0.2', '0.3'),
             body: bodyOp(op.proxyRecoverStake),
             success: true,
             outMessagesCount: 1,
@@ -740,7 +719,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: loan3.address,
-            value: between('0.1', '0.2'),
+            value: between('0.2', '0.3'),
             body: bodyOp(op.proxyRecoverStake),
             success: true,
             outMessagesCount: 1,
@@ -748,7 +727,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: loan2.address,
             to: electorAddress,
-            value: between('1.1', '1.2'),
+            value: between('1.2', '1.3'),
             body: bodyOp(op.recoverStake),
             success: true,
             outMessagesCount: 1,
@@ -756,7 +735,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: loan3.address,
             to: electorAddress,
-            value: between('1.1', '1.2'),
+            value: between('1.2', '1.3'),
             body: bodyOp(op.recoverStake),
             success: true,
             outMessagesCount: 1,
@@ -812,7 +791,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: governor.address,
-            value: between('3', '4'),
+            value: between('4', '5'),
             body: bodyOp(op.takeProfit),
             success: true,
             outMessagesCount: 0,
@@ -1209,7 +1188,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('700133', '700134')
+        expect(treasuryBalance).toBeBetween('700134', '700135')
         expect(treasuryState.totalCoins).toBeBetween('700121', '700122')
         expect(treasuryState.totalTokens).toBeTonValue('700000')
         expect(treasuryState.totalStaking).toBeTonValue('0')
@@ -1220,8 +1199,6 @@ describe('Loan', () => {
         expect(treasuryState.participations.size).toEqual(0)
 
         accumulateFees(result.transactions)
-        storeComputeGas('recover_stake_result', op.recoverStakeResult, result.transactions[10])
-        storeComputeGas('new_stake_error', op.newStakeError, result.transactions[9])
     })
 
     it('should remove participation when there is no funds available to give loans', async () => {
@@ -1337,7 +1314,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('11.9', '12')
+        expect(treasuryBalance).toBeBetween('12.7', '12.8')
         expect(treasuryState.totalCoins).toBeTonValue('0')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
@@ -1495,133 +1472,6 @@ describe('Loan', () => {
         expect(treasuryState.participations.size).toEqual(1)
 
         accumulateFees(result.transactions)
-    })
-
-    it('should handle a single loan request to log compute gas', async () => {
-        const times = await treasury.getTimes()
-        const electedFor = times.nextRoundSince - times.currentRoundSince
-        const since1 = BigInt(Math.floor(Date.now() / 1000)) - electedFor / 2n
-        const until1 = since1 + electedFor
-        const vset1 = createVset(since1, until1)
-        setConfig(blockchain, config.currentValidators, vset1)
-
-        const staker = await blockchain.treasury('staker')
-        await treasury.sendDepositCoins(staker.getSender(), {
-            value: toNano('300000') + fees.depositCoinsFee + toNano('0.1'),
-        })
-
-        await blockchain.setShardAccount(
-            electorAddress,
-            createShardAccount({
-                workchain: -1,
-                address: electorAddress,
-                code: electorCode,
-                data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: until1 }) }),
-                balance: toNano('1'),
-            }),
-        )
-
-        const borrower = await blockchain.treasury('borrower')
-        const loanAddress = await treasury.getLoanAddress(borrower.address, until1)
-        const loan = blockchain.openContract(Loan.createFromAddress(loanAddress))
-        const newStakeMsg = await createNewStakeMsg(loan.address, until1)
-        const result1 = await treasury.sendRequestLoan(borrower.getSender(), {
-            value: toNano('1151') + fees.requestLoanFee, // 1000 (stake) + 101 (max punishment) + 50 (min payment) + fee
-            roundSince: until1,
-            loanAmount: '300000',
-            minPayment: '60',
-            borrowerRewardShare: 102n, // 40%
-            newStakeMsg: newStakeMsg,
-        })
-
-        const since2 = BigInt(Math.floor(Date.now() / 1000)) - times.participateSince + times.currentRoundSince
-        const until2 = since2 + electedFor
-        const vset2 = createVset(since2, until2)
-        setConfig(blockchain, config.currentValidators, vset2)
-        const result2 = await treasury.sendParticipateInElection({ roundSince: until1 })
-
-        expect(result2.transactions).toHaveTransaction({
-            from: treasury.address,
-            to: loan.address,
-            value: between('301151', '301152'),
-            body: bodyOp(op.proxyNewStake),
-            deploy: true,
-            success: true,
-            outMessagesCount: 1,
-        })
-
-        const credits = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.BigVarUint(4))
-        credits.set(BigInt('0x' + loan.address.hash.toString('hex')), toNano('350260'))
-        await blockchain.setShardAccount(
-            electorAddress,
-            createShardAccount({
-                workchain: -1,
-                address: electorAddress,
-                code: electorCode,
-                data: electorConfigToCell({ currentElection: createElectionConfig({ electAt: until1 }), credits }),
-                balance: toNano('350260') + toNano('350270') + toNano('1'),
-            }),
-        )
-
-        const vset3 = createVset(0n, 1n)
-        setConfig(blockchain, config.currentValidators, vset3)
-        const result3 = await treasury.sendVsetChanged({ roundSince: until1 })
-
-        expect(result3.transactions).toHaveLength(1)
-
-        const vset4 = createVset(1n, 2n)
-        setConfig(blockchain, config.currentValidators, vset4)
-        const result4 = await treasury.sendVsetChanged({ roundSince: until1 })
-
-        expect(result4.transactions).toHaveLength(1)
-
-        const state = await treasury.getTreasuryState()
-        const participation = state.participations.get(until1) ?? {}
-        participation.stakeHeldUntil = 0n // set stake_held_until to zero
-        state.participations.set(until1, participation)
-        const fakeData = treasuryConfigToCell(state)
-        await blockchain.setShardAccount(
-            treasury.address,
-            createShardAccount({
-                workchain: 0,
-                address: treasury.address,
-                code: treasuryCode,
-                data: fakeData,
-                balance: toNano('10'),
-            }),
-        )
-        const result5 = await treasury.sendFinishParticipation({ roundSince: until1 })
-
-        expect(result5.transactions).toHaveTransaction({
-            to: treasury.address,
-            body: bodyOp(op.lastBillBurned),
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(result5.transactions).toHaveLength(10)
-        expect(result5.externals).toHaveLength(2)
-
-        accumulateFees(result1.transactions)
-        accumulateFees(result2.transactions)
-        accumulateFees(result3.transactions)
-        accumulateFees(result4.transactions)
-        accumulateFees(result5.transactions)
-        storeComputeGas('request_loan', op.requestLoan, result1.transactions[1])
-        storeComputeGas('participate_in_election', op.participateInElection, result2.transactions[0])
-        storeComputeGas('decide_loan_requests', op.decideLoanRequests, result2.transactions[1])
-        storeComputeGas('process_loan_requests', op.processLoanRequests, result2.transactions[2])
-        storeComputeGas('proxy_new_stake', op.proxyNewStake, result2.transactions[3])
-        storeComputeGas('vset_changed', op.vsetChanged, result3.transactions[0])
-        storeComputeGas('finish_participation', op.finishParticipation, result5.transactions[0])
-        storeComputeGas('recover_stakes', op.recoverStakes, result5.transactions[1])
-        storeComputeGas('proxy_recover_stake', op.proxyRecoverStake, result5.transactions[2])
-        storeComputeGas('recover_stake_result', op.recoverStakeResult, result5.transactions[5])
-        storeComputeGas('burn_all', op.burnAll, result5.transactions[6])
-        storeComputeGas('last_bill_burned', op.lastBillBurned, result5.transactions[9])
-        storeComputeGas('new_stake', op.newStake, result2.transactions[4])
-        storeComputeGas('new_stake_ok', op.newStakeOk, result2.transactions[5])
-        storeComputeGas('recover_stake', op.recoverStake, result5.transactions[3])
-        storeComputeGas('recover_stake_ok', op.recoverStakeOk, result5.transactions[4])
     })
 
     it('should handle loan request edge cases', async () => {

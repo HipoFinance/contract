@@ -616,6 +616,7 @@ cell find_code(cell dict, int round_since) inline {
     sorted~udict_set_ref(112, sort_key, bucket);
 
     ( int max_validators, _, _ ) = get_validators_config();
+    max_validators = min(max_validators, 100); ;; before increasing 100, check gas usage using MaxGas
     if size > max_validators {
         ( int last_sort_key, slice v, _ ) = sorted~udict_delete_get_min?(112);
         cell last_bucket = v~load_ref();
@@ -730,6 +731,8 @@ cell find_code(cell dict, int round_since) inline {
     throw_unless(err::unable_to_participate, state == participation::open);
     throw_unless(err::too_soon_to_participate, now() >= min(participate_since, round_since));
 
+    accept_message();
+
     state = participation::distributing;
 
     builder pb = pack_participation(
@@ -740,7 +743,6 @@ cell find_code(cell dict, int round_since) inline {
 
     save_data();
     commit();
-    accept_message();
 
     distribute(query_id, round_since);
 }
@@ -971,13 +973,15 @@ cell find_code(cell dict, int round_since) inline {
     , int stake_held_until
     ) = unpack_participation(ps);
     int new_vset_hash = config_param(config::current_validators).cell_hash();
+    ( _, int next_round_since ) = get_vset_times(config::current_validators);
 
     throw_unless(err::vset_not_changed, new_vset_hash != current_vset_hash);
     throw_unless(err::vset_not_changeable, (state == participation::staked) | (state == participation::validating));
 
+    accept_message();
+
     if state == participation::staked {
         state = participation::validating;
-        ( _, int next_round_since ) = get_vset_times(config::current_validators);
         stake_held_until = next_round_since + stake_held_for + 60;
     } else {
         state = participation::held;
@@ -992,7 +996,6 @@ cell find_code(cell dict, int round_since) inline {
 
     save_data();
     commit();
-    accept_message();
 
     throw(0);
 }
@@ -1022,6 +1025,8 @@ cell find_code(cell dict, int round_since) inline {
     throw_unless(err::not_ready_to_finish_participation, state == participation::held);
     throw_unless(err::too_soon_to_finish_participation, now() >= stake_held_until);
 
+    accept_message();
+
     state = participation::recovering;
 
     builder pb = pack_participation(
@@ -1032,7 +1037,6 @@ cell find_code(cell dict, int round_since) inline {
 
     save_data();
     commit();
-    accept_message();
 
     builder myself = my_address().to_builder();
     builder continue = begin_cell()

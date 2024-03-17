@@ -6,12 +6,9 @@ import { mnemonicNew, mnemonicToPrivateKey, sign } from '@ton/crypto'
 import { TreasuryFees } from '../wrappers/Treasury'
 import { WalletFees } from '../wrappers/Wallet'
 
-const muteLogComputeGas = false
 const muteLogTotalFees = false
 const muteLogCodeCost = false
 const muteLogFees = false
-
-const gasUsed: Record<string, bigint> = {}
 
 export function bodyOp(op: number): (body: Cell | undefined) => boolean {
     return (body: Cell | undefined): boolean => {
@@ -206,43 +203,6 @@ export function logCodeCost(cost: [bigint, bigint, bigint][]) {
             totalCells.toString().padStart(5),
             fromNano(totalYearCost),
         )
-    }
-}
-
-export function storeComputeGas(opLabel: string, opCode: number, tx: BlockchainTransaction) {
-    if (!bodyOp(opCode)(tx.inMessage?.body ?? Cell.EMPTY) && !bodyOp(0)(tx.inMessage?.body ?? Cell.EMPTY)) {
-        throw new Error('invalid transaction to log compute gas for op ' + opLabel)
-    }
-    const logs = tx.blockchainLogs
-    const usedIndex = logs.indexOf('used=')
-    const commaIndex = logs.indexOf(',', usedIndex)
-    const usedGas = BigInt(logs.substring(usedIndex + 5, commaIndex))
-    if (logs.lastIndexOf('used=') !== usedIndex) {
-        throw new Error('unexpected second "used" field in calculating gas')
-    }
-    if (gasUsed[opLabel] == null || gasUsed[opLabel] < usedGas) {
-        gasUsed[opLabel] = usedGas
-    }
-}
-
-function logGas(opLabel: string): string {
-    const used = gasUsed[opLabel]
-    gasUsed[opLabel] = -1n
-    if (used >= 0n) {
-        return '    const int gas::' + opLabel + ' = ' + used.toString() + ';'
-    } else {
-        return 'unknown gas: ' + opLabel
-    }
-}
-
-export function logComputeGas(opLabels: string[]) {
-    if (!muteLogComputeGas) {
-        console.info('Compute Gas:\n' + opLabels.map(logGas).join('\n'))
-        for (const [key, value] of Object.entries(gasUsed)) {
-            if (value >= 0n) {
-                console.info('Unknown gas: ', key, value)
-            }
-        }
     }
 }
 

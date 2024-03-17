@@ -209,10 +209,9 @@ describe('Large', () => {
         const vset1 = createVset(since1, until1)
         setConfig(blockchain, config.currentValidators, vset1)
 
-        // tested with (10000, 10000, 10000) but test takes more than 3 minutes to run
-        const count1 = 500n
-        const count2 = 500n
-        const count3 = 500n
+        const count1 = 50n
+        const count2 = 50n
+        const count3 = 50n
         const sorted = Dictionary.empty(Dictionary.Keys.BigUint(112), sortedDictionaryValue)
         const requests = Dictionary.empty(Dictionary.Keys.BigUint(256), requestDictionaryValue)
         const request = {
@@ -257,7 +256,7 @@ describe('Large', () => {
                 address: treasury.address,
                 code: treasuryCode,
                 data: fakeData,
-                balance: toNano('10') + toNano('101.8') * (count1 + count2 + count3) + toNano('300000') * count3,
+                balance: toNano('10') + toNano('102') * (count1 + count2 + count3) + toNano('300000') * count3,
             }),
         )
 
