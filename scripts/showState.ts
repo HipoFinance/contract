@@ -17,27 +17,28 @@ export async function run(provider: NetworkProvider) {
         walletCode = (await parent.getJettonData())[4]
     }
     const testOnly = provider.network() !== 'mainnet'
-    const proposedGovernor =
-        treasuryState.proposedGovernor?.beginParse().skip(32).loadAddress().toString({ testOnly }) ?? ''
+    const proposedGovernorSlice = treasuryState.proposedGovernor?.beginParse()
+    const proposedGovernorAcceptAfter = formatDate(proposedGovernorSlice?.loadUintBig(32) ?? 0n)
+    const proposedGovernorAddress = proposedGovernorSlice?.loadAddress().toString({ testOnly })
     const roundsImbalancePercent = formatPercent((Number(treasuryState.roundsImbalance) + 1 + 256) / 512)
     const governanceFeePercent = formatPercent(Number(treasuryState.governanceFee) / 65535)
 
     console.info()
     console.info('Treasury State')
     console.info('==============')
-    console.info('              total_coins: %s', formatNano(treasuryState.totalCoins))
-    console.info('             total_tokens: %s', formatNano(treasuryState.totalTokens))
-    console.info('            total_staking: %s', formatNano(treasuryState.totalStaking))
-    console.info('          total_unstaking: %s', formatNano(treasuryState.totalUnstaking))
-    console.info('    total_borrowers_stake: %s', formatNano(treasuryState.totalBorrowersStake))
+    console.info('              total_coins: %s TON', formatNano(treasuryState.totalCoins))
+    console.info('             total_tokens: %s hTON', formatNano(treasuryState.totalTokens))
+    console.info('            total_staking: %s TON', formatNano(treasuryState.totalStaking))
+    console.info('          total_unstaking: %s hTON', formatNano(treasuryState.totalUnstaking))
+    console.info('    total_borrowers_stake: %s TON', formatNano(treasuryState.totalBorrowersStake))
     console.info('         rounds_imbalance: %s (%s)', Number(treasuryState.roundsImbalance), roundsImbalancePercent)
-    console.info('                  stopped: %s', treasuryState.stopped)
-    console.info('             instant_mint: %s', treasuryState.instantMint)
-    console.info('              last_staked: %s', formatNano(treasuryState.lastStaked))
-    console.info('           last_recovered: %s', formatNano(treasuryState.lastRecovered))
+    console.info('                  stopped: %s', formatBoolean(treasuryState.stopped))
+    console.info('             instant_mint: %s', formatBoolean(treasuryState.instantMint))
+    console.info('              last_staked: %s TON', formatNano(treasuryState.lastStaked))
+    console.info('           last_recovered: %s TON', formatNano(treasuryState.lastRecovered))
     console.info('                   halter: %s', treasuryState.halter.toString({ testOnly }))
     console.info('                 governor: %s', treasuryState.governor.toString({ testOnly }))
-    console.info('        proposed_governor: %s', proposedGovernor)
+    console.info('        proposed_governor: %s', (proposedGovernorAddress ?? '') + ' ' + proposedGovernorAcceptAfter)
     console.info('           governance_fee: %s (%s)', Number(treasuryState.governanceFee), governanceFeePercent)
     console.info()
 
@@ -86,6 +87,7 @@ export async function run(provider: NetworkProvider) {
         if (participation == null) {
             continue
         }
+        const collectionAddress = await treasury.getCollectionAddress(key)
         console.info('Participation %s', key.toString())
         console.info('========================')
         console.info('            round_since: %s', formatDate(key))
@@ -98,11 +100,12 @@ export async function run(provider: NetworkProvider) {
         console.info('                accrued: %s', participation.accrued?.size ?? '')
         console.info('                 staked: %s', participation.staked?.size ?? '')
         console.info('             recovering: %s', participation.recovering?.size ?? '')
-        console.info('           total_staked: %s', formatNano(participation.totalStaked ?? 0n))
-        console.info('        total_recovered: %s', formatNano(participation.totalRecovered ?? 0n))
+        console.info('           total_staked: %s TON', formatNano(participation.totalStaked ?? 0n))
+        console.info('        total_recovered: %s TON', formatNano(participation.totalRecovered ?? 0n))
         console.info('      current_vset_hash: %s', participation.currentVsetHash?.toString(16))
-        console.info('         stake_held_for: %s', Number(participation.stakeHeldFor) / 60 / 60 + ' hours')
+        console.info('         stake_held_for: %s', formatTime(participation.stakeHeldFor ?? 0n))
         console.info('       stake_held_until: %s', formatDate(participation.stakeHeldUntil ?? 0n))
+        console.info('     collection address: %s', collectionAddress)
         console.info()
 
         if (participation.requests != null && participation.requests.size > 0) {
@@ -181,6 +184,14 @@ function formatDate(seconds: bigint): string {
         dateStyle: 'full',
         timeStyle: 'full',
     })
+}
+
+function formatTime(seconds: bigint): string {
+    return new Date(Number(seconds) * 1000).toISOString().substring(11, 16)
+}
+
+function formatBoolean(value: boolean): string {
+    return value ? 'Yes' : 'No'
 }
 
 function formatState(state: ParticipationState | undefined): string {
