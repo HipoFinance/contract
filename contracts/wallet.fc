@@ -258,7 +258,7 @@ global int unstaking;
         .store_uint(query_id, 64)
         .store_coins(tokens)
         .store_slice(owner);
-    send_msg(true, parent.to_builder(), null(), migrate, 0, send::remaining_value);
+    send_msg(true, parent.to_builder(), null(), migrate, 0, send::unreserved_balance);
 
     tokens = 0;
 }

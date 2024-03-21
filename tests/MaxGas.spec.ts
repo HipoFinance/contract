@@ -696,12 +696,12 @@ describe('Max Gas', () => {
             value: between('0', walletFees.upgradeWalletFee),
             body: bodyOp(op.mergeWallet),
             success: true,
-            outMessagesCount: 0,
+            outMessagesCount: 1,
         })
         expect(result12.transactions).not.toHaveTransaction({ success: false })
         expect(result12.transactions).not.toHaveTransaction({ exitCode: -14 })
         expect(result12.transactions).not.toHaveTransaction({ actionResultCode: 37 })
-        expect(result12.transactions).toHaveLength(6)
+        expect(result12.transactions).toHaveLength(7)
 
         accumulateFees(result12.transactions)
         storeComputeGas('upgrade_wallet', op.upgradeWallet, result12.transactions[1])
