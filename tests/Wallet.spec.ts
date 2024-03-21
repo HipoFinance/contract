@@ -2172,6 +2172,63 @@ describe('Wallet', () => {
         accumulateFees(result.transactions)
     })
 
+    it('should send tokens with a payload similar to dedust', async () => {
+        const staker = await blockchain.treasury('staker')
+        const lp = await blockchain.treasury('lp')
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('100') + fees.depositCoinsFee })
+        const walletAddress1 = await parent.getWalletAddress(staker.address)
+        const walletAddress2 = await parent.getWalletAddress(lp.address)
+        const wallet1 = blockchain.openContract(Wallet.createFromAddress(walletAddress1))
+        const wallet2 = blockchain.openContract(Wallet.createFromAddress(walletAddress2))
+        const payload = beginCell().storeBuffer(
+            Buffer.from(
+                '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+                'hex',
+            ),
+        )
+        const result = await wallet1.sendSendTokens(staker.getSender(), {
+            value: '0.5',
+            recipient: lp.address,
+            tokens: '98.38',
+            forwardTonAmount: '0.4',
+            forwardPayload: beginCell().storeBit(true).storeRef(payload).endCell().beginParse(),
+        })
+
+        expect(result.transactions).toHaveTransaction({
+            from: staker.address,
+            to: wallet1.address,
+            value: toNano('0.5'),
+            body: bodyOp(op.sendTokens),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet1.address,
+            to: wallet2.address,
+            value: between('0.4', '0.5'),
+            body: bodyOp(op.receiveTokens),
+            success: true,
+            outMessagesCount: 2,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet2.address,
+            to: lp.address,
+            value: toNano('0.4'),
+            body: bodyOp(op.transferNotification),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: wallet2.address,
+            to: staker.address,
+            value: between('0', '0.07'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(5)
+    })
+
     it('should respond with wallet address', async () => {
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })

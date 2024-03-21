@@ -146,7 +146,7 @@ const int op::add_library = 0x53d0473e;
 const int op::remove_library = 0x6bd0ce52;
 
 
-const int gas::send_tokens = 10367;
+const int gas::send_tokens = 10528;
 const int gas::receive_tokens = 11691;
 const int gas::deposit_coins = 18741;
 const int gas::proxy_save_coins = 6175;
