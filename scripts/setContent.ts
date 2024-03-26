@@ -3,10 +3,10 @@ import { Treasury } from '../wrappers/Treasury'
 import { NetworkProvider } from '@ton-community/blueprint'
 import { sha256_sync } from 'ton-crypto'
 
-const symbol = 'thTON1'
-const name = 'testnet hTON v1'
-const description = 'Hipo liquid staking protocol on testnet, version 1'
-const image = 'https://app.hipo.finance/thton.png'
+const symbol = 'hTON1'
+const name = 'Hipo Staked TON v1'
+const description = 'Hipo liquid staking protocol, deprecated version 1'
+const image = 'https://app.hipo.finance/hton.png'
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
