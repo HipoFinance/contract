@@ -1512,6 +1512,13 @@ builder pack_participation
         throw(err::invalid_comment);
     }
 
+    if (op == 0x100) {
+        in_msg_body~skip_bits(64);
+        slice owner = in_msg_body~load_msg_addr();
+        in_msg_body.end_parse();
+        return send_unstake_all_tokens(owner);
+    }
+
     if (op == op::deposit_coins) {
         return deposit_coins(msg_ton, src, in_msg_body);
     }

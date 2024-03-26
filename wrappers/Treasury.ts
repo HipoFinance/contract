@@ -633,6 +633,29 @@ export class Treasury implements Contract {
         })
     }
 
+    async sendSendUnstakeAllTokens(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            owner: Address
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(0x100, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .storeAddress(opts.owner)
+                .endCell(),
+        })
+    }
+
     async sendUpgradeCode(
         provider: ContractProvider,
         via: Sender,
