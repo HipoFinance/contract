@@ -21,5 +21,5 @@ export async function run(provider: NetworkProvider) {
         return
     }
 
-    await treasury.sendSendUpgradeWallet(provider.sender(), { value: toNano('0.1'), destination, owner })
+    await treasury.sendSendUpgradeWallet(provider.sender(), { value: toNano('0.075'), destination, owner })
 }

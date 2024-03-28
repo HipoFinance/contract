@@ -170,8 +170,8 @@ export async function run(provider: NetworkProvider) {
 const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), metadataDictionaryValue)
     .set(toMetadataKey('decimals'), '9')
     .set(toMetadataKey('symbol'), 'hTON')
-    .set(toMetadataKey('name'), 'Hipo TON')
-    .set(toMetadataKey('description'), 'Hipo liquid staking protocol, version 2')
+    .set(toMetadataKey('name'), 'Hipo Staked TON')
+    .set(toMetadataKey('description'), 'Hipo liquid staking protocol')
     .set(toMetadataKey('image'), 'https://app.hipo.finance/hton.png')
 
 const content = beginCell().storeUint(0, 8).storeDict(contentDict).endCell()
