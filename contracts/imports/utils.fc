@@ -427,7 +427,9 @@ int send_tokens_fee() {
         gas::receive_tokens;
     int compute_fee = get_compute_fee(compute_gas, false);
 
-    return storage_fee + compute_fee;
+    int forward_fee = get_simple_forward_fee(1 + 1, 267 + 267 + 4 + 1 + 4, false);
+
+    return storage_fee + compute_fee + forward_fee;
 }
 
 (int, int) deposit_coins_fee(int ownership_assigned_amount) {

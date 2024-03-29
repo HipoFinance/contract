@@ -641,4 +641,5 @@ int addr_none?(slice s) asm "b{00} PUSHSLICE SDEQ";
 int get_storage_fee(int cells, int bits, int seconds, int is_mc?) asm "GETSTORAGEFEE";
 int get_compute_fee(int gas_used, int is_mc?) asm "GETGASFEE";
 int get_forward_fee(int cells, int bits, int is_mc?) asm "GETFORWARDFEE";
+int get_simple_forward_fee(int cells, int bits, int is_mc?) asm "GETFORWARDFEESIMPLE";
 int get_original_fwd_fee(int fwd_fee, int is_mc?) asm "GETORIGINALFWDFEE";

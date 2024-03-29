@@ -243,7 +243,7 @@ describe('Min Gas', () => {
         const walletFees = await wallet.getWalletFees()
 
         const result1 = await wallet.sendSendTokens(staker.getSender(), {
-            value: toNano('0.029'),
+            value: toNano('0.030'),
             tokens: '7',
             recipient: halter.address,
             forwardTonAmount: 1n,
@@ -251,7 +251,7 @@ describe('Min Gas', () => {
         expect(result1.transactions).toHaveTransaction({
             from: staker.address,
             to: wallet.address,
-            value: toNano('0.029'),
+            value: toNano('0.030'),
             body: bodyOp(op.sendTokens),
             success: false,
             exitCode: err.insufficientFee,
@@ -259,7 +259,7 @@ describe('Min Gas', () => {
         expect(result1.transactions).toHaveLength(3)
 
         const result2 = await wallet.sendSendTokens(staker.getSender(), {
-            value: toNano('0.030'),
+            value: toNano('0.031'),
             tokens: '7',
             recipient: halter.address,
             forwardTonAmount: 1n,
@@ -267,7 +267,7 @@ describe('Min Gas', () => {
         expect(result2.transactions).toHaveTransaction({
             from: staker.address,
             to: wallet.address,
-            value: toNano('0.030'),
+            value: toNano('0.031'),
             body: bodyOp(op.sendTokens),
             success: true,
             outMessagesCount: 1,
