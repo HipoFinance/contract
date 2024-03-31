@@ -469,16 +469,8 @@ describe('Getters', () => {
             to: bill1.address,
             value: toNano('0.1'),
             body: bodyOp(op.destroy),
-            success: true,
-            outMessagesCount: 1,
-        })
-        expect(result2.transactions).toHaveTransaction({
-            from: bill1.address,
-            to: staker.address,
-            value: between('0', '0.1'),
-            body: bodyOp(op.gasExcess),
-            success: true,
-            outMessagesCount: 0,
+            success: false,
+            exitCode: err.accessDenied,
         })
         expect(result2.transactions).toHaveLength(3)
 
@@ -497,6 +489,25 @@ describe('Getters', () => {
         )
 
         await treasury.sendRetryBurnAll(halter.getSender(), { value: '0.1', roundSince })
+
+        const result3 = await bill1.sendDestroy(staker.getSender(), { value: '0.1' })
+        expect(result3.transactions).toHaveTransaction({
+            from: staker.address,
+            to: bill1.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.destroy),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: bill1.address,
+            to: staker.address,
+            value: between('0', '0.1'),
+            body: bodyOp(op.gasExcess),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result3.transactions).toHaveLength(3)
 
         const revokedTime1After = await bill1.getRevokedTime()
         expect(revokedTime1After).toBeGreaterThan(0n)
@@ -552,8 +563,8 @@ describe('Getters', () => {
             }),
         )
 
-        const result3 = await treasury.sendRetryBurnAll(halter.getSender(), { value: '0.1', roundSince })
-        expect(result3.transactions).toHaveTransaction({
+        const result4 = await treasury.sendRetryBurnAll(halter.getSender(), { value: '0.1', roundSince })
+        expect(result4.transactions).toHaveTransaction({
             from: collection.address,
             to: bill1.address,
             value: between('0', '0.1'),
@@ -561,6 +572,6 @@ describe('Getters', () => {
             success: false,
             exitCode: err.stopped,
         })
-        expect(result3.transactions).toHaveLength(4)
+        expect(result4.transactions).toHaveLength(4)
     })
 })

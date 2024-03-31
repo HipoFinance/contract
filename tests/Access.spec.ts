@@ -1293,6 +1293,26 @@ describe('Access', () => {
             exitCode: err.accessDenied,
         })
         expect(result3.transactions).toHaveLength(3)
+
+        const result4 = await bill.sendDestroy(someone.getSender(), { value: '0.1' })
+        expect(result4.transactions).toHaveTransaction({
+            from: someone.address,
+            to: bill.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.destroy),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+
+        const result5 = await bill.sendDestroy(staker.getSender(), { value: '0.1' })
+        expect(result5.transactions).toHaveTransaction({
+            from: staker.address,
+            to: bill.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.destroy),
+            success: false,
+            exitCode: err.accessDenied,
+        })
     })
 
     it('should check access in loan', async () => {
