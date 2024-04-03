@@ -16,6 +16,15 @@ export async function run(provider: NetworkProvider) {
         const parent = provider.open(Parent.createFromAddress(treasuryState.parent))
         walletCode = (await parent.getJettonData())[4]
     }
+
+    const times = await treasury.getTimes()
+    const duration = 2 * Number(times.nextRoundSince - times.currentRoundSince)
+    const year = 365 * 24 * 60 * 60
+    const compoundingFrequency = year / duration
+    const apy =
+        Math.pow(Number(treasuryState.lastRecovered) / Number(treasuryState.lastStaked) || 1, compoundingFrequency) - 1
+    const apyPercent = formatPercent(apy)
+
     const testOnly = provider.network() !== 'mainnet'
     const proposedGovernorSlice = treasuryState.proposedGovernor?.beginParse()
     const proposedGovernorAcceptAfter = formatDate(proposedGovernorSlice?.loadUintBig(32) ?? 0n)
@@ -35,7 +44,7 @@ export async function run(provider: NetworkProvider) {
     console.info('                  stopped: %s', formatBoolean(treasuryState.stopped))
     console.info('             instant_mint: %s', formatBoolean(treasuryState.instantMint))
     console.info('              last_staked: %s TON', formatNano(treasuryState.lastStaked))
-    console.info('           last_recovered: %s TON', formatNano(treasuryState.lastRecovered))
+    console.info('           last_recovered: %s TON   APY: %s', formatNano(treasuryState.lastRecovered), apyPercent)
     console.info('                   halter: %s', treasuryState.halter.toString({ testOnly }))
     console.info('                 governor: %s', treasuryState.governor.toString({ testOnly }))
     console.info('        proposed_governor: %s', (proposedGovernorAddress ?? '') + ' ' + proposedGovernorAcceptAfter)
