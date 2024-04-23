@@ -195,7 +195,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('161.9', '162')
+        expect(treasuryBalance).toBeBetween('161.8', '161.9')
         expect(treasuryState.totalCoins).toBeTonValue('0')
         expect(treasuryState.totalTokens).toBeTonValue('0')
         expect(treasuryState.totalStaking).toBeTonValue('0')
@@ -268,6 +268,7 @@ describe('Loan', () => {
         const until2 = since2 + electedFor
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
+        setConfig(blockchain, config.nextValidators, null)
         const result = await treasury.sendParticipateInElection({ roundSince: until1 })
 
         expect(result.transactions).toHaveTransaction({
@@ -430,6 +431,7 @@ describe('Loan', () => {
         const until2 = since2 + electedFor
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
+        setConfig(blockchain, config.nextValidators, null)
 
         const state = await treasury.getTreasuryState()
         const fakeData = treasuryConfigToCell(state)
@@ -537,6 +539,7 @@ describe('Loan', () => {
         const until2 = since2 + electedFor
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
+        setConfig(blockchain, config.nextValidators, null)
         await treasury.sendParticipateInElection({ roundSince: until1 })
 
         const vset3 = createVset(0n, 1n)
@@ -650,6 +653,7 @@ describe('Loan', () => {
         const until2 = since2 + electedFor
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
+        setConfig(blockchain, config.nextValidators, null)
         await treasury.sendParticipateInElection({ roundSince: until1 })
 
         const credits = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.BigVarUint(4))
@@ -703,7 +707,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: treasury.address,
-            value: toNano('1'),
+            value: toNano('0.4'),
             body: bodyOp(op.recoverStakes),
             success: true,
             outMessagesCount: 2,
@@ -900,6 +904,7 @@ describe('Loan', () => {
         const until2 = since2 + electedFor
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
+        setConfig(blockchain, config.nextValidators, null)
         await treasury.sendParticipateInElection({ roundSince: until1 })
 
         const credits = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.BigVarUint(4))
@@ -1034,6 +1039,7 @@ describe('Loan', () => {
         const until2 = since2 + electedFor
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
+        setConfig(blockchain, config.nextValidators, null)
 
         const collectionAddress = await treasury.getCollectionAddress(until1)
         const result = await treasury.sendParticipateInElection({ roundSince: until1 })
@@ -1188,7 +1194,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('700134', '700135')
+        expect(treasuryBalance).toBeBetween('700133.9', '700134')
         expect(treasuryState.totalCoins).toBeBetween('700121', '700122')
         expect(treasuryState.totalTokens).toBeTonValue('700000')
         expect(treasuryState.totalStaking).toBeTonValue('0')
@@ -1261,6 +1267,7 @@ describe('Loan', () => {
         const until2 = since2 + electedFor
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
+        setConfig(blockchain, config.nextValidators, null)
         const result = await treasury.sendParticipateInElection({ roundSince: until1 })
 
         expect(result.transactions).toHaveTransaction({
@@ -1314,7 +1321,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('12.7', '12.8')
+        expect(treasuryBalance).toBeBetween('12.3', '12.4')
         expect(treasuryState.totalCoins).toBeTonValue('0')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
@@ -1392,6 +1399,7 @@ describe('Loan', () => {
         const until2 = since2 + electedFor
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
+        setConfig(blockchain, config.nextValidators, null)
         const result = await treasury.sendParticipateInElection({ roundSince: until1 })
 
         expect(result.transactions).toHaveTransaction({

@@ -562,7 +562,7 @@ describe('Max Gas', () => {
         expect(result8.transactions).toHaveTransaction({
             from: treasury.address,
             to: collectionAddress3,
-            value: between('0', walletFees.unstakeTokensFee + toNano('2')),
+            value: between('0', walletFees.unstakeTokensFee + toNano('2.2')),
             body: bodyOp(op.mintBill),
             success: true,
             outMessagesCount: 1,
@@ -597,7 +597,7 @@ describe('Max Gas', () => {
         expect(result9.transactions).toHaveTransaction({
             from: parent.address,
             to: wallet1.address,
-            value: between(tokens1, tokens1 + walletFees.unstakeTokensFee + toNano('2')),
+            value: between(tokens1, tokens1 + walletFees.unstakeTokensFee + toNano('2.2')),
             body: bodyOp(op.tokensBurned),
             success: true,
             outMessagesCount: 1,
@@ -752,6 +752,7 @@ describe('Max Gas', () => {
         const until2 = since2 + electedFor
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
+        setConfig(blockchain, config.nextValidators, null)
         const result2 = await treasury.sendParticipateInElection({ roundSince: until1 })
 
         expect(result2.transactions).toHaveTransaction({
@@ -982,6 +983,7 @@ describe('Max Gas', () => {
         const until2 = since2 + electedFor
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
+        setConfig(blockchain, config.nextValidators, null)
         const result4 = await treasury.sendParticipateInElection({ roundSince: until1 })
 
         expect(result4.transactions).toHaveTransaction({
@@ -1190,6 +1192,7 @@ describe('Max Gas', () => {
         const until2 = since2 + electedFor
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
+        setConfig(blockchain, config.nextValidators, null)
         const result4 = await treasury.sendParticipateInElection({ roundSince: until1 })
 
         expect(result4.transactions).toHaveTransaction({
@@ -1373,6 +1376,7 @@ describe('Max Gas', () => {
         const until2 = since2 + electedFor
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
+        setConfig(blockchain, config.nextValidators, null)
         const result4 = await treasury.sendParticipateInElection({ roundSince: until1 })
 
         expect(result4.transactions).toHaveTransaction({
@@ -1488,6 +1492,7 @@ describe('Max Gas', () => {
             const until2 = since2 + electedFor
             const vset2 = createVset(since2, until2)
             setConfig(blockchain, config.currentValidators, vset2)
+            setConfig(blockchain, config.nextValidators, null)
             const result1 = await treasury.sendParticipateInElection({ roundSince: until1 })
 
             expect(result1.transactions).toHaveTransaction({

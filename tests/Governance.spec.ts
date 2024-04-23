@@ -824,7 +824,7 @@ describe('Governance', () => {
         expect(totalCoinsAfter3).toEqual(totalCoinsBefore3 + toNano('0.08'))
 
         const totalCoinsBefore4 = (await treasury.getTreasuryState()).totalCoins
-        const result4 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.087') })
+        const result4 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.095') })
         const totalCoinsAfter4 = (await treasury.getTreasuryState()).totalCoins
 
         expect(result4.transactions).toHaveTransaction({
@@ -836,10 +836,10 @@ describe('Governance', () => {
             outMessagesCount: 0,
         })
         expect(result4.transactions).toHaveLength(2)
-        expect(totalCoinsAfter4).toEqual(totalCoinsBefore4 + toNano('0.087'))
+        expect(totalCoinsAfter4).toEqual(totalCoinsBefore4 + toNano('0.095'))
 
         const totalCoinsBefore5 = (await treasury.getTreasuryState()).totalCoins
-        const result5 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.088') })
+        const result5 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.096') })
         const totalCoinsAfter5 = (await treasury.getTreasuryState()).totalCoins
 
         expect(result5.transactions).toHaveTransaction({

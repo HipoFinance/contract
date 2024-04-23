@@ -122,9 +122,13 @@ export function createVset(since: bigint, until: bigint, total?: bigint, main?: 
         .endCell()
 }
 
-export function setConfig(blockchain: Blockchain, index: bigint, value: Cell) {
+export function setConfig(blockchain: Blockchain, index: bigint, value: Cell | null) {
     const config = Dictionary.loadDirect(Dictionary.Keys.BigInt(32), Dictionary.Values.Cell(), blockchain.config)
-    config.set(index, value)
+    if (value == null) {
+        config.delete(index)
+    } else {
+        config.set(index, value)
+    }
     const storage = beginCell()
     config.storeDirect(storage)
     const newConfig = storage.endCell()

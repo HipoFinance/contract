@@ -253,6 +253,7 @@ describe('Getters', () => {
         const until2 = since2 + electedFor
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
+        setConfig(blockchain, config.nextValidators, null)
         await treasury.sendParticipateInElection({ roundSince: until1 })
 
         const loanConfig = await loan.getLoanState()
