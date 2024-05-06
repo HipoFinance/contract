@@ -12,24 +12,26 @@ hTON consists of these components:
 ## Deployed Contracts
 
 MainNet:
-> EQBNo5qAG8I8J6IxGaz15SfQVB-kX98YhKV_mT36Xo5vYxUa
 
-[TonViewer](https://tonviewer.com/EQBNo5qAG8I8J6IxGaz15SfQVB-kX98YhKV_mT36Xo5vYxUa)
-[TonScan.org](https://tonscan.org/address/EQBNo5qAG8I8J6IxGaz15SfQVB-kX98YhKV_mT36Xo5vYxUa)
-[TonScan.com](https://tonscan.com/EQBNo5qAG8I8J6IxGaz15SfQVB-kX98YhKV_mT36Xo5vYxUa)
-[Ton.cx](https://ton.cx/address/EQBNo5qAG8I8J6IxGaz15SfQVB-kX98YhKV_mT36Xo5vYxUa)
-[TonWhales](https://tonwhales.com/explorer/address/EQBNo5qAG8I8J6IxGaz15SfQVB-kX98YhKV_mT36Xo5vYxUa)
-[DTON](https://dton.io/a/EQBNo5qAG8I8J6IxGaz15SfQVB-kX98YhKV_mT36Xo5vYxUa)
+> EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ
+
+[TonViewer](https://tonviewer.com/EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ)
+[TonScan.org](https://tonscan.org/address/EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ)
+[TonScan.com](https://tonscan.com/EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ)
+[Ton.cx](https://ton.cx/address/EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ)
+[TonWhales](https://tonwhales.com/explorer/address/EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ)
+[DTON](https://dton.io/a/EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ)
 
 TestNet:
-> kQAjvBlA6Gt0BZhvM9_PgBDVv1_EkRuMYZ3XxdaXlKRyCeaI
 
-[TonViewer](https://testnet.tonviewer.com/kQAjvBlA6Gt0BZhvM9_PgBDVv1_EkRuMYZ3XxdaXlKRyCeaI)
-[TonScan.org](https://testnet.tonscan.org/address/kQAjvBlA6Gt0BZhvM9_PgBDVv1_EkRuMYZ3XxdaXlKRyCeaI)
+> kQAlDMBKCT8WJ4nwdwNRp0lvKMP4vUnHYspFPhEnyR36cg44
+
+[TonViewer](https://testnet.tonviewer.com/kQAlDMBKCT8WJ4nwdwNRp0lvKMP4vUnHYspFPhEnyR36cg44)
+[TonScan.org](https://testnet.tonscan.org/address/kQAlDMBKCT8WJ4nwdwNRp0lvKMP4vUnHYspFPhEnyR36cg44)
 TonScan.com
-[Ton.cx](https://testnet.ton.cx/address/kQAjvBlA6Gt0BZhvM9_PgBDVv1_EkRuMYZ3XxdaXlKRyCeaI)
-[TonWhales](https://tonsandbox.com/explorer/address/kQAjvBlA6Gt0BZhvM9_PgBDVv1_EkRuMYZ3XxdaXlKRyCeaI)
-[DTON](https://testnet.dton.io/a/kQAjvBlA6Gt0BZhvM9_PgBDVv1_EkRuMYZ3XxdaXlKRyCeaI)
+[Ton.cx](https://testnet.ton.cx/address/kQAlDMBKCT8WJ4nwdwNRp0lvKMP4vUnHYspFPhEnyR36cg44)
+[TonWhales](https://tonsandbox.com/explorer/address/kQAlDMBKCT8WJ4nwdwNRp0lvKMP4vUnHYspFPhEnyR36cg44)
+[DTON](https://testnet.dton.io/a/kQAlDMBKCT8WJ4nwdwNRp0lvKMP4vUnHYspFPhEnyR36cg44)
 
 ## Users
 
