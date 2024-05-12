@@ -22,7 +22,7 @@ export async function run(provider: NetworkProvider) {
 
     const destination = Address.parse(await ui.input('Enter the friendly address of the old parent'))
 
-    const confirm = await ui.input(`Send upgrade wallet to ${owners.length} addresses? [yN]`)
+    const confirm = await ui.input(`Send upgrade wallet to ${owners.length.toString()} addresses? [yN]`)
     if (confirm.toLowerCase() !== 'y') {
         return
     }

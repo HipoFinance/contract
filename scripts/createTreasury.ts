@@ -188,5 +188,5 @@ async function waitForStateChange(attempts: number, sleepDuration: number, check
         }
         await sleep(sleepDuration)
     }
-    throw new Error('State check failed after ' + attempts + ' attempts')
+    throw new Error('State check failed after ' + attempts.toString() + ' attempts')
 }

@@ -1455,7 +1455,7 @@ describe('Max Gas', () => {
 
             const credits = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.BigVarUint(4))
             for (const i of Array(count).keys()) {
-                const borrower = await blockchain.treasury('borrower ' + i)
+                const borrower = await blockchain.treasury('borrower ' + i.toString())
                 const loanAddress = await treasury.getLoanAddress(borrower.address, until1)
                 credits.set(BigInt('0x' + loanAddress.hash.toString('hex')), toNano('350200'))
                 const newStakeMsg = await createNewStakeMsg(loanAddress, until1)
