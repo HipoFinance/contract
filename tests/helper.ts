@@ -47,7 +47,7 @@ export const toBeBetween: MatcherFunction<[a: unknown, b: unknown]> = function (
         return {
             message: () =>
                 `expected ${this.utils.printReceived(actual)} not to be between ${this.utils.printExpected(
-                    `[${a}, ${b}]`,
+                    `[${a.toString()}, ${b.toString()}]`,
                 )}`,
             pass: true,
         }
@@ -55,7 +55,7 @@ export const toBeBetween: MatcherFunction<[a: unknown, b: unknown]> = function (
         return {
             message: () =>
                 `expected ${this.utils.printReceived(actual)} to be between ${this.utils.printExpected(
-                    `[${a}, ${b}]`,
+                    `[${a.toString()}, ${b.toString()}]`,
                 )}`,
             pass: false,
         }

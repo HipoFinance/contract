@@ -1,10 +1,17 @@
 import { compile } from '@ton/blueprint'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, createShardAccount, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
-import { Cell, Dictionary, toNano } from '@ton/core'
+import { Cell, Dictionary, fromNano, toNano } from '@ton/core'
 import { bodyOp, createVset, emptyNewStakeMsg, setConfig } from './helper'
 import { config, err, op } from '../wrappers/common'
-import { Treasury, TreasuryFees, emptyDictionaryValue, participationDictionaryValue } from '../wrappers/Treasury'
+import {
+    ParticipationState,
+    Treasury,
+    TreasuryFees,
+    emptyDictionaryValue,
+    participationDictionaryValue,
+    treasuryConfigToCell,
+} from '../wrappers/Treasury'
 import { Parent } from '../wrappers/Parent'
 import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
 import { Wallet } from '../wrappers/Wallet'
@@ -320,5 +327,260 @@ describe('Min Gas', () => {
             success: true,
             outMessagesCount: 1,
         })
+    })
+
+    it('should print average gas usage for stake and unstake', async () => {
+        let roundSince = 1n
+        const stakerA = await blockchain.treasury('stakerA')
+
+        // slow stake 1
+
+        const fakeState1 = await treasury.getTreasuryState()
+        fakeState1.participations.set(roundSince, { state: ParticipationState.Staked })
+        const fakeData1 = treasuryConfigToCell(fakeState1)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData1,
+                balance: await treasury.getBalance(),
+            }),
+        )
+
+        const beforeSlowStake1 = await stakerA.getBalance()
+        const result1 = await treasury.sendDepositCoins(stakerA.getSender(), {
+            value: toNano('2'),
+            coins: toNano('1'),
+            ownershipAssignedAmount: 1n,
+        })
+        expect(result1.transactions).toHaveLength(7)
+
+        const fakeState2 = await treasury.getTreasuryState()
+        fakeState2.participations.set(roundSince, { state: ParticipationState.Burning })
+        const fakeData2 = treasuryConfigToCell(fakeState2)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData2,
+                balance: await treasury.getBalance(),
+            }),
+        )
+        const result2 = await treasury.sendRetryBurnAll(halter.getSender(), { value: toNano('0.02'), roundSince })
+        expect(result2.transactions).toHaveLength(10)
+
+        const afterSlowStake1 = await stakerA.getBalance()
+        const slowStake1 = -(afterSlowStake1 - beforeSlowStake1 + toNano('1'))
+
+        // slow stake 2
+
+        roundSince = 2n
+
+        const fakeState3 = await treasury.getTreasuryState()
+        fakeState3.participations.set(roundSince, { state: ParticipationState.Staked })
+        const fakeData3 = treasuryConfigToCell(fakeState3)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData3,
+                balance: await treasury.getBalance(),
+            }),
+        )
+
+        const beforeSlowStake2 = await stakerA.getBalance()
+        const result3 = await treasury.sendDepositCoins(stakerA.getSender(), {
+            value: toNano('2'),
+            coins: toNano('1'),
+            ownershipAssignedAmount: 1n,
+        })
+        expect(result3.transactions).toHaveLength(7)
+
+        const fakeState4 = await treasury.getTreasuryState()
+        fakeState4.participations.set(roundSince, { state: ParticipationState.Burning })
+        const fakeData4 = treasuryConfigToCell(fakeState4)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData4,
+                balance: await treasury.getBalance(),
+            }),
+        )
+        const result4 = await treasury.sendRetryBurnAll(halter.getSender(), { value: toNano('0.02'), roundSince })
+        expect(result4.transactions).toHaveLength(10)
+
+        const afterSlowStake2 = await stakerA.getBalance()
+        const slowStake2 = -(afterSlowStake2 - beforeSlowStake2 + toNano('1'))
+
+        // instant stake 1
+
+        roundSince = 3n
+        const stakerB = await blockchain.treasury('stakerB')
+
+        const fakeState5 = await treasury.getTreasuryState()
+        fakeState5.participations.set(roundSince, { state: ParticipationState.Staked })
+        fakeState5.instantMint = true
+        const fakeData5 = treasuryConfigToCell(fakeState5)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData5,
+                balance: toNano('1'),
+            }),
+        )
+
+        const beforeInstantStake1 = await stakerB.getBalance()
+        const result5 = await treasury.sendDepositCoins(stakerB.getSender(), { value: toNano('2'), coins: toNano('1') })
+        expect(result5.transactions).toHaveLength(5)
+
+        const afterInstantStake1 = await stakerB.getBalance()
+        const instantStake1 = -(afterInstantStake1 - beforeInstantStake1 + toNano('1'))
+
+        // instant stake 2
+
+        const beforeInstantStake2 = await stakerB.getBalance()
+        const result6 = await treasury.sendDepositCoins(stakerB.getSender(), { value: toNano('2'), coins: toNano('1') })
+        expect(result6.transactions).toHaveLength(5)
+
+        const afterInstantStake2 = await stakerB.getBalance()
+        const instantStake2 = -(afterInstantStake2 - beforeInstantStake2 + toNano('1'))
+
+        // slow unstake 1
+
+        const beforeSlowUnstake1 = await stakerA.getBalance()
+        const walletAddressA = await parent.getWalletAddress(stakerA.address)
+        const walletA = blockchain.openContract(Wallet.createFromAddress(walletAddressA))
+        const result7 = await walletA.sendUnstakeTokens(stakerA.getSender(), {
+            value: toNano('1'),
+            tokens: '1',
+            ownershipAssignedAmount: 1n,
+        })
+        expect(result7.transactions).toHaveLength(7)
+
+        const fakeState7 = await treasury.getTreasuryState()
+        fakeState7.participations.set(roundSince, { state: ParticipationState.Burning })
+        const fakeData7 = treasuryConfigToCell(fakeState7)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData7,
+                balance: toNano('20'),
+            }),
+        )
+        const result8 = await treasury.sendRetryBurnAll(halter.getSender(), { value: toNano('0.02'), roundSince })
+        expect(result8.transactions).toHaveLength(10)
+
+        const afterSlowUnstake1 = await stakerA.getBalance()
+        const slowUnstake1 = -(afterSlowUnstake1 - beforeSlowUnstake1 - toNano('1'))
+
+        // slow unstake 2
+
+        roundSince = 4n
+
+        const fakeState6 = await treasury.getTreasuryState()
+        fakeState6.participations.set(roundSince, { state: ParticipationState.Staked })
+        const fakeData6 = treasuryConfigToCell(fakeState6)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData6,
+                balance: toNano('1'),
+            }),
+        )
+
+        const beforeSlowUnstake2 = await stakerA.getBalance()
+        const result9 = await walletA.sendUnstakeTokens(stakerA.getSender(), {
+            value: toNano('1'),
+            tokens: '1',
+            ownershipAssignedAmount: 1n,
+        })
+        expect(result9.transactions).toHaveLength(7)
+
+        const fakeState8 = await treasury.getTreasuryState()
+        fakeState8.participations.set(roundSince, { state: ParticipationState.Burning })
+        const fakeData8 = treasuryConfigToCell(fakeState8)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData8,
+                balance: toNano('20'),
+            }),
+        )
+        const result10 = await treasury.sendRetryBurnAll(halter.getSender(), { value: toNano('0.02'), roundSince })
+        expect(result10.transactions).toHaveLength(10)
+
+        const afterSlowUnstake2 = await stakerA.getBalance()
+        const slowUnstake2 = -(afterSlowUnstake2 - beforeSlowUnstake2 - toNano('1'))
+
+        // instant unstake 1
+
+        const beforeInstantUnstake1 = await stakerB.getBalance()
+        const walletAddressB = await parent.getWalletAddress(stakerB.address)
+        const walletB = blockchain.openContract(Wallet.createFromAddress(walletAddressB))
+        const result11 = await walletB.sendUnstakeTokens(stakerB.getSender(), {
+            value: toNano('1'),
+            tokens: '1',
+            ownershipAssignedAmount: 1n,
+        })
+        expect(result11.transactions).toHaveLength(7)
+
+        const afterInstantUnstake1 = await stakerB.getBalance()
+        const instantUnstake1 = -(afterInstantUnstake1 - beforeInstantUnstake1 - toNano('1'))
+
+        // instant unstake 2
+
+        const beforeInstantUnstake2 = await stakerB.getBalance()
+        const result12 = await walletB.sendUnstakeTokens(stakerB.getSender(), {
+            value: toNano('1'),
+            tokens: '1',
+            ownershipAssignedAmount: 1n,
+        })
+        expect(result12.transactions).toHaveLength(7)
+
+        const afterInstantUnstake2 = await stakerB.getBalance()
+        const instantUnstake2 = -(afterInstantUnstake2 - beforeInstantUnstake2 - toNano('1'))
+
+        console.info(
+            [
+                'Average gas usage:',
+                '         slow stake 1: %s',
+                '         slow stake 2: %s',
+                '      instant stake 1: %s',
+                '      instant stake 2: %s',
+                '       slow unstake 1: %s',
+                '       slow unstake 2: %s',
+                '    instant unstake 1: %s',
+                '    instant unstake 2: %s',
+            ].join('\n'),
+            fromNano(slowStake1).padEnd(11, '0'),
+            fromNano(slowStake2).padEnd(11, '0'),
+            fromNano(instantStake1).padEnd(11, '0'),
+            fromNano(instantStake2).padEnd(11, '0'),
+            fromNano(slowUnstake1).padEnd(11, '0'),
+            fromNano(slowUnstake2).padEnd(11, '0'),
+            fromNano(instantUnstake1).padEnd(11, '0'),
+            fromNano(instantUnstake2).padEnd(11, '0'),
+        )
     })
 })
