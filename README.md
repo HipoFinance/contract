@@ -1,173 +1,70 @@
-# hTON
+# Hipo
 
 Hipo is a **decentralized**, **permission-less**, **open-source** liquid staking protocol on TON blockchain. Visit [Hipo.Finance](https://hipo.finance) for more information or read the [docs](https://docs.hipo.finance).
 
-hTON consists of these components:
+Hipo consists of these components:
 
-- **Contract**: The smart contract code that is running on-chain. The code is available here on this repository.
+- **Contract**: The smart contract codes that are running on-chain. The source code is available here on this repository.
 - **[Webapp](https://github.com/HipoFinance/webapp)**: The web application that helps users in staking and unstaking.
-- **[Driver](https://github.com/HipoFinance/driver)**: The off-chain application that drives the protocol and helps users to receive their TON and hTON.
-- **[Borrower](https://github.com/HipoFinance/borrower)**: The application that helps validators in borrowing from the protocol and validating blocks.
+- **[Borrower](https://github.com/HipoFinance/borrower)**: The application that helps validators in borrowing from the protocol and validating blocks, thereby generating a yield for the whole protocol.
 
-## Deployed Contracts
+## Smart Contracts
 
-MainNet:
+There are different smart contracts involved in the protocol. Here is a quick recap.
 
-> EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ
+### Treasury
 
-[TonViewer](https://tonviewer.com/EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ)
-[TonScan.org](https://tonscan.org/address/EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ)
-[TonScan.com](https://tonscan.com/EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ)
-[Ton.cx](https://ton.cx/address/EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ)
-[TonWhales](https://tonwhales.com/explorer/address/EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ)
-[DTON](https://dton.io/a/EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ)
+This is the main smart contract of the protocol. All TON coins are deposited here and then given as loans to borrowers. Treasury address:
 
-TestNet:
+> `EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ`
 
-> kQAlDMBKCT8WJ4nwdwNRp0lvKMP4vUnHYspFPhEnyR36cg44
+### Parent
 
-[TonViewer](https://testnet.tonviewer.com/kQAlDMBKCT8WJ4nwdwNRp0lvKMP4vUnHYspFPhEnyR36cg44)
-[TonScan.org](https://testnet.tonscan.org/address/kQAlDMBKCT8WJ4nwdwNRp0lvKMP4vUnHYspFPhEnyR36cg44)
-TonScan.com
-[Ton.cx](https://testnet.ton.cx/address/kQAlDMBKCT8WJ4nwdwNRp0lvKMP4vUnHYspFPhEnyR36cg44)
-[TonWhales](https://tonsandbox.com/explorer/address/kQAlDMBKCT8WJ4nwdwNRp0lvKMP4vUnHYspFPhEnyR36cg44)
-[DTON](https://testnet.dton.io/a/kQAlDMBKCT8WJ4nwdwNRp0lvKMP4vUnHYspFPhEnyR36cg44)
+This is the jetton parent/minter/master smart contract. All communication between wallets and treasury go through this smart contract. Current parent address:
+
+> `EQDPdq8xjAhytYqfGSX8KcFWIReCufsB9Wdg0pLlYSO_h76w`
+
+### Wallet
+
+It's a jetton wallet implementation with some custom behavior and extra data fields. Each user has its own instance of wallet, deployed at a separate address.
+
+### Loan
+
+Loans are given to borrowers using this smart contract which safeguards the loans. New instances of it are deployed on masterchain for each round of validation.
+
+### Bill
+
+Some operations cannot happen instantly. For example, unstaking hTON while funds are already staked in the Elector smart contract must wait until the end of the validation round. In these cases, an SBT, which is a non-transferrable NFT, is created and assigned to the user.
+
+### Collection
+
+Each bill is a child of an NFT collection, which is also created for each round of validation.
+
+### Librarian
+
+Some of the above contracts are implemented using the library feature of Ton blockchain. Librarian is used to help with their deployments, and paying for their storage.
 
 ## Users
 
-There are two groups of users who would be interested in using hTON: stakers and validators.
+There are two groups of users who would be interested in using Hipo: stakers and borrowers.
 
 ### Stakers
 
-Stakers are users who have some TON and want to earn staking rewards on their TON. In normal staking, a staker must have a large sum of TON (like at least 300,000 TON) before being able to participate in validation. Most users don't have access to such a big amount, but with a liquid staking protocol like hTON, they can earn rewards on any TON amount.
+Stakers are users who have some TON and want to earn staking rewards on their TON. In normal staking, a staker must have a large sum of TON (like at least 300,000 TON) before being able to participate in validation. Most users don't have access to such a big amount, but with a liquid staking protocol like Hipo, they can earn rewards on any TON amount.
 
 When stakers deposit their TON, they will receive hTON jettons (a token in TON blockchain) as a receipt. Stakers can keep it or send it to other users or use it in other DeFi protocols. Whoever brings it back to the protocol, can receive the corresponding amount in TON by burning it.
 
 Meanwhile, protocol puts staked TON from all stakers to use and will give it as a loan to validators. In turn they'll receive a reward and share it with the protocol and stakers. So over time, each hTON will have more TON value, and stakers can burn their hTON jettons to receive TON.
 
-### Validators
+### Borrowers
 
-Validators are node operators who have the technical knowledge of running a validator server, and have access to such a server. However, they might not have access to the minimum amount required for staking. They can ask for a loan from the hTON protocol, to receive a loan and participate in validation and earn rewards. After earning rewards, they share it with the protocol and stakers.
+Borrowers are node operators who have the technical knowledge of running a validator server, and have access to such a server. However, they might not have access to the minimum amount required for staking. They can ask for a loan from Hipo, to receive a loan and participate in validation and earn rewards. After earning rewards, they share it with the protocol and stakers.
 
-Loans are given to validators in a safe way. Validators can't withdraw the loan. They can only use it for staking in TON blockchain. Any punishment will be deducted from the validator's staked amount, so they'll pay for their own misbehavior.
+Loans are given to borrowers in a safe way. Borrowers can't withdraw the loan. They can only use it for staking in TON blockchain. Any punishment will be deducted from the borrower's staked amount, so they'll pay for their own misbehavior, and stakers are not punished in such cases.
 
-## Smart Contracts
+## Graphs
 
-There are 3 smart contracts in the hTON protocol: **Treasury**, **Wallet**, and **Loan**.
-
-### Treasury
-
-Treasury is the main smart contract which receives all stakers' TON, and lends it to interested validators. It's also the jettons minter, minting new hTON jettons for stakers. The jettons are stored in wallets.
-
-### Wallet
-
-Each staker will have a wallet that will store staker's jettons. Wallets receive jettons only from the treasury or from other wallets. They can also send jettons only to other wallets, or they can burn jettons by sending a request to the treasury.
-
-### Loan
-
-When a validator requests a loan and it's accepted, a loan smart contract is created for that validator, and only for that validation round. Loan amount is sent to this smart contract and it automatically stakes it for the validator. After the validation round finishes, the loan amount plus the reward is returned to the loan smart contract, which will forward it to the treasury. Then the treasury will calculate the reward share and distribute it between the validator and stakers.
-
-## Flows
-
-Both stakers and validators use different flows for different tasks. Each flow is described in more detail below. **There are Graphviz graphs available for each flow in the `graphs` folder**. It's recommended to first look at the graph of each flow to better understand them.
-
-## Staker Flows
-
-Usually stakers use the web application available at [app.hipo.finance](https://app.hipo.finance) to send messages and talk to the protocol, but there is also an alternative. A simple text based interface is available which makes talking with the protocol easier for stakers who don't want to use the web application, or are using cold wallets and don't want to connect them to apps.
-
-### Deposit Coins
-
-When a staker wants to deposit some TON and receive hTON, he/she sends a `deposit_coins` message to the treasury with the TON amount.
-
-> Alternatively a simple text message with the comment `d` may be sent to the treasury by the staker.
-
-After this, the staker has sent the coins but will not receive the hTON jettons yet. The reason is that there might be another validation round in progress, and the staker has to wait for that round to finish. When the in-progress round finishes, the staker can receive hTON jettons.
-
-### Stake Coins
-
-This step is usually handled by the **Driver** automatically. When the previous in-progress validation round finishes, the driver will send the `stake_coins` message for pending deposits.
-
-> Alternatively, a simple text message with the comment `s` may be sent to the treasury by the staker. Note that this most likely happens automatically, however it's available here to make the protocol permission-less: in the unlikely case that the driver doesn't work as expected, the user can drive the protocol forward.
-
-### Send Tokens
-
-Stakers can send hTON jettons to anyone. This is usually done through TON Wallet applications which send `send_tokens` message to the staker's hTON jettons wallet.
-
-### Unstake Tokens
-
-When a staker wants to burn hTON and withdraw some TON, he/she sends an `unstake_tokens` message to the hTON jettons wallet.
-
-> Alternatively a simple text message with the comment `w` may be sent to the treasury by the staker. The choice of 'w' is intentional to match other similar protocols in the ecosystem.
-
-After this, the staker has burned the tokens but will not receive TON yet. The reason is that there might be a validation round in progress and TON coins might be locked for the duration of the round. When the in-progress round finishes, the staker can receive TON coins.
-
-### Withdraw Tokens
-
-This step is usually handled by the **Driver** automatically. When funds are available, the driver will send the `withdraw_tokens` message for pending withdrawals.
-
-> Alternatively a simple text message with the comment `u` may be sent to the treasury by the staker. Note that this most likely happens automatically, however it's available here to make the protocol permission-less: in the unlikely case that the driver doesn't work as expected, the user can drive the protocol forward.
-
-## Validator Flows
-
-Validators may use the **Borrower** application to talk to the protocol.
-
-### Request Loan
-
-A validator requests a loan by sending a `request_loan` message. The parameters include:
-
-- loan amount: the minimum amount that the validator wants to borrow.
-- min payment: the minimum payment that the validator will pay if the loan request is accepted.
-- validator reward share: the share of the reward for the validator.
-- round since: the validation round for the loan.
-- new stake message: the signed message that will be sent to the Elector.
-
-Notes:
-
-1. The loan amount might be more than requested. If the treasury has more funds available, it may distribute it between accepted loans proportionally.
-2. The min payment is a mechanism to select validators with the most reward returned for the loan amount requested. It's also a way to avoid draining funds by sending fake loan requests.
-3. The validator reward share is the ratio to split reward. The reward is distributed by considering this ratio and also the final paid amount must be greater than min payment.
-
-Validators that provide better return on investment (ROI) have a higher chance to win.
-
-### Participate In Election
-
-The message `participate_in_election` will start the process of deciding on loan requests and distributing funds. Rejected requests will receive back their staked amount and accepted requests will be given the loan and participate in the election automatically.
-
-### Vset Changed
-
-The message `vset_changed` gives a hint to the treasury that a round has passed. This is a way to wait for the correct time to accept the message to finish participation.
-
-### Finish Participation
-
-The message `finish_participation` asks the treasury to retrieve the loaned amount plus reward for each given loan and distribute rewards.
-
-## Governance
-
-There are 3 roles in the governance of the protocol:
-
-- Governor: the top authority in the protocol.
-- Halter: the one that can stop deposits to the treasury and also stops new loan requests.
-- Driver: the account that receives the gas fee for driving the protocol.
-
-## Governance Flows
-
-- A new governor can be proposed.
-- The new governor can accept governance.
-- The halter can be changed.
-- The halter can stop deposits to the treasury and also loan requests.
-- The driver can be changed.
-- The metadata of the protocol can be updated.
-- The reward share of the protocol can be updated.
-- The halter can send messages from the treasury to the loans in the emergency case.
-
-## Development
-
-- Install dependencies: `npm install`
-- Build contracts: `npx blueprint build`
-- Deploy: `npx blueprint run`
-- Test: `npx blueprint test`
-
-### Graphs
+Both stakers and borrowers use different flows for different tasks. There are Graphviz graphs available for each flow in the [graphs/img](https://github.com/HipoFinance/contract/tree/main/graphs/img) folder. If you want to learn the internals of the protocol, it's recommended to first look at the graph of each flow to better understand them, and then read the code of smart contracts.
 
 Requirements:
 
@@ -179,6 +76,11 @@ How to generate:
 1. `make build_graphviz`
 2. `make graphs`
 
-## License
+## Development
 
-[MIT](./LICENSE)
+Hipo is written in FunC, using the Blueprint toolset. It also has a large number of test cases, testing different aspects of the protocol.
+
+- Install dependencies: `npm install`
+- Build: `npx blueprint build`
+- Test: `npx blueprint test`
+- Deploy: `npx blueprint run`

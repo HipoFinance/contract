@@ -36,7 +36,7 @@ Each bill is a child of an NFT collection, which is also created for each round 
 
 ### Librarian
 
-Some of the above contracts are implemented using the library feature of Ton blockchain. Librarian is used to help with their deployments.
+Some of the above contracts are implemented using the library feature of Ton blockchain. Librarian is used to help with their deployments, and paying for their storage.
 
 ## Deposit and Stake
 
