@@ -171,7 +171,7 @@ function showRequests(dict: Dictionary<bigint, Request>, testOnly: boolean) {
                 formatPercent(Number(request?.borrowerRewardShare ?? 0n) / 255).padEnd(4),
                 formatNano(request?.loanAmount ?? 0n).padEnd(9),
                 formatNano(request?.stakeAmount ?? 0n).padEnd(9),
-                Address.parseRaw('0:' + req.toString(16)).toString({ testOnly }),
+                Address.parseRaw('0:' + req.toString(16).padStart(64, '0')).toString({ testOnly }),
             )
         }
     }
