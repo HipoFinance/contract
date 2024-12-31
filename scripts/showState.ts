@@ -60,7 +60,7 @@ export async function run(provider: NetworkProvider) {
     console.info('    -----------')
     if (treasuryState.oldParents.size > 0) {
         for (const key of treasuryState.oldParents.keys()) {
-            console.info('    %s', Address.parseRaw('0:' + key.toString(16)).toString({ testOnly }))
+            console.info('    %s', Address.parseRaw('0:' + key.toString(16).padStart(64, '0')).toString({ testOnly }))
         }
     }
     console.info()

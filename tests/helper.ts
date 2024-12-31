@@ -138,7 +138,7 @@ export function setConfig(blockchain: Blockchain, index: bigint, value: Cell | n
 export function getElector(blockchain: Blockchain): Address {
     const config = Dictionary.loadDirect(Dictionary.Keys.BigInt(32), Dictionary.Values.Cell(), blockchain.config)
     const electorAddr = config.get(1n)?.beginParse().loadUintBig(256) ?? 0n
-    return Address.parseRaw('-1:' + electorAddr.toString(16))
+    return Address.parseRaw('-1:' + electorAddr.toString(16).padStart(64, '0'))
 }
 
 export let totalFees = 0n
