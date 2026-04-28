@@ -732,7 +732,7 @@ export class Treasury implements Contract {
             bounce?: boolean
             sendMode?: SendMode
             queryId?: bigint
-            returnExcess?: Address
+            destination: Address
         },
     ) {
         await this.sendMessage(provider, via, {
@@ -742,7 +742,7 @@ export class Treasury implements Contract {
             body: beginCell()
                 .storeUint(op.withdrawSurplus, 32)
                 .storeUint(opts.queryId ?? 0, 64)
-                .storeAddress(opts.returnExcess ?? via.address)
+                .storeAddress(opts.destination)
                 .endCell(),
         })
     }

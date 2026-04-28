@@ -11,7 +11,10 @@ export async function run(provider: NetworkProvider) {
     const treasuryAddress = Address.parse(addressString)
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
-    await treasury.sendWithdrawSurplus(provider.sender(), { value: '0.1' })
+    const destinationString = await ui.input('Enter the friendly address of the destination that receives surplus')
+    const destinationAddress = Address.parse(destinationString)
+
+    await treasury.sendWithdrawSurplus(provider.sender(), { value: '0.1', destination: destinationAddress })
 
     ui.write('Done')
 }
