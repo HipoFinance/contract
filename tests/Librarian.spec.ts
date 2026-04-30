@@ -3,7 +3,7 @@ import { Cell, Dictionary, toNano } from '@ton/core'
 import { Librarian } from '../wrappers/Librarian'
 import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
-import { between, bodyOp } from './helper'
+import { between, bodyOp, updateFeeConfig } from './helper'
 import { op } from '../wrappers/common'
 import { Treasury } from '../wrappers/Treasury'
 
@@ -25,6 +25,7 @@ describe('Librarian', () => {
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
+        updateFeeConfig(blockchain)
         governor = await blockchain.treasury('governor')
         treasury = blockchain.openContract(
             Treasury.createFromConfig(

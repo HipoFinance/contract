@@ -1,7 +1,7 @@
 import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import { Address, Cell, Dictionary, beginCell, toNano } from '@ton/core'
-import { between, bodyOp, createVset, setConfig, createNewStakeMsg, getElector } from './helper'
+import { between, bodyOp, createVset, setConfig, createNewStakeMsg, getElector, updateFeeConfig } from './helper'
 import { config, err, op } from '../wrappers/common'
 import {
     ParticipationState,
@@ -57,6 +57,7 @@ describe('Access', () => {
     beforeEach(async () => {
         blockchain = await Blockchain.create()
         blockchain.libs = blockchainLibs
+        updateFeeConfig(blockchain)
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
         treasury = blockchain.openContract(

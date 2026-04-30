@@ -13,6 +13,7 @@ import {
     getElector,
     logTotalFees,
     setConfig,
+    updateFeeConfig,
 } from './helper'
 import { config, op } from '../wrappers/common'
 import {
@@ -179,6 +180,7 @@ describe('Max Gas', () => {
     beforeEach(async () => {
         blockchain = await Blockchain.create()
         blockchain.libs = blockchainLibs
+        updateFeeConfig(blockchain)
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
         treasury = blockchain.openContract(
@@ -306,8 +308,8 @@ describe('Max Gas', () => {
         )
 
         const result1 = await treasury.sendDepositCoins(staker.getSender(), {
-            value: toNano('10') + fees.depositCoinsFee + toNano('0.01'),
-            ownershipAssignedAmount: toNano('0.01'),
+            value: toNano('10') + fees.depositCoinsFee + toNano('0.001'),
+            ownershipAssignedAmount: toNano('0.001'),
         })
         expect(result1.transactions).toHaveTransaction({
             from: treasury.address,

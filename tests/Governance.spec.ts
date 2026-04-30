@@ -1,7 +1,7 @@
 import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
-import { between, bodyOp, createVset, emptyNewStakeMsg, logTotalFees, accumulateFees, setConfig } from './helper'
+import { between, bodyOp, createVset, emptyNewStakeMsg, logTotalFees, accumulateFees, setConfig, updateFeeConfig } from './helper'
 import { config, op } from '../wrappers/common'
 import {
     Participation,
@@ -57,6 +57,7 @@ describe('Governance', () => {
     beforeEach(async () => {
         blockchain = await Blockchain.create()
         blockchain.libs = blockchainLibs
+        updateFeeConfig(blockchain)
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
         treasury = blockchain.openContract(
@@ -827,7 +828,7 @@ describe('Governance', () => {
         expect(totalCoinsAfter3).toEqual(totalCoinsBefore3 + toNano('0.08'))
 
         const totalCoinsBefore4 = (await treasury.getTreasuryState()).totalCoins
-        const result4 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.095') })
+        const result4 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.09915') })
         const totalCoinsAfter4 = (await treasury.getTreasuryState()).totalCoins
 
         expect(result4.transactions).toHaveTransaction({
@@ -839,10 +840,10 @@ describe('Governance', () => {
             outMessagesCount: 0,
         })
         expect(result4.transactions).toHaveLength(2)
-        expect(totalCoinsAfter4).toEqual(totalCoinsBefore4 + toNano('0.095'))
+        expect(totalCoinsAfter4).toEqual(totalCoinsBefore4 + toNano('0.09915'))
 
         const totalCoinsBefore5 = (await treasury.getTreasuryState()).totalCoins
-        const result5 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.096') })
+        const result5 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.0992') })
         const totalCoinsAfter5 = (await treasury.getTreasuryState()).totalCoins
 
         expect(result5.transactions).toHaveTransaction({

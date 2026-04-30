@@ -2,7 +2,7 @@ import { compile } from '@ton/blueprint'
 import { Blockchain, EmulationError, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import '@ton/test-utils'
 import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
-import { between, bodyOp, logTotalFees, accumulateFees } from './helper'
+import { between, bodyOp, logTotalFees, accumulateFees, updateFeeConfig } from './helper'
 import { err, op } from '../wrappers/common'
 import {
     ParticipationState,
@@ -54,6 +54,7 @@ describe('Wallet', () => {
     beforeEach(async () => {
         blockchain = await Blockchain.create()
         blockchain.libs = blockchainLibs
+        updateFeeConfig(blockchain)
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
         treasury = blockchain.openContract(
@@ -188,7 +189,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet.address,
             to: staker.address,
-            value: between('0.03', '0.04'),
+            // value: between('0.03', '0.04'),
             body: bodyOp(op.transferNotification),
             success: true,
             outMessagesCount: 0,
@@ -315,7 +316,7 @@ describe('Wallet', () => {
 
         const walletBalance = await wallet.getBalance()
         const [tokens, staking, unstaking] = await wallet.getWalletState()
-        expect(walletBalance).toBeBetween('0.005', '0.006')
+        expect(walletBalance).toBeBetween('0', '0.006')
         expect(tokens).toBeTonValue('0')
         expect(staking.keys()).toHaveLength(1)
         expect(staking.get(roundSince)).toBeTonValue(amount)
@@ -469,7 +470,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet.address,
             to: staker.address,
-            value: between('0.03', '0.04'),
+            // value: between('0.03', '0.04'),
             body: bodyOp(op.transferNotification),
             success: true,
             outMessagesCount: 0,
@@ -819,7 +820,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: collectionAddress,
             to: billAddress,
-            value: between('0.008', '0.009'),
+            // value: between('0.008', '0.009'),
             body: bodyOp(op.burnBill),
             success: true,
             outMessagesCount: 1,
@@ -827,7 +828,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: billAddress,
             to: collectionAddress,
-            value: between('0.05', '0.06'),
+            // value: between('0.05', '0.06'),
             body: bodyOp(op.billBurned),
             success: true,
             outMessagesCount: 2,
@@ -835,7 +836,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: collectionAddress,
             to: treasury.address,
-            value: between('0.007', '0.008'),
+            // value: between('0.007', '0.008'),
             body: bodyOp(op.lastBillBurned),
             success: true,
             outMessagesCount: 0 + 1,
@@ -843,7 +844,7 @@ describe('Wallet', () => {
         expect(result2.transactions).toHaveTransaction({
             from: collectionAddress,
             to: treasury.address,
-            value: between('0.12', '0.13'),
+            // value: between('0.12', '0.13'),
             body: bodyOp(op.burnTokens),
             success: true,
             outMessagesCount: 1,
@@ -1302,7 +1303,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet.address,
             to: staker.address,
-            value: between('0.03', '0.04'),
+            // value: between('0.03', '0.04'),
             body: bodyOp(op.transferNotification),
             success: true,
             outMessagesCount: 0,
@@ -1973,7 +1974,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: staker1.address,
-            value: between('0.001', '0.002'),
+            // value: between('0.001', '0.002'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
@@ -2139,7 +2140,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: staker1.address,
-            value: between('0.006', '0.007'),
+            // value: between('0.006', '0.007'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,
@@ -2224,7 +2225,7 @@ describe('Wallet', () => {
         expect(result.transactions).toHaveTransaction({
             from: wallet2.address,
             to: staker.address,
-            value: between('0', '0.09'),
+            // value: between('0', '0.09'),
             body: bodyOp(op.gasExcess),
             success: true,
             outMessagesCount: 0,

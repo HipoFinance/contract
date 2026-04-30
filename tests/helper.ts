@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import { Blockchain, BlockchainTransaction } from '@ton/sandbox'
 import type { MatcherFunction } from 'expect'
-import { Address, Builder, Cell, Dictionary, beginCell, fromNano, toNano } from '@ton/core'
+import { Address, Builder, Cell, Dictionary, DictionaryValue, Slice, beginCell, fromNano, toNano } from '@ton/core'
 import { mnemonicNew, mnemonicToPrivateKey, sign } from '@ton/crypto'
 import { TreasuryFees } from '../wrappers/Treasury'
 import { WalletFees } from '../wrappers/Wallet'
@@ -139,6 +139,83 @@ export function getElector(blockchain: Blockchain): Address {
     const config = Dictionary.loadDirect(Dictionary.Keys.BigInt(32), Dictionary.Values.Cell(), blockchain.config)
     const electorAddr = config.get(1n)?.beginParse().loadUintBig(256) ?? 0n
     return Address.parseRaw('-1:' + electorAddr.toString(16).padStart(64, '0'))
+}
+
+export function updateFeeConfig(blockchain: Blockchain) {
+    const config = Dictionary.loadDirect(Dictionary.Keys.BigInt(32), Dictionary.Values.Cell(), blockchain.config)
+
+    const fees = Dictionary.loadDirect(Dictionary.Keys.BigInt(32), feeDictionaryValue, config.get(18n) ?? Cell.EMPTY)
+    const newFee: Fee = {
+        utimeSince: 1777500000n,
+        bitPricePs: 0n,
+        cellPricePs: 135n,
+        mcBitPricePs: 1000n,
+        mcCellPricePs: 500000n,
+    }
+    fees.set(1777500000n, newFee)
+    const newFeeBuilder = beginCell()
+    fees.storeDirect(newFeeBuilder)
+    config.set(18n, newFeeBuilder.endCell())
+
+    const config21 = beginCell()
+        .storeUint(0xd1, 8)
+        .storeUint(100, 64)
+        .storeUint(6667, 64)
+        .storeUint(0xde, 8)
+        .storeUint(4369067, 64)
+        .storeUint(1000000, 64)
+        .storeUint(1000000, 64)
+        .storeUint(10000, 64)
+        .storeUint(10000000, 64)
+        .storeUint(100000000, 64)
+        .storeUint(1000000000, 64)
+        .endCell()
+    config.set(21n, config21)
+
+    const config25 = beginCell()
+        .storeUint(0xea, 8)
+        .storeUint(66667, 64)
+        .storeUint(4369067, 64)
+        .storeUint(436906667, 64)
+        .storeUint(98304, 32)
+        .storeUint(21845, 16)
+        .storeUint(21845, 16)
+        .endCell()
+    config.set(25n, config25)
+
+    const newConfigBuilder = beginCell()
+    config.storeDirect(newConfigBuilder)
+    blockchain.setConfig(newConfigBuilder.endCell())
+}
+
+interface Fee {
+    utimeSince: bigint
+    bitPricePs: bigint
+    cellPricePs: bigint
+    mcBitPricePs: bigint
+    mcCellPricePs: bigint
+}
+
+const feeDictionaryValue: DictionaryValue<Fee> = {
+    serialize: function (src: Fee, builder: Builder) {
+        builder
+            .storeUint(0xcc, 8)
+            .storeUint(src.utimeSince, 32)
+            .storeUint(src.bitPricePs, 64)
+            .storeUint(src.cellPricePs, 64)
+            .storeUint(src.mcBitPricePs, 64)
+            .storeUint(src.mcCellPricePs, 64)
+    },
+    parse: function (src: Slice): Fee {
+        src.skip(8)
+        return {
+            utimeSince: src.loadUintBig(32),
+            bitPricePs: src.loadUintBig(64),
+            cellPricePs: src.loadUintBig(64),
+            mcBitPricePs: src.loadUintBig(64),
+            mcCellPricePs: src.loadUintBig(64),
+        }
+    },
 }
 
 export let totalFees = 0n

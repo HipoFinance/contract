@@ -2,7 +2,7 @@ import { compile } from '@ton/blueprint'
 import { Blockchain, createShardAccount, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
 import { Cell, Dictionary, fromNano, toNano } from '@ton/core'
-import { bodyOp, createVset, emptyNewStakeMsg, setConfig } from './helper'
+import { bodyOp, createVset, emptyNewStakeMsg, setConfig, updateFeeConfig } from './helper'
 import { config, err, op } from '../wrappers/common'
 import {
     ParticipationState,
@@ -53,6 +53,7 @@ describe('Min Gas', () => {
     beforeEach(async () => {
         blockchain = await Blockchain.create()
         blockchain.libs = blockchainLibs
+        updateFeeConfig(blockchain)
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
         treasury = blockchain.openContract(
@@ -250,7 +251,7 @@ describe('Min Gas', () => {
         const walletFees = await wallet.getWalletFees()
 
         const result1 = await wallet.sendSendTokens(staker.getSender(), {
-            value: toNano('0.014'),
+            value: toNano('0.002'),
             tokens: '7',
             recipient: halter.address,
             forwardTonAmount: 1n,
@@ -258,7 +259,7 @@ describe('Min Gas', () => {
         expect(result1.transactions).toHaveTransaction({
             from: staker.address,
             to: wallet.address,
-            value: toNano('0.014'),
+            value: toNano('0.002'),
             body: bodyOp(op.sendTokens),
             success: false,
             exitCode: err.insufficientFee,

@@ -12,6 +12,7 @@ import {
     logTreasuryFees,
     logWalletFees,
     setConfig,
+    updateFeeConfig,
 } from './helper'
 import { config, err, op } from '../wrappers/common'
 import {
@@ -73,6 +74,7 @@ describe('Getters', () => {
     beforeEach(async () => {
         blockchain = await Blockchain.create()
         blockchain.libs = blockchainLibs
+        updateFeeConfig(blockchain)
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
         treasury = blockchain.openContract(

@@ -1,7 +1,7 @@
 import { compile } from '@ton/blueprint'
 import { Blockchain, EmulationError, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
-import { bodyOp, createVset, emptyNewStakeMsg, logTotalFees, accumulateFees, setConfig } from './helper'
+import { bodyOp, createVset, emptyNewStakeMsg, logTotalFees, accumulateFees, setConfig, updateFeeConfig } from './helper'
 import { config, op } from '../wrappers/common'
 import {
     Participation,
@@ -52,6 +52,7 @@ describe('Large', () => {
     beforeEach(async () => {
         blockchain = await Blockchain.create()
         blockchain.libs = blockchainLibs
+        updateFeeConfig(blockchain)
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
         treasury = blockchain.openContract(

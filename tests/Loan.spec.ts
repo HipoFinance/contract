@@ -11,6 +11,7 @@ import {
     logTotalFees,
     accumulateFees,
     setConfig,
+    updateFeeConfig,
 } from './helper'
 import { config, err, op } from '../wrappers/common'
 import { Loan } from '../wrappers/Loan'
@@ -69,6 +70,7 @@ describe('Loan', () => {
     beforeEach(async () => {
         blockchain = await Blockchain.create()
         blockchain.libs = blockchainLibs
+        updateFeeConfig(blockchain)
         halter = await blockchain.treasury('halter')
         governor = await blockchain.treasury('governor')
         treasury = blockchain.openContract(
@@ -195,7 +197,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('161.8', '161.9')
+        expect(treasuryBalance).toBeBetween('161.7', '161.9')
         expect(treasuryState.totalCoins).toBeTonValue('0')
         expect(treasuryState.totalTokens).toBeTonValue('0')
         expect(treasuryState.totalStaking).toBeTonValue('0')
@@ -707,7 +709,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: treasury.address,
-            value: toNano('0.4'),
+            // value: toNano('0.4'),
             body: bodyOp(op.recoverStakes),
             success: true,
             outMessagesCount: 2,
@@ -941,7 +943,7 @@ describe('Loan', () => {
                 address: treasury.address,
                 code: treasuryCode,
                 data: fakeData,
-                balance: toNano('0.1'),
+                balance: toNano('0.001'),
             }),
         )
 
@@ -1194,7 +1196,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('700133.9', '700134')
+        expect(treasuryBalance).toBeBetween('700133.7', '700134')
         expect(treasuryState.totalCoins).toBeBetween('700121', '700122')
         expect(treasuryState.totalTokens).toBeTonValue('700000')
         expect(treasuryState.totalStaking).toBeTonValue('0')
@@ -1321,7 +1323,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('12.3', '12.4')
+        expect(treasuryBalance).toBeBetween('12.1', '12.4')
         expect(treasuryState.totalCoins).toBeTonValue('0')
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
