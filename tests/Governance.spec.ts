@@ -146,7 +146,7 @@ describe('Governance', () => {
 
         fees = await treasury.getTreasuryFees(0n)
 
-        await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10' })
+        await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10', destination: governor.address })
         const treasuryBalance = await treasury.getBalance()
         expect(treasuryBalance).toBeTonValue('10')
     })
@@ -750,7 +750,10 @@ describe('Governance', () => {
                 balance: toNano('10') + toNano('801000') + 16n * fees.requestLoanFee + toNano('20'),
             }),
         )
-        const result = await treasury.sendWithdrawSurplus(governor.getSender(), { value: '0.1' })
+        const result = await treasury.sendWithdrawSurplus(governor.getSender(), {
+            value: '0.1',
+            destination: governor.address,
+        })
 
         expect(result.transactions).toHaveTransaction({
             from: governor.address,

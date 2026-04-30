@@ -139,7 +139,7 @@ describe('Large', () => {
         })
         expect(setParentResult.transactions).toHaveLength(3)
 
-        await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10' })
+        await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10', destination: governor.address })
         const treasuryBalance = await treasury.getBalance()
         expect(treasuryBalance).toBeTonValue('10')
     })

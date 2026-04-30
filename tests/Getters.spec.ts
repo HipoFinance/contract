@@ -162,7 +162,7 @@ describe('Getters', () => {
 
         fees = await treasury.getTreasuryFees(0n)
 
-        await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10' })
+        await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10', destination: governor.address })
         const treasuryBalance = await treasury.getBalance()
         expect(treasuryBalance).toBeTonValue('10')
 
