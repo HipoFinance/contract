@@ -5,3 +5,5 @@ expect.extend({
     toBeBetween,
     toBeTonValue,
 })
+
+process.setMaxListeners(20)
