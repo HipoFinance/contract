@@ -79,8 +79,8 @@ export interface TreasuryConfig {
     stopped: boolean
     instantMint: boolean
     loanCodes: Dictionary<bigint, Cell>
-    lastStaked: bigint
-    lastRecovered: bigint
+    previousRate: bigint
+    currentRate: bigint
     halter: Address
     governor: Address
     proposedGovernor: Cell | null
@@ -92,8 +92,8 @@ export interface TreasuryConfig {
 
 export function treasuryConfigToCell(config: TreasuryConfig): Cell {
     const treasuryExtension = beginCell()
-        .storeCoins(config.lastStaked)
-        .storeCoins(config.lastRecovered)
+        .storeCoins(config.previousRate)
+        .storeCoins(config.currentRate)
         .storeAddress(config.halter)
         .storeAddress(config.governor)
         .storeMaybeRef(config.proposedGovernor)
@@ -952,8 +952,8 @@ export class Treasury implements Contract {
             stopped: stack.readBoolean(),
             instantMint: stack.readBoolean(),
             loanCodes: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell(), stack.readCell()),
-            lastStaked: stack.readBigNumber(),
-            lastRecovered: stack.readBigNumber(),
+            previousRate: stack.readBigNumber(),
+            currentRate: stack.readBigNumber(),
             halter: stack.readAddress(),
             governor: stack.readAddress(),
             proposedGovernor: stack.readCellOpt(),

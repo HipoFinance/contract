@@ -13,8 +13,8 @@ global int instant_mint?;
 global cell loan_codes;
 global cell extension;
 
-global int last_staked;
-global int last_recovered;
+global int previous_rate;
+global int current_rate;
 global slice halter;
 global slice governor;
 global cell proposed_governor;
@@ -42,8 +42,8 @@ global cell old_parents;
 
 () unpack_extension() impure {
     slice s = extension.begin_parse();
-    last_staked = s~load_coins();
-    last_recovered = s~load_coins();
+    previous_rate = s~load_coins();
+    current_rate = s~load_coins();
     halter = s~load_msg_addr();
     governor = s~load_msg_addr();
     proposed_governor = s~load_maybe_ref();

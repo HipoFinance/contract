@@ -94,8 +94,8 @@ describe('Getters', () => {
                         0n,
                         loanCode,
                     ),
-                    lastStaked: 0n,
-                    lastRecovered: 0n,
+                    previousRate: 1_000_000_000n,
+                    currentRate: 1_000_000_000n,
                     halter: halter.address,
                     governor: governor.address,
                     proposedGovernor: null,
@@ -293,8 +293,8 @@ describe('Getters', () => {
         expect(treasuryState.roundsImbalance).toEqual(255n)
         expect(treasuryState.stopped).toEqual(false)
         expect(treasuryState.loanCodes.get(0n)?.toBoc().toString('base64')).toEqual(loanCode.toBoc().toString('base64'))
-        expect(treasuryState.lastStaked).toBeTonValue('0')
-        expect(treasuryState.lastRecovered).toBeTonValue('0')
+        expect(treasuryState.previousRate).toBe(1_000_000_000n)
+        expect(treasuryState.currentRate).toBe(1_000_000_000n)
         expect(treasuryState.halter.toString()).toEqual(halter.address.toString())
         expect(treasuryState.governor.toString()).toEqual(governor.address.toString())
         expect(treasuryState.proposedGovernor).toEqual(null)

@@ -716,8 +716,8 @@ participation#_
         = Participation;
 
 extension#_
-    last_staked:Coins
-    last_recovered:Coins
+    previous_rate:Coins
+    current_rate:Coins
     halter:MsgAddress
     governor:MsgAddress
     proposed_governor:(Maybe ^ProposedGovernor)

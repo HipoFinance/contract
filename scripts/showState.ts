@@ -17,12 +17,14 @@ export async function run(provider: NetworkProvider) {
         walletCode = (await parent.getJettonData())[4]
     }
 
+    const exchangeRate = Number(treasuryState.totalCoins) / Number(treasuryState.totalTokens)
+
     const times = await treasury.getTimes()
     const duration = 2 * Number(times.nextRoundSince - times.currentRoundSince)
     const year = 365 * 24 * 60 * 60
     const compoundingFrequency = year / duration
-    const apy =
-        Math.pow(Number(treasuryState.lastRecovered) / Number(treasuryState.lastStaked) || 1, compoundingFrequency) - 1
+    const exchangeRateDiff = Number(treasuryState.currentRate - treasuryState.previousRate) / 1_000_000_000
+    const apy = Math.pow(exchangeRateDiff + 1, compoundingFrequency) - 1
     const apyPercent = formatPercent(apy)
 
     const testOnly = provider.network() !== 'mainnet'
@@ -36,15 +38,18 @@ export async function run(provider: NetworkProvider) {
     console.info('Treasury State')
     console.info('==============')
     console.info('              total_coins: %s TON', formatNano(treasuryState.totalCoins))
-    console.info('             total_tokens: %s hTON', formatNano(treasuryState.totalTokens))
+    console.info('             total_tokens: %s hTON   Rate: %s',
+        formatNano(treasuryState.totalTokens), formatExchangeRate(exchangeRate))
     console.info('            total_staking: %s TON', formatNano(treasuryState.totalStaking))
     console.info('          total_unstaking: %s hTON', formatNano(treasuryState.totalUnstaking))
     console.info('    total_borrowers_stake: %s TON', formatNano(treasuryState.totalBorrowersStake))
     console.info('         rounds_imbalance: %s (%s)', Number(treasuryState.roundsImbalance), roundsImbalancePercent)
     console.info('                  stopped: %s', formatBoolean(treasuryState.stopped))
     console.info('             instant_mint: %s', formatBoolean(treasuryState.instantMint))
-    console.info('              last_staked: %s TON', formatNano(treasuryState.lastStaked))
-    console.info('           last_recovered: %s TON   APY: %s', formatNano(treasuryState.lastRecovered), apyPercent)
+    console.info('            previous_rate: %s TON',
+        formatExchangeRate(Number(treasuryState.previousRate) / 1_000_000_000))
+    console.info('             current_rate: %s TON   APY: %s',
+        formatExchangeRate(Number(treasuryState.currentRate) / 1_000_000_000), apyPercent)
     console.info('                   halter: %s', treasuryState.halter.toString({ testOnly }))
     console.info('                 governor: %s', treasuryState.governor.toString({ testOnly }))
     console.info('        proposed_governor: %s', (proposedGovernorAddress ?? '') + ' ' + proposedGovernorAcceptAfter)
@@ -183,6 +188,10 @@ function formatNano(value: bigint): string {
 
 function formatPercent(amount: number): string {
     return amount.toLocaleString(undefined, { style: 'percent', maximumFractionDigits: 2 })
+}
+
+function formatExchangeRate(rate: number): string {
+    return rate.toLocaleString(undefined, { maximumFractionDigits: 5 })
 }
 
 function formatDate(seconds: bigint): string {

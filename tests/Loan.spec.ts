@@ -90,8 +90,8 @@ describe('Loan', () => {
                         0n,
                         loanCode,
                     ),
-                    lastStaked: 0n,
-                    lastRecovered: 0n,
+                    previousRate: 1_000_000_000n,
+                    currentRate: 1_000_000_000n,
                     halter: halter.address,
                     governor: governor.address,
                     proposedGovernor: null,
@@ -837,8 +837,8 @@ describe('Loan', () => {
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
-        expect(treasuryState.lastStaked).toBeBetween('699999', '700000')
-        expect(treasuryState.lastRecovered).toBeBetween('700121', '700122')
+        expect(treasuryState.previousRate).toBe(1_000_000_000n)
+        expect(treasuryState.currentRate).toBe(1_000_174_106n)
 
         accumulateFees(result.transactions)
     })
@@ -972,8 +972,8 @@ describe('Loan', () => {
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
-        expect(treasuryState.lastStaked).toBeTonValue('0')
-        expect(treasuryState.lastRecovered).toBeTonValue('0')
+        expect(treasuryState.previousRate).toBe(1_000_000_000n)
+        expect(treasuryState.currentRate).toBe(1_000_000_000n)
 
         accumulateFees(result.transactions)
     })
@@ -1202,8 +1202,8 @@ describe('Loan', () => {
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
-        expect(treasuryState.lastStaked).toBeBetween('699999', '700000')
-        expect(treasuryState.lastRecovered).toBeBetween('700122', '700123')
+        expect(treasuryState.previousRate).toBe(1_000_000_000n)
+        expect(treasuryState.currentRate).toBe(1_000_174_106n)
         expect(treasuryState.participations.size).toEqual(0)
 
         accumulateFees(result.transactions)
@@ -1329,8 +1329,8 @@ describe('Loan', () => {
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
-        expect(treasuryState.lastStaked).toBeTonValue('0')
-        expect(treasuryState.lastRecovered).toBeTonValue('0')
+        expect(treasuryState.previousRate).toBe(1_000_000_000n)
+        expect(treasuryState.currentRate).toBe(1_000_000_000n)
         expect(treasuryState.participations.size).toEqual(0)
 
         accumulateFees(result.transactions)
