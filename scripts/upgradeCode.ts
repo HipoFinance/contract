@@ -40,7 +40,7 @@ export async function run(provider: NetworkProvider) {
         return
     }
 
-    await treasury.sendUpgradeCode(provider.sender(), { value: '1', newCode, newData })
+    await treasury.sendUpgradeCode(provider.sender(), { value: '0.1', newCode, newData })
 
     ui.write('Done')
 
