@@ -240,13 +240,13 @@ To read data related to a specific participation, use get method `get_participat
 
 ## Calculating Exchange Rate of hTON in TON
 
-Call get method `get_treasury_state` on **treasury** and then divide `total_coins` by `total_tokens`. Check [example implementation](https://github.com/HipoFinance/sdk-example/blob/d97098d716d43ca4b56a15bce41bcc99720403d7/src/Model.ts#L290).
+Call get method `get_treasury_state` on **treasury** and then divide `total_coins` by `total_tokens`. Check [example implementation](https://github.com/HipoFinance/sdk-example/blob/c165c95350b7df19b30f42e037d882cec2d4b865/src/Model.ts#L290).
 
 ## Calculating APY of hTON
 
 The TON rewards paid to validators change in each round of validation, because of different runtime conditions, like for example, the number of transactions in that round. As a result, APY is only an estimate and can be calculated based on the performance of the last validation round.
 
-To calculate it, use the `current_rate` and `previous_rate` fields returned from the `get_treasury_state` method. You may also use the `get_times` method to calculate the duration of the last round, so that in case of a change in network configuration, there is no need to update the calculation code. Here is an [example implementation](https://github.com/HipoFinance/sdk-example/blob/d97098d716d43ca4b56a15bce41bcc99720403d7/src/Model.ts#L303).
+To calculate it, use the `current_rate` and `previous_rate` fields returned from the `get_treasury_state` method. You may also use the `get_times` method to calculate the duration of the last round, so that in case of a change in network configuration, there is no need to update the calculation code. Here is an [example implementation](https://github.com/HipoFinance/sdk-example/blob/c165c95350b7df19b30f42e037d882cec2d4b865/src/Model.ts#L304).
 
 ## Calculating Remaining Time Until Withdrawal
 
