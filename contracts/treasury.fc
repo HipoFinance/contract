@@ -2191,3 +2191,7 @@ int get_surplus() method_id {
 int get_max_punishment(int stake) method_id {
     return max_recommended_punishment_for_validator_misbehaviour(stake);
 }
+
+;; todo: change the mint op-code so that wallets show the output tokens in emulation and after mint.
+;; todo: reject zero token creation
+;; todo: mint dead shares, or set the starting ratio at 1 TON or 10 TON to prevent inflating token ratio using gift_coins.
