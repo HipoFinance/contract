@@ -4,10 +4,10 @@ import { NetworkProvider } from '@ton/blueprint'
 import { metadataDictionaryValue, toMetadataKey } from '../wrappers/Parent'
 
 const decimals = '9'
-const symbol = 'hTON'
-const name = 'Hipo Staked TON'
-const description = 'Hipo liquid staking protocol'
-const image = 'https://app.hipo.finance/hton.png'
+const symbol = 'hGRAM'
+const name = 'Hipo Staked GRAM'
+const description = 'Hipo liquid staked GRAM'
+const image = 'https://hipo.finance/hgram.svg'
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
