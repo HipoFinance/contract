@@ -14,7 +14,7 @@ There are different smart contracts involved in the protocol. Here is a quick re
 
 ### Treasury
 
-This is the main smart contract of the protocol. All TON coins are deposited here and then given as loans to borrowers. Treasury address:
+This is the main smart contract of the protocol. All GRAM coins are deposited here and then given as loans to borrowers. Treasury address:
 
 > `EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ`
 
@@ -34,7 +34,7 @@ Loans are given to borrowers using this smart contract which safeguards the loan
 
 ### Bill
 
-Some operations cannot happen instantly. For example, unstaking hTON while funds are already staked in the Elector smart contract must wait until the end of the validation round. In these cases, an SBT, which is a non-transferrable NFT, is created and assigned to the user.
+Some operations cannot happen instantly. For example, unstaking hGRAM while funds are already staked in the Elector smart contract must wait until the end of the validation round. In these cases, an SBT, which is a non-transferrable NFT, is created and assigned to the user.
 
 ### Collection
 
@@ -50,11 +50,11 @@ There are two groups of users who would be interested in using Hipo: stakers and
 
 ### Stakers
 
-Stakers are users who have some TON and want to earn staking rewards on their TON. In normal staking, a staker must have a large sum of TON (like at least 300,000 TON) before being able to participate in validation. Most users don't have access to such a big amount, but with a liquid staking protocol like Hipo, they can earn rewards on any TON amount.
+Stakers are users who have some GRAM and want to earn staking rewards on their GRAM. In normal staking, a staker must have a large sum of GRAM (like at least 300,000 GRAM) before being able to participate in validation. Most users don't have access to such a big amount, but with a liquid staking protocol like Hipo, they can earn rewards on any GRAM amount.
 
-When stakers deposit their TON, they will receive hTON jettons (a token in TON blockchain) as a receipt. Stakers can keep it or send it to other users or use it in other DeFi protocols. Whoever brings it back to the protocol, can receive the corresponding amount in TON by burning it.
+When stakers deposit their GRAM, they will receive hGRAM jettons (a token in TON blockchain) as a receipt. Stakers can keep it or send it to other users or use it in other DeFi protocols. Whoever brings it back to the protocol, can receive the corresponding amount in GRAM by burning it.
 
-Meanwhile, protocol puts staked TON from all stakers to use and will give it as a loan to validators. In turn they'll receive a reward and share it with the protocol and stakers. So over time, each hTON will have more TON value, and stakers can burn their hTON jettons to receive TON.
+Meanwhile, protocol puts staked GRAM from all stakers to use and will give it as a loan to validators. In turn they'll receive a reward and share it with the protocol and stakers. So over time, each hGRAM will have more GRAM value, and stakers can burn their hGRAM jettons to receive GRAM.
 
 ### Borrowers
 
