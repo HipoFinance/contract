@@ -20,7 +20,7 @@ export async function run(provider: NetworkProvider) {
     const exchangeRate = Number(treasuryState.totalCoins) / Number(treasuryState.totalTokens)
 
     const times = await treasury.getTimes()
-    const duration = 2 * Number(times.nextRoundSince - times.currentRoundSince)
+    const duration = Number(times.nextRoundSince - times.currentRoundSince)
     const year = 365 * 24 * 60 * 60
     const compoundingFrequency = year / duration
     const exchangeRateDiff = Number(treasuryState.currentRate - treasuryState.previousRate) / 1_000_000_000
