@@ -91,7 +91,7 @@ global int amount;
 cell create_bill_name() inline {
     return begin_cell()
         .store_uint(0, 8)
-        .store_slice("Hipo Bill #")
+        .store_slice("Hipo Receipt #")
         .store_builder(int_to_string(index))
         .end_cell();
 }
@@ -99,16 +99,17 @@ cell create_bill_name() inline {
 cell create_bill_description() inline {
     return begin_cell()
         .store_uint(0, 8)
-        .store_slice(unstake? ? "Withdraw " : "Deposit ")
+        .store_slice(unstake? ? "Unstake " : "Stake ")
         .store_builder(int_to_ton(amount))
-        .store_slice(unstake? ? " hTON" : " TON")
+        .store_slice(unstake? ? " hGRAM" : " GRAM")
         .end_cell();
 }
 
 cell create_bill_image() inline {
     return begin_cell()
         .store_uint(0, 8)
-        .store_slice("https://app.hipo.finance/bill.png")
+        .store_slice("https://hipo.finance/")
+        .store_slice(unstake? ? "unstaking.jpg" : "staking.jpg")
         .end_cell();
 }
 

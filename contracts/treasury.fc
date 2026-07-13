@@ -612,7 +612,7 @@ cell find_code(cell dict, int round_since) inline {
     throw_unless(err::not_accepting_loan_requests, state == participation::open);
     throw_unless(err::not_accepting_loan_requests, round_since == next_round_since);
     throw_unless(err::not_accepting_loan_requests, now() < participate_since);
-    ;; throw_unless(err::invalid_parameters, loan_amount >= 0); ;; todo: add this check to fix muldiv dependence on it later
+    throw_unless(err::invalid_parameters, loan_amount > 0);
     throw_unless(err::insufficient_funds, stake_amount + loan_amount >= min_stake + fee::new_stake_confirmation);
     throw_unless(err::insufficient_funds, stake_amount >= min_payment + max_punishment);
     throw_if(err::stopped, stopped?);

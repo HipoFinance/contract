@@ -169,7 +169,7 @@ cell create_collection_description() inline {
 cell create_collection_image() inline {
     return begin_cell()
         .store_uint(0, 8)
-        .store_slice("https://app.hipo.finance/collection.png")
+        .store_slice("https://hipo.finance/collection.jpg")
         .end_cell();
 }
 
