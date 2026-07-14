@@ -37,18 +37,18 @@ export async function run(provider: NetworkProvider) {
     console.info()
     console.info('Treasury State')
     console.info('==============')
-    console.info('              total_coins: %s TON', formatNano(treasuryState.totalCoins))
-    console.info('             total_tokens: %s hTON   Rate: %s',
+    console.info('              total_coins: %s GRAM', formatNano(treasuryState.totalCoins))
+    console.info('             total_tokens: %s hGRAM   Rate: %s',
         formatNano(treasuryState.totalTokens), formatExchangeRate(exchangeRate))
-    console.info('            total_staking: %s TON', formatNano(treasuryState.totalStaking))
-    console.info('          total_unstaking: %s hTON', formatNano(treasuryState.totalUnstaking))
-    console.info('    total_borrowers_stake: %s TON', formatNano(treasuryState.totalBorrowersStake))
+    console.info('            total_staking: %s GRAM', formatNano(treasuryState.totalStaking))
+    console.info('          total_unstaking: %s hGRAM', formatNano(treasuryState.totalUnstaking))
+    console.info('    total_borrowers_stake: %s GRAM', formatNano(treasuryState.totalBorrowersStake))
     console.info('         rounds_imbalance: %s (%s)', Number(treasuryState.roundsImbalance), roundsImbalancePercent)
     console.info('                  stopped: %s', formatBoolean(treasuryState.stopped))
     console.info('             instant_mint: %s', formatBoolean(treasuryState.instantMint))
-    console.info('            previous_rate: %s TON',
+    console.info('            previous_rate: %s GRAM',
         formatExchangeRate(Number(treasuryState.previousRate) / 1_000_000_000))
-    console.info('             current_rate: %s TON   APY: %s',
+    console.info('             current_rate: %s GRAM   APY: %s',
         formatExchangeRate(Number(treasuryState.currentRate) / 1_000_000_000), apyPercent)
     console.info('                   halter: %s', treasuryState.halter.toString({ testOnly }))
     console.info('                 governor: %s', treasuryState.governor.toString({ testOnly }))
@@ -114,8 +114,8 @@ export async function run(provider: NetworkProvider) {
         console.info('                accrued: %s', participation.accrued?.size ?? '')
         console.info('                 staked: %s', participation.staked?.size ?? '')
         console.info('             recovering: %s', participation.recovering?.size ?? '')
-        console.info('           total_staked: %s TON', formatNano(participation.totalStaked ?? 0n))
-        console.info('        total_recovered: %s TON', formatNano(participation.totalRecovered ?? 0n))
+        console.info('           total_staked: %s GRAM', formatNano(participation.totalStaked ?? 0n))
+        console.info('        total_recovered: %s GRAM', formatNano(participation.totalRecovered ?? 0n))
         console.info('      current_vset_hash: %s', participation.currentVsetHash?.toString(16))
         console.info('         stake_held_for: %s', formatTime(participation.stakeHeldFor ?? 0n))
         console.info('       stake_held_until: %s', formatDate(participation.stakeHeldUntil ?? 0n))
