@@ -20,12 +20,13 @@ export async function run(provider: NetworkProvider) {
     const exchangeRate = Number(treasuryState.totalCoins) / Number(treasuryState.totalTokens)
 
     const times = await treasury.getTimes()
+    // Rates update once per round length while validating on both round chains.
     const duration = Number(times.nextRoundSince - times.currentRoundSince)
     const year = 365 * 24 * 60 * 60
     const compoundingFrequency = year / duration
-    const exchangeRateDiff = Number(treasuryState.currentRate - treasuryState.previousRate) / 1_000_000_000
-    const apy = Math.pow(exchangeRateDiff + 1, compoundingFrequency) - 1
-    const apyPercent = formatPercent(apy)
+    const growth = Number(treasuryState.currentRate) / Number(treasuryState.previousRate)
+    const apy = Math.pow(growth, compoundingFrequency) - 1
+    const apyPercent = treasuryState.previousRate > 0n ? formatPercent(apy) : ''
 
     const testOnly = provider.network() !== 'mainnet'
     const proposedGovernorSlice = treasuryState.proposedGovernor?.beginParse()
