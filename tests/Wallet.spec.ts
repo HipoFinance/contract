@@ -973,6 +973,90 @@ describe('Wallet', () => {
         accumulateFees(result1.transactions)
     })
 
+    it('should postpone a deferred unstake to the next round using that round\'s bill code', async () => {
+        // Regression for the wrong-round code lookup in burn_tokens' postpone branch:
+        // when an illiquid treasury postpones an unstake bill to the next round, the new bill
+        // must be minted on the collection derived from the NEXT round's bill/collection code,
+        // not the original round's. This only diverges once a code upgrade sits between the
+        // two rounds, so a distinct (upgraded) bill code is registered on the target round.
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const walletFees = await wallet.getWalletFees()
+
+        const round1 = 1n // where the deferred unstake bill is first minted
+        const round2 = 2n // postpone target, carrying an upgraded bill code
+        const upgradedBillCode = beginCell().storeUint(0xb111, 16).endCell()
+
+        // Round 2's collection address BEFORE the upgrade — what the buggy code targets,
+        // since it reuses round 1's code when postponing to round 2.
+        const staleRound2Collection = await treasury.getCollectionAddress(round2)
+
+        const activeState = await treasury.getTreasuryState()
+        activeState.participations.set(round1, { state: ParticipationState.Staked })
+        activeState.participations.set(round2, { state: ParticipationState.Staked })
+        activeState.billCodes.set(round2, upgradedBillCode)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(activeState),
+                balance: treasuryStorage + toNano('10'),
+            }),
+        )
+
+        const round1Collection = await treasury.getCollectionAddress(round1)
+        const round2Collection = await treasury.getCollectionAddress(round2)
+        // The upgrade makes round 2's collection differ from the stale (round 1 code) address.
+        expect(round2Collection.equals(staleRound2Collection)).toBe(false)
+
+        // Deferred unstake (best mode) mints its bill on the earliest non-open round (round 1).
+        const resultUnstake = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: walletFees.unstakeTokensFee + toNano('0.1'),
+            tokens: '7',
+            mode: UnstakeMode.Best,
+        })
+        expect(resultUnstake.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: round1Collection,
+            body: bodyOp(op.mintBill),
+            success: true,
+        })
+
+        // Flip round 1 to burning and make the treasury illiquid so its burn must postpone.
+        const burningState = await treasury.getTreasuryState()
+        burningState.participations.set(round1, { state: ParticipationState.Burning })
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(burningState),
+                balance: treasuryStorage + toNano('3'), // available 3 GRAM < 7 coins owed
+            }),
+        )
+
+        const resultBurn = await treasury.sendRetryBurnAll(halter.getSender(), { value: '0.1', roundSince: round1 })
+
+        // Fixed: the postponed bill is minted on round 2's upgraded collection.
+        expect(resultBurn.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: round2Collection,
+            body: bodyOp(op.mintBill),
+            success: true,
+        })
+        // And never on the stale address derived from round 1's bill code.
+        expect(resultBurn.transactions).not.toHaveTransaction({
+            from: treasury.address,
+            to: staleRound2Collection,
+            body: bodyOp(op.mintBill),
+        })
+    })
+
     it('should unstake with different modes where there is no active round', async () => {
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })

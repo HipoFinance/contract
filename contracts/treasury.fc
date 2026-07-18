@@ -443,10 +443,13 @@ cell find_code(cell dict, int round_since) inline {
             ;; No more rounds to postpone to. This should not happen. At least log it.
             log_failed_burning_tokens(round_since, total_coins, total_tokens, coins, tokens, owner);
         } else {
+            cell next_collection_code = collection_codes.find_code(next_round_since);
+            cell next_bill_code = bill_codes.find_code(next_round_since);
+
             ( builder collection
             , builder state_init
             , _
-            ) = create_collection_address(my_address(), next_round_since, bill_code, collection_code);
+            ) = create_collection_address(my_address(), next_round_since, next_bill_code, next_collection_code);
 
             builder mint = begin_cell()
                 .store_uint(op::mint_bill, 32)
