@@ -64,6 +64,8 @@ This message must be sent to the **treasury** contract.
 
 So, the simplest message to deposit and stake is 0x3d3761a6 followed by 64+2+4+4+2 zeros. Attach some TON coins and as long as the attached value is enough to cover fees, the operation will succeed.
 
+Note that a deposit too small to mint at least one token nano-unit at the current exchange rate (i.e. `coins * total_tokens / total_coins` rounding down to zero) is rejected with exit code `110` (`deposit_too_small`); the message bounces and the attached value returns to the sender.
+
 ## Unstake and Withdraw
 
 To unstake hTON and receive the corresponding TON, the owner must send an unstake message:

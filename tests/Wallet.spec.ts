@@ -500,6 +500,99 @@ describe('Wallet', () => {
         accumulateFees(result.transactions)
     })
 
+    it('should reject deposits that would mint zero tokens', async () => {
+        // inflate the exchange rate to 2.0 so that a 1 nanogram deposit rounds down to zero tokens
+        const fakeState1 = await treasury.getTreasuryState()
+        fakeState1.totalCoins = toNano('20')
+        fakeState1.totalTokens = toNano('10')
+        const fakeData1 = treasuryConfigToCell(fakeState1)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData1,
+                balance: await treasury.getBalance(),
+            }),
+        )
+
+        const staker = await blockchain.treasury('staker')
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+
+        // instant path: no active round
+        const result1 = await treasury.sendDepositCoins(staker.getSender(), {
+            value: toNano('0.1') + fees.depositCoinsFee,
+            coins: 1n,
+        })
+        expect(result1.transactions).toHaveTransaction({
+            from: staker.address,
+            to: treasury.address,
+            body: bodyOp(op.depositCoins),
+            success: false,
+            exitCode: err.depositTooSmall,
+        })
+        expect(result1.transactions).toHaveLength(3) // deposit failed and bounced, nothing else happened
+
+        const treasuryState1 = await treasury.getTreasuryState()
+        expect(treasuryState1.totalCoins).toBeTonValue('20')
+        expect(treasuryState1.totalTokens).toBeTonValue('10')
+        expect(treasuryState1.totalStaking).toBeTonValue('0')
+
+        // smallest deposit minting one token unit at rate 2.0 succeeds
+        const result2 = await treasury.sendDepositCoins(staker.getSender(), {
+            value: toNano('0.1') + fees.depositCoinsFee,
+            coins: 2n,
+        })
+        expect(result2.transactions).toHaveTransaction({
+            from: staker.address,
+            to: treasury.address,
+            body: bodyOp(op.depositCoins),
+            success: true,
+            outMessagesCount: 1,
+        })
+
+        const treasuryState2 = await treasury.getTreasuryState()
+        expect(treasuryState2.totalCoins).toEqual(toNano('20') + 2n)
+        expect(treasuryState2.totalTokens).toEqual(toNano('10') + 1n)
+
+        const [tokens] = await wallet.getWalletState()
+        expect(tokens).toEqual(1n)
+
+        // deferred path: active round, deposit saved for a later mint
+        const roundSince = 1n
+        const fakeState2 = await treasury.getTreasuryState()
+        fakeState2.participations.set(roundSince, { state: ParticipationState.Staked })
+        const fakeData2 = treasuryConfigToCell(fakeState2)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: fakeData2,
+                balance: await treasury.getBalance(),
+            }),
+        )
+
+        const result3 = await treasury.sendDepositCoins(staker.getSender(), {
+            value: toNano('0.1') + fees.depositCoinsFee,
+            coins: 1n,
+        })
+        expect(result3.transactions).toHaveTransaction({
+            from: staker.address,
+            to: treasury.address,
+            body: bodyOp(op.depositCoins),
+            success: false,
+            exitCode: err.depositTooSmall,
+        })
+        expect(result3.transactions).toHaveLength(3)
+
+        const treasuryState3 = await treasury.getTreasuryState()
+        expect(treasuryState3.totalStaking).toBeTonValue('0')
+    })
+
     it('should deposit coins for a different owner', async () => {
         const staker = await blockchain.treasury('staker')
         const walletAddress = await parent.getWalletAddress(staker.address)

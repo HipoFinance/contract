@@ -10,6 +10,7 @@ const int err::stopped = 106;
 const int err::invalid_op = 107;
 const int err::invalid_comment = 108;
 const int err::invalid_parameters = 109;
+const int err::deposit_too_small = 110;
 
 const int err::not_accepting_loan_requests = 201;
 const int err::unable_to_participate = 202;
@@ -148,7 +149,7 @@ const int op::remove_library = 0x6bd0ce52;
 
 const int gas::send_tokens = 10678;
 const int gas::receive_tokens = 11691;
-const int gas::deposit_coins = 18741;
+const int gas::deposit_coins = 19035;
 const int gas::proxy_save_coins = 6175;
 const int gas::save_coins = 7091;
 const int gas::mint_bill = 7757;

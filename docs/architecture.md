@@ -85,7 +85,10 @@ exhausted.
 ## Deposit flow (`deposit_coins`)
 
 See `graphs/02.*`. The deposit fee is dynamic (`get_treasury_fees`); the deposited amount is
-reserved and the remainder returned as gas excess.
+reserved and the remainder returned as gas excess. A deposit that would mint zero tokens at
+the current exchange rate (dust below one token nano-unit) is rejected with
+`err::deposit_too_small` before any state change, so it cannot become a silent donation to
+the pool.
 
 - **`instant_mint = true`**: tokens are minted immediately through the parent at the current
   rate.
