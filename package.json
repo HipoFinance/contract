@@ -4,12 +4,13 @@
     "license": "MIT",
     "private": true,
     "scripts": {
-        "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
+        "lint": "eslint . --max-warnings 0",
         "start": "blueprint run",
         "build": "blueprint build",
         "test": "jest --verbose"
     },
     "devDependencies": {
+        "@eslint/js": "^10.0.1",
         "@testing-library/jest-dom": "^6.9.1",
         "@ton/blueprint": "^0.44.2",
         "@ton/core": "^0.63.1",
@@ -27,6 +28,7 @@
         "prettier": "^3.8.3",
         "ts-jest": "^29.4.9",
         "ts-node": "^10.9.2",
-        "typescript": "^6.0.3"
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.64.0"
     }
 }
