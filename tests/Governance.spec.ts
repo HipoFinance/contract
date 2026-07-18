@@ -63,8 +63,8 @@ describe('Governance', () => {
         treasury = blockchain.openContract(
             Treasury.createFromConfig(
                 {
-                    totalCoins: 0n,
-                    totalTokens: 0n,
+                    totalCoins: toNano('10'), // dead shares
+                    totalTokens: toNano('10'), // dead shares
                     totalStaking: 0n,
                     totalUnstaking: 0n,
                     totalBorrowersStake: 0n,
@@ -735,7 +735,7 @@ describe('Governance', () => {
         state.participations.set(1n, participation1)
         state.participations.set(2n, participation2)
         state.participations.set(3n, participation3)
-        state.totalCoins = toNano('900000')
+        state.totalCoins = toNano('900000') + toNano('10') // pool + dead shares
         state.totalTokens = toNano('800000')
         state.totalStaking = toNano('100000')
         state.totalUnstaking = toNano('200000')
@@ -871,6 +871,7 @@ describe('Governance', () => {
             outMessagesCount: 1,
         })
         expect(result6.transactions).toHaveLength(3)
-        expect(totalCoinsAfter6).toEqual(totalCoinsBefore6)
+        // even with no real stakers left, gifts are accepted and accrue to the dead shares
+        expect(totalCoinsAfter6).toEqual(totalCoinsBefore6 + toNano('0.08'))
     })
 })

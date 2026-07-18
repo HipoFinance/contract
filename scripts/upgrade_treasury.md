@@ -1,5 +1,52 @@
 # Upgrade Treasury
 
+## Mint Dead Shares
+
+One-off migration for the dead-shares upgrade (see
+`docs/specs/2026-07-18-mint-dead-shares.md`). It mints unowned shares backed by the
+already-present 10 GRAM storage buffer, **at the current exchange rate**, so existing
+holders are not diluted and the treasury balance does not change. Run it in the same
+`upgrade_code` that ships the code removing the zero-guards.
+
+1. Use this migrate code in `treasury.fc`:
+
+    ```func
+    () upgrade_data(slice src, int query_id, cell new_data, slice return_excess) impure method_id {
+        ;; Add code for upgrading data here.
+
+        ;; This is just a template, and will only run after upgrade_code.
+        ;; If data is upgraded, remember to reset this code,
+        ;; so that the next upgrade won't change data by mistake.
+        int dead_tokens = muldiv(fee::treasury_storage, total_tokens, total_coins);
+        total_coins += fee::treasury_storage;
+        total_tokens += dead_tokens;
+        save_data();
+
+        ;; Do not change the following code.
+        governor = null();
+        load_data();
+        unpack_extension();
+
+        throw_unless(err::access_denied, equal_slice_bits(src, governor));
+
+        builder excess = begin_cell()
+            .store_uint(op::gas_excess, 32)
+            .store_uint(query_id, 64);
+        send_msg(false, return_excess.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+
+        throw(0);
+    }
+    ```
+
+2. Run the `upgradeCode.ts` script.
+
+3. Reset the `upgrade_data` function and `upgradeCode.ts` script and deploy again to bring
+   treasury back to the released code hash.
+
+4. Verify with `showState.ts`: the exchange rate is unchanged, `total_coins` grew by
+   exactly 10 GRAM, and `total_tokens` grew by `muldiv(10 GRAM, total_tokens, total_coins)`
+   (computed on the pre-migration values).
+
 ## Add a New Bill Code
 
 1. Add the new code as a library using `addLibrary.ts` script:

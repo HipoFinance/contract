@@ -20,11 +20,25 @@ The exchange rate is the core accounting identity:
 
 - Minting a deposit: `tokens = coins * total_tokens / total_coins`
 - Burning on unstake: `coins = tokens * total_coins / total_tokens`
-  (the last staker to burn receives all remaining coins, avoiding rounding dust)
 
 Coins in flight are tracked separately (`total_staking` for pending deposits,
 `total_unstaking` for pending withdrawals) and only enter `total_coins`/`total_tokens` at
 the moment tokens are actually minted or burned.
+
+**Dead shares** keep both totals permanently positive: the treasury starts with
+`total_coins = total_tokens = 10 GRAM` of shares owned by no wallet (on mainnet they were
+minted at the current rate by the dead-shares migration — see
+`scripts/upgrade_treasury.md`). Because burns can only originate from wallet-held tokens,
+the dead shares can never be burned, so no rate computation needs a zero-guard and there is
+no "last staker" special case — rounding dust on the final unstake stays in the pool. The
+backing 10 GRAM is aliased with the storage buffer (`fee::treasury_storage`): the
+`available_ton` formulas subtract the buffer, which keeps the dead backing unlendable and
+unpayable, while `calculate_min_coins` counts it through `total_coins` (not separately), so
+the governor cannot withdraw it as surplus. Dead shares also close the first-depositor
+inflation attack: donating via `gift_coins` accrues pro-rata to the dead shares, so
+inflating the rate strictly loses money (see `docs/specs/2026-07-18-mint-dead-shares.md`).
+The parent's jetton supply counts only wallet-held tokens and therefore stays below the
+treasury's `total_tokens` by the dead amount.
 
 ## Contracts
 

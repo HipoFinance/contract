@@ -1,4 +1,4 @@
-import { beginCell, Dictionary } from '@ton/core'
+import { beginCell, Dictionary, toNano } from '@ton/core'
 import { emptyDictionaryValue, participationDictionaryValue, Treasury } from '../wrappers/Treasury'
 import { compile, NetworkProvider } from '@ton/blueprint'
 import { metadataDictionaryValue, Parent, toMetadataKey } from '../wrappers/Parent'
@@ -27,8 +27,10 @@ export async function run(provider: NetworkProvider) {
     const treasury = provider.open(
         Treasury.createFromConfig(
             {
-                totalCoins: 0n,
-                totalTokens: 0n,
+                // dead shares: permanently unowned tokens backed by the storage buffer,
+                // making the pool's totals non-zero forever (see docs/specs/2026-07-18-mint-dead-shares.md)
+                totalCoins: toNano('10'),
+                totalTokens: toNano('10'),
                 totalStaking: 0n,
                 totalUnstaking: 0n,
                 totalBorrowersStake: 0n,
@@ -145,7 +147,8 @@ export async function run(provider: NetworkProvider) {
     if (await provider.isContractDeployed(treasury.address)) {
         console.info('    Already deployed at address: %s', treasuryAddress)
     } else {
-        await treasury.sendDeploy(provider.sender(), { value: '0.01' })
+        // 10 GRAM backs the dead shares (and doubles as the storage buffer), plus a small margin for fees
+        await treasury.sendDeploy(provider.sender(), { value: '10.05' })
         await provider.waitForDeploy(treasury.address)
         console.info('    Deployed at address: %s', treasuryAddress)
     }
@@ -164,7 +167,7 @@ export async function run(provider: NetworkProvider) {
     }
 
     ui.clearActionPrompt()
-    ui.write(`Don't forget to top-up librarian and treasury.`)
+    ui.write(`Don't forget to top-up librarian.`)
 }
 
 const contentDict = Dictionary.empty(Dictionary.Keys.BigUint(256), metadataDictionaryValue)

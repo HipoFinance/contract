@@ -149,7 +149,7 @@ const int op::remove_library = 0x6bd0ce52;
 
 const int gas::send_tokens = 10678;
 const int gas::receive_tokens = 11691;
-const int gas::deposit_coins = 19035;
+const int gas::deposit_coins = 19123;
 const int gas::proxy_save_coins = 6175;
 const int gas::save_coins = 7091;
 const int gas::mint_bill = 7757;

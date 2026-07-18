@@ -138,9 +138,9 @@ Use the get method `get_wallet_state` of **wallet** with no parameters, which re
 
 Use the get method `get_treasury_state` of **treasury** with no parameters, which returns these fields in this order:
 
-1. `total_coins`: Total TON coins staked in the protocol.
+1. `total_coins`: Total TON coins staked in the protocol. Includes 10 TON backing the protocol's permanently locked *dead shares*, so it is always positive.
 
-1. `total_tokens`: Total hTON tokens issued in the protocol.
+1. `total_tokens`: Total hTON tokens issued in the protocol. Includes the dead shares: tokens worth 10 TON (at the rate they were minted) owned by no wallet and never burnable, so it is always positive and permanently exceeds the jetton total supply reported by **parent**'s `get_jetton_data` (which counts only wallet-held tokens).
 
 1. `total_staking`: Total TON coins that are in the process of being staked. Currently, because of instant staking, it is always zero.
 
@@ -243,6 +243,8 @@ To read data related to a specific participation, use get method `get_participat
 ## Calculating Exchange Rate of hTON in TON
 
 Call get method `get_treasury_state` on **treasury** and then divide `total_coins` by `total_tokens`. Check [example implementation](https://github.com/HipoFinance/sdk-example/blob/c165c95350b7df19b30f42e037d882cec2d4b865/src/Model.ts#L290).
+
+Both totals include the protocol's dead shares (unowned tokens and their backing coins). This is intentional: the exchange rate is defined over all shares, dead or not, so do not subtract them when computing it.
 
 ## Calculating APY of hTON
 

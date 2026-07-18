@@ -66,6 +66,7 @@ describe('Loan', () => {
     let parent: SandboxContract<Parent>
     let fees: TreasuryFees
     let electorAddress: Address
+    const deadShares = toNano('10')
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
@@ -76,8 +77,8 @@ describe('Loan', () => {
         treasury = blockchain.openContract(
             Treasury.createFromConfig(
                 {
-                    totalCoins: 0n,
-                    totalTokens: 0n,
+                    totalCoins: toNano('10'), // dead shares
+                    totalTokens: toNano('10'), // dead shares
                     totalStaking: 0n,
                     totalUnstaking: 0n,
                     totalBorrowersStake: 0n,
@@ -198,8 +199,8 @@ describe('Loan', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('161.7', '161.9')
-        expect(treasuryState.totalCoins).toBeTonValue('0')
-        expect(treasuryState.totalTokens).toBeTonValue('0')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares)
+        expect(treasuryState.totalTokens).toBeTonValue(deadShares)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalBorrowersStake).toBeTonValue('151')
@@ -360,7 +361,7 @@ describe('Loan', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('11', '12')
-        expect(treasuryState.totalCoins).toBeTonValue('700000')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + toNano('700000'))
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -468,7 +469,7 @@ describe('Loan', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('0.9', '1')
-        expect(treasuryState.totalCoins).toBeTonValue('700000')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + toNano('700000'))
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -582,7 +583,7 @@ describe('Loan', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('11', '12')
-        expect(treasuryState.totalCoins).toBeTonValue('700000')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + toNano('700000'))
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -832,13 +833,13 @@ describe('Loan', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('700131', '700132')
-        expect(treasuryState.totalCoins).toBeBetween('700121', '700122')
-        expect(treasuryState.totalTokens).toBeTonValue('700000')
+        expect(treasuryState.totalCoins).toBeBetween('700131', '700132')
+        expect(treasuryState.totalTokens).toBeTonValue(deadShares + toNano('700000'))
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
         expect(treasuryState.previousRate).toBe(1_000_000_000n)
-        expect(treasuryState.currentRate).toBe(1_000_174_106n)
+        expect(treasuryState.currentRate).toBe(1_000_174_104n)
 
         accumulateFees(result.transactions)
     })
@@ -967,8 +968,8 @@ describe('Loan', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('0', '0.1')
-        expect(treasuryState.totalCoins).toBeTonValue('700000')
-        expect(treasuryState.totalTokens).toBeTonValue('700000')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + toNano('700000'))
+        expect(treasuryState.totalTokens).toBeTonValue(deadShares + toNano('700000'))
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
@@ -1197,13 +1198,13 @@ describe('Loan', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('700133.7', '700134')
-        expect(treasuryState.totalCoins).toBeBetween('700121', '700122')
-        expect(treasuryState.totalTokens).toBeTonValue('700000')
+        expect(treasuryState.totalCoins).toBeBetween('700131', '700132')
+        expect(treasuryState.totalTokens).toBeTonValue(deadShares + toNano('700000'))
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
         expect(treasuryState.previousRate).toBe(1_000_000_000n)
-        expect(treasuryState.currentRate).toBe(1_000_174_106n)
+        expect(treasuryState.currentRate).toBe(1_000_174_104n)
         expect(treasuryState.participations.size).toEqual(0)
 
         accumulateFees(result.transactions)
@@ -1324,7 +1325,7 @@ describe('Loan', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('12.1', '12.4')
-        expect(treasuryState.totalCoins).toBeTonValue('0')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares)
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -1474,7 +1475,7 @@ describe('Loan', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween('348000', '349000')
-        expect(treasuryState.totalCoins).toBeTonValue('700000')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + toNano('700000'))
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')

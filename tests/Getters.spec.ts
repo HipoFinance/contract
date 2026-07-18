@@ -80,8 +80,8 @@ describe('Getters', () => {
         treasury = blockchain.openContract(
             Treasury.createFromConfig(
                 {
-                    totalCoins: 0n,
-                    totalTokens: 0n,
+                    totalCoins: toNano('10'), // dead shares
+                    totalTokens: toNano('10'), // dead shares
                     totalStaking: 0n,
                     totalUnstaking: 0n,
                     totalBorrowersStake: 0n,
@@ -283,8 +283,8 @@ describe('Getters', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
 
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryState.totalCoins).toBeTonValue('10')
-        expect(treasuryState.totalTokens).toBeTonValue('10')
+        expect(treasuryState.totalCoins).toBeTonValue('20') // 10 dead shares + 10 deposited
+        expect(treasuryState.totalTokens).toBeTonValue('20')
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalBorrowersStake).toBeTonValue('0')

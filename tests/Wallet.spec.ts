@@ -50,6 +50,7 @@ describe('Wallet', () => {
     let parent: SandboxContract<Parent>
     let fees: TreasuryFees
     const treasuryStorage = toNano('10')
+    const deadShares = toNano('10')
 
     beforeEach(async () => {
         blockchain = await Blockchain.create()
@@ -60,8 +61,8 @@ describe('Wallet', () => {
         treasury = blockchain.openContract(
             Treasury.createFromConfig(
                 {
-                    totalCoins: 0n,
-                    totalTokens: 0n,
+                    totalCoins: toNano('10'), // dead shares
+                    totalTokens: toNano('10'), // dead shares
                     totalStaking: 0n,
                     totalUnstaking: 0n,
                     totalBorrowersStake: 0n,
@@ -199,7 +200,7 @@ describe('Wallet', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween(treasuryStorage + amount - 5n, treasuryStorage + amount)
-        expect(treasuryState.totalCoins).toBeTonValue(amount)
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + amount)
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -305,8 +306,8 @@ describe('Wallet', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween(treasuryStorage + amount - 5n, treasuryStorage + amount)
-        expect(treasuryState.totalCoins).toBeTonValue('0')
-        expect(treasuryState.totalTokens).toBeTonValue('0')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares)
+        expect(treasuryState.totalTokens).toBeTonValue(deadShares)
         expect(treasuryState.totalStaking).toBeTonValue(amount)
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
@@ -480,7 +481,7 @@ describe('Wallet', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween(treasuryStorage + amount - 5n, treasuryStorage + amount)
-        expect(treasuryState.totalCoins).toBeTonValue(amount)
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + amount)
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -671,7 +672,7 @@ describe('Wallet', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween(treasuryStorage + toNano('9') - 5n, treasuryStorage + toNano('9'))
-        expect(treasuryState.totalCoins).toBeTonValue('9')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + toNano('9'))
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -757,7 +758,7 @@ describe('Wallet', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween(treasuryStorage + toNano('3') - 5n, treasuryStorage + toNano('3'))
-        expect(treasuryState.totalCoins).toBeTonValue('3')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + toNano('3'))
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -861,7 +862,7 @@ describe('Wallet', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween(treasuryStorage + toNano('3') - 5n, treasuryStorage + toNano('3'))
-        expect(treasuryState.totalCoins).toBeTonValue('10')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + toNano('10'))
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('7')
@@ -1409,7 +1410,7 @@ describe('Wallet', () => {
             treasuryStorage + amount - fees.depositCoinsFee - 5n,
             treasuryStorage + amount - fees.depositCoinsFee,
         )
-        expect(treasuryState.totalCoins).toBeTonValue(amount - fees.depositCoinsFee)
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + amount - fees.depositCoinsFee)
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -1515,7 +1516,7 @@ describe('Wallet', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween(treasuryStorage, treasuryStorage + 5n)
-        expect(treasuryState.totalCoins).toBeTonValue('0')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares)
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -1602,7 +1603,7 @@ describe('Wallet', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween(treasuryStorage, treasuryStorage + 10n)
-        expect(treasuryState.totalCoins).toBeTonValue('0')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares)
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -1664,8 +1665,8 @@ describe('Wallet', () => {
         let treasuryBalance = await treasury.getBalance()
         let treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween(treasuryStorage + toNano('6') - 5n, treasuryStorage + toNano('6'))
-        expect(treasuryState.totalCoins).toBeTonValue('6')
-        expect(treasuryState.totalTokens).toBeTonValue('6')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + toNano('6'))
+        expect(treasuryState.totalTokens).toBeTonValue(deadShares + toNano('6'))
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
 
@@ -1727,8 +1728,8 @@ describe('Wallet', () => {
         treasuryBalance = await treasury.getBalance()
         treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween(treasuryStorage + toNano('9'), treasuryStorage + toNano('9') + 5n)
-        expect(treasuryState.totalCoins).toBeTonValue('3')
-        expect(treasuryState.totalTokens).toBeTonValue('3')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + toNano('3'))
+        expect(treasuryState.totalTokens).toBeTonValue(deadShares + toNano('3'))
         expect(treasuryState.totalStaking).toBeTonValue('10')
         expect(treasuryState.totalUnstaking).toBeTonValue('2')
         ;[tokens1, staking1, unstaking1] = await wallet1.getWalletState()
@@ -1777,8 +1778,8 @@ describe('Wallet', () => {
         treasuryBalance = await treasury.getBalance()
         treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween(treasuryStorage + toNano('4'), treasuryStorage + toNano('4') + 5n)
-        expect(treasuryState.totalCoins).toBeTonValue('3')
-        expect(treasuryState.totalTokens).toBeTonValue('3')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + toNano('3'))
+        expect(treasuryState.totalTokens).toBeTonValue(deadShares + toNano('3'))
         expect(treasuryState.totalStaking).toBeTonValue('14')
         expect(treasuryState.totalUnstaking).toBeTonValue('3')
         ;[tokens1, staking1, unstaking1] = await wallet1.getWalletState()
@@ -1809,8 +1810,8 @@ describe('Wallet', () => {
             treasuryStorage + toNano('2'),
             treasuryStorage + toNano('2') + toNano('0.005'),
         )
-        expect(treasuryState.totalCoins).toBeTonValue('11')
-        expect(treasuryState.totalTokens).toBeTonValue('11')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + toNano('11'))
+        expect(treasuryState.totalTokens).toBeTonValue(deadShares + toNano('11'))
         expect(treasuryState.totalStaking).toBeTonValue('4')
         expect(treasuryState.totalUnstaking).toBeTonValue('1')
         ;[tokens1, staking1, unstaking1] = await wallet1.getWalletState()
@@ -1854,8 +1855,8 @@ describe('Wallet', () => {
             treasuryStorage + toNano('14'),
             treasuryStorage + toNano('14') + toNano('0.005'),
         )
-        expect(treasuryState.totalCoins).toBeTonValue('14')
-        expect(treasuryState.totalTokens).toBeTonValue('14')
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + toNano('14'))
+        expect(treasuryState.totalTokens).toBeTonValue(deadShares + toNano('14'))
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
         ;[tokens1, staking1, unstaking1] = await wallet1.getWalletState()
@@ -2077,7 +2078,7 @@ describe('Wallet', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween(treasuryStorage + amount - 5n, treasuryStorage + amount)
-        expect(treasuryState.totalCoins).toBeTonValue(amount)
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + amount)
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -2159,7 +2160,7 @@ describe('Wallet', () => {
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryBalance).toBeBetween(treasuryStorage + amount - 5n, treasuryStorage + amount)
-        expect(treasuryState.totalCoins).toBeTonValue(amount)
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + amount)
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')
@@ -2246,7 +2247,7 @@ describe('Wallet', () => {
             treasuryStorage + amount1 + amount2 - 5n,
             treasuryStorage + amount1 + amount2,
         )
-        expect(treasuryState.totalCoins).toBeTonValue(amount1 + amount2)
+        expect(treasuryState.totalCoins).toBeTonValue(deadShares + amount1 + amount2)
         expect(treasuryState.totalTokens).toBeTonValue(treasuryState.totalCoins)
         expect(treasuryState.totalStaking).toBeTonValue('0')
         expect(treasuryState.totalUnstaking).toBeTonValue('0')

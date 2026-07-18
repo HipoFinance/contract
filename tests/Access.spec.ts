@@ -63,8 +63,8 @@ describe('Access', () => {
         treasury = blockchain.openContract(
             Treasury.createFromConfig(
                 {
-                    totalCoins: 0n,
-                    totalTokens: 0n,
+                    totalCoins: toNano('10'), // dead shares
+                    totalTokens: toNano('10'), // dead shares
                     totalStaking: 0n,
                     totalUnstaking: 0n,
                     totalBorrowersStake: 0n,

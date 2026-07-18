@@ -209,10 +209,7 @@ cell find_code(cell dict, int round_since) inline {
     int enough_fee? = (max_coins >= coins) & (max_coins > 0);
     ( int owner_wc, _ ) = parse_std_addr(owner);
 
-    int tokens = coins;
-    if total_coins {
-        tokens = muldiv(coins, total_tokens, total_coins);
-    }
+    int tokens = muldiv(coins, total_tokens, total_coins);
 
     throw_unless(err::only_basechain_allowed, owner_wc == chain::base);
     throw_unless(err::insufficient_fee, enough_fee?);
@@ -290,12 +287,7 @@ cell find_code(cell dict, int round_since) inline {
     int ownership_assigned_amount = s~load_coins();
     s.end_parse();
 
-    int coins = tokens;
-    if tokens == total_tokens {
-        coins = total_coins; ;; send all coins to last staker
-    } elseif total_tokens {
-        coins = muldiv(tokens, total_coins, total_tokens);
-    }
+    int coins = muldiv(tokens, total_coins, total_tokens);
 
     int incoming_ton = get_incoming_value().pair_first();
     int ton_balance = get_balance().pair_first();
@@ -390,10 +382,7 @@ cell find_code(cell dict, int round_since) inline {
 
     throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == collection_addr));
 
-    int tokens = coins;
-    if total_coins {
-        tokens = muldiv(coins, total_tokens, total_coins);
-    }
+    int tokens = muldiv(coins, total_tokens, total_coins);
 
     total_staking -= coins;
     total_coins += coins;
@@ -427,12 +416,7 @@ cell find_code(cell dict, int round_since) inline {
 
     throw_unless(err::access_denied, (src_wc == chain::base) & (src_addr == collection_addr));
 
-    int coins = tokens;
-    if tokens == total_tokens {
-        coins = total_coins; ;; send all coins to last staker
-    } elseif total_tokens {
-        coins = muldiv(tokens, total_coins, total_tokens);
-    }
+    int coins = muldiv(tokens, total_coins, total_tokens);
 
     int incoming_ton = get_incoming_value().pair_first();
     int ton_balance = get_balance().pair_first();
@@ -667,10 +651,7 @@ cell find_code(cell dict, int round_since) inline {
     int current_vset_hash = config_param(config::current_validators).cell_hash();
     int stake_held_until = next_round_until + stake_held_for + 60;
 
-    int reserved_amount = total_unstaking;
-    if total_tokens {
-        reserved_amount = muldiv(total_unstaking, total_coins, total_tokens);
-    }
+    int reserved_amount = muldiv(total_unstaking, total_coins, total_tokens);
     ( int total_fee, _, _ ) = request_loan_fee();
     int ton_balance = get_balance().pair_first();
     int available_now =
@@ -1210,9 +1191,7 @@ cell find_code(cell dict, int round_since) inline {
 
             if rejected.dict_empty?() & accrued.dict_empty?() & staked.dict_empty?() & recovering.dict_empty?() {
                 previous_rate = current_rate;
-                if total_tokens {
-                    current_rate = muldiv(total_coins, 1000000000, total_tokens);
-                }
+                current_rate = muldiv(total_coins, 1000000000, total_tokens);
                 state = participation::burning;
 
                 cell collection_code = collection_codes.find_code(round_since);
@@ -1644,7 +1623,8 @@ int calculate_min_coins() inline_ref {
         }
     } until ~ f?;
 
-    return fee::treasury_storage + total_borrowers_stake + total_staking + total_coins;
+    ;; the dead-share component of total_coins (>= fee::treasury_storage) keeps the storage buffer reserved
+    return total_borrowers_stake + total_staking + total_coins;
 }
 
 () withdraw_surplus(slice src, slice s) impure inline {
@@ -1836,11 +1816,7 @@ int calculate_min_coins() inline_ref {
     int coins = s~load_coins();
     s.end_parse();
 
-    if total_tokens {
-        total_coins += coins;
-    } else {
-        coins = 0;
-    }
+    total_coins += coins;
 
     raw_reserve(coins, reserve::add_original_balance);
 
@@ -2170,13 +2146,8 @@ int get_max_burnable_tokens() method_id {
 
     int ton_balance = get_balance().pair_first();
     int available_ton = ton_balance - fee::treasury_storage - total_borrowers_stake;
-    int burnable_tokens = 0;
 
-    if total_coins {
-        burnable_tokens = muldiv(available_ton, total_tokens, total_coins);
-    }
-
-    return burnable_tokens;
+    return muldiv(available_ton, total_tokens, total_coins);
 }
 
 int get_surplus() method_id {
@@ -2194,5 +2165,4 @@ int get_max_punishment(int stake) method_id {
 }
 
 ;; todo: change the mint op-code so that wallets show the output tokens in emulation and after mint.
-;; todo: mint dead shares, or set the starting ratio at 1 TON or 10 TON to prevent inflating token ratio using gift_coins.
 ;; todo: remove library usage
