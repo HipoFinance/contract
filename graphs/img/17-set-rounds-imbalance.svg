@@ -28,7 +28,7 @@
 <polygon fill="black" stroke="black" points="63.04,-54.9 71.78,-48.91 61.22,-48.14 63.04,-54.9"/>
 <text text-anchor="start" x="20.41" y="-117.7" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="20.41" y="-100.45" font-family="Times,serif" font-size="14.00"> op::set_rounds_imbalance</text>
-<text text-anchor="start" x="20.41" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.10 TON</text>
+<text text-anchor="start" x="20.41" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.10 GRAM</text>
 </g>
 <!-- treasury&#45;&gt;halter -->
 <g id="edge2" class="edge">
@@ -37,7 +37,7 @@
 <polygon fill="black" stroke="black" points="172.16,-153.41 163.74,-159.85 174.34,-160.06 172.16,-153.41"/>
 <text text-anchor="start" x="217.41" y="-117.7" font-family="Times,serif" font-size="14.00">2</text>
 <text text-anchor="start" x="217.41" y="-100.45" font-family="Times,serif" font-size="14.00"> op::gas_excess</text>
-<text text-anchor="start" x="217.41" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.09 TON</text>
+<text text-anchor="start" x="217.41" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.09 GRAM</text>
 </g>
 </g>
 </svg>

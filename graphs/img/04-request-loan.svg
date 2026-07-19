@@ -28,7 +28,7 @@
 <polygon fill="black" stroke="black" points="161.16,-55.99 170.42,-50.85 159.97,-49.09 161.16,-55.99"/>
 <text text-anchor="start" x="82.83" y="-169.45" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="82.83" y="-152.2" font-family="Times,serif" font-size="14.00"> op::request_loan</text>
-<text text-anchor="start" x="82.83" y="-134.95" font-family="Times,serif" font-size="14.00"> 100002 TON</text>
+<text text-anchor="start" x="82.83" y="-134.95" font-family="Times,serif" font-size="14.00"> 100002 GRAM</text>
 <text text-anchor="start" x="82.83" y="-117.7" font-family="Times,serif" font-size="14.00"> loan: 200000</text>
 <text text-anchor="start" x="82.83" y="-100.45" font-family="Times,serif" font-size="14.00"> min payment: 100</text>
 <text text-anchor="start" x="82.83" y="-83.2" font-family="Times,serif" font-size="14.00"> share: 40%</text>
@@ -46,7 +46,7 @@
 <polygon fill="black" stroke="black" points="224.33,-72.71 220.83,-62.71 217.33,-72.71 224.33,-72.71"/>
 <text text-anchor="start" x="220.83" y="-169.45" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="220.83" y="-152.2" font-family="Times,serif" font-size="14.00"> op::request_loan</text>
-<text text-anchor="start" x="220.83" y="-134.95" font-family="Times,serif" font-size="14.00"> 202 TON</text>
+<text text-anchor="start" x="220.83" y="-134.95" font-family="Times,serif" font-size="14.00"> 202 GRAM</text>
 <text text-anchor="start" x="220.83" y="-117.7" font-family="Times,serif" font-size="14.00"> loan: 300000</text>
 <text text-anchor="start" x="220.83" y="-100.45" font-family="Times,serif" font-size="14.00"> min payment: 100</text>
 <text text-anchor="start" x="220.83" y="-83.2" font-family="Times,serif" font-size="14.00"> share: 40%</text>
@@ -64,7 +64,7 @@
 <polygon fill="black" stroke="black" points="281.18,-49.53 270.72,-51.2 279.94,-56.42 281.18,-49.53"/>
 <text text-anchor="start" x="381.83" y="-169.45" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="381.83" y="-152.2" font-family="Times,serif" font-size="14.00"> op::request_loan</text>
-<text text-anchor="start" x="381.83" y="-134.95" font-family="Times,serif" font-size="14.00"> 302 TON</text>
+<text text-anchor="start" x="381.83" y="-134.95" font-family="Times,serif" font-size="14.00"> 302 GRAM</text>
 <text text-anchor="start" x="381.83" y="-117.7" font-family="Times,serif" font-size="14.00"> loan: 300000</text>
 <text text-anchor="start" x="381.83" y="-100.45" font-family="Times,serif" font-size="14.00"> min payment: 200</text>
 <text text-anchor="start" x="381.83" y="-83.2" font-family="Times,serif" font-size="14.00"> share: 100%</text>

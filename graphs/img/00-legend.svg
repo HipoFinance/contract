@@ -32,7 +32,7 @@
 <polygon fill="black" stroke="black" points="69.72,-315.26 67.12,-304.99 62.75,-314.64 69.72,-315.26"/>
 <text text-anchor="start" x="84.65" y="-393.95" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="84.65" y="-376.7" font-family="Times,serif" font-size="14.00"> op::send_tokens</text>
-<text text-anchor="start" x="84.65" y="-359.45" font-family="Times,serif" font-size="14.00"> 0.10 TON</text>
+<text text-anchor="start" x="84.65" y="-359.45" font-family="Times,serif" font-size="14.00"> 0.10 GRAM</text>
 <text text-anchor="start" x="84.65" y="-342.2" font-family="Times,serif" font-size="14.00"> tokens: 10</text>
 </g>
 <!-- staker2 -->
@@ -54,7 +54,7 @@
 <polygon fill="black" stroke="black" points="160.05,-138.51 169.51,-133.74 159.14,-131.57 160.05,-138.51"/>
 <text text-anchor="start" x="66.65" y="-219.95" font-family="Times,serif" font-size="14.00">2</text>
 <text text-anchor="start" x="66.65" y="-202.7" font-family="Times,serif" font-size="14.00"> op::receive_tokens</text>
-<text text-anchor="start" x="66.65" y="-185.45" font-family="Times,serif" font-size="14.00"> 0.09 TON</text>
+<text text-anchor="start" x="66.65" y="-185.45" font-family="Times,serif" font-size="14.00"> 0.09 GRAM</text>
 <text text-anchor="start" x="66.65" y="-168.2" font-family="Times,serif" font-size="14.00"> tokens: 10</text>
 </g>
 <!-- wallet2&#45;&gt;staker1 -->
@@ -64,7 +64,7 @@
 <polygon fill="black" stroke="black" points="186.49,-420.68 180.13,-429.16 190.39,-426.5 186.49,-420.68"/>
 <text text-anchor="start" x="221.65" y="-298.32" font-family="Times,serif" font-size="14.00">4</text>
 <text text-anchor="start" x="221.65" y="-281.07" font-family="Times,serif" font-size="14.00"> op::gas_excess</text>
-<text text-anchor="start" x="221.65" y="-263.82" font-family="Times,serif" font-size="14.00"> 0.07 TON</text>
+<text text-anchor="start" x="221.65" y="-263.82" font-family="Times,serif" font-size="14.00"> 0.07 GRAM</text>
 </g>
 <!-- wallet2&#45;&gt;staker2 -->
 <g id="edge3" class="edge">
@@ -73,7 +73,7 @@
 <polygon fill="black" stroke="black" points="360.26,-413.8 363.55,-423.87 367.26,-413.95 360.26,-413.8"/>
 <text text-anchor="start" x="356.65" y="-306.95" font-family="Times,serif" font-size="14.00">3</text>
 <text text-anchor="start" x="356.65" y="-289.7" font-family="Times,serif" font-size="14.00"> op::transfer_notification</text>
-<text text-anchor="start" x="356.65" y="-272.45" font-family="Times,serif" font-size="14.00"> 0.01 TON</text>
+<text text-anchor="start" x="356.65" y="-272.45" font-family="Times,serif" font-size="14.00"> 0.01 GRAM</text>
 <text text-anchor="start" x="356.65" y="-255.2" font-family="Times,serif" font-size="14.00"> tokens: 10</text>
 </g>
 </g>

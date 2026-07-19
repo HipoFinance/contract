@@ -1834,7 +1834,7 @@ int calculate_min_coins() inline_ref {
     int op = s~load_uint(32);
     int query_id = s~load_uint(64);
 
-    throw(0); ;; just accept bounced TON
+    throw(0); ;; just accept bounced GRAM
 }
 
 () route_internal_message(int flags, slice src, slice s) impure inline {
@@ -2000,7 +2000,7 @@ int calculate_min_coins() inline_ref {
     }
 
     if op == op::top_up {
-        throw(0); ;; top up TON balance, do nothing
+        throw(0); ;; top up GRAM balance, do nothing
     }
 
     if op == 0 {

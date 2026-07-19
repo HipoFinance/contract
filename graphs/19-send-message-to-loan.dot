@@ -8,8 +8,8 @@ digraph {
     loan [ color=5 ]
 
     /* Relationships */
-    halter -> treasury [ label="1\l op::send_message_to_loan\l 0.10 TON\l" ]
-    treasury -> loan [ label="2\l 0.9 TON\l" ]
+    halter -> treasury [ label="1\l op::send_message_to_loan\l 0.10 GRAM\l" ]
+    treasury -> loan [ label="2\l 0.9 GRAM\l" ]
 
     /* Ranks */
     { rank=min halter }

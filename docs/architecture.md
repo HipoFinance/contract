@@ -5,7 +5,7 @@ must preserve. It complements the message-flow diagrams in `graphs/` (one per fl
 with `00-legend.dot`) and the TL-B schemas in `contracts/schema.tlb` and `Integration.md`.
 
 Terminology: GRAM is the network coin (rebranded from TON), hGRAM is Hipo's jetton
-(rebranded from hTON). Older comments and docs may still use the TON/hTON names.
+(rebranded from hTON). The network itself is still called the TON blockchain.
 
 ## The big picture
 

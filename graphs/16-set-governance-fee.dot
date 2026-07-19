@@ -7,8 +7,8 @@ digraph {
     treasury [ color=4 ]
 
     /* Relationships */
-    governor -> treasury [ label="1\l op::set_governance_fee\l 0.10 TON\l" ]
-    treasury -> governor [ label="2\l op::gas_excess\l 0.09 TON\l" ]
+    governor -> treasury [ label="1\l op::set_governance_fee\l 0.10 GRAM\l" ]
+    treasury -> governor [ label="2\l op::gas_excess\l 0.09 GRAM\l" ]
 
     /* Ranks */
     { rank=min governor }

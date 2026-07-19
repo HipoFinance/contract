@@ -5,8 +5,9 @@ Hipo is a decentralized liquid staking protocol on the TON blockchain. Users dep
 the pooled coins are lent to validators ("borrowers") each validation round, and rewards
 accrue to the hGRAM exchange rate.
 
-> Terminology: GRAM = the coin, hGRAM = the jetton. Some files still use the old TON/hTON
-> names; prefer GRAM/hGRAM in new or updated text.
+> Terminology: GRAM = the coin, hGRAM = the jetton. The network itself is still called the
+> TON blockchain. Use GRAM/hGRAM everywhere; only `contracts/imports/stdlib.fc` (vendored)
+> and historical documents keep the old TON/hTON names.
 
 Read [docs/architecture.md](docs/architecture.md) before changing any contract — it explains
 the contracts, the validation-round state machine, and the protocol invariants that changes

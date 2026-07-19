@@ -142,7 +142,7 @@ describe('Large', () => {
 
         await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10', destination: governor.address })
         const treasuryBalance = await treasury.getBalance()
-        expect(treasuryBalance).toBeTonValue('10')
+        expect(treasuryBalance).toBeGramValue('10')
     })
 
     it('should send a big batch of messages to recover stakes', async () => {

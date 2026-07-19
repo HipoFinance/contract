@@ -7,8 +7,8 @@ digraph {
     treasury [ color=4 ]
 
     /* Relationships */
-    halter -> treasury [ label="1\l op::set_rounds_imbalance\l 0.10 TON\l" ]
-    treasury -> halter [ label="2\l op::gas_excess\l 0.09 TON\l" ]
+    halter -> treasury [ label="1\l op::set_rounds_imbalance\l 0.10 GRAM\l" ]
+    treasury -> halter [ label="2\l op::gas_excess\l 0.09 GRAM\l" ]
 
     /* Ranks */
     { rank=min halter }

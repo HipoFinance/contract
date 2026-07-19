@@ -12,7 +12,7 @@ export async function run(provider: NetworkProvider) {
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
     const roundSince = BigInt(await ui.input('Enter round since'))
-    const amount = toNano(await ui.input('Enter amount in TON'))
+    const amount = toNano(await ui.input('Enter amount in GRAM'))
     const unstake = await ui.choose('Stake or Unstake?', [false, true], (f) => (f ? 'Unstake' : 'Stake'))
     const owner = Address.parse(await ui.input('Enter owner address'))
     const parent = Address.parse(await ui.input('Enter parent address'))

@@ -12,37 +12,37 @@
 <!-- halter -->
 <g id="node1" class="node">
 <title>halter</title>
-<ellipse fill="#b3cde3" stroke="#b3cde3" cx="59.11" cy="-167" rx="41.21" ry="18"/>
-<text text-anchor="middle" x="59.11" y="-162.32" font-family="Times,serif" font-size="14.00">halter</text>
+<ellipse fill="#b3cde3" stroke="#b3cde3" cx="52.36" cy="-167" rx="41.21" ry="18"/>
+<text text-anchor="middle" x="52.36" y="-162.32" font-family="Times,serif" font-size="14.00">halter</text>
 </g>
 <!-- treasury -->
 <g id="node2" class="node">
 <title>treasury</title>
-<ellipse fill="#decbe4" stroke="#decbe4" cx="166.11" cy="-43.25" rx="53.84" ry="18"/>
-<text text-anchor="middle" x="166.11" y="-38.58" font-family="Times,serif" font-size="14.00">treasury</text>
+<ellipse fill="#decbe4" stroke="#decbe4" cx="159.36" cy="-43.25" rx="53.84" ry="18"/>
+<text text-anchor="middle" x="159.36" y="-38.58" font-family="Times,serif" font-size="14.00">treasury</text>
 </g>
 <!-- halter&#45;&gt;treasury -->
 <g id="edge1" class="edge">
 <title>halter&#45;&gt;treasury</title>
-<path fill="none" stroke="black" d="M53.85,-148.86C49.18,-129.92 45.11,-99.44 59.86,-79.25 70.29,-64.96 86.75,-56.41 103.63,-51.32"/>
-<polygon fill="black" stroke="black" points="104.35,-54.49 113.14,-48.58 102.58,-47.72 104.35,-54.49"/>
-<text text-anchor="start" x="60.11" y="-117.7" font-family="Times,serif" font-size="14.00">1</text>
-<text text-anchor="start" x="60.11" y="-100.45" font-family="Times,serif" font-size="14.00"> op::send_message_to_loan</text>
-<text text-anchor="start" x="60.11" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.10 TON</text>
+<path fill="none" stroke="black" d="M47.1,-148.86C42.43,-129.92 38.36,-99.44 53.11,-79.25 63.54,-64.96 80,-56.41 96.88,-51.32"/>
+<polygon fill="black" stroke="black" points="97.6,-54.49 106.39,-48.58 95.83,-47.72 97.6,-54.49"/>
+<text text-anchor="start" x="53.36" y="-117.7" font-family="Times,serif" font-size="14.00">1</text>
+<text text-anchor="start" x="53.36" y="-100.45" font-family="Times,serif" font-size="14.00"> op::send_message_to_loan</text>
+<text text-anchor="start" x="53.36" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.10 GRAM</text>
 </g>
 <!-- loan -->
 <g id="node3" class="node">
 <title>loan</title>
-<ellipse fill="#fed9a6" stroke="#fed9a6" cx="273.11" cy="-167" rx="32.27" ry="18"/>
-<text text-anchor="middle" x="273.11" y="-162.32" font-family="Times,serif" font-size="14.00">loan</text>
+<ellipse fill="#fed9a6" stroke="#fed9a6" cx="266.36" cy="-167" rx="32.27" ry="18"/>
+<text text-anchor="middle" x="266.36" y="-162.32" font-family="Times,serif" font-size="14.00">loan</text>
 </g>
 <!-- treasury&#45;&gt;loan -->
 <g id="edge2" class="edge">
 <title>treasury&#45;&gt;loan</title>
-<path fill="none" stroke="black" d="M210.24,-53.81C225.09,-59.05 240.55,-67.07 251.11,-79.25 265.1,-95.39 270.41,-119.21 272.32,-137.81"/>
-<polygon fill="black" stroke="black" points="268.89,-137.89 273.13,-147.6 275.87,-137.37 268.89,-137.89"/>
-<text text-anchor="start" x="271.11" y="-109.08" font-family="Times,serif" font-size="14.00">2</text>
-<text text-anchor="start" x="271.11" y="-91.83" font-family="Times,serif" font-size="14.00"> 0.9 TON</text>
+<path fill="none" stroke="black" d="M203.49,-53.81C218.34,-59.05 233.8,-67.07 244.36,-79.25 258.35,-95.39 263.66,-119.21 265.57,-137.81"/>
+<polygon fill="black" stroke="black" points="262.14,-137.89 266.38,-147.6 269.12,-137.37 262.14,-137.89"/>
+<text text-anchor="start" x="264.36" y="-109.08" font-family="Times,serif" font-size="14.00">2</text>
+<text text-anchor="start" x="264.36" y="-91.83" font-family="Times,serif" font-size="14.00"> 0.9 GRAM</text>
 </g>
 </g>
 </svg>

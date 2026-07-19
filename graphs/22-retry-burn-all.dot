@@ -8,8 +8,8 @@ digraph {
     collection [ color=5 ]
 
     /* Relationships */
-    halter -> treasury [ label="1\l op::retry_burn_all\l 0.10 TON\l" ]
-    treasury -> collection [ label="2\l op::burn_all\l 0.9 TON\l" ]
+    halter -> treasury [ label="1\l op::retry_burn_all\l 0.10 GRAM\l" ]
+    treasury -> collection [ label="2\l op::burn_all\l 0.9 GRAM\l" ]
 
     /* Ranks */
     { rank=min halter }

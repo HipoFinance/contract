@@ -166,7 +166,7 @@ describe('Getters', () => {
 
         await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10', destination: governor.address })
         const treasuryBalance = await treasury.getBalance()
-        expect(treasuryBalance).toBeTonValue('10')
+        expect(treasuryBalance).toBeGramValue('10')
 
         electorAddress = getElector(blockchain)
     })
@@ -192,10 +192,10 @@ describe('Getters', () => {
 
     it('should return max punishment value', async () => {
         const maxPunishmentMin = await treasury.getMaxPunishment(1n)
-        expect(maxPunishmentMin).toBeTonValue('101')
+        expect(maxPunishmentMin).toBeGramValue('101')
 
         const maxPunishmentMax = await treasury.getMaxPunishment(5000000000000000000n)
-        expect(maxPunishmentMax).toBeTonValue('101')
+        expect(maxPunishmentMax).toBeGramValue('101')
     })
 
     it('should return jetton data', async () => {
@@ -209,7 +209,7 @@ describe('Getters', () => {
         })
 
         const [totalTokens, mintable, adminAddress, content, code] = await parent.getJettonData()
-        expect(totalTokens).toBeTonValue('10')
+        expect(totalTokens).toBeGramValue('10')
         expect(mintable).toEqual(true)
         expect(adminAddress).toEqualAddress(treasury.address)
         expect(content.toBoc().toString('base64')).toEqual(newContent.toBoc().toString('base64'))
@@ -272,7 +272,7 @@ describe('Getters', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
 
         const [tokens, ownerAddress, parentAddress, code] = await wallet.getWalletData()
-        expect(tokens).toBeTonValue('10')
+        expect(tokens).toBeGramValue('10')
         expect(ownerAddress.toString()).toEqual(staker.address.toString())
         expect(parentAddress).toEqualAddress(parent.address)
         expect(code.toBoc().toString('base64')).toEqual(walletCode.toBoc().toString('base64'))
@@ -283,11 +283,11 @@ describe('Getters', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
 
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryState.totalCoins).toBeTonValue('20') // 10 dead shares + 10 deposited
-        expect(treasuryState.totalTokens).toBeTonValue('20')
-        expect(treasuryState.totalStaking).toBeTonValue('0')
-        expect(treasuryState.totalUnstaking).toBeTonValue('0')
-        expect(treasuryState.totalBorrowersStake).toBeTonValue('0')
+        expect(treasuryState.totalCoins).toBeGramValue('20') // 10 dead shares + 10 deposited
+        expect(treasuryState.totalTokens).toBeGramValue('20')
+        expect(treasuryState.totalStaking).toBeGramValue('0')
+        expect(treasuryState.totalUnstaking).toBeGramValue('0')
+        expect(treasuryState.totalBorrowersStake).toBeGramValue('0')
         expect(treasuryState.parent).toEqualAddress(parent.address)
         expect(treasuryState.participations.keys()).toHaveLength(0)
         expect(treasuryState.roundsImbalance).toEqual(255n)
@@ -313,9 +313,9 @@ describe('Getters', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
 
         const [tokens, staking, unstaking] = await wallet.getWalletState()
-        expect(tokens).toBeTonValue('10')
+        expect(tokens).toBeGramValue('10')
         expect(staking.keys()).toHaveLength(0)
-        expect(unstaking).toBeTonValue('0')
+        expect(unstaking).toBeGramValue('0')
     })
 
     it('should return treasury fees', () => {

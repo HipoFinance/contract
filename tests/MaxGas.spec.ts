@@ -263,7 +263,7 @@ describe('Max Gas', () => {
 
         await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10', destination: governor.address })
         const treasuryBalance = await treasury.getBalance()
-        expect(treasuryBalance).toBeTonValue('10')
+        expect(treasuryBalance).toBeGramValue('10')
 
         electorAddress = getElector(blockchain)
     })

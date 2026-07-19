@@ -1,5 +1,5 @@
 digraph {
-    label="the current governor withdraws surplus TON value of librarian"
+    label="the current governor withdraws surplus GRAM value of librarian"
     node [ colorscheme=pastel19 style=filled ]
 
     /* Entities */
@@ -8,9 +8,9 @@ digraph {
     librarian [ color=6 ]
 
     /* Relationships */
-    governor -> treasury [ label="1\l op::proxy_withdraw_surplus\l 0.10 TON\l" ]
-    treasury -> librarian [ label="2\l op::withdraw_surplus\l 0.09 TON\l"]
-    librarian -> governor [ label="3\l op::gas_excess\l 20.08 TON\l" ]
+    governor -> treasury [ label="1\l op::proxy_withdraw_surplus\l 0.10 GRAM\l" ]
+    treasury -> librarian [ label="2\l op::withdraw_surplus\l 0.09 GRAM\l"]
+    librarian -> governor [ label="3\l op::gas_excess\l 20.08 GRAM\l" ]
 
     /* Ranks */
     { rank=min governor }

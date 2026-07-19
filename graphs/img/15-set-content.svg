@@ -28,7 +28,7 @@
 <polygon fill="black" stroke="black" points="40.68,-204.12 42.49,-193.68 34.57,-200.71 40.68,-204.12"/>
 <text text-anchor="start" x="31.84" y="-257.2" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="31.84" y="-239.95" font-family="Times,serif" font-size="14.00"> op::proxy_set_content</text>
-<text text-anchor="start" x="31.84" y="-222.7" font-family="Times,serif" font-size="14.00"> 0.10 TON</text>
+<text text-anchor="start" x="31.84" y="-222.7" font-family="Times,serif" font-size="14.00"> 0.10 GRAM</text>
 </g>
 <!-- parent -->
 <g id="node3" class="node">
@@ -43,7 +43,7 @@
 <polygon fill="black" stroke="black" points="95.37,-66.34 101.59,-57.76 91.38,-60.59 95.37,-66.34"/>
 <text text-anchor="start" x="78.84" y="-117.7" font-family="Times,serif" font-size="14.00">2</text>
 <text text-anchor="start" x="78.84" y="-100.45" font-family="Times,serif" font-size="14.00"> op::set_content</text>
-<text text-anchor="start" x="78.84" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.09 TON</text>
+<text text-anchor="start" x="78.84" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.09 GRAM</text>
 </g>
 <!-- parent&#45;&gt;governor -->
 <g id="edge3" class="edge">
@@ -52,7 +52,7 @@
 <polygon fill="black" stroke="black" points="169.41,-286.97 162.04,-294.58 172.54,-293.23 169.41,-286.97"/>
 <text text-anchor="start" x="224.84" y="-187.45" font-family="Times,serif" font-size="14.00">3</text>
 <text text-anchor="start" x="224.84" y="-170.2" font-family="Times,serif" font-size="14.00"> op::gas_excess</text>
-<text text-anchor="start" x="224.84" y="-152.95" font-family="Times,serif" font-size="14.00"> 0.08 TON</text>
+<text text-anchor="start" x="224.84" y="-152.95" font-family="Times,serif" font-size="14.00"> 0.08 GRAM</text>
 </g>
 </g>
 </svg>

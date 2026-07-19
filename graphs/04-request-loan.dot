@@ -7,9 +7,9 @@ digraph {
     treasury [ color=4 ]
 
     /* Relationships */
-    borrower1 -> treasury [ label="1\l op::request_loan\l 100002 TON\l loan: 200000\l min payment: 100\l share: 40%\l" ]
-    borrower2 -> treasury [ label="1\l op::request_loan\l 202 TON\l loan: 300000\l min payment: 100\l share: 40%\l" ]
-    borrower3 -> treasury [ label="1\l op::request_loan\l 302 TON\l loan: 300000\l min payment: 200\l share: 100%\l" ]
+    borrower1 -> treasury [ label="1\l op::request_loan\l 100002 GRAM\l loan: 200000\l min payment: 100\l share: 40%\l" ]
+    borrower2 -> treasury [ label="1\l op::request_loan\l 202 GRAM\l loan: 300000\l min payment: 100\l share: 40%\l" ]
+    borrower3 -> treasury [ label="1\l op::request_loan\l 302 GRAM\l loan: 300000\l min payment: 200\l share: 100%\l" ]
 
     /* Ranks */
     { rank=min borrower1 borrower2 borrower3 }

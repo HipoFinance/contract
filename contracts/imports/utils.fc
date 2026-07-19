@@ -305,8 +305,8 @@ int request_sort_key(int min_payment, int borrower_reward_share, int loan_amount
     ;;   2. treasury reward share
     ;;   3. least loan amount
     int treasury_reward_share = 255 - borrower_reward_share;
-    int min_payment_round = min_payment >> 30; ;; round to around 1 TON
-    int loan_amount_round = max(1, loan_amount >> 40); ;; round to around 1100 TON
+    int min_payment_round = min_payment >> 30; ;; round to around 1 GRAM
+    int loan_amount_round = max(1, loan_amount >> 40); ;; round to around 1100 GRAM
     int loan_amount_round_comp = (1 << 80) - loan_amount_round;
     int efficieny = min((1 << 24) - 1, muldiv(min_payment_round, 1000, loan_amount_round));
     return (efficieny << (8 + 80)) + (treasury_reward_share << 80) + loan_amount_round_comp;
@@ -333,7 +333,7 @@ int max_recommended_punishment_for_validator_misbehaviour(int stake) inline_ref 
 
     cell cp = config_param(config::misbehaviour_punishment);
     if cell_null?(cp) {
-        ;; 101 TON - https://github.com/ton-blockchain/ton/blob/b38d227a469666d83ac535ad2eea80cb49d911b8/lite-client/lite-client.cpp#L3678
+        ;; 101 GRAM - https://github.com/ton-blockchain/ton/blob/b38d227a469666d83ac535ad2eea80cb49d911b8/lite-client/lite-client.cpp#L3678
         return 101000000000;
     }
 
@@ -373,14 +373,14 @@ int parent_storage_fee() inline_ref {
     int cells = 1 + 1 + 11; ;; 1 (parent storage) + 1 (wallet_code) + 11 (content)
     int bits = 124 + 267 + 5 * (256 + 8 * 30); ;; 124 (total_tokens) + 267 (treasury) + 5 entries in content
     int duration = 60 * 60 * 24 * 365 * 2; ;; 2 years in seconds
-    return get_storage_fee(cells, bits, duration, false); ;; currently near 0.01 TON
+    return get_storage_fee(cells, bits, duration, false); ;; currently near 0.01 GRAM
 }
 
 int wallet_storage_fee() inline_ref {
     int cells = 1 + 1;
     int bits = 267 + 267 + 124; ;; staking and unstaking amounts are short lived, and ignored here
     int duration = 60 * 60 * 24 * 365 * 5; ;; 5 years in seconds
-    return get_storage_fee(cells, bits, duration, false); ;; currently near 0.004 TON
+    return get_storage_fee(cells, bits, duration, false); ;; currently near 0.004 GRAM
 }
 
 int collection_storage_fee() inline_ref {
@@ -388,7 +388,7 @@ int collection_storage_fee() inline_ref {
     int bits = 267 + 32 + 64 + 264;
     ( int validators_elected_for, _, _, _ ) = get_election_config();
     int duration = 2 * validators_elected_for;
-    return get_storage_fee(cells, bits, duration, false); ;; currently near 0.0000004 TON
+    return get_storage_fee(cells, bits, duration, false); ;; currently near 0.0000004 GRAM
 }
 
 int bill_storage_fee() inline_ref {
@@ -396,7 +396,7 @@ int bill_storage_fee() inline_ref {
     int bits = 64 + 267 + 32 + 267 + 267 + 1 + 124;
     ( int validators_elected_for, _, _, _ ) = get_election_config();
     int duration = 2 * validators_elected_for;
-    return get_storage_fee(cells, bits, duration, false); ;; currently near 0.0000004 TON
+    return get_storage_fee(cells, bits, duration, false); ;; currently near 0.0000004 GRAM
 }
 
 (int, int) loan_storage_fee() inline_ref {
@@ -416,7 +416,7 @@ int bill_storage_fee() inline_ref {
             32 + 4 + 16 + 1 + 112 + 256 + 6 + 256 + 124 + 124 + 256 + 32 + 32;
     int fee = get_storage_fee(cells2, bits2, duration, false);
 
-    return ( mc_fee, fee ); ;; currently near 0.0006 TON
+    return ( mc_fee, fee ); ;; currently near 0.0006 GRAM
 }
 
 int send_tokens_fee() {

@@ -11,10 +11,10 @@ export async function run(provider: NetworkProvider) {
     const treasuryAddress = Address.parse(addressString)
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
-    const amount = await ui.input('Enter the gift amount in TON')
+    const amount = await ui.input('Enter the gift amount in GRAM')
     const coins = toNano(amount)
 
-    const confirm = await ui.input(`Gift ${fromNano(coins)} TON ? [yN]`)
+    const confirm = await ui.input(`Gift ${fromNano(coins)} GRAM ? [yN]`)
     if (confirm.toLowerCase() !== 'y') {
         return
     }

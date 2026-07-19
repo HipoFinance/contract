@@ -369,7 +369,7 @@ global cell content;
     }
 
     if op == op::top_up {
-        throw(0); ;; top up TON balance, do nothing
+        throw(0); ;; top up GRAM balance, do nothing
     }
 
     throw(err::invalid_op);

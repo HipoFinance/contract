@@ -1,9 +1,9 @@
 import '@ton/test-utils'
-import { toBeBetween, toBeTonValue } from './helper'
+import { toBeBetween, toBeGramValue } from './helper'
 
 expect.extend({
     toBeBetween,
-    toBeTonValue,
+    toBeGramValue,
 })
 
 process.setMaxListeners(20)

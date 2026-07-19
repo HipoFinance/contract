@@ -28,7 +28,7 @@
 <polygon fill="black" stroke="black" points="95.8,-196.41 92.3,-186.41 88.8,-196.41 95.8,-196.41"/>
 <text text-anchor="start" x="92.3" y="-241.45" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="92.3" y="-224.2" font-family="Times,serif" font-size="14.00"> op::retry_burn_all</text>
-<text text-anchor="start" x="92.3" y="-206.95" font-family="Times,serif" font-size="14.00"> 0.10 TON</text>
+<text text-anchor="start" x="92.3" y="-206.95" font-family="Times,serif" font-size="14.00"> 0.10 GRAM</text>
 </g>
 <!-- collection -->
 <g id="node3" class="node">
@@ -43,7 +43,7 @@
 <polygon fill="black" stroke="black" points="95.8,-72.66 92.3,-62.66 88.8,-72.66 95.8,-72.66"/>
 <text text-anchor="start" x="92.3" y="-117.7" font-family="Times,serif" font-size="14.00">2</text>
 <text text-anchor="start" x="92.3" y="-100.45" font-family="Times,serif" font-size="14.00"> op::burn_all</text>
-<text text-anchor="start" x="92.3" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.9 TON</text>
+<text text-anchor="start" x="92.3" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.9 GRAM</text>
 </g>
 </g>
 </svg>

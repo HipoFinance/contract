@@ -116,7 +116,7 @@ int src_is_elector?(slice src) inline {
     }
 
     if op == op::new_stake_ok {
-        return (); ;; elector returns 1 TON when query_id > 0, do nothing
+        return (); ;; elector returns 1 GRAM when query_id > 0, do nothing
     }
 
     if op == op::proxy_recover_stake {
@@ -132,7 +132,7 @@ int src_is_elector?(slice src) inline {
     }
 
     if op == op::top_up {
-        return (); ;; top up TON balance, do nothing
+        return (); ;; top up GRAM balance, do nothing
     }
 
     if src_is_elector?(src) {

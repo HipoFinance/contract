@@ -8,9 +8,9 @@ digraph {
     parent [ color=5 ]
 
     /* Relationships */
-    governor -> treasury [ label="1\l op::proxy_set_content\l 0.10 TON\l" ]
-    treasury -> parent [ label="2\l op::set_content\l 0.09 TON\l"]
-    parent -> governor [ label="3\l op::gas_excess\l 0.08 TON\l" ]
+    governor -> treasury [ label="1\l op::proxy_set_content\l 0.10 GRAM\l" ]
+    treasury -> parent [ label="2\l op::set_content\l 0.09 GRAM\l"]
+    parent -> governor [ label="3\l op::gas_excess\l 0.08 GRAM\l" ]
 
     /* Ranks */
     { rank=min governor }

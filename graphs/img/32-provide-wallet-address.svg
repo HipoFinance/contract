@@ -28,7 +28,7 @@
 <polygon fill="black" stroke="black" points="64.9,-51.76 74.08,-46.46 63.6,-44.88 64.9,-51.76"/>
 <text text-anchor="start" x="10.16" y="-117.7" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="10.16" y="-100.45" font-family="Times,serif" font-size="14.00"> op::provide_wallet_address</text>
-<text text-anchor="start" x="10.16" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.10 TON</text>
+<text text-anchor="start" x="10.16" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.10 GRAM</text>
 </g>
 <!-- parent&#45;&gt;contract -->
 <g id="edge2" class="edge">
@@ -37,7 +37,7 @@
 <polygon fill="black" stroke="black" points="175.43,-151.89 167.22,-158.58 177.81,-158.48 175.43,-151.89"/>
 <text text-anchor="start" x="217.16" y="-117.7" font-family="Times,serif" font-size="14.00">2</text>
 <text text-anchor="start" x="217.16" y="-100.45" font-family="Times,serif" font-size="14.00"> op::take_wallet_address</text>
-<text text-anchor="start" x="217.16" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.09 TON</text>
+<text text-anchor="start" x="217.16" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.09 GRAM</text>
 </g>
 </g>
 </svg>

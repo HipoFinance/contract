@@ -8,8 +8,8 @@ digraph {
     librarian [ color=6 ]
 
     /* Relationships */
-    governor -> treasury [ label="1\l op::proxy_add_library\l 0.10 TON\l" ]
-    treasury -> librarian [ label="2\l op::add_library\l 0.09 TON\l"]
+    governor -> treasury [ label="1\l op::proxy_add_library\l 0.10 GRAM\l" ]
+    treasury -> librarian [ label="2\l op::add_library\l 0.09 GRAM\l"]
 
     /* Ranks */
     { rank=min governor }

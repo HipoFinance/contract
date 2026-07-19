@@ -28,7 +28,7 @@
 <polygon fill="black" stroke="black" points="71.48,-320.12 68.65,-309.91 64.49,-319.65 71.48,-320.12"/>
 <text text-anchor="start" x="82.2" y="-365.2" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="82.2" y="-347.95" font-family="Times,serif" font-size="14.00"> op::upgrade_wallet</text>
-<text text-anchor="start" x="82.2" y="-330.7" font-family="Times,serif" font-size="14.00"> 0.10 TON</text>
+<text text-anchor="start" x="82.2" y="-330.7" font-family="Times,serif" font-size="14.00"> 0.10 GRAM</text>
 </g>
 <!-- parent_v1 -->
 <g id="node5" class="node">
@@ -43,7 +43,7 @@
 <polygon fill="black" stroke="black" points="65.39,-196.2 61.57,-186.32 58.4,-196.43 65.39,-196.2"/>
 <text text-anchor="start" x="66.2" y="-241.45" font-family="Times,serif" font-size="14.00">2</text>
 <text text-anchor="start" x="66.2" y="-224.2" font-family="Times,serif" font-size="14.00"> op::proxy_migrate_wallet</text>
-<text text-anchor="start" x="66.2" y="-206.95" font-family="Times,serif" font-size="14.00"> 0.09 TON</text>
+<text text-anchor="start" x="66.2" y="-206.95" font-family="Times,serif" font-size="14.00"> 0.09 GRAM</text>
 </g>
 <!-- wallet_v2 -->
 <g id="node3" class="node">
@@ -58,7 +58,7 @@
 <polygon fill="black" stroke="black" points="202.54,-394.1 195.4,-401.93 205.86,-400.26 202.54,-394.1"/>
 <text text-anchor="start" x="249.2" y="-365.2" font-family="Times,serif" font-size="14.00">6</text>
 <text text-anchor="start" x="249.2" y="-347.95" font-family="Times,serif" font-size="14.00"> op::gas_excess</text>
-<text text-anchor="start" x="249.2" y="-330.7" font-family="Times,serif" font-size="14.00"> 0.05 TON</text>
+<text text-anchor="start" x="249.2" y="-330.7" font-family="Times,serif" font-size="14.00"> 0.05 GRAM</text>
 </g>
 <!-- treasury -->
 <g id="node4" class="node">
@@ -79,7 +79,7 @@
 <polygon fill="black" stroke="black" points="247.18,-138.34 252.34,-147.6 254.08,-137.15 247.18,-138.34"/>
 <text text-anchor="start" x="249.2" y="-117.7" font-family="Times,serif" font-size="14.00">4</text>
 <text text-anchor="start" x="249.2" y="-100.45" font-family="Times,serif" font-size="14.00"> op::proxy_merge_wallet</text>
-<text text-anchor="start" x="249.2" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.07 TON</text>
+<text text-anchor="start" x="249.2" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.07 GRAM</text>
 </g>
 <!-- parent_v1&#45;&gt;treasury -->
 <g id="edge3" class="edge">
@@ -88,7 +88,7 @@
 <polygon fill="black" stroke="black" points="113.99,-61.93 121.79,-54.76 111.22,-55.5 113.99,-61.93"/>
 <text text-anchor="start" x="85.2" y="-117.7" font-family="Times,serif" font-size="14.00">3</text>
 <text text-anchor="start" x="85.2" y="-100.45" font-family="Times,serif" font-size="14.00"> op::migrate_wallet</text>
-<text text-anchor="start" x="85.2" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.08 TON</text>
+<text text-anchor="start" x="85.2" y="-83.2" font-family="Times,serif" font-size="14.00"> 0.08 GRAM</text>
 </g>
 <!-- parent_v2&#45;&gt;wallet_v2 -->
 <g id="edge5" class="edge">
@@ -97,7 +97,7 @@
 <polygon fill="black" stroke="black" points="250.7,-261.31 254.2,-271.31 257.7,-261.31 250.7,-261.31"/>
 <text text-anchor="start" x="254.2" y="-241.45" font-family="Times,serif" font-size="14.00">5</text>
 <text text-anchor="start" x="254.2" y="-224.2" font-family="Times,serif" font-size="14.00"> op::merge_wallet</text>
-<text text-anchor="start" x="254.2" y="-206.95" font-family="Times,serif" font-size="14.00"> 0.06 TON</text>
+<text text-anchor="start" x="254.2" y="-206.95" font-family="Times,serif" font-size="14.00"> 0.06 GRAM</text>
 </g>
 </g>
 </svg>

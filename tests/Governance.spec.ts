@@ -149,7 +149,7 @@ describe('Governance', () => {
 
         await treasury.sendWithdrawSurplus(governor.getSender(), { value: '10', destination: governor.address })
         const treasuryBalance = await treasury.getBalance()
-        expect(treasuryBalance).toBeTonValue('10')
+        expect(treasuryBalance).toBeGramValue('10')
     })
 
     it('should propose governor', async () => {

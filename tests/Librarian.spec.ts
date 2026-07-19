@@ -169,6 +169,6 @@ describe('Librarian', () => {
         expect(result.transactions).toHaveLength(4)
 
         const librarianBalance = await librarian.getBalance()
-        expect(librarianBalance).toBeTonValue('1')
+        expect(librarianBalance).toBeGramValue('1')
     })
 })

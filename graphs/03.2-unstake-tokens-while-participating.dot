@@ -1,5 +1,5 @@
 digraph {
-    label="staker unstakes 10 hTON to receive ~10 TON, after the current round is finalized"
+    label="staker unstakes 10 hGRAM to receive ~10 GRAM, after the current round is finalized"
     node [ colorscheme=pastel19 style=filled ]
 
     /* Entities */
@@ -9,12 +9,12 @@ digraph {
     parent, collection [ color=5 ]
 
     /* Relationships */
-    staker -> wallet [ label="1\l op::unstake_tokens\l 0.10 TON\l tokens: 10\l" ]
-    wallet -> parent [ label="2\l op::proxy_reserve_tokens\l 0.09 TON\l tokens: 10\l" ]
-    parent -> treasury [ label="3\l op::reserve_tokens\l 0.08 TON\l tokens: 10\l" ]
-    treasury -> collection [ label="4\l op::mint_bill\l 0.07 TON\l tokens: 10\l" ]
-    collection -> bill [ label="5\l op::assign_bill\l 0.06 TON\l tokens: 10\l" ]
-    bill -> staker [ label="6\l op::ownership_assigned\l 0.01 TON\l" ]
+    staker -> wallet [ label="1\l op::unstake_tokens\l 0.10 GRAM\l tokens: 10\l" ]
+    wallet -> parent [ label="2\l op::proxy_reserve_tokens\l 0.09 GRAM\l tokens: 10\l" ]
+    parent -> treasury [ label="3\l op::reserve_tokens\l 0.08 GRAM\l tokens: 10\l" ]
+    treasury -> collection [ label="4\l op::mint_bill\l 0.07 GRAM\l tokens: 10\l" ]
+    collection -> bill [ label="5\l op::assign_bill\l 0.06 GRAM\l tokens: 10\l" ]
+    bill -> staker [ label="6\l op::ownership_assigned\l 0.01 GRAM\l" ]
 
     /* Ranks */
     { rank=min staker }

@@ -62,7 +62,7 @@ export const toBeBetween: MatcherFunction<[a: unknown, b: unknown]> = function (
     }
 }
 
-export const toBeTonValue: MatcherFunction<[v: unknown]> = function (actual, v) {
+export const toBeGramValue: MatcherFunction<[v: unknown]> = function (actual, v) {
     v = typeof v === 'string' ? toNano(v) : v
     if (typeof v !== 'bigint' || typeof actual !== 'bigint') {
         throw new Error('invalid type')
@@ -71,12 +71,12 @@ export const toBeTonValue: MatcherFunction<[v: unknown]> = function (actual, v) 
     if (pass) {
         return {
             message: () =>
-                `expected ${this.utils.printReceived(actual)} not to be ${this.utils.printExpected(v)} nanoTON`,
+                `expected ${this.utils.printReceived(actual)} not to be ${this.utils.printExpected(v)} nanoGRAM`,
             pass: true,
         }
     } else {
         return {
-            message: () => `expected ${this.utils.printReceived(actual)} to be ${this.utils.printExpected(v)} nanoTON`,
+            message: () => `expected ${this.utils.printReceived(actual)} to be ${this.utils.printExpected(v)} nanoGRAM`,
             pass: false,
         }
     }

@@ -115,13 +115,13 @@ describe('Dead Shares', () => {
             destination: governor.address,
         })
         const treasuryBalance = await treasury.getBalance()
-        expect(treasuryBalance).toBeTonValue(treasuryStorage)
+        expect(treasuryBalance).toBeGramValue(treasuryStorage)
     })
 
     it('should start with dead shares and mint 1:1 for the first depositor', async () => {
         const state0 = await treasury.getTreasuryState()
-        expect(state0.totalCoins).toBeTonValue(deadShares)
-        expect(state0.totalTokens).toBeTonValue(deadShares)
+        expect(state0.totalCoins).toBeGramValue(deadShares)
+        expect(state0.totalTokens).toBeGramValue(deadShares)
 
         const amount = toNano('5')
         const staker = await blockchain.treasury('staker')
@@ -130,15 +130,15 @@ describe('Dead Shares', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: amount + fees.depositCoinsFee })
 
         const state1 = await treasury.getTreasuryState()
-        expect(state1.totalCoins).toBeTonValue(deadShares + amount)
-        expect(state1.totalTokens).toBeTonValue(deadShares + amount)
+        expect(state1.totalCoins).toBeGramValue(deadShares + amount)
+        expect(state1.totalTokens).toBeGramValue(deadShares + amount)
 
         const [tokens] = await wallet.getWalletState()
-        expect(tokens).toBeTonValue(amount)
+        expect(tokens).toBeGramValue(amount)
 
         // dead shares are treasury-only accounting: the jetton supply excludes them
         const [parentTotalTokens] = await parent.getJettonData()
-        expect(parentTotalTokens).toBeTonValue(amount)
+        expect(parentTotalTokens).toBeGramValue(amount)
     })
 
     it('should accept gifts when only dead shares exist and price later deposits at the higher rate', async () => {
@@ -157,8 +157,8 @@ describe('Dead Shares', () => {
 
         // rate is now 20 / 10 = 2.0
         const state1 = await treasury.getTreasuryState()
-        expect(state1.totalCoins).toBeTonValue(deadShares + toNano('10'))
-        expect(state1.totalTokens).toBeTonValue(deadShares)
+        expect(state1.totalCoins).toBeGramValue(deadShares + toNano('10'))
+        expect(state1.totalTokens).toBeGramValue(deadShares)
 
         const amount = toNano('6')
         const staker = await blockchain.treasury('staker')
@@ -167,7 +167,7 @@ describe('Dead Shares', () => {
         await treasury.sendDepositCoins(staker.getSender(), { value: amount + fees.depositCoinsFee })
 
         const [tokens] = await wallet.getWalletState()
-        expect(tokens).toBeTonValue((amount * state1.totalTokens) / state1.totalCoins) // 3 tokens at rate 2.0
+        expect(tokens).toBeGramValue((amount * state1.totalTokens) / state1.totalCoins) // 3 tokens at rate 2.0
 
         // a dust deposit that would mint zero tokens still bounces
         const result2 = await treasury.sendDepositCoins(staker.getSender(), {
@@ -213,7 +213,7 @@ describe('Dead Shares', () => {
         expect(deposit - paid).toBeLessThanOrEqual(2n * rate) // one rounding at mint, one at burn
 
         // the attacker holds no tokens: the gift is locked in the pool, mostly accrued to dead shares
-        expect(stateAfter.totalTokens).toBeTonValue(deadShares)
+        expect(stateAfter.totalTokens).toBeGramValue(deadShares)
         expect(stateAfter.totalCoins).toBeGreaterThanOrEqual(deadShares + toNano('1000'))
     })
 
@@ -233,8 +233,8 @@ describe('Dead Shares', () => {
 
         // totals return exactly to the dead-share baseline (rate stayed 1.0, so no dust)
         const state1 = await treasury.getTreasuryState()
-        expect(state1.totalCoins).toBeTonValue(deadShares)
-        expect(state1.totalTokens).toBeTonValue(deadShares)
+        expect(state1.totalCoins).toBeGramValue(deadShares)
+        expect(state1.totalTokens).toBeGramValue(deadShares)
 
         // and a fresh deposit still works — no division by zero on an "emptied" pool
         const staker3 = await blockchain.treasury('staker3')
@@ -249,20 +249,20 @@ describe('Dead Shares', () => {
             outMessagesCount: 1,
         })
         const state2 = await treasury.getTreasuryState()
-        expect(state2.totalCoins).toBeTonValue(deadShares + toNano('3'))
-        expect(state2.totalTokens).toBeTonValue(deadShares + toNano('3'))
+        expect(state2.totalCoins).toBeGramValue(deadShares + toNano('3'))
+        expect(state2.totalTokens).toBeGramValue(deadShares + toNano('3'))
     })
 
     it('should not let the governor withdraw the dead-share backing', async () => {
         const surplus = await treasury.getSurplus()
-        expect(surplus).toBeTonValue('0')
+        expect(surplus).toBeGramValue('0')
 
         await treasury.sendWithdrawSurplus(governor.getSender(), {
             value: '0.2',
             destination: governor.address,
         })
         const treasuryBalance = await treasury.getBalance()
-        expect(treasuryBalance).toBeTonValue(treasuryStorage)
+        expect(treasuryBalance).toBeGramValue(treasuryStorage)
     })
 
     it('should migrate an old-style state by minting dead shares at the current rate', async () => {

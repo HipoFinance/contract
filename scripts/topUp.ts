@@ -8,9 +8,9 @@ export async function run(provider: NetworkProvider) {
     console.info('Top-Up')
 
     const addressString = await ui.input('Enter the friendly address of the contract')
-    const amount = await ui.input('Enter the top-up amount in TON')
+    const amount = await ui.input('Enter the top-up amount in GRAM')
 
-    const confirm = await ui.input(`Send ${fromNano(toNano(amount))} TON ? [yN]`)
+    const confirm = await ui.input(`Send ${fromNano(toNano(amount))} GRAM ? [yN]`)
     if (confirm.toLowerCase() !== 'y') {
         return
     }

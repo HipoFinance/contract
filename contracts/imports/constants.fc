@@ -193,9 +193,9 @@ const int gas::recover_stake = 11000;
 const int gas::recover_stake_ok = 6000;
 
 
-const int fee::treasury_storage = 10000000000; ;; 10 TON
-const int fee::librarian_storage = 1000000000; ;; 1 TON
-const int fee::new_stake_confirmation = 1000000000; ;; 1 TON
+const int fee::treasury_storage = 10000000000; ;; 10 GRAM
+const int fee::librarian_storage = 1000000000; ;; 1 GRAM
+const int fee::new_stake_confirmation = 1000000000; ;; 1 GRAM
 
 
 const int log::loan = 0x1;
