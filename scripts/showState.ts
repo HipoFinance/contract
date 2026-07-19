@@ -6,7 +6,12 @@ import { Parent } from '../wrappers/Parent'
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
 
-    const addressString = await ui.input('Enter the friendly address of the treasury')
+    const defaultTreasuryAddress =
+        provider.network() === 'mainnet' ? 'EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ' : ''
+    const prompt = defaultTreasuryAddress
+        ? `Enter the friendly address of the treasury (default: ${defaultTreasuryAddress})`
+        : 'Enter the friendly address of the treasury'
+    const addressString = (await ui.input(prompt)) || defaultTreasuryAddress
     const treasuryAddress = Address.parse(addressString)
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
