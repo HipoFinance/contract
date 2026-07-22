@@ -13,7 +13,7 @@ Read [docs/architecture.md](docs/architecture.md) before changing any contract â
 the contracts, the validation-round state machine, and the protocol invariants that changes
 must preserve. Flow-by-flow message diagrams live in `graphs/` (build with
 `make build_graphviz && make graphs`). Message schemas for integrators are in
-`Integration.md` and `contracts/schema.tlb`.
+`docs/integration.md` and `contracts/schema.tlb`.
 
 ## Commands
 

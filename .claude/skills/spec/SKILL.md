@@ -29,7 +29,7 @@ Cover whichever of these apply:
 - **Compatibility**: does stored contract data change layout (treasury `save_data` /
   `extension`, wallet, participation)? Does the deployed mainnet state need a migration in
   the upgrade path? Do message schemas change (update `contracts/schema.tlb`,
-  `Integration.md`, and external integrators)?
+  `docs/integration.md`, and external integrators)?
 - **Economics and gas**: effect on fees, rewards split, or worst-case gas
   (`MaxGas`/`MinGas` bounds and the fee constants in `contracts/imports/`)?
 - **Rollout**: pure code change vs. governance action vs. treasury/parent/wallet upgrade?
@@ -60,5 +60,5 @@ obvious — the spec is the durable memory of the interview.
 Present the spec, ask for approval, and apply requested revisions to the spec file first.
 Only after approval, implement exactly what the spec says; if implementation reveals the
 spec was wrong, stop and update the spec (and confirm) before continuing. Update
-`docs/architecture.md`, `Integration.md`, and the `graphs/` diagrams whenever the change
+`docs/architecture.md`, `docs/integration.md`, and the `graphs/` diagrams whenever the change
 makes them stale.
