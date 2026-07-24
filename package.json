@@ -12,7 +12,7 @@
     "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@testing-library/jest-dom": "^6.9.1",
-        "@ton/blueprint": "^0.44.2",
+        "@ton/blueprint": "^0.45.0",
         "@ton/core": "^0.63.1",
         "@ton/crypto": "^3.3.0",
         "@ton/sandbox": "^0.41.0",
@@ -30,5 +30,8 @@
         "ts-node": "^10.9.2",
         "typescript": "^6.0.3",
         "typescript-eslint": "^8.64.0"
+    },
+    "overrides": {
+        "protobufjs": "^7.6.3"
     }
 }

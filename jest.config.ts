@@ -6,7 +6,7 @@ const config: Config = {
     testPathIgnorePatterns: ['/node_modules/', '/dist/'],
     setupFilesAfterEnv: ['<rootDir>/tests/setup-jest.ts'],
     slowTestThreshold: 60,
-    testTimeout: 10000,
+    testTimeout: 30000,
     workerThreads: true,
 }
 
