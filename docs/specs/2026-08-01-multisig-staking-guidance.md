@@ -31,6 +31,10 @@ Rejected alternatives:
   completion tracking.
 - *Detecting via TonConnect device/feature flags* — wallet apps don't reliably distinguish
   multisig accounts in their declared features; the account's code hash is authoritative.
+- *Pre-selecting the sending wallet in the deep link* — the `ton://transfer` scheme has no
+  sender parameter; the wallet app always chooses the source wallet. Mitigated by a note
+  under the deep link telling the user to select their multisig (shown by short address)
+  before confirming.
 
 ## Changes
 
