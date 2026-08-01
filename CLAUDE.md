@@ -43,3 +43,13 @@ gas costs (`MaxGas.spec.ts` / `MinGas.spec.ts` must stay green).
 
 For any new feature or behavior change, run the `/spec` skill first: it interviews the
 requester, records a short spec in `docs/specs/`, and only then moves to implementation.
+
+## Agents and orchestration
+
+Two project subagents live in `.claude/agents/`: `deep-reasoner` (architecture, debugging,
+algorithm design) and `fast-worker` (boilerplate, tests, formatting, well-specified edits).
+Delegate work to them via the Agent tool when a task matches; keep orchestration and final
+review in the main session. For larger multi-step tasks the user opts into, the saved
+`orchestrate` workflow (`.claude/workflows/orchestrate.js`) plans with deep-reasoner, routes
+each step to the right agent, and verifies the result — run it with
+`Workflow({name: "orchestrate", args: "<task>"})`.
