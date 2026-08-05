@@ -252,6 +252,48 @@ The GRAM rewards paid to validators change in each round of validation, because 
 
 To calculate it, use the `current_rate` and `previous_rate` fields returned from the `get_treasury_state` method. You may also use the `get_times` method to calculate the duration of the last round, so that in case of a change in network configuration, there is no need to update the calculation code. Here is an [example implementation](https://github.com/HipoFinance/sdk-example/blob/c165c95350b7df19b30f42e037d882cec2d4b865/src/Model.ts#L304).
 
+## Explorer Actions
+
+Explorers and indexers that classify transaction traces into high-level actions can use
+the trace patterns below to display Hipo operations as single actions instead of raw
+message chains. Op-codes are defined in `contracts/schema.tlb`; the contribution plan for
+specific explorers is in `docs/specs/2026-08-04-explorer-actions.md`. Classifiers should
+key on the treasury address where possible: the parent address can change in a future
+upgrade, the treasury cannot.
+
+- **Stake (instant)**: `deposit_coins#3d3761a6` → treasury → `proxy_tokens_minted#5be57626`
+  → parent → `tokens_minted#5445efee` → wallet → `transfer_notification#7362d09c` → owner.
+  Display the deposited GRAM and the minted hGRAM amount from `tokens_minted`.
+
+- **Stake (deferred)**: `deposit_coins` → treasury, which sends both
+  `proxy_save_coins#47daa10f` → parent → `save_coins#4cce0e74` → wallet, and
+  `mint_bill#4b2d7871` → collection → `assign_bill#3275dfc2` → bill →
+  `ownership_assigned#05138d91` → owner. Display as a pending stake; tokens arrive when
+  the round is finalized: collection → `burn_bill#6f89f5e3` → bill → `bill_burned#840f6369`
+  → collection → `mint_tokens#42684479` → treasury → `proxy_tokens_minted` →
+  `tokens_minted` → `transfer_notification`.
+
+- **Unstake (instant)**: `unstake_tokens#595f07bc` (the TEP-74 `burn` op-code) → wallet →
+  `proxy_reserve_tokens#688b0213` → parent → `reserve_tokens#386a358b` → treasury →
+  `proxy_tokens_burned#4476fde0` → parent → `tokens_burned#5b512e25` → wallet →
+  `withdrawal_notification#f0fa223b` → owner, with the withdrawn GRAM attached to the last
+  two messages. Classifiers that already recognize TEP-74 burns should upgrade this trace
+  to an unstake action rather than showing a plain jetton burn.
+
+- **Unstake (deferred)**: same head through `reserve_tokens`, then `mint_bill` →
+  `assign_bill` → `ownership_assigned`. Display as an unstake request; payout happens when
+  the round is finalized: `burn_bill` → `bill_burned` → `burn_tokens#7cffe1ee` → treasury
+  → `proxy_tokens_burned` → `tokens_burned` → `withdrawal_notification` with the GRAM
+  attached.
+
+- **Unstake rollback**: `proxy_rollback_unstake#32b67194` → `rollback_unstake#1b77fd1a`
+  appears when an instant-mode unstake cannot be served; it restores the tokens and must
+  not be classified as a withdrawal.
+
+- **Borrower flows**: `request_loan#36335da9` (borrower → treasury), and at round end
+  `recover_stake_result#0fca4c86` → treasury → `loan_result#faaa8366` (borrower's stake
+  plus reward share) and `take_profit` (governance fee).
+
 ## Calculating Remaining Time Until Withdrawal
 
 You have to first find the `current_round_since` by calling the `get_times` method. Then you have to send it to the `get_participation` method. It will return `stake_held_until` which is the time after which the validation round will be finalized. Here is the [full implementation in Hipo's webapp](https://github.com/HipoFinance/webapp/blob/a11a575fe231def9015ff480e1b7959c893121e2/src/Model.ts#L420).
