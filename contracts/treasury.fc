@@ -153,6 +153,19 @@ var unpack_participation(slice s) inline_ref {
         );
 }
 
+int owes_reward?(int state) inline {
+    ;; A round that has not settled yet still adds its reward to total_coins when it does. No later
+    ;; round may burn its bills before that happens, otherwise the deferred deposits of that later
+    ;; round mint at a rate which excludes the reward and capture a part of it.
+    return (state > participation::open) & (state < participation::ready_to_burn);
+}
+
+int holds_bills?(int state) inline {
+    ;; A round holds deposit and unstake bills from the moment it is committed until its collection
+    ;; burns them, which includes a round that has settled but is still waiting behind the barrier.
+    return (state > participation::open) & (state < participation::burning);
+}
+
 builder pack_request
     ( int min_payment
     , int borrower_reward_share
@@ -223,7 +236,7 @@ cell find_code(cell dict, int round_since) inline {
             ( k, slice v, int f? ) = participations.udict_get_prev?(32, k);
             if f? {
                 int state = v~load_uint(4);
-                if (state > participation::open) & (state < participation::burning) {
+                if holds_bills?(state) {
                     ;; stake after rewards for this round has been distributed
                     round_since = k;
                     f? = false;
@@ -300,7 +313,7 @@ cell find_code(cell dict, int round_since) inline {
         ( k, slice v, int f? ) = participations.udict_get_next?(32, k);
         if f? {
             int state = v~load_uint(4);
-            if (state > participation::open) & (state < participation::burning) {
+            if holds_bills?(state) {
                 ;; burn tokens after this round has been finalized
                 round_since = k;
                 f? = false;
@@ -431,7 +444,7 @@ cell find_code(cell dict, int round_since) inline {
             ( k, slice v, int f? ) = participations.udict_get_next?(32, k);
             if f? {
                 int state = v~load_uint(4);
-                if (state > participation::open) & (state < participation::burning) {
+                if holds_bills?(state) {
                     ;; Burn tokens after this round has been finalized.
                     next_round_since = k;
                     f? = false;
@@ -1107,6 +1120,65 @@ cell find_code(cell dict, int round_since) inline {
     participations~udict_set_builder(32, round_since, pb);
 }
 
+() send_burn_all(int query_id, int round_since) impure inline_ref {
+    cell collection_code = collection_codes.find_code(round_since);
+    cell bill_code = bill_codes.find_code(round_since);
+
+    ( builder collection
+    , builder state_init
+    , _
+    ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
+
+    builder burn = begin_cell()
+        .store_uint(op::burn_all, 32)
+        .store_uint(query_id, 64)
+        .store_uint(0, 64);
+    send_msg(false, collection, state_init, burn, burn_all_fee(), send::regular);
+}
+
+() burn_ready_participations(int query_id) impure inline_ref {
+    ;; Burn the bills of settled rounds in round_since order, stopping at the first round that has
+    ;; not settled yet. That round still adds its reward to total_coins later, and every round after
+    ;; it must keep holding its bills until it does. Scanning from the lowest round instead of from
+    ;; the round that just settled also releases any round that an earlier scan could not release.
+    int k = -1;
+    do {
+        ( k, slice v, int f? ) = participations.udict_get_next?(32, k);
+        if f? {
+            int state = v.preload_uint(4);
+            if state == participation::ready_to_burn {
+                ( _
+                , int size
+                , cell sorted
+                , cell requests
+                , cell rejected
+                , cell accepted
+                , cell accrued
+                , cell staked
+                , cell recovering
+                , int total_staked
+                , int total_recovered
+                , int current_vset_hash
+                , int stake_held_for
+                , int stake_held_until
+                ) = unpack_participation(v);
+
+                builder pb = pack_participation(
+                    participation::burning, size, sorted, requests, rejected, accepted, accrued,
+                    staked, recovering, total_staked, total_recovered, current_vset_hash,
+                    stake_held_for, stake_held_until
+                );
+                participations~udict_set_builder(32, k, pb);
+
+                send_burn_all(query_id, k);
+            }
+            if owes_reward?(state) {
+                f? = false;
+            }
+        }
+    } until ~ f?;
+}
+
 () recover_stake_result(slice src, slice s) impure inline {
     unpack_extension();
 
@@ -1195,21 +1267,13 @@ cell find_code(cell dict, int round_since) inline {
             if rejected.dict_empty?() & accrued.dict_empty?() & staked.dict_empty?() & recovering.dict_empty?() {
                 previous_rate = current_rate;
                 current_rate = muldiv(total_coins, 1000000000, total_tokens);
-                state = participation::burning;
-
-                cell collection_code = collection_codes.find_code(round_since);
-                cell bill_code = bill_codes.find_code(round_since);
-
-                ( builder collection
-                , builder state_init
-                , _
-                ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
-
-                builder burn = begin_cell()
-                    .store_uint(op::burn_all, 32)
-                    .store_uint(query_id, 64)
-                    .store_uint(0, 64);
-                send_msg(false, collection, state_init, burn, burn_all_fee(), send::regular);
+                ;; This round has settled, but an older round may still add its reward to total_coins,
+                ;; for example when the elector rejects this round's stake instantly and it finishes
+                ;; ahead of an older round that is still validating. Burning the bills now would mint
+                ;; this round's deferred deposits at a rate that excludes that reward and let them
+                ;; capture a part of it. Hold the bills instead; burn_ready_participations below burns
+                ;; every settled round in round_since order, once no older round owes a reward.
+                state = participation::ready_to_burn;
             }
 
             builder pb = pack_participation(
@@ -1217,6 +1281,9 @@ cell find_code(cell dict, int round_since) inline {
                 total_staked, total_recovered, current_vset_hash, stake_held_for, stake_held_until
             );
             participations~udict_set_builder(32, round_since, pb);
+
+            ;; must run after the participation above is stored, so that this round is considered too
+            burn_ready_participations(query_id);
         }
     }
 
@@ -1499,7 +1566,7 @@ cell find_code(cell dict, int round_since) inline {
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
     throw_unless(err::invalid_parameters, equal_slice_bits(fixed_parent, parent) | f?);
-    throw_unless(err::invalid_parameters, (state > participation::open) & (state < participation::burning));
+    throw_unless(err::invalid_parameters, holds_bills?(state));
 
     cell collection_code = collection_codes.find_code(round_since);
     cell bill_code = bill_codes.find_code(round_since);
@@ -1537,18 +1604,55 @@ cell find_code(cell dict, int round_since) inline {
     }
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
-    throw_unless(err::not_ready_to_burn_all, state == participation::burning);
+    throw_unless(
+        err::not_ready_to_burn_all,
+        (state == participation::burning) | (state == participation::ready_to_burn)
+    );
+
+    if state == participation::ready_to_burn {
+        ;; Overrides the reward ordering barrier, so that a round which is stuck and can no longer
+        ;; book its reward does not hold the bills of every later round forever. Storing burning here
+        ;; also stops burn_ready_participations from sending a second burn_all for this round later.
+        ( _
+        , int size
+        , cell sorted
+        , cell requests
+        , cell rejected
+        , cell accepted
+        , cell accrued
+        , cell staked
+        , cell recovering
+        , int total_staked
+        , int total_recovered
+        , int current_vset_hash
+        , int stake_held_for
+        , int stake_held_until
+        ) = unpack_participation(ps);
+
+        builder pb = pack_participation(
+            participation::burning, size, sorted, requests, rejected, accepted, accrued, staked,
+            recovering, total_staked, total_recovered, current_vset_hash, stake_held_for,
+            stake_held_until
+        );
+        participations~udict_set_builder(32, round_since, pb);
+
+        save_data();
+        commit();
+    }
 
     cell collection_code = collection_codes.find_code(round_since);
     cell bill_code = bill_codes.find_code(round_since);
 
-    ( builder collection, _, _ ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
+    ( builder collection
+    , builder state_init
+    , _
+    ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
 
     builder burn = begin_cell()
         .store_uint(op::burn_all, 32)
         .store_uint(query_id, 64)
         .store_uint(start_index, 64);
-    send_msg(false, collection, null(), burn, 0, send::remaining_value);
+    send_msg(false, collection, state_init, burn, 0, send::remaining_value);
 
     throw(0);
 }
@@ -1668,7 +1772,50 @@ int calculate_min_coins() inline_ref {
 }
 
 () upgrade_data(slice src, int query_id, cell new_data, slice return_excess) impure method_id {
-    ;; Add code for upgrading data here.
+    ;; Renumbers the participation states for the reward ordering barrier. Before this upgrade the
+    ;; value 6 meant burning and there was no ready_to_burn state, while now 6 means ready_to_burn
+    ;; and burning moved to 7. Rounds in state 0 up to 5 keep their meaning, so only a round that is
+    ;; burning right now has to be renumbered. Doing it here keeps the upgrade correct at any moment,
+    ;; because upgrade_code calls this function in the same transaction that installs the new code.
+    ;; The load_data() further down then reads the migrated storage back, so a migration that wrote
+    ;; something unreadable throws there and reverts the whole upgrade instead of bricking the data.
+    ;; RESET THIS FUNCTION IN THE NEXT UPGRADE. Running it a second time would renumber the rounds
+    ;; that legitimately wait in ready_to_burn into burning, and burn their bills too early, which is
+    ;; exactly what the barrier prevents.
+    load_data();
+
+    int k = -1;
+    do {
+        ( k, slice v, int f? ) = participations.udict_get_next?(32, k);
+        if f? {
+            if v.preload_uint(4) == participation::ready_to_burn {
+                ( _
+                , int size
+                , cell sorted
+                , cell requests
+                , cell rejected
+                , cell accepted
+                , cell accrued
+                , cell staked
+                , cell recovering
+                , int total_staked
+                , int total_recovered
+                , int current_vset_hash
+                , int stake_held_for
+                , int stake_held_until
+                ) = unpack_participation(v);
+
+                builder pb = pack_participation(
+                    participation::burning, size, sorted, requests, rejected, accepted, accrued,
+                    staked, recovering, total_staked, total_recovered, current_vset_hash,
+                    stake_held_for, stake_held_until
+                );
+                participations~udict_set_builder(32, k, pb);
+            }
+        }
+    } until ~ f?;
+
+    save_data();
 
     ;; This is just a template, and will only run after upgrade_code.
     ;; If data is upgraded, remember to reset this code,

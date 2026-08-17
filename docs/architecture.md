@@ -78,14 +78,19 @@ Each participation moves through these states (`participation::*` in
 5. **held (4)** — the next `vset_changed`; the round is over but stakes are frozen.
 6. **recovering (5)** — after `stake_held_until`, `finish_participation` triggers
    `recover_stakes`; each `recover_stake_result` books rewards or punishments.
-7. **burning (6)** — when the last loan is recovered, rewards are in `total_coins`,
-   `current_rate`/`previous_rate` are updated, and `burn_all` is sent to the round's
-   collection. Every bill burns back into the treasury (`mint_tokens` / `burn_tokens`), and
-   `last_bill_burned` deletes the participation.
+7. **ready_to_burn (6)** — the last loan of this round is recovered, its rewards are in
+   `total_coins`, and `current_rate`/`previous_rate` are updated. The round holds its bills
+   here for as long as any *older* round can still book rewards, so that deferred deposits
+   cannot mint at a rate which excludes them.
+8. **burning (7)** — no older round owes rewards any more, so `burn_all` is sent to the
+   round's collection. Every bill burns back into the treasury (`mint_tokens` /
+   `burn_tokens`), and `last_bill_burned` deletes the participation.
 
 `vset_changed` is driven by config parameter changes (elector validator-set updates), and
 each stage has a governance-triggerable retry (`retry_distribute`, `retry_recover_stakes`,
-`retry_burn_all`, `retry_mint_bill`) in case a message is lost.
+`retry_burn_all`, `retry_mint_bill`) in case a message is lost. `retry_burn_all` also accepts a
+round in `ready_to_burn`, which is the escape hatch when an older round is stuck and would
+otherwise hold that round's bills forever.
 
 ### Loan economics
 
@@ -115,8 +120,14 @@ the pool.
 The invariant behind that choice: **a deposit's tokens must not exist until the rewards of
 every round whose loans were committed before the deposit are reflected in the exchange
 rate.** The latest non-open participation is exactly the latest round with already-committed
-loans, and participations finish in `round_since` order, so minting after it is both correct
-and the minimal delay. Choosing the "currently validating" round instead would be wrong: in
+loans, so minting after it is both correct and the minimal delay — as long as rounds burn in
+`round_since` order. That ordering is **enforced, not assumed**: a round which settles while an
+older round can still book rewards waits in `ready_to_burn`, and `burn_ready_participations`
+releases settled rounds in ascending `round_since`, stopping at the first round that has not
+settled yet. Without that barrier an Elector rejection can finish a later round within seconds,
+ahead of an older round that is still validating, and that later round's deferred deposits
+would mint at a stale rate and capture rewards earned before the deposit was even made.
+Choosing the "currently validating" round instead would be wrong: in
 the window where the next round is already `staked` but not yet begun, it would let a
 depositor capture a full round of rewards their coins never took part in. The conservative
 direction is intentional — a depositor may occasionally wait longer or sit unlent for a

@@ -38,6 +38,7 @@ export enum ParticipationState {
     Validating,
     Held,
     Recovering,
+    ReadyToBurn,
     Burning,
 }
 

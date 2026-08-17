@@ -796,6 +796,12 @@ describe('Max Gas', () => {
         const participation1 = state1.participations.get(until1) ?? {}
         participation1.stakeHeldUntil = 0n // set stake_held_until to zero
         state1.participations.set(until1, participation1)
+        // clear rounds still owing a reward so the ordering barrier lets round `until1` burn,
+        // and the scan walks the entire dict, which is the worst case for gas
+        state1.participations.set(30n, { state: ParticipationState.Burning })
+        state1.participations.set(40n, { state: ParticipationState.Burning })
+        state1.participations.set(50n, { state: ParticipationState.Burning })
+        state1.participations.set(60n, { state: ParticipationState.Burning })
         const fakeData1 = treasuryConfigToCell(state1)
         await blockchain.setShardAccount(
             treasury.address,
@@ -1562,6 +1568,12 @@ describe('Max Gas', () => {
             const participation = state2.participations.get(until1) ?? {}
             participation.stakeHeldUntil = 0n // set stake_held_until to zero
             state2.participations.set(until1, participation)
+            // clear rounds still owing a reward so the ordering barrier lets round `until1` burn,
+            // and the scan walks the entire dict, which is the worst case for gas
+            state2.participations.set(30n, { state: ParticipationState.Burning })
+            state2.participations.set(40n, { state: ParticipationState.Burning })
+            state2.participations.set(50n, { state: ParticipationState.Burning })
+            state2.participations.set(60n, { state: ParticipationState.Burning })
             const fakeData2 = treasuryConfigToCell(state2)
             await blockchain.setShardAccount(
                 treasury.address,

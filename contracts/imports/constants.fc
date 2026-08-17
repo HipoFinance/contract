@@ -30,7 +30,10 @@ const int participation::staked = 2;
 const int participation::validating = 3;
 const int participation::held = 4;
 const int participation::recovering = 5;
-const int participation::burning = 6;
+;; A round that settled while an older round could still add its reward to total_coins. It keeps
+;; holding its bills until every older round has booked its reward, and is then moved to burning.
+const int participation::ready_to_burn = 6;
+const int participation::burning = 7;
 
 
 const int unstake::auto = 0;
@@ -183,7 +186,7 @@ const int gas::vset_changed = 11000;
 const int gas::finish_participation = 13000;
 const int gas::recover_stakes = 22000;
 const int gas::proxy_recover_stake = 5000;
-const int gas::recover_stake_result = 39000;
+const int gas::recover_stake_result = 52000;
 const int gas::burn_all = 8000;
 const int gas::last_bill_burned = 19000;
 const int gas::new_stake = 18000;

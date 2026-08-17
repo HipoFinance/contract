@@ -223,6 +223,12 @@ describe('Dead Shares', () => {
         await treasury.sendDepositCoins(staker1.getSender(), { value: toNano('5') + fees.depositCoinsFee })
         await treasury.sendDepositCoins(staker2.getSender(), { value: toNano('7') + fees.depositCoinsFee })
 
+        // Give the treasury a little GRAM above fee::treasury_storage. Unstaking the whole pool leaves
+        // available_ton exactly equal to the last staker's coins, so any storage fee accrued during the
+        // test tips reserve_tokens into rolling that unstake back, which made this test flaky.
+        const topper = await blockchain.treasury('topper')
+        await treasury.sendTopUp(topper.getSender(), { value: toNano('1') })
+
         for (const staker of [staker1, staker2]) {
             const walletAddress = await parent.getWalletAddress(staker.address)
             const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
