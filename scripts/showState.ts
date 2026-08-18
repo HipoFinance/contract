@@ -235,6 +235,8 @@ function formatState(state: ParticipationState | undefined): string {
             return 'held'
         case ParticipationState.Recovering:
             return 'recovering'
+        case ParticipationState.ReadyToBurn:
+            return 'ready_to_burn'
         case ParticipationState.Burning:
             return 'burning'
     }

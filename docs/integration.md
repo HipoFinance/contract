@@ -200,19 +200,21 @@ To read data related to a specific participation, use get method `get_participat
 
 1. `state`: The state of this participation, one of these:
 
-    - `open`: Accepting loan requests.
+    - `open` (0): Accepting loan requests.
 
-    - `distributing`: Deciding on loans and distributing GRAM coins to validators.
+    - `distributing` (1): Deciding on loans and distributing GRAM coins to validators.
 
-    - `staked`: Staked funds in the upcoming validation round.
+    - `staked` (2): Staked funds in the upcoming validation round.
 
-    - `validating`: Validating in the current validation round.
+    - `validating` (3): Validating in the current validation round.
 
-    - `held`: Waiting for the hold period to finish.
+    - `held` (4): Waiting for the hold period to finish.
 
-    - `recovering`: In the process of recovering funds from given loans.
+    - `recovering` (5): In the process of recovering funds from given loans.
 
-    - `burning`: In the process of burning SBTs and sending the relevant GRAM coins to owners.
+    - `ready_to_burn` (6): Settled and its reward is booked, but it keeps holding its bills until every older round has booked its reward too, so deferred deposits cannot mint at a rate that excludes those rewards.
+
+    - `burning` (7): In the process of burning SBTs and sending the relevant GRAM coins to owners.
 
 1. `size`: The number of requests/loans in this participation.
 
