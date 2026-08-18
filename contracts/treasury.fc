@@ -1772,50 +1772,7 @@ int calculate_min_coins() inline_ref {
 }
 
 () upgrade_data(slice src, int query_id, cell new_data, slice return_excess) impure method_id {
-    ;; Renumbers the participation states for the reward ordering barrier. Before this upgrade the
-    ;; value 6 meant burning and there was no ready_to_burn state, while now 6 means ready_to_burn
-    ;; and burning moved to 7. Rounds in state 0 up to 5 keep their meaning, so only a round that is
-    ;; burning right now has to be renumbered. Doing it here keeps the upgrade correct at any moment,
-    ;; because upgrade_code calls this function in the same transaction that installs the new code.
-    ;; The load_data() further down then reads the migrated storage back, so a migration that wrote
-    ;; something unreadable throws there and reverts the whole upgrade instead of bricking the data.
-    ;; RESET THIS FUNCTION IN THE NEXT UPGRADE. Running it a second time would renumber the rounds
-    ;; that legitimately wait in ready_to_burn into burning, and burn their bills too early, which is
-    ;; exactly what the barrier prevents.
-    load_data();
-
-    int k = -1;
-    do {
-        ( k, slice v, int f? ) = participations.udict_get_next?(32, k);
-        if f? {
-            if v.preload_uint(4) == participation::ready_to_burn {
-                ( _
-                , int size
-                , cell sorted
-                , cell requests
-                , cell rejected
-                , cell accepted
-                , cell accrued
-                , cell staked
-                , cell recovering
-                , int total_staked
-                , int total_recovered
-                , int current_vset_hash
-                , int stake_held_for
-                , int stake_held_until
-                ) = unpack_participation(v);
-
-                builder pb = pack_participation(
-                    participation::burning, size, sorted, requests, rejected, accepted, accrued,
-                    staked, recovering, total_staked, total_recovered, current_vset_hash,
-                    stake_held_for, stake_held_until
-                );
-                participations~udict_set_builder(32, k, pb);
-            }
-        }
-    } until ~ f?;
-
-    save_data();
+    ;; Add code for upgrading data here.
 
     ;; This is just a template, and will only run after upgrade_code.
     ;; If data is upgraded, remember to reset this code,
