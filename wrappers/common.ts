@@ -85,6 +85,7 @@ export const op = {
     retryRecoverStakes: 0x2b7ad9e8,
     retryMintBill: 0x654de488,
     retryBurnAll: 0x106b8001,
+    retryBurnReady: 0x2a7b64f1,
     setParent: 0x4f6f6eed,
     proxySetContent: 0x2b1c8e37,
     withdrawSurplus: 0x23355ffb,

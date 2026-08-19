@@ -1743,6 +1743,20 @@ cell find_code(cell dict, int round_since) inline {
     throw(0);
 }
 
+() retry_burn_ready(slice src, slice s) impure inline {
+    ;; send_burn_all inside the scan reads collection_codes and bill_codes from the extension cell
+    unpack_extension();
+
+    int query_id = s~load_uint(64);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor) | equal_slice_bits(src, halter));
+
+    ;; the scan is otherwise only reached from process_loan_requests and recover_stake_result, so a
+    ;; round that settles while no loan is in flight sits in ready_to_burn until the next one does
+    burn_ready_participations(query_id);
+}
+
 () set_parent(slice src, slice s) impure inline {
     unpack_extension();
 
@@ -2143,6 +2157,10 @@ int calculate_min_coins() inline_ref {
 
     if op == op::retry_burn_all {
         return retry_burn_all(src, s);
+    }
+
+    if op == op::retry_burn_ready {
+        return retry_burn_ready(src, s);
     }
 
     if op == op::set_parent {

@@ -359,6 +359,10 @@ retry_burn_all#106b8001
     start_index:uint64
         = InternalMsgBody;
 
+retry_burn_ready#2a7b64f1
+    query_id:uint64
+        = InternalMsgBody;
+
 set_parent#4f6f6eed
     query_id:uint64
     new_parent:MsgAddress

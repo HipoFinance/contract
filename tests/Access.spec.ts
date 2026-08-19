@@ -540,6 +540,19 @@ describe('Access', () => {
         })
         expect(result22.transactions).toHaveLength(3)
 
+        const result22b = await treasury.sendRetryBurnReady(someone.getSender(), {
+            value: '0.1',
+        })
+        expect(result22b.transactions).toHaveTransaction({
+            from: someone.address,
+            to: treasury.address,
+            value: toNano('0.1'),
+            body: bodyOp(op.retryBurnReady),
+            success: false,
+            exitCode: err.accessDenied,
+        })
+        expect(result22b.transactions).toHaveLength(3)
+
         const result23 = await treasury.sendSetParent(halter.getSender(), {
             value: '0.1',
             newParent: someone.address,

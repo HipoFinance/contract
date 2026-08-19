@@ -677,6 +677,27 @@ export class Treasury implements Contract {
         })
     }
 
+    async sendRetryBurnReady(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.retryBurnReady, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .endCell(),
+        })
+    }
+
     async sendSetParent(
         provider: ContractProvider,
         via: Sender,

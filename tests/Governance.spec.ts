@@ -808,6 +808,83 @@ describe('Governance', () => {
         accumulateFees(result.transactions)
     })
 
+    it('should re-scan for rounds parked in ready_to_burn', async () => {
+        // Nothing re-scans for a round stuck in ready_to_burn once no loan is settling to trigger
+        // burn_ready_participations again. retry_burn_ready runs that same scan on demand, so a
+        // protocol winding down (no more settlements coming) still has a way to release those bills.
+        const round1 = 1_000_000n
+        const round2 = 2_000_000n
+        const round3 = 3_000_000n
+
+        const state = await treasury.getTreasuryState()
+        state.participations.set(round1, { state: ParticipationState.ReadyToBurn })
+        state.participations.set(round2, { state: ParticipationState.ReadyToBurn })
+        // round3 still owes its reward, so the ascending scan must stop there and never release it.
+        state.participations.set(round3, { state: ParticipationState.Validating })
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(state),
+                balance: toNano('10'),
+            }),
+        )
+
+        const collection1 = await treasury.getCollectionAddress(round1)
+        const collection2 = await treasury.getCollectionAddress(round2)
+        const collection3 = await treasury.getCollectionAddress(round3)
+
+        const result = await treasury.sendRetryBurnReady(governor.getSender(), { value: '1' })
+
+        expect(result.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            body: bodyOp(op.retryBurnReady),
+            success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: collection1,
+            body: bodyOp(op.burnAll),
+            success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: collection2,
+            body: bodyOp(op.burnAll),
+            success: true,
+        })
+        expect(result.transactions).not.toHaveTransaction({
+            to: collection3,
+            body: bodyOp(op.burnAll),
+        })
+
+        // Neither collection ever minted a bill, so each burn_all above gets an immediate
+        // last_bill_burned reply -- the same one-round-trip settlement burn_ready_participations'
+        // own doc comment describes -- and both participations are removed from the dict entirely.
+        expect(result.transactions).toHaveTransaction({
+            from: collection1,
+            to: treasury.address,
+            body: bodyOp(op.lastBillBurned),
+            success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: collection2,
+            to: treasury.address,
+            body: bodyOp(op.lastBillBurned),
+            success: true,
+        })
+
+        const finalState = await treasury.getTreasuryState()
+        expect(finalState.participations.has(round1)).toBe(false)
+        expect(finalState.participations.has(round2)).toBe(false)
+        expect(finalState.participations.get(round3)?.state).toEqual(ParticipationState.Validating)
+
+        accumulateFees(result.transactions)
+    })
+
     it('should upgrade code', async () => {
         const oldState = await treasury.getState()
         const someone = await blockchain.treasury('someone')
