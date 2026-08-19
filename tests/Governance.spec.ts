@@ -611,6 +611,79 @@ describe('Governance', () => {
         accumulateFees(result.transactions)
     })
 
+    it('should re-mint a lost bill while the round is already burning', async () => {
+        // A gap in the burn chain only becomes visible once the round is burning, and finishing the
+        // chain means stepping over the gap. retry_mint_bill is the only way to put the lost bill
+        // back, so refusing it in that state stranded the owner's coins and left total_staking
+        // inflated with no way to ever settle it.
+        const staker = await blockchain.treasury('staker')
+
+        const roundSince = 0n
+        const state = await treasury.getTreasuryState()
+        state.participations.set(roundSince, { state: ParticipationState.Burning })
+        state.totalStaking = toNano('1') // the deposit whose bill went missing
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(state),
+                balance: toNano('20'),
+            }),
+        )
+
+        const collectionAddress = await treasury.getCollectionAddress(roundSince)
+        const resultMint = await treasury.sendRetryMintBill(governor.getSender(), {
+            value: '1',
+            roundSince,
+            amount: toNano('1'),
+            unstake: false,
+            owner: staker.address,
+            parent: parent.address,
+            ownershipAssignedAmount: 1n,
+        })
+        expect(resultMint.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            body: bodyOp(op.retryMintBill),
+            success: true,
+            outMessagesCount: 1,
+        })
+        expect(resultMint.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: collectionAddress,
+            body: bodyOp(op.mintBill),
+            success: true,
+        })
+
+        // And the rescued bill settles like any other once the chain is restarted.
+        const resultBurn = await treasury.sendRetryBurnAll(halter.getSender(), { value: '1', roundSince })
+        expect(resultBurn.transactions).toHaveTransaction({
+            from: collectionAddress,
+            to: treasury.address,
+            body: bodyOp(op.mintTokens),
+            success: true,
+        })
+        expect(resultBurn.transactions).toHaveTransaction({
+            from: collectionAddress,
+            to: treasury.address,
+            body: bodyOp(op.lastBillBurned),
+            success: true,
+        })
+
+        const finalState = await treasury.getTreasuryState()
+        expect(finalState.totalStaking).toBe(0n)
+        expect(finalState.participations.size).toEqual(0)
+
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const [tokens] = await wallet.getWalletState()
+        expect(tokens).toBe(toNano('1'))
+
+        accumulateFees(resultBurn.transactions)
+    })
+
     it('should mint a retried bill on the parent it was validated against', async () => {
         // retry_mint_bill accepts an old parent for fixed_parent, because upgrading a wallet moves
         // only its tokens: the staking and unstaking balances a bill settles against stay behind on

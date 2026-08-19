@@ -167,6 +167,44 @@ operations, each with a graph and a script in `scripts/`:
   from a previous parent.
 - `gift_coins` donates GRAM to the pool (raises the rate for everyone).
 
+### Repairing a wedged burn chain
+
+A round's bills burn as a chain: the collection sends `burn_bill` to bill *i*, and only the
+returning `bill_burned` drives `burn_next` on to *i+1*. Nothing else ever advances it, so if
+one link fails to answer, the round stops in `burning` with `total_staking` /
+`total_unstaking` still counting the bills that never settled. A link can fail because the
+bill was already burned (`burn_bill` throws `err::stopped` on a second try), because it was
+counted in `next_item_index` but its `assign_bill` aborted so the account was never
+initialised, because the collection's own `bill_burned` transaction aborted after the bill
+had already committed `revoked_at`, or because the bill was reaped for storage after an
+earlier burn. In every case the message is non-bounceable, so the collection is never told.
+
+A wedged round holds nothing else back — `burning` satisfies neither `owes_reward?` nor
+`holds_bills?`, so later rounds proceed normally — but it occupies a participation slot and
+its bills can never be paid. Repair it in this order:
+
+1. Read `next_item_index` from the collection's `get_collection_data`, and walk
+   `get_nft_address_by_index` to find the first bill that is uninitialised, or revoked but
+   never settled.
+2. Confirm from the treasury's history whether that bill's `mint_tokens` / `burn_tokens`
+   ever arrived. `revoked_at` proves the bill burned; it does **not** prove the treasury
+   settled it.
+3. If it never settled, re-create it with `retryMintBill.ts` using the original
+   `(round_since, amount, unstake?, owner, parent)` — **first**, while the round is still
+   `burning`. `retry_mint_bill` accepts that state precisely so the hole can be patched
+   before `last_bill_burned` deletes the participation and strands it. It appends at
+   `next_item_index`, which is fine: settlement is keyed by the owner and amount recorded on
+   the bill, not by its index.
+4. Only then run `retryBurnAll.ts` with `start_index = i + 1`.
+
+Never restart a partially burned round at index 0: bills that already burned throw, and
+bills reaped for storage swallow the message, wedging the chain again. Never pass a
+`start_index` at or past `next_item_index` — that fires `last_bill_burned` immediately and
+deletes the participation with every remaining bill unburned. The script refuses both.
+
+Worth monitoring: a participation sitting in `burning` whose collection has seen no activity
+for several blocks. That alert is what turns this from a silent loss into a repair.
+
 The treasury's persistent state is split into frequently-loaded fields (`save_data` /
 `load_data`) and a rarely-needed `extension` cell (`pack_extension` / `unpack_extension`) to
 keep gas low on hot paths. **Any upgrade must keep the stored data layout compatible or
