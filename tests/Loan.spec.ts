@@ -1271,6 +1271,7 @@ describe('Loan', () => {
         const vset2 = createVset(since2, until2)
         setConfig(blockchain, config.currentValidators, vset2)
         setConfig(blockchain, config.nextValidators, null)
+        const collectionAddress = await treasury.getCollectionAddress(until1)
         const result = await treasury.sendParticipateInElection({ roundSince: until1 })
 
         expect(result.transactions).toHaveTransaction({
@@ -1294,7 +1295,7 @@ describe('Loan', () => {
             value: between(fees.requestLoanFee * 2n, fees.requestLoanFee * 3n),
             body: bodyOp(op.processLoanRequests),
             success: true,
-            outMessagesCount: 3,
+            outMessagesCount: 4,
         })
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
@@ -1320,7 +1321,19 @@ describe('Loan', () => {
             success: true,
             outMessagesCount: 0,
         })
-        expect(result.transactions).toHaveLength(6)
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: collectionAddress,
+            body: bodyOp(op.burnAll),
+            success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: collectionAddress,
+            to: treasury.address,
+            body: bodyOp(op.lastBillBurned),
+            success: true,
+        })
+        expect(result.transactions).toHaveLength(8)
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()

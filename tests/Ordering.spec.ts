@@ -15,6 +15,7 @@ import {
     requestDictionaryValue,
     treasuryConfigToCell,
 } from '../wrappers/Treasury'
+import { UnstakeMode, Wallet } from '../wrappers/Wallet'
 
 // A round that settles must not burn its bills (and hand out deferred deposits at a stale rate)
 // while an older round is still validating and has not yet added its reward to total_coins. These
@@ -144,9 +145,18 @@ describe('Ordering', () => {
     // field (codes, halter, governor, rates, ...) as already deployed. This is the same
     // treasuryConfigToCell + setShardAccount technique MaxGas.spec.ts and MinGas.spec.ts use to drop
     // a treasury straight into a state that would otherwise take many messages to reach.
-    async function setParticipations(participations: Dictionary<bigint, Participation>): Promise<void> {
+    //
+    // totalBorrowersStake defaults to 0n, matching this suite's synthetic participations, none of
+    // which are backed by a real request_loan. Tests that stuff a `rejected` entry carrying real
+    // stake collateral (see rejectedParticipation below) pass the matching amount, so the refund loop
+    // in process_loan_requests doesn't drive it negative.
+    async function setParticipations(
+        participations: Dictionary<bigint, Participation>,
+        totalBorrowersStake = 0n,
+    ): Promise<void> {
         const state = await treasury.getTreasuryState()
         state.participations = participations
+        state.totalBorrowersStake = totalBorrowersStake
         const data = treasuryConfigToCell(state)
         await blockchain.setShardAccount(
             treasury.address,
@@ -191,6 +201,43 @@ describe('Ordering', () => {
                 .storeUint(0, 64)
                 .storeBit(true)
                 .storeAddress(borrower)
+                .storeUint(roundSince, 32)
+                .endCell(),
+        })
+    }
+
+    // The collateral carried by the synthetic rejected request below. process_loan_requests refunds
+    // this out of total_borrowers_stake, so callers pass the same amount to setParticipations to keep
+    // that field from going negative.
+    const rejectedStakeAmount = toNano('0.01')
+
+    // A participation that made no loans: everything but `rejected` is empty, and `rejected` carries
+    // one still-pending refund. This is the shape process_loan_requests sees for a round whose only
+    // requests were rejected (too late to participate, or already elected) -- and, with `size: 0n`,
+    // also the shape the OLD distribute() used to write for a freshly rejected round, before it was
+    // fixed to keep the real size.
+    function rejectedParticipation(borrower: Address, size: bigint, state: ParticipationState): Participation {
+        const rejected = Dictionary.empty(Dictionary.Keys.BigUint(256), requestDictionaryValue)
+        rejected.set(BigInt('0x' + borrower.hash.toString('hex')), {
+            minPayment: 0n,
+            borrowerRewardShare: 0n,
+            loanAmount: 0n,
+            accrueAmount: 0n,
+            stakeAmount: rejectedStakeAmount,
+            newStakeMsg: Cell.EMPTY,
+        })
+        return { state, size, rejected }
+    }
+
+    // Sends process_loan_requests the way the treasury sends it to itself from distribute() /
+    // decide_loan_requests(): the access check requires src == my_address(), so impersonate the
+    // treasury with blockchain.sender the same way settle() impersonates a loan.
+    async function processLoanRequests(roundSince: bigint) {
+        return treasury.sendMessage(blockchain.sender(treasury.address), {
+            value: toNano('1'),
+            body: beginCell()
+                .storeUint(op.processLoanRequests, 32)
+                .storeUint(0, 64)
                 .storeUint(roundSince, 32)
                 .endCell(),
         })
@@ -357,5 +404,225 @@ describe('Ordering', () => {
             to: stuckCollection,
             body: bodyOp(op.burnAll),
         })
+    })
+
+    // process_loan_requests used to delete a participation outright once every one of its dicts went
+    // empty. That stranded any deposit/unstake bill already minted into the round's collection --
+    // nothing was left in the dict to route a later burn_all to. It must instead hand the round to
+    // the ready_to_burn barrier, exactly like a round that made loans and later settled.
+    it('should burn deposit bills of a round that made no loans', async () => {
+        const round = 1_000_000n
+        const staker = await blockchain.treasury('staker')
+        const borrower = (await blockchain.treasury('borrower')).address
+
+        const participations = Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue).set(
+            round,
+            rejectedParticipation(borrower, 1n, ParticipationState.Distributing),
+        )
+        await setParticipations(participations, rejectedStakeAmount)
+
+        const fees = await treasury.getTreasuryFees(0n)
+        const collectionAddress = await treasury.getCollectionAddress(round)
+        const billAddress = await treasury.getBillAddress(round, 0n)
+
+        // instantMint is false in this suite's default config, so the deposit mints a bill into the
+        // round's collection instead of minting tokens directly.
+        const depositResult = await treasury.sendDepositCoins(staker.getSender(), {
+            value: toNano('10') + fees.depositCoinsFee,
+        })
+        expect(depositResult.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: collectionAddress,
+            body: bodyOp(op.mintBill),
+            success: true,
+        })
+
+        const stateAfterDeposit = await treasury.getTreasuryState()
+        expect(stateAfterDeposit.totalStaking > 0n).toBe(true)
+
+        const result = await processLoanRequests(round)
+
+        expect(result.transactions).not.toHaveTransaction({ success: false })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: collectionAddress,
+            body: bodyOp(op.burnAll),
+            success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: billAddress,
+            to: collectionAddress,
+            body: bodyOp(op.billBurned),
+            success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: collectionAddress,
+            to: treasury.address,
+            body: bodyOp(op.mintTokens),
+            success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: collectionAddress,
+            to: treasury.address,
+            body: bodyOp(op.lastBillBurned),
+            success: true,
+        })
+
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryState.totalStaking).toEqual(0n)
+        expect(treasuryState.participations.size).toEqual(0)
+    })
+
+    it('should burn unstake bills of a round that made no loans', async () => {
+        const round = 1_000_000n
+        const staker = await blockchain.treasury('staker')
+        const borrower = (await blockchain.treasury('borrower')).address
+
+        const fees = await treasury.getTreasuryFees(0n)
+
+        // Deposit before any round holds bills, so this mints tokens directly (instantMint doesn't
+        // matter here -- there is nothing in `participations` yet for deposit_coins to find).
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const walletFees = await wallet.getWalletFees()
+
+        // reserve_tokens (unlike deposit_coins) ignores instant_mint? altogether -- this is the
+        // mainnet-live case, since instant_mint has been true since 2026-08-15.
+        const treasuryState = await treasury.getTreasuryState()
+        treasuryState.instantMint = true
+        treasuryState.totalBorrowersStake = rejectedStakeAmount
+        treasuryState.participations.set(round, rejectedParticipation(borrower, 1n, ParticipationState.Distributing))
+        // burn_tokens only pays out once the treasury has enough liquid balance above its 10 GRAM
+        // storage reserve to cover the unstake; otherwise it silently postpones to the next
+        // bill-holding round, and there isn't one here.
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(treasuryState),
+                balance: toNano('20'),
+            }),
+        )
+
+        const collectionAddress = await treasury.getCollectionAddress(round)
+        const billAddress = await treasury.getBillAddress(round, 0n)
+
+        const unstakeResult = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: walletFees.unstakeTokensFee + toNano('0.1'),
+            tokens: '7',
+            mode: UnstakeMode.Best,
+        })
+        expect(unstakeResult.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: collectionAddress,
+            body: bodyOp(op.mintBill),
+            success: true,
+        })
+
+        const stateAfterUnstake = await treasury.getTreasuryState()
+        expect(stateAfterUnstake.totalUnstaking > 0n).toBe(true)
+
+        const result = await processLoanRequests(round)
+
+        expect(result.transactions).not.toHaveTransaction({ success: false })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: collectionAddress,
+            body: bodyOp(op.burnAll),
+            success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: billAddress,
+            to: collectionAddress,
+            body: bodyOp(op.billBurned),
+            success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: collectionAddress,
+            to: treasury.address,
+            body: bodyOp(op.burnTokens),
+            success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: collectionAddress,
+            to: treasury.address,
+            body: bodyOp(op.lastBillBurned),
+            success: true,
+        })
+
+        const finalState = await treasury.getTreasuryState()
+        expect(finalState.totalUnstaking).toEqual(0n)
+        expect(finalState.participations.size).toEqual(0)
+    })
+
+    it('should not burn bills while an older round still owes a reward', async () => {
+        const older = 1_000_000n
+        const later = 2_000_000n
+        const staker = await blockchain.treasury('staker')
+        const borrower = (await blockchain.treasury('borrower')).address
+
+        const participations = Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue)
+            .set(older, { state: ParticipationState.Validating })
+            .set(later, rejectedParticipation(borrower, 1n, ParticipationState.Distributing))
+        await setParticipations(participations, rejectedStakeAmount)
+
+        const fees = await treasury.getTreasuryFees(0n)
+        const olderCollection = await treasury.getCollectionAddress(older)
+        const laterCollection = await treasury.getCollectionAddress(later)
+
+        // Both `older` and `later` hold bills, so this deposit lands in the highest (later) round.
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+
+        const result = await processLoanRequests(later)
+
+        expect(result.transactions).not.toHaveTransaction({ success: false })
+        expect(result.transactions).not.toHaveTransaction({
+            to: laterCollection,
+            body: bodyOp(op.burnAll),
+        })
+
+        const participation = await treasury.getParticipation(later)
+        expect(participation.state).toEqual(ParticipationState.ReadyToBurn)
+
+        // Settle the older round the same way the rest of this file does. `later` is left untouched
+        // on-chain (already ready_to_burn from the call above).
+        const stateBeforeSettle = await treasury.getTreasuryState()
+        stateBeforeSettle.participations.set(older, recoveringParticipation(borrower))
+        await setParticipations(stateBeforeSettle.participations)
+
+        const settleResult = await settle(older, borrower)
+
+        expect(settleResult.transactions).not.toHaveTransaction({ success: false })
+        // Finalizing the older round releases both itself and the round it was holding back.
+        expect(settleResult.transactions).toHaveTransaction({
+            to: olderCollection,
+            body: bodyOp(op.burnAll),
+        })
+        expect(settleResult.transactions).toHaveTransaction({
+            to: laterCollection,
+            body: bodyOp(op.burnAll),
+        })
+    })
+
+    // Regression for the size decrement in the rejected-refund loop: max(0, size - 1) must not
+    // underflow when a participation's size does not count its rejected requests, which is exactly
+    // what the OLD distribute() (before its fix) wrote for a round rejected outright.
+    it('should not underflow size when a round rejects every request', async () => {
+        const round = 1_000_000n
+        const borrower = (await blockchain.treasury('borrower')).address
+
+        const participations = Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue).set(
+            round,
+            rejectedParticipation(borrower, 0n, ParticipationState.Distributing),
+        )
+        await setParticipations(participations, rejectedStakeAmount)
+
+        const result = await processLoanRequests(round)
+
+        expect(result.transactions).not.toHaveTransaction({ success: false })
+        expect(result.transactions).not.toHaveTransaction({ exitCode: 5 })
     })
 })

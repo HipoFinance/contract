@@ -687,8 +687,10 @@ cell find_code(cell dict, int round_since) inline {
     int too_late? = now() >= min(participate_until, round_since);
     if elected? | too_late? {
         ;; reject all requests if already elected or there is not enough time for safe participation
+        ;; keep size: the requests moved to rejected are still pending, so process_loan_requests can
+        ;; decrement it once per refund, and calculate_min_coins keeps reserving each one's fee
         builder pb = pack_participation(
-            state, 0, new_dict(), new_dict(), requests, new_dict(), new_dict(), new_dict(), new_dict(),
+            state, size, new_dict(), new_dict(), requests, new_dict(), new_dict(), new_dict(), new_dict(),
             0, 0, current_vset_hash, stake_held_for, stake_held_until
         );
         participations~udict_set_builder(32, round_since, pb);
@@ -861,7 +863,69 @@ cell find_code(cell dict, int round_since) inline {
     participations~udict_set_builder(32, round_since, pb);
 }
 
+() send_burn_all(int query_id, int round_since) impure inline_ref {
+    cell collection_code = collection_codes.find_code(round_since);
+    cell bill_code = bill_codes.find_code(round_since);
+
+    ( builder collection
+    , builder state_init
+    , _
+    ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
+
+    builder burn = begin_cell()
+        .store_uint(op::burn_all, 32)
+        .store_uint(query_id, 64)
+        .store_uint(0, 64);
+    send_msg(false, collection, state_init, burn, burn_all_fee(), send::regular);
+}
+
+() burn_ready_participations(int query_id) impure inline_ref {
+    ;; Burn the bills of settled rounds in round_since order, stopping at the first round that has
+    ;; not settled yet. That round still adds its reward to total_coins later, and every round after
+    ;; it must keep holding its bills until it does. Scanning from the lowest round instead of from
+    ;; the round that just settled also releases any round that an earlier scan could not release.
+    int k = -1;
+    do {
+        ( k, slice v, int f? ) = participations.udict_get_next?(32, k);
+        if f? {
+            int state = v.preload_uint(4);
+            if state == participation::ready_to_burn {
+                ( _
+                , int size
+                , cell sorted
+                , cell requests
+                , cell rejected
+                , cell accepted
+                , cell accrued
+                , cell staked
+                , cell recovering
+                , int total_staked
+                , int total_recovered
+                , int current_vset_hash
+                , int stake_held_for
+                , int stake_held_until
+                ) = unpack_participation(v);
+
+                builder pb = pack_participation(
+                    participation::burning, size, sorted, requests, rejected, accepted, accrued,
+                    staked, recovering, total_staked, total_recovered, current_vset_hash,
+                    stake_held_for, stake_held_until
+                );
+                participations~udict_set_builder(32, k, pb);
+
+                send_burn_all(query_id, k);
+            }
+            if owes_reward?(state) {
+                f? = false;
+            }
+        }
+    } until ~ f?;
+}
+
 () process_loan_requests(slice src, slice s) impure inline {
+    ;; send_burn_all below reads collection_codes and bill_codes, which live in the extension cell
+    unpack_extension();
+
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     s.end_parse();
@@ -925,7 +989,9 @@ cell find_code(cell dict, int round_since) inline {
     ;; send back staked amount of rejected requests
     while remain & (gas_consumed() < soft_gas_limit) & ~ rejected.dict_empty?() {
         remain -= 1;
-        size -= 1;
+        ;; size is packed as an unsigned field, and a participation stored by an older version of
+        ;; this code may already carry a size that does not count its rejected requests
+        size = max(0, size - 1);
         ( int borrower_addr, slice request, _ ) = rejected~udict_delete_get_min?(256);
         ( _, _, _, _, int stake_amount, _ ) = unpack_request(request);
         builder borrower = create_address(chain::base, borrower_addr);
@@ -949,15 +1015,24 @@ cell find_code(cell dict, int round_since) inline {
     }
 
     if rejected.dict_empty?() & accrued.dict_empty?() & staked.dict_empty?() & recovering.dict_empty?() {
-        ;; no more requests, remove empty participation data
-        participations~udict_delete?(32, round_since);
-    } else {
-        builder pb = pack_participation(
-            state, size, sorted, requests, rejected, accepted, accrued, staked, recovering,
-            total_staked, total_recovered, current_vset_hash, stake_held_for, stake_held_until
-        );
-        participations~udict_set_builder(32, round_since, pb);
+        ;; No loans were made in this round, but deposit and unstake bills may already have been
+        ;; minted into its collection: this round has been holding bills since it entered
+        ;; distributing. Dropping the participation here would strand them forever, since burn_all
+        ;; can only be sent to a round that is still in the dict. Hand the round to the same barrier
+        ;; a settled round goes through, and let last_bill_burned remove it once its collection is
+        ;; empty. A collection that never minted a bill replies immediately, so a round that carries
+        ;; nothing still costs only one round trip.
+        state = participation::ready_to_burn;
     }
+
+    builder pb = pack_participation(
+        state, size, sorted, requests, rejected, accepted, accrued, staked, recovering,
+        total_staked, total_recovered, current_vset_hash, stake_held_for, stake_held_until
+    );
+    participations~udict_set_builder(32, round_since, pb);
+
+    ;; must run after the participation above is stored, so that this round is considered too
+    burn_ready_participations(query_id);
 }
 
 () vset_changed(slice s) impure inline_ref {
@@ -1118,65 +1193,6 @@ cell find_code(cell dict, int round_since) inline {
         total_staked, total_recovered, current_vset_hash, stake_held_for, stake_held_until
     );
     participations~udict_set_builder(32, round_since, pb);
-}
-
-() send_burn_all(int query_id, int round_since) impure inline_ref {
-    cell collection_code = collection_codes.find_code(round_since);
-    cell bill_code = bill_codes.find_code(round_since);
-
-    ( builder collection
-    , builder state_init
-    , _
-    ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
-
-    builder burn = begin_cell()
-        .store_uint(op::burn_all, 32)
-        .store_uint(query_id, 64)
-        .store_uint(0, 64);
-    send_msg(false, collection, state_init, burn, burn_all_fee(), send::regular);
-}
-
-() burn_ready_participations(int query_id) impure inline_ref {
-    ;; Burn the bills of settled rounds in round_since order, stopping at the first round that has
-    ;; not settled yet. That round still adds its reward to total_coins later, and every round after
-    ;; it must keep holding its bills until it does. Scanning from the lowest round instead of from
-    ;; the round that just settled also releases any round that an earlier scan could not release.
-    int k = -1;
-    do {
-        ( k, slice v, int f? ) = participations.udict_get_next?(32, k);
-        if f? {
-            int state = v.preload_uint(4);
-            if state == participation::ready_to_burn {
-                ( _
-                , int size
-                , cell sorted
-                , cell requests
-                , cell rejected
-                , cell accepted
-                , cell accrued
-                , cell staked
-                , cell recovering
-                , int total_staked
-                , int total_recovered
-                , int current_vset_hash
-                , int stake_held_for
-                , int stake_held_until
-                ) = unpack_participation(v);
-
-                builder pb = pack_participation(
-                    participation::burning, size, sorted, requests, rejected, accepted, accrued,
-                    staked, recovering, total_staked, total_recovered, current_vset_hash,
-                    stake_held_for, stake_held_until
-                );
-                participations~udict_set_builder(32, k, pb);
-
-                send_burn_all(query_id, k);
-            }
-            if owes_reward?(state) {
-                f? = false;
-            }
-        }
-    } until ~ f?;
 }
 
 () recover_stake_result(slice src, slice s) impure inline {

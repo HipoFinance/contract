@@ -1,7 +1,16 @@
 import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
-import { between, bodyOp, createVset, emptyNewStakeMsg, logTotalFees, accumulateFees, setConfig, updateFeeConfig } from './helper'
+import {
+    between,
+    bodyOp,
+    createVset,
+    emptyNewStakeMsg,
+    logTotalFees,
+    accumulateFees,
+    setConfig,
+    updateFeeConfig,
+} from './helper'
 import { config, op } from '../wrappers/common'
 import {
     Participation,
@@ -549,6 +558,7 @@ describe('Governance', () => {
             }),
         )
 
+        const collectionAddress = await treasury.getCollectionAddress(0n)
         const result = await treasury.sendRetryDistribute(halter.getSender(), {
             value: '1',
             roundSince: 0n,
@@ -562,7 +572,19 @@ describe('Governance', () => {
             success: true,
             outMessagesCount: 1,
         })
-        expect(result.transactions).toHaveLength(3)
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: collectionAddress,
+            body: bodyOp(op.burnAll),
+            success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: collectionAddress,
+            to: treasury.address,
+            body: bodyOp(op.lastBillBurned),
+            success: true,
+        })
+        expect(result.transactions).toHaveLength(5)
 
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryState.participations.size).toEqual(0)
