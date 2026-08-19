@@ -11,7 +11,7 @@ import {
     setConfig,
     updateFeeConfig,
 } from './helper'
-import { config, op } from '../wrappers/common'
+import { config, err, op } from '../wrappers/common'
 import {
     Participation,
     ParticipationState,
@@ -557,6 +557,58 @@ describe('Governance', () => {
         expect(result.transactions).toHaveLength(4)
 
         accumulateFees(result.transactions)
+    })
+
+    it('should reject send message to loan when the vset has not actually changed', async () => {
+        // unpack_participation returns 14 fields; send_message_to_loan used to bind the 11th
+        // (total_recovered) to vset_hash instead of the 12th (current_vset_hash). Pin a synthetic
+        // participation whose current_vset_hash equals the live config-param-34 cell and whose
+        // total_recovered is a distinct, non-colliding value (0n), so a pre-fix read of the wrong
+        // field would slip past the vset-changed guard instead of failing with err::vset_not_changed.
+        const borrower = await blockchain.treasury('borrower')
+        const since = BigInt(Math.floor(Date.now() / 1000)) - 200_000n
+        const until = since + 100_000n
+        const vset = createVset(since, until)
+        setConfig(blockchain, config.currentValidators, vset)
+        const currentVsetHash = BigInt('0x' + vset.hash().toString('hex'))
+
+        const roundSince = 0n
+        const treasuryState = await treasury.getTreasuryState()
+        treasuryState.participations.set(roundSince, {
+            state: ParticipationState.Held,
+            currentVsetHash,
+            totalRecovered: 0n,
+            stakeHeldFor: 0n,
+            stakeHeldUntil: 1n, // in the past, so the timing guard alone would not block this
+        })
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(treasuryState),
+                balance: toNano('10'),
+            }),
+        )
+
+        const message = beginCell().storeUint(op.proxyRecoverStake, 32).storeUint(1, 64).endCell()
+        const result = await treasury.sendSendMessageToLoan(governor.getSender(), {
+            value: '1',
+            borrower: borrower.address,
+            roundSince,
+            message,
+        })
+
+        expect(result.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            value: toNano('1'),
+            body: bodyOp(op.sendMessageToLoan),
+            success: false,
+            exitCode: err.vsetNotChanged,
+        })
+        expect(result.transactions).toHaveLength(3) // governor -> treasury, plus the bounce back
     })
 
     it('should send process loan requests', async () => {

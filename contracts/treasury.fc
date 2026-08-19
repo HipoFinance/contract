@@ -1529,7 +1529,9 @@ cell find_code(cell dict, int round_since) inline {
     int stake_held_until = 0;
     ( slice ps, int f? ) = participations.udict_get?(32, round_since);
     if f? {
-        ( _, _, _, _, _, _, _, _, _, _, vset_hash, _, _, stake_held_until ) = unpack_participation(ps);
+        ;; the guard below relies on vset_hash actually being current_vset_hash (the 12th of
+        ;; unpack_participation's 14 fields), not total_recovered (the 11th)
+        ( _, _, _, _, _, _, _, _, _, _, _, vset_hash, _, stake_held_until ) = unpack_participation(ps);
     }
     int previous = config_param(config::previous_validators).cell_hash();
     int current = config_param(config::current_validators).cell_hash();
