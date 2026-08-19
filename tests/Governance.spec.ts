@@ -1,6 +1,6 @@
 import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
-import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
+import { Address, Cell, Dictionary, beginCell, toNano } from '@ton/core'
 import {
     between,
     bodyOp,
@@ -24,6 +24,25 @@ import {
 import { Wallet } from '../wrappers/Wallet'
 import { Parent } from '../wrappers/Parent'
 import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
+
+// Matches a mint_bill body that records the given parent, which is the field a rescued bill later
+// settles against. mint_bill is op, query_id, amount, unstake?, owner, parent, ownership amount.
+function mintBillWithParent(expected: Address) {
+    return (body: Cell | undefined) => {
+        if (body == null) {
+            return false
+        }
+        const s = body.beginParse()
+        if (s.remainingBits < 32 + 64 || s.loadUint(32) !== op.mintBill) {
+            return false
+        }
+        s.loadUint(64)
+        s.loadCoins()
+        s.loadBit()
+        s.loadAddress()
+        return s.loadAddress().equals(expected)
+    }
+}
 
 describe('Governance', () => {
     let onlyUpgradeCode: Cell
@@ -588,6 +607,78 @@ describe('Governance', () => {
 
         const treasuryState = await treasury.getTreasuryState()
         expect(treasuryState.participations.size).toEqual(0)
+
+        accumulateFees(result.transactions)
+    })
+
+    it('should mint a retried bill on the parent it was validated against', async () => {
+        // retry_mint_bill accepts an old parent for fixed_parent, because upgrading a wallet moves
+        // only its tokens: the staking and unstaking balances a bill settles against stay behind on
+        // the old wallet. So the rescued bill has to record that same parent, or mint_tokens and
+        // burn_tokens later pay a wallet under the current parent that was never debited.
+        const staker = await blockchain.treasury('staker')
+        const newParent = await blockchain.treasury('newParent')
+
+        const roundSince = 0n
+        const state = await treasury.getTreasuryState()
+        state.participations.set(roundSince, { state: ParticipationState.Staked })
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(state),
+                balance: toNano('10'),
+            }),
+        )
+
+        // Replacing the parent files the outgoing one in old_parents, which is what makes it an
+        // acceptable fixed_parent below.
+        const resultSetParent = await treasury.sendSetParent(governor.getSender(), {
+            value: '1',
+            newParent: newParent.address,
+        })
+        expect(resultSetParent.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            body: bodyOp(op.setParent),
+            success: true,
+        })
+        const movedState = await treasury.getTreasuryState()
+        expect(movedState.parent?.equals(newParent.address)).toBe(true)
+        expect(movedState.oldParents.has(BigInt('0x' + parent.address.hash.toString('hex')))).toBe(true)
+
+        const collectionAddress = await treasury.getCollectionAddress(roundSince)
+        const result = await treasury.sendRetryMintBill(governor.getSender(), {
+            value: '1',
+            roundSince,
+            amount: toNano('7'),
+            unstake: true,
+            owner: staker.address,
+            parent: parent.address, // the old parent, still holding this owner's unstaking balance
+            ownershipAssignedAmount: 1n,
+        })
+
+        expect(result.transactions).toHaveTransaction({
+            from: governor.address,
+            to: treasury.address,
+            body: bodyOp(op.retryMintBill),
+            success: true,
+            outMessagesCount: 1,
+        })
+        // The bill must carry the old parent, not the one set_parent just installed.
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: collectionAddress,
+            body: mintBillWithParent(parent.address),
+            success: true,
+        })
+        expect(result.transactions).not.toHaveTransaction({
+            from: treasury.address,
+            to: collectionAddress,
+            body: mintBillWithParent(newParent.address),
+        })
 
         accumulateFees(result.transactions)
     })

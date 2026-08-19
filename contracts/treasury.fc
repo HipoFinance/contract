@@ -1616,13 +1616,17 @@ cell find_code(cell dict, int round_since) inline {
     , _
     ) = create_collection_address(my_address(), round_since, bill_code, collection_code);
 
+    ;; fixed_parent, not parent: the owner's staking and unstaking balances never migrate to a new
+    ;; wallet, only their tokens do, so a rescued bill has to settle against the parent it was
+    ;; validated against above. Storing parent here would send mint_tokens or burn_tokens to a wallet
+    ;; that was never debited, which is exactly why old_parents is an accepted value for it.
     builder mint = begin_cell()
         .store_uint(op::mint_bill, 32)
         .store_uint(query_id, 64)
         .store_coins(amount)
         .store_int(unstake?, 1)
         .store_slice(owner)
-        .store_slice(parent)
+        .store_slice(fixed_parent)
         .store_coins(ownership_assigned_amount);
     send_msg(false, collection, state_init, mint, 0, send::remaining_value);
 
