@@ -844,6 +844,115 @@ describe('Loan', () => {
         accumulateFees(result.transactions)
     })
 
+    it('should keep the incoming coins when recover_stake_result arrives for a missing participation', async () => {
+        // recover_stake_result only settles a loan when both its participation (f?) and the
+        // borrower's entry in staked/recovering (e?) are still there. Miss either and reserve_amount
+        // / stake_amount stay 0, yet control used to fall through to raw_reserve/take_profit anyway:
+        // raw_reserve(0, ...) only protects the pre-message balance, so take_profit forwarded the
+        // *entire* incoming value -- unattributable principal, accrued, collateral and reward -- to
+        // the governor. Drive recover_stake_result from the loan address the treasury itself derives,
+        // for a round_since that was never written into participations, and assert the coins simply
+        // stay in the treasury's balance instead of being paid out.
+        const borrower = await blockchain.treasury('borrower')
+        const roundSince = 0n // never written into participations in this test
+        const loanAddress = await treasury.getLoanAddress(borrower.address, roundSince)
+
+        const balanceBefore = await treasury.getBalance()
+        const incoming = toNano('5')
+        const result = await treasury.sendMessage(blockchain.sender(loanAddress), {
+            value: incoming,
+            body: beginCell()
+                .storeUint(op.recoverStakeResult, 32)
+                .storeUint(0, 64)
+                .storeBit(true)
+                .storeAddress(borrower.address)
+                .storeUint(roundSince, 32)
+                .endCell(),
+        })
+
+        expect(result.transactions).not.toHaveTransaction({ to: governor.address })
+        expect(result.transactions).toHaveTransaction({
+            from: loanAddress,
+            to: treasury.address,
+            value: incoming,
+            body: bodyOp(op.recoverStakeResult),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(1)
+
+        const balanceAfter = await treasury.getBalance()
+        expect(balanceAfter).toBeBetween(balanceBefore + incoming - toNano('0.1'), balanceBefore + incoming)
+    })
+
+    it('should keep the incoming coins when recover_stake_result arrives for a borrower missing from the participation', async () => {
+        // Same miss path as above, but this time f? succeeds (the round is in participations) and e?
+        // is the one that fails: the round holds someone else's entry in `recovering`, not this
+        // borrower's. reserve_amount / stake_amount still stay 0 in that case, so the coins must stay
+        // put rather than being handed to the governor as take_profit.
+        const borrower = await blockchain.treasury('borrower')
+        const otherBorrower = await blockchain.treasury('other-borrower')
+        const roundSince = 0n
+
+        const state = await treasury.getTreasuryState()
+        const recovering = Dictionary.empty(Dictionary.Keys.BigUint(256), requestDictionaryValue)
+        recovering.set(BigInt('0x' + otherBorrower.address.hash.toString('hex')), {
+            minPayment: 0n,
+            borrowerRewardShare: 0n,
+            loanAmount: 0n,
+            accrueAmount: 0n,
+            stakeAmount: 0n,
+            newStakeMsg: Cell.EMPTY,
+        })
+        state.participations.set(roundSince, {
+            state: ParticipationState.Recovering,
+            size: 1n,
+            recovering,
+        })
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(state),
+                balance: toNano('10'),
+            }),
+        )
+
+        const loanAddress = await treasury.getLoanAddress(borrower.address, roundSince)
+        const balanceBefore = await treasury.getBalance()
+        const incoming = toNano('5')
+        const result = await treasury.sendMessage(blockchain.sender(loanAddress), {
+            value: incoming,
+            body: beginCell()
+                .storeUint(op.recoverStakeResult, 32)
+                .storeUint(0, 64)
+                .storeBit(true)
+                .storeAddress(borrower.address)
+                .storeUint(roundSince, 32)
+                .endCell(),
+        })
+
+        expect(result.transactions).not.toHaveTransaction({ to: governor.address })
+        expect(result.transactions).toHaveTransaction({
+            from: loanAddress,
+            to: treasury.address,
+            value: incoming,
+            body: bodyOp(op.recoverStakeResult),
+            success: true,
+            outMessagesCount: 0,
+        })
+        expect(result.transactions).toHaveLength(1)
+
+        const balanceAfter = await treasury.getBalance()
+        expect(balanceAfter).toBeBetween(balanceBefore + incoming - toNano('0.1'), balanceBefore + incoming)
+
+        // the participation itself is untouched -- f? succeeded, only e? missed
+        const finalState = await treasury.getTreasuryState()
+        expect(finalState.participations.get(roundSince)?.size).toEqual(1n)
+    })
+
     it('should handle external finish message only once', async () => {
         const times = await treasury.getTimes()
         const electedFor = times.nextRoundSince - times.currentRoundSince

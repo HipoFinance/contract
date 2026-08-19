@@ -1237,6 +1237,7 @@ cell find_code(cell dict, int round_since) inline {
 
     int reserve_amount = 0;
     int stake_amount = 0;
+    int settled? = false;
     ( _, int borrower_addr ) = parse_std_addr(borrower);
     ( slice ps, int f? ) = participations.udict_get?(32, round_since);
     if f? {
@@ -1262,6 +1263,7 @@ cell find_code(cell dict, int round_since) inline {
             ( request, e? ) = staked~udict_delete_get?(256, borrower_addr);
         }
         if e? {
+            settled? = true;
             size -= 1;
             ( int min_payment
             , int borrower_reward_share
@@ -1325,6 +1327,17 @@ cell find_code(cell dict, int round_since) inline {
             ;; must run after the participation above is stored, so that this round is considered too
             burn_ready_participations(query_id);
         }
+    }
+
+    ifnot settled? {
+        ;; Either the round is gone from participations or this borrower has no entry left in it, so
+        ;; nothing here can attribute the incoming coins to a loan. Keep every one of them: falling
+        ;; through would raw_reserve only the pre-message balance and hand the whole amount --
+        ;; principal, accrued, collateral and reward -- to the governor as take_profit, leaving
+        ;; total_coins counting coins the treasury no longer holds. Nothing above this point mutates
+        ;; global state on that path, so stopping here is a clean no-op; the balance simply rises
+        ;; with no matching log_repayment, which is what makes the anomaly visible.
+        throw(0);
     }
 
     raw_reserve(reserve_amount, reserve::add_original_balance + reserve::at_most);
