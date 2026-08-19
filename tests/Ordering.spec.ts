@@ -3,7 +3,7 @@ import { Address, Cell, Dictionary, beginCell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import '@ton/test-utils'
 import { bodyOp, logTotalFees, updateFeeConfig } from './helper'
-import { op } from '../wrappers/common'
+import { err, op } from '../wrappers/common'
 import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
 import { Parent } from '../wrappers/Parent'
 import {
@@ -240,6 +240,15 @@ describe('Ordering', () => {
                 .storeUint(0, 64)
                 .storeUint(roundSince, 32)
                 .endCell(),
+        })
+    }
+
+    // Sends decide_loan_requests the way the treasury sends it to itself, either from distribute() or
+    // as its own continuation. Same impersonation as processLoanRequests above.
+    async function decideLoanRequests(roundSince: bigint) {
+        return treasury.sendMessage(blockchain.sender(treasury.address), {
+            value: toNano('1'),
+            body: beginCell().storeUint(op.decideLoanRequests, 32).storeUint(0, 64).storeUint(roundSince, 32).endCell(),
         })
     }
 
@@ -624,5 +633,71 @@ describe('Ordering', () => {
 
         expect(result.transactions).not.toHaveTransaction({ success: false })
         expect(result.transactions).not.toHaveTransaction({ exitCode: 5 })
+    })
+
+    // decide_loan_requests and process_loan_requests are only ever driven by treasury -> treasury
+    // self-messages queued while a round is distributing. There is no ordering guarantee between one
+    // of those and a governor's retry_distribute, so a stale continuation could otherwise land after
+    // the round has already moved on to burning and write its state back over it, re-satisfying
+    // holds_bills? for a collection whose burn chain has already gone past the bills it would attach.
+    it('should reject a stale decide_loan_requests / process_loan_requests once the round is burning', async () => {
+        const round = 1_000_000n
+
+        const participations = Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue).set(round, {
+            state: ParticipationState.Burning,
+        })
+        await setParticipations(participations)
+
+        const decideResult = await decideLoanRequests(round)
+        expect(decideResult.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: treasury.address,
+            body: bodyOp(op.decideLoanRequests),
+            success: false,
+            exitCode: err.unableToParticipate,
+        })
+
+        const processResult = await processLoanRequests(round)
+        expect(processResult.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: treasury.address,
+            body: bodyOp(op.processLoanRequests),
+            success: false,
+            exitCode: err.unableToParticipate,
+        })
+
+        const participation = await treasury.getParticipation(round)
+        expect(participation.state).toEqual(ParticipationState.Burning)
+    })
+
+    // Happy-path regression for the guard above: neither message may be rejected while the round is
+    // still in the state this chain is actually driven from.
+    it('should still accept decide_loan_requests / process_loan_requests while the round is distributing', async () => {
+        const round = 1_000_000n
+        const borrower = (await blockchain.treasury('borrower')).address
+
+        const participations = Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue).set(
+            round,
+            rejectedParticipation(borrower, 1n, ParticipationState.Distributing),
+        )
+        await setParticipations(participations, rejectedStakeAmount)
+
+        const decideResult = await decideLoanRequests(round)
+        expect(decideResult.transactions).not.toHaveTransaction({ success: false })
+
+        // decide_loan_requests's own cascade already carries this round through
+        // process_loan_requests and into ready_to_burn (there is nothing to sort or accept), so put it
+        // back in distributing to prove process_loan_requests independently still accepts it too.
+        await setParticipations(participations, rejectedStakeAmount)
+
+        const processResult = await processLoanRequests(round)
+        expect(processResult.transactions).not.toHaveTransaction({ success: false })
+
+        // Nothing was left to accept, sort, or stake, and the round's only request was rejected, so
+        // process_loan_requests settles it straight into the ready_to_burn barrier. No bill was ever
+        // minted into its collection, so burn_ready_participations' burn_all gets an immediate
+        // last_bill_burned reply and the participation is removed from the dict entirely.
+        const finalState = await treasury.getTreasuryState()
+        expect(finalState.participations.size).toEqual(0)
     })
 })

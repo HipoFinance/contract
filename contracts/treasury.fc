@@ -787,7 +787,17 @@ cell find_code(cell dict, int round_since) inline {
     int round_since = s~load_uint(32);
     s.end_parse();
 
-    ( slice ps, _ ) = participations.udict_get?(32, round_since);
+    throw_unless(err::access_denied, equal_slice_bits(src, my_address()));
+
+    ( slice ps, int f? ) = participations.udict_get?(32, round_since);
+    throw_unless(err::unable_to_participate, f?);
+    ;; every message in this chain is consumed while the round is still distributing -- the round
+    ;; cannot leave that state until the final process_loan_requests runs. Rejecting anything later
+    ;; stops a continuation that raced a governor retry_distribute from writing state back over
+    ;; burning, which would re-satisfy holds_bills? and attach new bills to a collection whose burn
+    ;; chain has already gone past them
+    throw_unless(err::unable_to_participate, ps.preload_uint(4) == participation::distributing);
+
     ( int state
     , int size
     , cell sorted
@@ -803,8 +813,6 @@ cell find_code(cell dict, int round_since) inline {
     , int stake_held_for
     , int stake_held_until
     ) = unpack_participation(ps);
-
-    throw_unless(err::access_denied, equal_slice_bits(src, my_address()));
 
     int available = total_staked; ;; use the total_staked field as a temp var for available amount
     int allocated = total_recovered; ;; use the total_recovered field as a temp var for allocated amount
@@ -954,7 +962,17 @@ cell find_code(cell dict, int round_since) inline {
     int round_since = s~load_uint(32);
     s.end_parse();
 
-    ( slice ps, _ ) = participations.udict_get?(32, round_since);
+    throw_unless(err::access_denied, equal_slice_bits(src, my_address()));
+
+    ( slice ps, int f? ) = participations.udict_get?(32, round_since);
+    throw_unless(err::unable_to_participate, f?);
+    ;; every message in this chain is consumed while the round is still distributing -- the round
+    ;; cannot leave that state until the final process_loan_requests runs. Rejecting anything later
+    ;; stops a continuation that raced a governor retry_distribute from writing state back over
+    ;; burning, which would re-satisfy holds_bills? and attach new bills to a collection whose burn
+    ;; chain has already gone past them
+    throw_unless(err::unable_to_participate, ps.preload_uint(4) == participation::distributing);
+
     ( int state
     , int size
     , cell sorted
@@ -972,8 +990,6 @@ cell find_code(cell dict, int round_since) inline {
     ) = unpack_participation(ps);
 
     ( int total_fee, int proxy_new_stake_fee, _ ) = request_loan_fee();
-
-    throw_unless(err::access_denied, equal_slice_bits(src, my_address()));
 
     cell loan_code = loan_codes.find_code(round_since);
 
