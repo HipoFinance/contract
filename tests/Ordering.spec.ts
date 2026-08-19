@@ -635,6 +635,111 @@ describe('Ordering', () => {
         expect(result.transactions).not.toHaveTransaction({ exitCode: 5 })
     })
 
+    // available_ton (reserve_tokens / burn_tokens / get_max_burnable_tokens) is deliberately not
+    // minus total_staking, even though deposit_coins' raw_reserve puts pending-deposit coins on the
+    // balance too -- see the comments at those sites for the full argument. This is the regression
+    // lock: an unstake bill minted before this round's deposit bills must still be paid out of a
+    // balance the pending deposit is sitting on, not postponed or rolled back.
+    it('should pay a matured unstake bill out of balance that pending deposits contributed', async () => {
+        const round = 1_000_000n
+        const staker = await blockchain.treasury('staker')
+        const depositor = await blockchain.treasury('depositor')
+        const borrower = (await blockchain.treasury('borrower')).address
+
+        // Deposit before any round holds bills, so this mints tokens directly and gives the staker
+        // something to unstake below.
+        const depositFees = await treasury.getTreasuryFees(0n)
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + depositFees.depositCoinsFee })
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const walletFees = await wallet.getWalletFees()
+
+        // Now put `round` in a bill-holding state, matching this suite's default instantMint = false,
+        // which is what keeps a pending deposit's coins in total_staking instead of total_coins.
+        const participations = Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue).set(
+            round,
+            rejectedParticipation(borrower, 1n, ParticipationState.Distributing),
+        )
+        await setParticipations(participations, rejectedStakeAmount)
+
+        const collectionAddress = await treasury.getCollectionAddress(round)
+
+        // Unstake FIRST, so its bill gets the lower NFT index and therefore burns before the deposit
+        // bill below. Mode.Best (not instant) with the round already holding bills sends this through
+        // the mint-a-bill branch of reserve_tokens rather than paying immediately.
+        const unstakeResult = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: walletFees.unstakeTokensFee + toNano('0.1'),
+            tokens: '7',
+            mode: UnstakeMode.Best,
+        })
+        expect(unstakeResult.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: collectionAddress,
+            body: bodyOp(op.mintBill),
+            success: true,
+        })
+
+        // Deposit SECOND, into the same round, so its bill gets a higher NFT index and total_staking
+        // becomes nonzero while the unstake bill above is still unburned.
+        const depositResult = await treasury.sendDepositCoins(depositor.getSender(), {
+            value: toNano('5') + depositFees.depositCoinsFee,
+        })
+        expect(depositResult.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: collectionAddress,
+            body: bodyOp(op.mintBill),
+            success: true,
+        })
+
+        const stateBeforeBurn = await treasury.getTreasuryState()
+        expect(stateBeforeBurn.totalStaking > 0n).toBe(true)
+
+        // The unstake bill's payout, computed the same way burn_tokens does: coins = tokens *
+        // totalCoins / totalTokens at the current rate.
+        const unstakeCoins = (toNano('7') * stateBeforeBurn.totalCoins) / stateBeforeBurn.totalTokens
+
+        // Craft the balance so that available_ton (balance - fee::treasury_storage -
+        // totalBorrowersStake) covers the unstake bill on its own, but would NOT cover it if
+        // total_staking were also subtracted. This inequality is the entire point of the test: it
+        // fails the moment anyone subtracts total_staking from available_ton in reserve_tokens or
+        // burn_tokens.
+        const balance = toNano('10.01') + unstakeCoins + stateBeforeBurn.totalStaking / 2n
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(stateBeforeBurn),
+                balance,
+            }),
+        )
+
+        const result = await processLoanRequests(round)
+
+        expect(result.transactions).not.toHaveTransaction({ success: false })
+        // The unstake bill (lower index) is checked while total_staking is still at its peak -- the
+        // deposit bill (higher index) hasn't burned yet -- and must be paid, not postponed or rolled
+        // back.
+        expect(result.transactions).not.toHaveTransaction({ body: bodyOp(op.proxyRollbackUnstake) })
+        expect(result.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: parent.address,
+            body: bodyOp(op.proxyTokensBurned),
+            success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: parent.address,
+            to: walletAddress,
+            body: bodyOp(op.tokensBurned),
+            success: true,
+        })
+
+        const finalState = await treasury.getTreasuryState()
+        expect(finalState.totalStaking).toEqual(0n)
+        expect(finalState.totalUnstaking).toEqual(0n)
+    })
+
     // decide_loan_requests and process_loan_requests are only ever driven by treasury -> treasury
     // self-messages queued while a round is distributing. There is no ordering guarantee between one
     // of those and a governor's retry_distribute, so a stale continuation could otherwise land after

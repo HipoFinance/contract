@@ -305,6 +305,14 @@ cell find_code(cell dict, int round_since) inline {
     int incoming_ton = get_incoming_value().pair_first();
     int ton_balance = get_balance().pair_first();
     int ton_balance_before_msg = ton_balance - incoming_ton;
+    ;; deliberately not minus total_staking: those pending-deposit coins sit on the balance via
+    ;; deposit_coins' raw_reserve, but they are not a cash obligation. a deposit bill's only terminal
+    ;; path is mint_tokens, which moves total_staking into total_coins and sends proxy_tokens_minted
+    ;; with value 0, funded by the incoming message - no GRAM ever leaves for it. an unstake payout is
+    ;; symmetric: it subtracts total_coins and reserves the same coins, so obligation and cash drop
+    ;; together. calculate_min_coins DOES count total_staking, but that guards unmatched outflows
+    ;; (withdraw_surplus), while this is a pure liquidity check - and distribute's available_now already
+    ;; lends this same cash out to a validator for a round, so subtracting it here would contradict that.
     int available_ton = ton_balance_before_msg - fee::treasury_storage - total_borrowers_stake;
 
     int round_since = 0;
@@ -434,6 +442,10 @@ cell find_code(cell dict, int round_since) inline {
     int incoming_ton = get_incoming_value().pair_first();
     int ton_balance = get_balance().pair_first();
     int ton_balance_before_msg = ton_balance - incoming_ton;
+    ;; see reserve_tokens above for why total_staking is deliberately not subtracted here too. bills
+    ;; burn in mint order, so an unstake bill minted before this round's deposit bills is checked while
+    ;; total_staking is still at its peak - and this round is already burning, so the scan below cannot
+    ;; postpone it to itself.
     int available_ton = ton_balance_before_msg - fee::treasury_storage - total_borrowers_stake;
 
     if available_ton < coins {
@@ -2356,6 +2368,8 @@ int get_max_burnable_tokens() method_id {
     load_data();
 
     int ton_balance = get_balance().pair_first();
+    ;; mirrors reserve_tokens above, including the deliberate absence of total_staking: the dApp must
+    ;; not offer an instant unstake the contract would then postpone, nor hide one it would pay.
     int available_ton = ton_balance - fee::treasury_storage - total_borrowers_stake;
 
     return muldiv(available_ton, total_tokens, total_coins);
