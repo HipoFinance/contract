@@ -205,6 +205,31 @@ deletes the participation with every remaining bill unburned. The script refuses
 Worth monitoring: a participation sitting in `burning` whose collection has seen no activity
 for several blocks. That alert is what turns this from a silent loss into a repair.
 
+### Bypassing the reward-ordering barrier
+
+`burn_ready_participations` releases settled rounds in ascending `round_since` order and
+stops at the first round that still owes a reward (`owes_reward?`, states 1–5). That barrier
+is what deferred minting (`instant_mint = false`) depends on: it stops a later round's
+deferred deposits from minting at a rate that has not yet booked an older round's reward and
+so would capture part of it. `retry_burn_all` deliberately steps over that barrier when it is
+run on a round in `ready_to_burn`, because its job is to unstick a round that is permanently
+stuck and would otherwise hold every later round's bills forever. Overriding the barrier is
+safe exactly when the older round can no longer book anything; it is unsafe when the older
+round is merely still validating, because bypassing the barrier there reopens the same
+ordering hole it exists to close.
+
+> While `instant_mint` is `false`, do not run `retry_burn_all` on a round in `ready_to_burn`
+> without first confirming that no lower `round_since` is still in states 1–5
+> (`owes_reward?`).
+
+Check this with `scripts/showState.ts` before retrying: every round below the one being
+released must be either absent from `participations` or already past `recovering`.
+
+`retry_mint_bill` also accepts a round that is already `burning`, but for an unrelated reason
+— that is the repair window described above, not an override of this barrier. A round only
+reaches `burning` once its own reward is settled, so a re-minted bill cannot capture an older
+round's reward and this rule does not apply to it.
+
 The treasury's persistent state is split into frequently-loaded fields (`save_data` /
 `load_data`) and a rarely-needed `extension` cell (`pack_extension` / `unpack_extension`) to
 keep gas low on hot paths. **Any upgrade must keep the stored data layout compatible or
