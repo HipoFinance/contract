@@ -973,7 +973,7 @@ describe('Wallet', () => {
         accumulateFees(result1.transactions)
     })
 
-    it('should postpone a deferred unstake to the next round using that round\'s bill code', async () => {
+    it("should postpone a deferred unstake to the next round using that round's bill code", async () => {
         // Regression for the wrong-round code lookup in burn_tokens' postpone branch:
         // when an illiquid treasury postpones an unstake bill to the next round, the new bill
         // must be minted on the collection derived from the NEXT round's bill/collection code,
@@ -1055,6 +1055,88 @@ describe('Wallet', () => {
             to: staleRound2Collection,
             body: bodyOp(op.mintBill),
         })
+    })
+
+    it('should roll back a deferred unstake that has no round to postpone to', async () => {
+        // Regression for the token-destroying dead end in burn_tokens: the bill is already gone by
+        // the time the treasury discovers it can neither pay out nor postpone, so merely logging
+        // the failure destroys the staker's tokens and leaves total_unstaking inflated forever.
+        // The unstake has to be rolled back instead.
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const walletFees = await wallet.getWalletFees()
+
+        const round1 = 1n // the only round, so nothing later can absorb a postponed bill
+
+        const activeState = await treasury.getTreasuryState()
+        activeState.participations.set(round1, { state: ParticipationState.Staked })
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(activeState),
+                balance: treasuryStorage + toNano('10'),
+            }),
+        )
+
+        const round1Collection = await treasury.getCollectionAddress(round1)
+
+        const resultUnstake = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: walletFees.unstakeTokensFee + toNano('0.1'),
+            tokens: '7',
+            mode: UnstakeMode.Best,
+        })
+        expect(resultUnstake.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: round1Collection,
+            body: bodyOp(op.mintBill),
+            success: true,
+        })
+
+        const [tokensReserved, , unstakingReserved] = await wallet.getWalletState()
+        expect(tokensReserved).toBe(toNano('3'))
+        expect(unstakingReserved).toBe(toNano('7'))
+        expect((await treasury.getTreasuryState()).totalUnstaking).toBe(toNano('7'))
+
+        // Flip the only round to burning and starve the treasury, so the burn can neither pay out
+        // nor find a later round still holding bills.
+        const burningState = await treasury.getTreasuryState()
+        burningState.participations.set(round1, { state: ParticipationState.Burning })
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(burningState),
+                balance: treasuryStorage + toNano('3'), // available 3 GRAM < 7 coins owed
+            }),
+        )
+
+        const resultBurn = await treasury.sendRetryBurnAll(halter.getSender(), { value: '0.1', roundSince: round1 })
+
+        expect(resultBurn.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: parent.address,
+            body: bodyOp(op.proxyRollbackUnstake),
+            success: true,
+        })
+        expect(resultBurn.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet.address,
+            body: bodyOp(op.rollbackUnstake),
+            success: true,
+        })
+
+        // The staker keeps their hGRAM and the treasury's books are square again.
+        const [tokens, , unstaking] = await wallet.getWalletState()
+        expect(tokens).toBe(toNano('10'))
+        expect(unstaking).toBe(0n)
+        expect((await treasury.getTreasuryState()).totalUnstaking).toBe(0n)
     })
 
     it('should unstake with different modes where there is no active round', async () => {

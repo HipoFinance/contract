@@ -289,8 +289,13 @@ upgrade, the treasury cannot.
   attached.
 
 - **Unstake rollback**: `proxy_rollback_unstake#32b67194` → `rollback_unstake#1b77fd1a`
-  appears when an instant-mode unstake cannot be served; it restores the tokens and must
-  not be classified as a withdrawal.
+  appears when an unstake cannot be served; it restores the tokens and must not be
+  classified as a withdrawal. It arises in two places: from `reserve_tokens`, when an
+  instant-mode unstake cannot be paid right away, and at the tail of a deferred unstake's
+  burn trace, when `burn_tokens` finds the treasury short of GRAM and no later round left
+  to postpone the bill to. In the second case a `burn_bill` → `bill_burned` →
+  `burn_tokens#7cffe1ee` trace ends in a rollback instead of a `withdrawal_notification`,
+  so an earlier unstake request in that trace stays outstanding rather than completing.
 
 - **Borrower flows**: `request_loan#36335da9` (borrower → treasury), and at round end
   `recover_stake_result#0fca4c86` → treasury → `loan_result#faaa8366` (borrower's stake

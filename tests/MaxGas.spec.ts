@@ -27,7 +27,7 @@ import {
 } from '../wrappers/Treasury'
 import { Parent, parentConfigToCell } from '../wrappers/Parent'
 import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
-import { Wallet, walletConfigToCell } from '../wrappers/Wallet'
+import { UnstakeMode, Wallet, walletConfigToCell } from '../wrappers/Wallet'
 import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-test/Elector'
 import { Loan } from '../wrappers/Loan'
 
@@ -711,6 +711,103 @@ describe('Max Gas', () => {
         storeComputeGas('migrate_wallet', op.migrateWallet, result12.transactions[3])
         storeComputeGas('proxy_merge_wallet', op.proxyMergeWallet, result12.transactions[4])
         storeComputeGas('merge_wallet', op.mergeWallet, result12.transactions[5])
+    })
+
+    it('should find max gas for burn_tokens when no round can absorb a postponed bill', async () => {
+        // burn_tokens has a third branch besides paying out and postponing: when available_ton is
+        // short and no later round still holds bills, it rolls the unstake back instead. That path
+        // was unmeasured, so cover it here without disturbing the wallet scenario above.
+
+        const staker = await blockchain.treasury('rollbackStaker')
+
+        // The shared beforeEach seeds several example rounds (10n..70n), some of which still hold
+        // bills. Clear them first so the deposit below mints tokens immediately instead of queuing
+        // behind one of those rounds, matching the plain setup this scenario is modeled on.
+        const clearedState = await treasury.getTreasuryState()
+        clearedState.participations = Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue)
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(clearedState),
+                balance: await treasury.getBalance(),
+            }),
+        )
+
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        const walletFees = await wallet.getWalletFees()
+
+        const round1 = 200n // the only round, so nothing later can absorb a postponed bill
+
+        const activeState = await treasury.getTreasuryState()
+        activeState.participations.set(round1, { state: ParticipationState.Staked })
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(activeState),
+                balance: toNano('10') + toNano('10'),
+            }),
+        )
+
+        const round1Collection = await treasury.getCollectionAddress(round1)
+
+        const resultUnstake = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: walletFees.unstakeTokensFee + toNano('0.1'),
+            tokens: '7',
+            mode: UnstakeMode.Best,
+        })
+        expect(resultUnstake.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: round1Collection,
+            body: bodyOp(op.mintBill),
+            success: true,
+        })
+        expect(resultUnstake.transactions).not.toHaveTransaction({ success: false })
+        expect(resultUnstake.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(resultUnstake.transactions).not.toHaveTransaction({ actionResultCode: 37 })
+
+        // Flip the only round to burning and starve the treasury, so the burn can neither pay out
+        // nor find a later round still holding bills.
+        const burningState = await treasury.getTreasuryState()
+        burningState.participations.set(round1, { state: ParticipationState.Burning })
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(burningState),
+                balance: toNano('10') + toNano('3'), // available 3 GRAM < 7 coins owed
+            }),
+        )
+
+        const resultBurn = await treasury.sendRetryBurnAll(halter.getSender(), { value: '0.1', roundSince: round1 })
+        expect(resultBurn.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: parent.address,
+            body: bodyOp(op.proxyRollbackUnstake),
+            success: true,
+        })
+        expect(resultBurn.transactions).toHaveTransaction({
+            from: parent.address,
+            to: wallet.address,
+            body: bodyOp(op.rollbackUnstake),
+            success: true,
+        })
+        expect(resultBurn.transactions).not.toHaveTransaction({ success: false })
+        expect(resultBurn.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(resultBurn.transactions).not.toHaveTransaction({ actionResultCode: 37 })
+        expect(resultBurn.transactions).toHaveLength(10)
+
+        accumulateFees(resultBurn.transactions)
+        storeComputeGas('burn_tokens', op.burnTokens, resultBurn.transactions[6])
     })
 
     it('should handle a single loan request to log compute gas', async () => {

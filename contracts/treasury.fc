@@ -453,8 +453,30 @@ cell find_code(cell dict, int round_since) inline {
         } until ~ f?;
 
         ifnot next_round_since {
-            ;; No more rounds to postpone to. This should not happen. At least log it.
+            ;; No round left to postpone to. The bill has already been burned, so nothing survives to
+            ;; drive a later retry: returning here would destroy the owner's tokens outright and leave
+            ;; total_unstaking counting an unstake that can never finish, which shrinks every future
+            ;; round's stake through the reserved_amount term in distribute. Roll the unstake back
+            ;; instead, exactly as reserve_tokens does when it cannot reserve the coins.
             log_failed_burning_tokens(round_since, total_coins, total_tokens, coins, tokens, owner);
+
+            ;; fixed_parent rather than parent: the wallet that holds this owner's unstaking balance
+            ;; sits under the parent recorded on the bill, which set_parent may have replaced since.
+            builder rollback = begin_cell()
+                .store_uint(op::proxy_rollback_unstake, 32)
+                .store_uint(query_id, 64)
+                .store_coins(tokens)
+                .store_slice(owner);
+            send_msg(false, fixed_parent.to_builder(), null(), rollback, 0, send::remaining_value);
+
+            ;; retry_mint_bill can mint an unstake bill without adding to total_unstaking, so clamp
+            ;; instead of letting store_coins abort the transaction and destroy the tokens anyway
+            total_unstaking = max(0, total_unstaking - tokens);
+
+            ;; must come after the rollback is queued and before the throw below, which skips the
+            ;; save_data() at the end of recv_internal. Deliberately no commit(): if the rollback
+            ;; cannot be paid, the whole transaction reverts rather than banking the decrement alone.
+            save_data();
         } else {
             cell next_collection_code = collection_codes.find_code(next_round_since);
             cell next_bill_code = bill_codes.find_code(next_round_since);
@@ -480,7 +502,9 @@ cell find_code(cell dict, int round_since) inline {
 
     total_coins -= coins;
     total_tokens -= tokens;
-    total_unstaking -= tokens;
+    ;; clamped for the same reason as the rollback branch above: a bill minted by retry_mint_bill was
+    ;; never counted here, and aborting on underflow would destroy tokens whose bill is already gone
+    total_unstaking = max(0, total_unstaking - tokens);
 
     raw_reserve(coins, reserve::negate + reserve::add_original_balance);
 
