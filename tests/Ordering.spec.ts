@@ -740,6 +740,115 @@ describe('Ordering', () => {
         expect(finalState.totalUnstaking).toEqual(0n)
     })
 
+    // available_ton (reserve_tokens / burn_tokens / get_max_burnable_tokens) is deliberately not
+    // minus reserved_amount (= total_unstaking * total_coins / total_tokens) either, even though
+    // that is exactly the coin value of the unstake bills already queued. distribute subtracts
+    // reserved_amount from available_now, but only to decide how much cash to lend out for the next
+    // round -- it keeps that much at home across rounds so a bill worth more than one round's return
+    // can still be paid after the second one. It is not a per-user earmark, and later unstakers are
+    // meant to be paid out of it too. Subtracting reserved_amount here as well would push every later
+    // unstaker into the queue behind the first bill -- and self-reinforcingly so, since a refused
+    // instant unstake takes the mint-a-bill branch itself and grows total_unstaking (and therefore
+    // reserved_amount) further. This is the regression lock: an instant unstake must still be paid out
+    // of a balance an earlier queued bill has already claimed, not rolled back or queued behind it.
+    it('should pay an instant unstake out of balance an earlier queued bill has claimed', async () => {
+        const round = 1_000_000n
+        const stakerA = await blockchain.treasury('stakerA')
+        const stakerB = await blockchain.treasury('stakerB')
+        const borrower = (await blockchain.treasury('borrower')).address
+
+        // Both stakers deposit before any round holds bills, so this mints tokens directly for each of
+        // them (this suite's default instantMint = false means a deposit after a round holds bills
+        // would become a bill instead -- see the sibling test above).
+        const depositFees = await treasury.getTreasuryFees(0n)
+        await treasury.sendDepositCoins(stakerA.getSender(), { value: toNano('100') + depositFees.depositCoinsFee })
+        await treasury.sendDepositCoins(stakerB.getSender(), { value: toNano('10') + depositFees.depositCoinsFee })
+
+        const walletAddressA = await parent.getWalletAddress(stakerA.address)
+        const walletA = blockchain.openContract(Wallet.createFromAddress(walletAddressA))
+        const walletFeesA = await walletA.getWalletFees()
+
+        const walletAddressB = await parent.getWalletAddress(stakerB.address)
+        const walletB = blockchain.openContract(Wallet.createFromAddress(walletAddressB))
+        const walletFeesB = await walletB.getWalletFees()
+
+        // Now put `round` in a bill-holding state, matching this suite's default instantMint = false.
+        const participations = Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue).set(
+            round,
+            rejectedParticipation(borrower, 1n, ParticipationState.Distributing),
+        )
+        await setParticipations(participations, rejectedStakeAmount)
+
+        const collectionAddress = await treasury.getCollectionAddress(round)
+
+        // Staker A unstakes a large amount with Mode.Best. With the round already holding bills,
+        // mode <= unstake::instant is false and round_since != 0, so reserve_tokens always takes the
+        // mint-a-bill branch for this call, regardless of the balance -- it queues total_unstaking
+        // rather than paying immediately.
+        const unstakeResultA = await walletA.sendUnstakeTokens(stakerA.getSender(), {
+            value: walletFeesA.unstakeTokensFee + toNano('0.1'),
+            tokens: '80',
+            mode: UnstakeMode.Best,
+        })
+        expect(unstakeResultA.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: collectionAddress,
+            body: bodyOp(op.mintBill),
+            success: true,
+        })
+
+        const stateBeforeInstant = await treasury.getTreasuryState()
+        expect(stateBeforeInstant.totalUnstaking > 0n).toBe(true)
+
+        // reserved_amount, computed the same way distribute does: the coin value of the unstake bills
+        // already queued (here, just staker A's).
+        const reservedAmount =
+            (stateBeforeInstant.totalUnstaking * stateBeforeInstant.totalCoins) / stateBeforeInstant.totalTokens
+
+        // Staker B's small instant unstake, in coins, computed the same way reserve_tokens does:
+        // coins = tokens * total_coins / total_tokens at the current rate.
+        const tokensB = toNano('1')
+        const coinsB = (tokensB * stateBeforeInstant.totalCoins) / stateBeforeInstant.totalTokens
+
+        // Craft the balance so that available_ton (balance - fee::treasury_storage -
+        // totalBorrowersStake) covers staker B's instant unstake on its own, but would NOT cover it if
+        // reserved_amount were also subtracted. This inequality is the entire point of the test: it
+        // fails the moment anyone subtracts reserved_amount from available_ton in reserve_tokens.
+        const balance = toNano('10.01') + coinsB + reservedAmount / 2n
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(stateBeforeInstant),
+                balance,
+            }),
+        )
+
+        const unstakeResultB = await walletB.sendUnstakeTokens(stakerB.getSender(), {
+            value: walletFeesB.unstakeTokensFee + toNano('0.1'),
+            tokens: '1',
+            mode: UnstakeMode.Instant,
+        })
+
+        expect(unstakeResultB.transactions).not.toHaveTransaction({ success: false })
+        // Paid immediately out of the balance staker A's queued bill has already claimed -- not rolled
+        // back, and not deferred into a bill of its own.
+        expect(unstakeResultB.transactions).not.toHaveTransaction({ body: bodyOp(op.proxyRollbackUnstake) })
+        expect(unstakeResultB.transactions).not.toHaveTransaction({
+            from: treasury.address,
+            to: collectionAddress,
+            body: bodyOp(op.mintBill),
+        })
+        expect(unstakeResultB.transactions).toHaveTransaction({
+            from: treasury.address,
+            to: parent.address,
+            body: bodyOp(op.proxyTokensBurned),
+            success: true,
+        })
+    })
+
     // decide_loan_requests and process_loan_requests are only ever driven by treasury -> treasury
     // self-messages queued while a round is distributing. There is no ordering guarantee between one
     // of those and a governor's retry_distribute, so a stale continuation could otherwise land after

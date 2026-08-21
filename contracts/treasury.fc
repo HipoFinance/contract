@@ -313,6 +313,22 @@ cell find_code(cell dict, int round_since) inline {
     ;; together. calculate_min_coins DOES count total_staking, but that guards unmatched outflows
     ;; (withdraw_surplus), while this is a pure liquidity check - and distribute's available_now already
     ;; lends this same cash out to a validator for a round, so subtracting it here would contradict that.
+    ;; also deliberately not minus reserved_amount, the coin value of total_unstaking, which is a
+    ;; different argument and has been proposed just as often. distribute subtracts it from
+    ;; available_now to decide how much to lend, keeping that much at home across rounds so a bill worth
+    ;; more than one round's return still clears once the second round settles. that is a lending-side
+    ;; constraint, not an earmark reserved to one staker: whoever unstakes next is meant to be paid out
+    ;; of that cash. subtracting it here would make everyone behind the first large unstaker queue too,
+    ;; and it feeds itself - a refused instant unstake takes the mint-a-bill branch below, which raises
+    ;; total_unstaking, which shrinks this number again, until instant unstake stops working at all.
+    ;; it would also buy the queued bill nothing. that bill is paid when its round's bills burn, which
+    ;; is after that round has settled and its stake has come back, whereas an instant unstake before
+    ;; then is drawing on deposits that arrived mid-round - see the cash-cycle comment in distribute.
+    ;; holding this number down does not move cash from the second pool to the first. and paying an
+    ;; instant unstake cannot leave the treasury less able to meet what it still owes, because it
+    ;; subtracts total_coins by the same amount it pays out: the obligation leaves with the cash.
+    ;; a bill that does wait is not out of pocket either, since it burns at whatever rate is current
+    ;; when it burns.
     int available_ton = ton_balance_before_msg - fee::treasury_storage - total_borrowers_stake;
 
     int round_since = 0;
@@ -703,9 +719,21 @@ cell find_code(cell dict, int round_since) inline {
     int current_vset_hash = config_param(config::current_validators).cell_hash();
     int stake_held_until = next_round_until + stake_held_for + 60;
 
+    ;; this line is where the treasury's cash cycle starts, and the shape of that cycle is worth
+    ;; knowing before reasoning about liquidity anywhere else in this file. lending here empties the
+    ;; balance down to fee::treasury_storage plus what is held back below, so a freshly staked round
+    ;; leaves the treasury with essentially nothing spare. from then until the round settles, the only
+    ;; cash arriving is new deposits, and that is what any instant unstake in the meantime is paid out
+    ;; of. so the balance mid-round is an influx set by how much people happen to be staking, not a
+    ;; reserve the protocol controls: it can be zero for long stretches and it can be large, and
+    ;; neither says anything about the next round. do not read a snapshot of it as a bound. the one
+    ;; predictable refill is the settlement itself, when the round's stake comes back at once.
     int reserved_amount = muldiv(total_unstaking, total_coins, total_tokens);
     ( int total_fee, _, _ ) = request_loan_fee();
     int ton_balance = get_balance().pair_first();
+    ;; reserved_amount stays home rather than being lent, so that a queued unstake bill worth more than
+    ;; a single round's return still clears once a second round settles. it is not earmarked to the
+    ;; staker who queued it - see the comment in reserve_tokens on why nothing subtracts it there.
     int available_now =
         max(0, ton_balance - fee::treasury_storage - total_borrowers_stake - size * total_fee - reserved_amount);
 
