@@ -1842,6 +1842,12 @@ cell find_code(cell dict, int round_since) inline {
 }
 
 int calculate_min_coins() inline_ref {
+    ;; accumulate into a local. this used to walk the rounds adjusting the total_coins global itself,
+    ;; which was only ever safe because both callers happen to discard it - withdraw_surplus throws(0)
+    ;; before recv_internal's save_data, and get_surplus is a get-method. neither is a property of this
+    ;; function, so a caller added later, or a throw removed from withdraw_surplus, would have written a
+    ;; total_coins that counts the in-flight rounds twice and silently moved the exchange rate.
+    int min_coins = total_coins;
     ( int total_fee, _, _ ) = request_loan_fee();
     int k = -1;
     do {
@@ -1863,15 +1869,15 @@ int calculate_min_coins() inline_ref {
             , _
             ) = unpack_participation(ps);
             if (state >= participation::staked) & (state <= participation::recovering) {
-                total_coins -= total_staked;
-                total_coins += total_recovered;
+                min_coins -= total_staked;
+                min_coins += total_recovered;
             }
-            total_coins += size * total_fee;
+            min_coins += size * total_fee;
         }
     } until ~ f?;
 
     ;; the dead-share component of total_coins (>= fee::treasury_storage) keeps the storage buffer reserved
-    return total_borrowers_stake + total_staking + total_coins;
+    return total_borrowers_stake + total_staking + min_coins;
 }
 
 () withdraw_surplus(slice src, slice s) impure inline {
