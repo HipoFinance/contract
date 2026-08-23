@@ -1354,7 +1354,18 @@ cell find_code(cell dict, int round_since) inline {
                 fee = muldiv(treasury_reward, governance_fee, 65535);
                 new_coins = treasury_reward - fee;
                 total_coins += new_coins;
-                reserve_amount = incoming_ton - stake_amount - fee;
+                ;; leave recover_stake_fee unreserved, exactly as the branch above does by reserving
+                ;; loan_amount + accrue_amount + new_coins. It is what pays this transaction's gas and
+                ;; the two sends below, and whatever survives is the governor's. Reserving it left only
+                ;; fee to cover them, so with a governance_fee of 0 -- its value on mainnet -- the
+                ;; loan_result below could not afford its own stake_amount, send::ignore_errors dropped
+                ;; it, and take_profit's send::unreserved_balance handed the borrower's collateral to
+                ;; the governor. Clamp at zero: when the loss ate the whole collateral, stake_amount
+                ;; and fee are both 0 and this is incoming_ton - recover_stake_fee, which goes negative
+                ;; if the elector returned less than the recovery cost. raw_reserve would then throw,
+                ;; and recover_stake_result is non-bounceable, so nothing would retry: the round would
+                ;; sit in recovering forever and owes_reward? would block every later round's bills.
+                reserve_amount = max(0, incoming_ton - stake_amount - fee - recover_stake_fee);
                 total_recovered += reserve_amount;
             }
 

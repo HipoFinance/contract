@@ -1269,10 +1269,13 @@ describe('Loan', () => {
             success: true,
             outMessagesCount: 0,
         })
+        // 3.75 and 4.37 of governance fee, each plus the 0.2878 of recover_stake_fee that this round
+        // did not spend. recover_stake_result used to reserve that remainder instead of paying it out,
+        // and it only reached the governor later, through withdraw_surplus once the round was gone.
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: governor.address,
-            value: between('3.7', '3.8'),
+            value: between('4', '4.1'),
             body: bodyOp(op.takeProfit),
             success: true,
             outMessagesCount: 0,
@@ -1280,7 +1283,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: governor.address,
-            value: between('4.2', '4.4'),
+            value: between('4.6', '4.7'),
             body: bodyOp(op.takeProfit),
             success: true,
             outMessagesCount: 0,
@@ -1306,7 +1309,7 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('700133.7', '700134')
+        expect(treasuryBalance).toBeBetween('700133.1', '700133.5') // 2 x 0.2878 lower, see above
         expect(treasuryState.totalCoins).toBeBetween('700131', '700132')
         expect(treasuryState.totalTokens).toBeGramValue(deadShares + toNano('700000'))
         expect(treasuryState.totalStaking).toBeGramValue('0')
