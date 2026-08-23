@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { compile } from '@ton/blueprint'
 import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import '@ton/test-utils'
@@ -33,7 +35,19 @@ import { Loan } from '../wrappers/Loan'
 
 const count = 100
 const gasUsed: Record<string, bigint> = {}
+
+// gasUsed is consumed destructively: the loan keys are inflated by 10% by the last test, and logGas() marks every
+// entry it prints with -1n. rawGasUsed keeps the untouched maximums so that the constants can be checked against
+// what the ops actually cost. Both maps are only ever written through recordGas().
+const rawGasUsed: Record<string, bigint> = {}
+
 const muteLogComputeGas = false
+
+const constantsFile = join('contracts', 'imports', 'constants.fc')
+
+// Constants deliberately left below what their op costs, with the exact gap pinned so it cannot widen unnoticed.
+// See the note above the last test for why gas::migrate_wallet is here and when to remove it.
+const pinnedShortfalls = new Map<string, bigint>([['migrate_wallet', 646n]])
 
 const loanKeys = [
     'request_loan',
@@ -1798,6 +1812,75 @@ describe('Max Gas', () => {
             }
         }
     })
+
+    // Guards the declared gas::* constants against the gas the ops actually burn. Users pre-pay fees derived from
+    // these constants — and wallet.fc carries a frozen copy of the fee functions — so a constant that no longer
+    // covers its op silently under-charges. This compares against rawGasUsed, i.e. the measured maximum, not the
+    // 10%-inflated loan figures: the property being guarded is "declared >= actual cost".
+    //
+    // That keeps the check free of flakiness without a made-up tolerance. The non-loan ops are deterministic, so
+    // their exact measured value is a hard bound. The loan ops are not — their gas depends on the randomly
+    // generated validator keys in createNewStakeMsg — but their constants are stored with the 10% margin the test
+    // above adds, and the observed spread is a few hundred gas, so the margin already absorbs it.
+    //
+    // pinnedShortfalls holds constants that are knowingly left below their measured cost, with the exact gap
+    // recorded so it cannot widen unnoticed. gas::migrate_wallet is there because it is the only stale constant
+    // that feeds a fee function compiled into wallet.fc — upgrade_wallet_fee — so raising it moves the Wallet code
+    // hash and the repo stops compiling to the wallet that is deployed on mainnet. Reproducing deployed bytecode
+    // from source is worth more than these 646 gas: already-deployed wallets carry their own frozen copy of the
+    // fee either way, so raising it here would not repair a single one of them, and the wallet upgrade flow is
+    // driven by the webapp, which funds it properly. Someone bypassing that flow still has roughly 10,380 gas of
+    // real headroom, from forward fees budgeted for messages that are never sent and the storage reserve the
+    // wallet sweeps in. Raise the constant and delete the pin when the next wallet and parent version ship.
+    it('should declare gas constants that cover the measured gas', () => {
+        const declared = readDeclaredGas()
+        const problems: string[] = []
+        const unusedPins = new Set(pinnedShortfalls.keys())
+
+        for (const label of Object.keys(rawGasUsed).sort()) {
+            const used = rawGasUsed[label]
+            const value = declared.get(label)
+            if (value == null) {
+                problems.push(`gas::${label} is measured at ${used.toString()} but is not declared in ${constantsFile}`)
+            } else if (value < used) {
+                const shortfall = used - value
+                const pinned = pinnedShortfalls.get(label)
+                unusedPins.delete(label)
+                if (pinned == null) {
+                    problems.push(
+                        `gas::${label} is declared as ${value.toString()} but the op uses ${used.toString()} gas ` +
+                            `(short by ${shortfall.toString()}) — raise it in ${constantsFile}`,
+                    )
+                } else if (pinned !== shortfall) {
+                    problems.push(
+                        `gas::${label} is pinned at a known shortfall of ${pinned.toString()} but now falls short ` +
+                            `by ${shortfall.toString()} — something changed its cost. Re-read the note on ` +
+                            'pinnedShortfalls before touching the pin, and re-check the Wallet code hash.',
+                    )
+                }
+            }
+        }
+
+        for (const label of [...unusedPins].sort()) {
+            problems.push(
+                `gas::${label} is pinned in pinnedShortfalls but now covers its op — drop the pin, ` +
+                    'the reason for it is gone',
+            )
+        }
+
+        for (const label of [...declared.keys()].sort()) {
+            if (rawGasUsed[label] == null) {
+                problems.push(
+                    `gas::${label} is declared in ${constantsFile} but no test measures it — ` +
+                        'add a storeComputeGas call for it, or drop the constant',
+                )
+            }
+        }
+
+        if (problems.length > 0) {
+            throw new Error('Declared gas constants are out of date:\n  - ' + problems.join('\n  - '))
+        }
+    })
 })
 
 function extractUsedGas(tx: BlockchainTransaction): bigint {
@@ -1820,10 +1903,29 @@ function storeComputeGas(opLabel: string, opCode: number, tx: BlockchainTransact
     if (!bodyOp(opCode)(tx.inMessage?.body ?? Cell.EMPTY) && !bodyOp(0)(tx.inMessage?.body ?? Cell.EMPTY)) {
         throw new Error('invalid transaction to log compute gas for op ' + opLabel)
     }
-    const usedGas = extractUsedGas(tx)
+    recordGas(opLabel, extractUsedGas(tx))
+}
+
+function recordGas(opLabel: string, usedGas: bigint) {
     if (gasUsed[opLabel] == null || gasUsed[opLabel] < usedGas) {
         gasUsed[opLabel] = usedGas
     }
+    if (rawGasUsed[opLabel] == null || rawGasUsed[opLabel] < usedGas) {
+        rawGasUsed[opLabel] = usedGas
+    }
+}
+
+// Reads `const int gas::<name> = <n>;` out of constants.fc so that the check below compares against the real
+// declarations instead of a copy in TypeScript that would silently drift out of date.
+function readDeclaredGas(): Map<string, bigint> {
+    const source = readFileSync(join(__dirname, '..', constantsFile), 'utf-8')
+    const declared = new Map<string, bigint>()
+    const pattern = /^\s*const int gas::(\w+)\s*=\s*(\d+);/gm
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(source)) != null) {
+        declared.set(match[1], BigInt(match[2]))
+    }
+    return declared
 }
 
 function logGas(opLabel: string): string | undefined {
@@ -1892,15 +1994,7 @@ function storeAverageGas(txs: BlockchainTransaction[]) {
     const averageProcessLoanRequests = BigInt(Math.ceil(Number(sumProcessLoanRequests) / count))
     const averageRecoverStakes = BigInt(Math.ceil(Number(sumRecoverStakes) / count))
 
-    if (gasUsed.decide_loan_requests < averageDecideLoanRequests) {
-        gasUsed.decide_loan_requests = averageDecideLoanRequests
-    }
-
-    if (gasUsed.process_loan_requests < averageProcessLoanRequests) {
-        gasUsed.process_loan_requests = averageProcessLoanRequests
-    }
-
-    if (gasUsed.recover_stakes < averageRecoverStakes) {
-        gasUsed.recover_stakes = averageRecoverStakes
-    }
+    recordGas('decide_loan_requests', averageDecideLoanRequests)
+    recordGas('process_loan_requests', averageProcessLoanRequests)
+    recordGas('recover_stakes', averageRecoverStakes)
 }
