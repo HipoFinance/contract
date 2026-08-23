@@ -74,6 +74,10 @@ export interface TreasuryConfig {
     totalStaking: bigint
     totalUnstaking: bigint
     totalBorrowersStake: bigint
+    // Optional so that a config round-tripped through getTreasuryState still packs: get_treasury_state
+    // deliberately does not expose it, since that tuple is ABI for the sdk and the gauge exporter.
+    // Read it with getDeficit() instead. Undefined packs as zero, which is a fresh treasury.
+    deficit?: bigint
     parent: Address | null
     participations: Dictionary<bigint, Participation>
     roundsImbalance: bigint
@@ -108,6 +112,7 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeCoins(config.totalStaking)
         .storeCoins(config.totalUnstaking)
         .storeCoins(config.totalBorrowersStake)
+        .storeCoins(config.deficit ?? 0n)
         .storeAddress(config.parent)
         .storeDict(config.participations)
         .storeUint(config.roundsImbalance, 8)
@@ -519,6 +524,29 @@ export class Treasury implements Contract {
                 .storeUint(op.setGovernanceFee, 32)
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeUint(opts.newGovernanceFee, 16)
+                .endCell(),
+        })
+    }
+
+    async sendSetDeficit(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            newDeficit: bigint
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.setDeficit, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .storeCoins(opts.newDeficit)
                 .endCell(),
         })
     }
@@ -1057,6 +1085,11 @@ export class Treasury implements Contract {
 
     async getSurplus(provider: ContractProvider): Promise<bigint> {
         const { stack } = await provider.get('get_surplus', [])
+        return stack.readBigNumber()
+    }
+
+    async getDeficit(provider: ContractProvider): Promise<bigint> {
+        const { stack } = await provider.get('get_deficit', [])
         return stack.readBigNumber()
     }
 

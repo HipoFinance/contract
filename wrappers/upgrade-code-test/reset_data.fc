@@ -5,6 +5,11 @@ global int total_tokens;
 global int total_staking;
 global int total_unstaking;
 global int total_borrowers_stake;
+;; This fixture is run against a live-format treasury, so its load_data has to track the current root
+;; storage layout in contracts/treasury.fc field for field -- ds.end_parse() below throws the moment
+;; it does not -- and the globals have to be declared in the same order, because set_c3 hands the new
+;; code the c7 slots the old code filled in.
+global int deficit;
 global slice parent;
 global cell participations;
 global int rounds_imbalance;
@@ -30,6 +35,7 @@ global cell old_parents;
     total_staking = ds~load_coins();
     total_unstaking = ds~load_coins();
     total_borrowers_stake = ds~load_coins();
+    deficit = ds~load_coins();
     parent = ds~load_msg_addr();
     participations = ds~load_dict();
     rounds_imbalance = ds~load_uint(8);

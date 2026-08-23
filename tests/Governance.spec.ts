@@ -1142,8 +1142,15 @@ describe('Governance', () => {
         expect(result3.transactions).toHaveLength(3)
         expect(totalCoinsAfter3).toEqual(totalCoinsBefore3 + toNano('0.08'))
 
+        // The largest gift a 0.1 GRAM message can carry: anything more and raw_reserve asks for more
+        // than the balance holds and the action phase fails with 37 (result5 below). The exact edge is
+        // whatever the treasury's own gas and storage cost, so it moves down a little every time the
+        // contract grows -- it was 0.09915 before the `deficit` field was added, and 0.09914 while the
+        // field lived in the extension. Root storage is read and written on every message, whereas the
+        // extension is only touched by the handlers that need it, so the counter now costs ~282 gas on
+        // every treasury transaction instead of only on the extension paths.
         const totalCoinsBefore4 = (await treasury.getTreasuryState()).totalCoins
-        const result4 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.09915') })
+        const result4 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.09912') })
         const totalCoinsAfter4 = (await treasury.getTreasuryState()).totalCoins
 
         expect(result4.transactions).toHaveTransaction({
@@ -1155,7 +1162,7 @@ describe('Governance', () => {
             outMessagesCount: 0,
         })
         expect(result4.transactions).toHaveLength(2)
-        expect(totalCoinsAfter4).toEqual(totalCoinsBefore4 + toNano('0.09915'))
+        expect(totalCoinsAfter4).toEqual(totalCoinsBefore4 + toNano('0.09912'))
 
         const totalCoinsBefore5 = (await treasury.getTreasuryState()).totalCoins
         const result5 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.0992') })

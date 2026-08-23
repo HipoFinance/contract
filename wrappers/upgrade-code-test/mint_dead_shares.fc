@@ -5,6 +5,7 @@ global int total_tokens;
 global int total_staking;
 global int total_unstaking;
 global int total_borrowers_stake;
+global int deficit;
 global slice parent;
 global cell participations;
 global int rounds_imbalance;
@@ -30,6 +31,7 @@ global cell old_parents;
     total_staking = ds~load_coins();
     total_unstaking = ds~load_coins();
     total_borrowers_stake = ds~load_coins();
+    deficit = ds~load_coins();
     parent = ds~load_msg_addr();
     participations = ds~load_dict();
     rounds_imbalance = ds~load_uint(8);
@@ -47,6 +49,7 @@ global cell old_parents;
         .store_coins(total_staking)
         .store_coins(total_unstaking)
         .store_coins(total_borrowers_stake)
+        .store_coins(deficit)
         .store_slice(parent)
         .store_dict(participations)
         .store_uint(rounds_imbalance, 8)

@@ -93,6 +93,7 @@ const int op::set_stopped = 0x0e5e9773;
 const int op::set_instant_mint = 0x535b09d2;
 const int op::set_governance_fee = 0x470fe5f6;
 const int op::set_rounds_imbalance = 0x1b4463b6;
+const int op::set_deficit = 0x75be0d1a;
 const int op::send_message_to_loan = 0x0e93f65b;
 const int op::retry_distribute = 0x6ec00c48;
 const int op::retry_recover_stakes = 0x2b7ad9e8;
@@ -206,6 +207,7 @@ const int log::loan = 0x1;
 const int log::repayment = 0x2;
 const int log::finish = 0x3;
 const int log::failed_burning_tokens = 0x4;
+const int log::deficit = 0x5;
 
 
 const int config::elector_address = 1;

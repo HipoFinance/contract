@@ -326,6 +326,11 @@ set_rounds_imbalance#1b4463b6
     new_rounds_imbalance:uint8
         = InternalMsgBody;
 
+set_deficit#75be0d1a
+    query_id:uint64
+    new_deficit:Coins
+        = InternalMsgBody;
+
 send_message_to_loan#0e93f65b
     query_id:uint64
     borrower:MsgAddress
@@ -684,6 +689,16 @@ log_failed_burning_tokens#4
     owner:MsgAddress
         = LogMsgBody;
 
+log_deficit#5
+    round_since:uint32
+    loan_amount:Coins
+    accrue_amount:Coins
+    incoming_ton:Coins
+    shortfall:Coins
+    deficit:Coins
+    borrower:MsgAddress
+        = LogMsgBody;
+
 //
 // Storage
 //
@@ -737,6 +752,7 @@ treasury_storage#_
     total_staking:Coins
     total_unstaking:Coins
     total_borrowers_stake:Coins
+    deficit:Coins
     parent:MsgAddress
     participations:(HashmapE 32 Participation)
     rounds_imbalance:uint8

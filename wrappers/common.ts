@@ -80,6 +80,7 @@ export const op = {
     setInstantMint: 0x535b09d2,
     setGovernanceFee: 0x470fe5f6,
     setRoundsImbalance: 0x1b4463b6,
+    setDeficit: 0x75be0d1a,
     sendMessageToLoan: 0x0e93f65b,
     retryDistribute: 0x6ec00c48,
     retryRecoverStakes: 0x2b7ad9e8,

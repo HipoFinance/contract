@@ -5,6 +5,14 @@ global int total_tokens;
 global int total_staking;
 global int total_unstaking;
 global int total_borrowers_stake;
+;; Pool money a defaulting borrower's collateral could not cover, accumulated across rounds. It is a
+;; magnitude, never negative, and it is deliberately NOT subtracted from total_coins: the exchange
+;; rate only ever goes up. The counter is the record that the balance is short by this much, and the
+;; governor zeroes it with op::set_deficit after topping the treasury back up. It sits in the root
+;; cell with the other accounting totals rather than in the extension, so that every write to it is
+;; persisted by recv_internal's trailing save_data() and cannot be dropped by a handler that returns
+;; without repacking the extension.
+global int deficit;
 global slice parent;
 global cell participations;
 global int rounds_imbalance;
@@ -30,6 +38,7 @@ global cell old_parents;
         .store_coins(total_staking)
         .store_coins(total_unstaking)
         .store_coins(total_borrowers_stake)
+        .store_coins(deficit)
         .store_slice(parent)
         .store_dict(participations)
         .store_uint(rounds_imbalance, 8)
@@ -48,6 +57,7 @@ global cell old_parents;
     total_staking = ds~load_coins();
     total_unstaking = ds~load_coins();
     total_borrowers_stake = ds~load_coins();
+    deficit = ds~load_coins();
     parent = ds~load_msg_addr();
     participations = ds~load_dict();
     rounds_imbalance = ds~load_uint(8);
@@ -1275,6 +1285,32 @@ cell find_code(cell dict, int round_since) inline {
     participations~udict_set_builder(32, round_since, pb);
 }
 
+;; A loan came back short by more than the borrower's collateral could cover. The uncovered part is
+;; pool money that is not coming back, and it is recorded in the `deficit` global instead of being
+;; taken out of total_coins -- the exchange rate never moves down. log_repayment cannot carry it: its
+;; stakers_share is an unsigned store_coins and every indexer already parses that layout, so the
+;; shortfall gets its own topic. `shortfall` is this loan's uncovered amount and `deficit` is the
+;; treasury's running total after adding it.
+() log_deficit
+( int round_since
+, int loan_amount
+, int accrue_amount
+, int incoming_ton
+, int shortfall
+, int deficit
+, slice borrower
+) impure inline {
+    builder log = begin_cell()
+        .store_uint(round_since, 32)
+        .store_coins(loan_amount)
+        .store_coins(accrue_amount)
+        .store_coins(incoming_ton)
+        .store_coins(shortfall)
+        .store_coins(deficit)
+        .store_slice(borrower);
+    emit_log(log::deficit, log);
+}
+
 () recover_stake_result(slice src, slice s) impure inline {
     unpack_extension();
 
@@ -1331,6 +1367,7 @@ cell find_code(cell dict, int round_since) inline {
 
             int fee = 0;
             int new_coins = 0;
+            int shortfall = 0;
             int incoming_ton = get_incoming_value().pair_first();
             ( _, _, int recover_stake_fee ) = request_loan_fee();
             int reward = incoming_ton - loan_amount - accrue_amount - stake_amount - recover_stake_fee;
@@ -1347,6 +1384,18 @@ cell find_code(cell dict, int round_since) inline {
             } else {
                 ;; when reward is negative, punish the borrower first
                 int compensation = min(stake_amount, - reward);
+                ;; Whatever the collateral could not absorb is pool money that is not coming back:
+                ;; loan_amount + accrue_amount left the balance in process_loan_requests but was never
+                ;; taken out of total_coins, so without this counter the gap would be recorded nowhere
+                ;; at all. total_coins is left alone on purpose -- the exchange rate only ever goes up,
+                ;; and the governor tops the treasury back up and clears the counter by hand. The
+                ;; balance itself is already short, which get_surplus reports as a negative number, so
+                ;; nothing that reserves against the balance needs this counter as well.
+                ;; compensation == min(stake_amount, - reward) with stake_amount >= 0 and - reward > 0
+                ;; here, so this is max(0, - reward - stake_amount): never negative, which is what lets
+                ;; deficit stay an unsigned store_coins.
+                shortfall = - reward - compensation;
+                deficit += shortfall;
                 stake_amount -= compensation;
                 ;; then try to take at most min_payment
                 int treasury_reward = min(stake_amount, min_payment);
@@ -1372,6 +1421,12 @@ cell find_code(cell dict, int round_since) inline {
             log_repayment(
                 round_since, incoming_ton, loan_amount, accrue_amount, new_coins, fee, stake_amount, borrower
             );
+
+            if shortfall {
+                log_deficit(
+                    round_since, loan_amount, accrue_amount, incoming_ton, shortfall, deficit, borrower
+                );
+            }
 
             if rejected.dict_empty?() & accrued.dict_empty?() & staked.dict_empty?() & recovering.dict_empty?() {
                 previous_rate = current_rate;
@@ -1574,6 +1629,29 @@ cell find_code(cell dict, int round_since) inline {
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
     pack_extension();
+}
+
+;; Sets the deficit counter to an absolute value. This is how the governor clears it: recover_stake_result
+;; only ever adds to it, because the contract has no way of knowing that coins arriving later were sent
+;; to make the pool whole again. After topping the treasury up -- op::top_up, or an insurance payout, or
+;; the borrower settling out of band -- the governor sets the counter to whatever is still missing, and
+;; to zero once get_surplus is back above zero.
+;; unpack_extension is still needed for the governor check below -- governor lives in the extension --
+;; but there is no pack_extension to match it: deficit is a root field now, and recv_internal's
+;; save_data() writes it back.
+() set_deficit(slice src, slice s) impure inline {
+    unpack_extension();
+
+    int query_id = s~load_uint(64);
+    deficit = s~load_coins();
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 }
 
 () set_rounds_imbalance(slice src, slice s) impure inline {
@@ -2196,6 +2274,10 @@ int calculate_min_coins() inline_ref {
         return set_rounds_imbalance(src, s);
     }
 
+    if op == op::set_deficit {
+        return set_deficit(src, s);
+    }
+
     if op == op::send_message_to_loan {
         return send_message_to_loan(src, s);
     }
@@ -2428,6 +2510,17 @@ int get_surplus() method_id {
     int min_coins = calculate_min_coins();
 
     return ton_balance - min_coins;
+}
+
+;; How much pool money defaulting borrowers walked away with, in total, since the governor last cleared
+;; the counter. Deliberately absent from get_treasury_state, whose tuple is ABI for the sdk and the
+;; gauge exporter, and deliberately absent from calculate_min_coins: the coins are already missing from
+;; the balance, so get_surplus above is already lower by this much and reserving against it a second
+;; time would double-count the same loss.
+int get_deficit() method_id {
+    load_data();
+
+    return deficit;
 }
 
 int get_max_punishment(int stake) method_id {
