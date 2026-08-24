@@ -19,9 +19,14 @@ must preserve. Flow-by-flow message diagrams live in `graphs/` (build with
 
 - Install: `npm install`
 - Build contracts: `npx blueprint build` (FunC → `build/`)
-- Test all: `npx blueprint test` (Jest + @ton/sandbox; the suite is large and slow)
-- Test one file: `npx jest tests/Wallet.spec.ts`
+- Test all: `npm test` (Jest + @ton/sandbox; the suite is large and slow). Prefer this over
+  `npx jest` or `npx blueprint test`: it runs `pretest`, which type-checks first. Those two skip
+  npm scripts entirely, so a type error sails past them — jest and eslint both pass on code that
+  `tsc` rejects, which is how one reached a deploy script.
+- Test one file: `npx jest tests/Wallet.spec.ts` (no type-check; run `npm run typecheck` as well)
+- Type-check: `npm run typecheck` — `tsc --noEmit`, about 2s
 - Lint: `npm run lint`
+- Everything, before a deploy: `npm run check` (type-check, then lint, then tests)
 - Mainnet scripts: `npx blueprint run <script>` — requires `blueprint.config.ts`, which is
   gitignored (it holds an API key); create your own from `@ton/blueprint`'s `Config` type.
 

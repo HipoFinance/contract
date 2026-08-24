@@ -5,9 +5,12 @@
     "private": true,
     "scripts": {
         "lint": "eslint . --max-warnings 0",
+        "typecheck": "tsc --noEmit",
         "start": "blueprint run",
         "build": "blueprint build",
-        "test": "jest --verbose"
+        "pretest": "npm run typecheck",
+        "test": "jest --verbose",
+        "check": "npm run typecheck && npm run lint && jest"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
