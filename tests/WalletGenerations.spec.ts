@@ -12,7 +12,7 @@ import {
     participationDictionaryValue,
     treasuryConfigToCell,
 } from '../wrappers/Treasury'
-import { Parent } from '../wrappers/Parent'
+import { Parent, parentConfigToCell } from '../wrappers/Parent'
 import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
 import { UnstakeMode, Wallet, WalletFees } from '../wrappers/Wallet'
 
@@ -66,7 +66,17 @@ describe('Wallet Generations', () => {
     // wallet minted here runs exactly that code against exactly today's treasury.
     async function setUp(walletCode: Cell) {
         const blockchain = await Blockchain.create()
-        blockchain.libs = buildBlockchainLibraries([walletCode, collectionCode, billCode, loanCode])
+        // Both wallet generations are registered, mirroring a real migration window: the retired code
+        // must stay resolvable while wallets still run it, and the incoming code must already be there
+        // for them to migrate onto. Registering only one makes an upgrading wallet fail to deploy with
+        // a cell underflow rather than anything that looks like a fee problem.
+        blockchain.libs = buildBlockchainLibraries([
+            deployedWalletCode,
+            currentWalletCode,
+            collectionCode,
+            billCode,
+            loanCode,
+        ])
         updateFeeConfig(blockchain)
 
         const halter = await blockchain.treasury('halter')
@@ -254,5 +264,158 @@ describe('Wallet Generations', () => {
         expect(result.transactions).not.toHaveTransaction({ actionResultCode: 37 })
         expect(outcome.aborted).toEqual(0)
         expect(outcome.tokens).toBeGreaterThanOrEqual(0n)
+    })
+
+    // The real v2 -> v3 shape: a wallet running mainnet code migrating onto a parent that carries the
+    // CURRENT generation. This is the thinnest margin in the protocol — upgrade_wallet_fee runs at
+    // roughly 1.24x real cost, against 3.7x-6.4x for the unstake chains — and it is also the least
+    // forgiving, because migrate_wallet zeroes the old wallet before merge_wallet runs. If the fee
+    // does not cover the chain the balance is destroyed rather than bounced.
+    it('should fund the upgrade chain from the deployed generation onto a current-generation parent', async () => {
+        const { blockchain, treasury, wallet, staker, governor } = await setUp(deployedWalletCode)
+        const fees = await wallet.getWalletFees()
+
+        const newParentAddress = (await blockchain.treasury('new parent')).address
+        await blockchain.setShardAccount(
+            newParentAddress,
+            createShardAccount({
+                workchain: 0,
+                address: newParentAddress,
+                code: parentCode,
+                data: parentConfigToCell({
+                    totalTokens: 0n,
+                    treasury: treasury.address,
+                    walletCode: exportLibCode(currentWalletCode),
+                    content: Cell.EMPTY,
+                }),
+                balance: toNano('0.01'),
+            }),
+        )
+        const newParent = blockchain.openContract(Parent.createFromAddress(newParentAddress))
+        const newWalletAddress = await newParent.getWalletAddress(staker.address)
+        await treasury.sendSetParent(governor.getSender(), { value: '0.1', newParent: newParentAddress })
+
+        const result = await wallet.sendUpgradeWallet(staker.getSender(), { value: fees.upgradeWalletFee })
+        console.info(
+            `[deployed] upgrade chain: ${String(result.transactions.length)} txs at ` +
+                `upgradeWalletFee=${String(fees.upgradeWalletFee)}`,
+        )
+
+        // The merge must actually land on the new wallet; a chain that dies after migrate_wallet would
+        // otherwise look like a quiet success from the old wallet's side.
+        expect(result.transactions).toHaveTransaction({
+            from: newParentAddress,
+            to: newWalletAddress,
+            body: bodyOp(op.mergeWallet),
+            success: true,
+        })
+        expect(result.transactions).not.toHaveTransaction({ success: false })
+        expect(result.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result.transactions).not.toHaveTransaction({ actionResultCode: 37 })
+
+        const newWallet = blockchain.openContract(Wallet.createFromAddress(newWalletAddress))
+        const [newTokens] = await newWallet.getWalletState()
+        console.info(`[deployed] upgrade chain: new wallet tokens=${String(newTokens)}`)
+        expect(newTokens).toBeGreaterThan(0n)
+    })
+
+    // The treasury holds fee::treasury_storage (10 GRAM) in reserve, so a treasury funded only by this
+    // staker's own deposit cannot buy back their whole balance and correctly rolls the unstake back
+    // instead. That is a real path, but it is covered by the rollback test below; to exercise the burn
+    // here the treasury needs enough spare balance to actually pay out.
+    it('should fund unstake_all through a deployed-generation wallet', async () => {
+        const { blockchain, treasury, wallet, staker } = await setUp(deployedWalletCode)
+        const treasuryFees = await treasury.getTreasuryFees(0n)
+
+        const state = await treasury.getTreasuryState()
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(state),
+                balance: toNano('60'),
+            }),
+        )
+
+        const result = await treasury.sendMessage(staker.getSender(), {
+            value: treasuryFees.unstakeAllTokensFee,
+            body: 'w',
+        })
+        const outcome = await expectChainCompleted(wallet, result.transactions, 'unstake_all')
+        console.info(`[deployed] ${outcome.detail}`)
+
+        expect(result.transactions).toHaveTransaction({
+            to: wallet.address,
+            body: bodyOp(op.unstakeAll),
+            success: true,
+        })
+        // Must actually burn, not quietly roll back — a rollback would leave tokens untouched and still
+        // satisfy every "nothing failed" assertion.
+        expect(result.transactions).not.toHaveTransaction({ body: bodyOp(op.rollbackUnstake) })
+        expect(result.transactions).not.toHaveTransaction({ success: false })
+        expect(result.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result.transactions).not.toHaveTransaction({ actionResultCode: 37 })
+        expect(outcome.aborted).toEqual(0)
+        expect(outcome.tokens).toEqual(0n)
+    })
+
+    // rollback_unstake is burn_tokens' third branch: the treasury can neither pay the unstake out nor
+    // postpone it onto a later round still holding bills, so it hands the tokens back. Reaching it needs
+    // exactly one round, flipped to burning, with the treasury starved below what it owes.
+    it('should fund rollback_unstake back into a deployed-generation wallet', async () => {
+        const { blockchain, treasury, wallet, staker, halter } = await setUp(deployedWalletCode)
+        const fees = await wallet.getWalletFees()
+
+        const round = 200n // the only round, so nothing later can absorb a postponed bill
+        const staked = await treasury.getTreasuryState()
+        staked.participations.set(round, { state: ParticipationState.Staked })
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(staked),
+                balance: toNano('10') + toNano('10'),
+            }),
+        )
+
+        await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: fees.unstakeTokensFee,
+            tokens: '7',
+            mode: UnstakeMode.Best,
+        })
+
+        const burning = await treasury.getTreasuryState()
+        burning.participations.set(round, { state: ParticipationState.Burning })
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(burning),
+                balance: toNano('10') + toNano('3'), // available 3 GRAM < 7 coins owed
+            }),
+        )
+
+        const result = await treasury.sendRetryBurnAll(halter.getSender(), { value: '0.1', roundSince: round })
+        const outcome = await expectChainCompleted(wallet, result.transactions, 'rollback_unstake')
+        console.info(`[deployed] ${outcome.detail}`)
+
+        expect(result.transactions).toHaveTransaction({
+            to: wallet.address,
+            body: bodyOp(op.rollbackUnstake),
+            success: true,
+        })
+        expect(result.transactions).not.toHaveTransaction({ success: false })
+        expect(result.transactions).not.toHaveTransaction({ exitCode: -14 })
+        expect(result.transactions).not.toHaveTransaction({ actionResultCode: 37 })
+        expect(outcome.aborted).toEqual(0)
+        // The rolled-back tokens must come home, not vanish: unstaking clears and the balance returns.
+        expect(outcome.unstaking).toEqual(0n)
+        expect(outcome.tokens).toBeGreaterThan(0n)
     })
 })
