@@ -2006,12 +2006,40 @@ int calculate_min_coins() inline_ref {
     throw(0);
 }
 
-() upgrade_data(slice src, int query_id, cell new_data, slice return_excess) impure method_id {
-    ;; Add code for upgrading data here.
+;; Runs a one-off storage migration carried by the upgrade message. The cell is blessed into a
+;; continuation and entered at method id 0x6d67 ("mg"), so it executes once, inside this transaction,
+;; and is never stored as anyone's code. See scripts/upgrade_treasury.md.
+;;
+;; A migrator MUST NOT contain COMMIT or SETCODE, and MUST compile to exactly two method ids, 0 and
+;; 0x6d67. Both rules are enforced mechanically by tests/TreasuryMigration.spec.ts, and both matter:
+;;   - COMMIT locks in c4 and the set_code action queued above, which makes every check below
+;;     decorative. A migrator that commits and then writes an unparseable cell leaves the treasury on
+;;     the new code with storage load_data() cannot read, and since recv_internal loads data before
+;;     dispatch, no further upgrade_code can ever be received. That is unrecoverable.
+;;   - SETCODE is appended after the one upgrade_code queued, and the last action wins, so a migrator
+;;     could redirect the treasury to code the upgrade message never named.
+;; A migrator that does neither cannot do lasting damage: any failure exits non-zero, c4 and c5 are
+;; discarded, and the treasury stays on its old code with its old data.
+;;
+;; EXECUTE does not set c3, which still holds the treasury's own code. Any non-inlined function in a
+;; migrator therefore compiles to CALLDICT and dispatches into the TREASURY's method dictionary. The
+;; two-method-id rule above is what keeps a migrator fully inlined and out of that trap.
+() run_migrator(cell migrate_code) impure asm "CTOS BLESS 0x6d67 PUSHINT SWAP EXECUTE";
 
-    ;; This is just a template, and will only run after upgrade_code.
-    ;; If data is upgraded, remember to reset this code,
-    ;; so that the next upgrade won't change data by mistake.
+() upgrade_data(slice src, int query_id, cell migrate_code, slice return_excess) impure method_id {
+    ;; A storage migration rides in on the upgrade message rather than being written here, so the
+    ;; released code carries no one-off logic and its hash stays the hash of the plain contract.
+    ;; Only the governor reaches here: upgrade_code checks src before calling set_code, and this is
+    ;; no more powerful than the new code it just installed, which runs under set_c3 regardless.
+    ;;
+    ;; Absent is the only way to say "no migration". Anything present is run, and anything that is not
+    ;; a migrator throws and reverts the upgrade. Tolerating an empty cell as a second way to mean
+    ;; nothing would make a value-only migration - one that changes numbers without changing the
+    ;; layout, as the dead-shares migration did - skip silently and still report success, because
+    ;; load_data() below would parse the unmigrated cell perfectly well.
+    ifnot cell_null?(migrate_code) {
+        run_migrator(migrate_code);
+    }
 
     ;; Do not change the following code.
     governor = null();
@@ -2033,7 +2061,7 @@ int calculate_min_coins() inline_ref {
 
     int query_id = s~load_uint(64);
     cell new_code = s~load_ref();
-    cell new_data = s~load_maybe_ref();
+    cell migrate_code = s~load_maybe_ref();
     slice return_excess = s~load_msg_addr();
     s.end_parse();
 
@@ -2041,16 +2069,26 @@ int calculate_min_coins() inline_ref {
 
     set_code(new_code);
     set_c3(new_code.begin_parse().bless());
-    upgrade_data(src, query_id, new_data, return_excess);
+    upgrade_data(src, query_id, migrate_code, return_excess);
 }
 
+;; TODO, when a new parent is deployed: give parent.fc the same migration mechanism as the treasury,
+;; a run_migrator plus the null-and-empty guard in its upgrade_data. Until then the name below is
+;; aspirational for the parent path. parent.fc still carries the plain template, which ignores this
+;; cell entirely, so a migrator proxied to the parent is SILENTLY DROPPED rather than executed.
+;;
+;; That is not dangerous by itself. A parent migration that was needed and did not run leaves the new
+;; code reading the old layout, so load_data() throws and the upgrade reverts whole. The bad case is a
+;; migrator that was meant to do something other than change the layout: it would be dropped without
+;; a word and the upgrade would report success. Do not proxy a migrator to the parent until parent.fc
+;; runs one. See scripts/upgrade_treasury.md.
 () proxy_upgrade_code(slice src, slice s) impure inline {
     unpack_extension();
 
     int query_id = s~load_uint(64);
     slice destination = s~load_msg_addr();
     cell new_code = s~load_ref();
-    cell new_data = s~load_maybe_ref();
+    cell migrate_code = s~load_maybe_ref();
     s.end_parse();
 
     throw_unless(err::access_denied, equal_slice_bits(src, governor));
@@ -2059,7 +2097,7 @@ int calculate_min_coins() inline_ref {
         .store_uint(op::upgrade_code, 32)
         .store_uint(query_id, 64)
         .store_ref(new_code)
-        .store_maybe_ref(new_data)
+        .store_maybe_ref(migrate_code)
         .store_slice(src);
     send_msg(true, destination.to_builder(), null(), upgrade, 0, send::remaining_value);
 

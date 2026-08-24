@@ -829,7 +829,7 @@ export class Treasury implements Contract {
             sendMode?: SendMode
             queryId?: bigint
             newCode: Cell
-            newData?: Cell
+            migrateCode?: Cell
             returnExcess?: Address
         },
     ) {
@@ -841,7 +841,7 @@ export class Treasury implements Contract {
                 .storeUint(op.upgradeCode, 32)
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeRef(opts.newCode)
-                .storeMaybeRef(opts.newData)
+                .storeMaybeRef(opts.migrateCode)
                 .storeAddress(opts.returnExcess ?? via.address)
                 .endCell(),
         })
@@ -857,7 +857,7 @@ export class Treasury implements Contract {
             queryId?: bigint
             destination: Address
             newCode: Cell
-            newData?: Cell
+            migrateCode?: Cell
         },
     ) {
         await this.sendMessage(provider, via, {
@@ -869,7 +869,7 @@ export class Treasury implements Contract {
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeAddress(opts.destination)
                 .storeRef(opts.newCode)
-                .storeMaybeRef(opts.newData)
+                .storeMaybeRef(opts.migrateCode)
                 .endCell(),
         })
     }
