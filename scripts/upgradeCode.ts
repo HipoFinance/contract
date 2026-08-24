@@ -19,9 +19,13 @@ export async function run(provider: NetworkProvider) {
 
     const newCode = await compile('Treasury')
 
-    // Deliberately undefined, not an empty cell. The treasury treats a present cell as a migrator to
-    // execute, so an unconditional empty cell would be blessed as a continuation with no selector.
-    const migrateCode: Cell | undefined = migratorName == null ? undefined : await compile(migratorName)
+    // Name and code are kept together so a migration is a single either-or, rather than two values
+    // that could disagree about whether one is happening.
+    //
+    // Absent is deliberately undefined rather than an empty cell. The treasury runs anything present,
+    // and an empty cell would be blessed as a continuation with no selector.
+    const migrator = migratorName == null ? null : { name: migratorName, code: await compile(migratorName) }
+    const migrateCode: Cell | undefined = migrator?.code
 
     console.info()
     console.info('UPGRADING CODE')
@@ -36,7 +40,7 @@ export async function run(provider: NetworkProvider) {
     console.info('New code hash base64:   %s', newCode.hash().toString('base64'))
     console.info()
 
-    if (migrateCode == null) {
+    if (migrator == null) {
         console.info('Migration:              none — this upgrade changes code only')
         console.info()
     } else {
@@ -45,16 +49,16 @@ export async function run(provider: NetworkProvider) {
         console.info('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
         console.info('!! THIS UPGRADE CARRIES A ONE-OFF MIGRATION THAT WILL REWRITE TREASURY STORAGE')
         console.info('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        console.info('!! Migrator:            %s', migratorName)
-        console.info('!! Migrator hash hex:   %s', migrateCode.hash().toString('hex'))
-        console.info('!! Migrator bytes:      %s', migrateCode.toBoc().byteLength)
+        console.info('!! Migrator:            %s', migrator.name)
+        console.info('!! Migrator hash hex:   %s', migrator.code.hash().toString('hex'))
+        console.info('!! Migrator bytes:      %s', migrator.code.toBoc().byteLength)
         console.info('!!')
         console.info('!! It is CODE, not data. The treasury runs it with full authority, once, inside')
         console.info('!! this transaction. Publish this hash alongside the code hash, and have every')
         console.info('!! signer review the source below rather than only the code hash.')
         console.info('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
         console.info()
-        printMigratorSource(migratorName)
+        printMigratorSource(migrator.name)
     }
 
     const addressString = await ui.input('Enter the friendly address of the treasury')
@@ -96,14 +100,14 @@ export async function run(provider: NetworkProvider) {
         return
     }
 
-    if (migrateCode != null) {
+    if (migrator != null) {
         // A second, separate decision after the address is known, so confirming the upgrade and
         // confirming the migration are never the same keystroke.
         const confirmMigration = await ui.input(
             '\n\nA MIGRATION WILL RUN AND REWRITE STORAGE, exactly as shown in the diff above.' +
                 '\nEnter the migrator hash hex shown earlier to confirm you have read both',
         )
-        if (confirmMigration.trim().toLowerCase() !== migrateCode.hash().toString('hex')) {
+        if (confirmMigration.trim().toLowerCase() !== migrator.code.hash().toString('hex')) {
             console.info('Migrator hash did not match. Aborted')
             return
         }
@@ -125,22 +129,23 @@ export async function run(provider: NetworkProvider) {
 // Prints the migrator's source so the last thing the operator sees before signing is what will run,
 // not a hash standing in for it.
 function printMigratorSource(name: string) {
-    const file = join(__dirname, '..', 'wrappers', name.replace(/^upgrade-code-test\//, 'upgrade-code-test/'))
-    const candidates = [join(__dirname, '..', 'wrappers', 'upgrade-code-test', toSnake(name) + '.fc'), file + '.fc']
-    for (const candidate of candidates) {
-        if (existsSync(candidate)) {
-            console.info('---- %s ----', candidate)
-            console.info(readFileSync(candidate, 'utf8'))
-            console.info('---- end of migrator source ----')
-            console.info()
-            return
-        }
+    const path = migratorSourcePath(name)
+    if (!existsSync(path)) {
+        console.info('WARNING: could not locate migrator source at %s. Read it manually before signing.', path)
+        console.info()
+        return
     }
-    console.info('WARNING: could not locate migrator source to display. Read it manually before signing.')
+    console.info('---- %s ----', path)
+    console.info(readFileSync(path, 'utf8'))
+    console.info('---- end of migrator source ----')
     console.info()
 }
 
-function toSnake(name: string): string {
-    const base = name.split('/').pop() ?? name
-    return base.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()
+// 'upgrade-code-test/AddDeficit' -> wrappers/upgrade-code-test/add_deficit.fc
+function migratorSourcePath(name: string): string {
+    const cut = name.lastIndexOf('/')
+    const dir = cut === -1 ? '' : name.slice(0, cut)
+    const base = name.slice(cut + 1)
+    const snake = base.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()
+    return join(__dirname, '..', 'wrappers', dir, snake + '.fc')
 }
