@@ -2,9 +2,11 @@ import { Address, Dictionary } from '@ton/core'
 import { NetworkProvider } from '@ton/blueprint'
 import { ParticipationState, Request, Treasury } from '../wrappers/Treasury'
 import { Parent } from '../wrappers/Parent'
+import { makePalette } from '../wrappers/colors'
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
+    const c = makePalette()
 
     const defaultTreasuryAddress =
         provider.network() === 'mainnet' ? 'EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ' : ''
@@ -16,6 +18,21 @@ export async function run(provider: NetworkProvider) {
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
     const treasuryState = await treasury.getTreasuryState()
+    const balance = await treasury.getBalance()
+    const maxBurnableTokens = await treasury.getMaxBurnableTokens()
+    const surplus = await treasury.getSurplus()
+    const deficit = await treasury.getDeficit()
+
+    // What reserve_tokens and burn_tokens actually spend from, mirrored here so the number on screen is
+    // the one the contract uses. It deliberately does not subtract total_staking: that would hide
+    // instant unstakes the treasury would in fact pay. fee::treasury_storage is 10 GRAM.
+    const treasuryStorageFee = 10_000_000_000n
+    const availableTon = balance - treasuryStorageFee - treasuryState.totalBorrowersStake
+
+    // Share of all outstanding hGRAM that could leave right now.
+    const liquidityRatio =
+        treasuryState.totalTokens > 0n ? Number(maxBurnableTokens) / Number(treasuryState.totalTokens) : 0
+
     let walletCode = null
     if (treasuryState.parent != null) {
         const parent = provider.open(Parent.createFromAddress(treasuryState.parent))
@@ -44,22 +61,59 @@ export async function run(provider: NetworkProvider) {
     console.info('Treasury State')
     console.info('==============')
     console.info('              total_coins: %s GRAM', formatNano(treasuryState.totalCoins))
-    console.info('             total_tokens: %s hGRAM   Rate: %s',
-        formatNano(treasuryState.totalTokens), formatExchangeRate(exchangeRate))
+    console.info(
+        '             total_tokens: %s hGRAM   Rate: %s',
+        formatNano(treasuryState.totalTokens),
+        formatExchangeRate(exchangeRate),
+    )
     console.info('            total_staking: %s GRAM', formatNano(treasuryState.totalStaking))
     console.info('          total_unstaking: %s hGRAM', formatNano(treasuryState.totalUnstaking))
     console.info('    total_borrowers_stake: %s GRAM', formatNano(treasuryState.totalBorrowersStake))
+    console.info('                  deficit: %s', formatDeficit(deficit, c))
     console.info('         rounds_imbalance: %s (%s)', Number(treasuryState.roundsImbalance), roundsImbalancePercent)
     console.info('                  stopped: %s', formatBoolean(treasuryState.stopped))
     console.info('             instant_mint: %s', formatBoolean(treasuryState.instantMint))
-    console.info('            previous_rate: %s GRAM',
-        formatExchangeRate(Number(treasuryState.previousRate) / 1_000_000_000))
-    console.info('             current_rate: %s GRAM   APY: %s',
-        formatExchangeRate(Number(treasuryState.currentRate) / 1_000_000_000), apyPercent)
+    console.info(
+        '            previous_rate: %s GRAM',
+        formatExchangeRate(Number(treasuryState.previousRate) / 1_000_000_000),
+    )
+    console.info(
+        '             current_rate: %s GRAM   APY: %s',
+        formatExchangeRate(Number(treasuryState.currentRate) / 1_000_000_000),
+        apyPercent,
+    )
     console.info('                   halter: %s', treasuryState.halter.toString({ testOnly }))
     console.info('                 governor: %s', treasuryState.governor.toString({ testOnly }))
     console.info('        proposed_governor: %s', (proposedGovernorAddress ?? '') + ' ' + proposedGovernorAcceptAfter)
     console.info('           governance_fee: %s (%s)', Number(treasuryState.governanceFee), governanceFeePercent)
+    console.info()
+
+    console.info('    Liquidity')
+    console.info('    ---------')
+    console.info('                  balance: %s GRAM', formatNano(balance))
+    console.info(
+        '            available_ton: %s GRAM   (balance - 10 storage - borrowers stake)',
+        formatNano(availableTon),
+    )
+    console.info(
+        '      max burnable tokens: %s hGRAM  (%s of total_tokens instantly unstakeable)',
+        formatNano(maxBurnableTokens),
+        formatPercent(liquidityRatio),
+    )
+    console.info(
+        '                  surplus: %s GRAM   (balance - min_coins, so min_coins = %s GRAM)',
+        formatNano(surplus),
+        formatNano(balance - surplus),
+    )
+    console.info()
+    // Worth stating rather than leaving to be rediscovered from a confusing pair of numbers. Mid-round
+    // these read near zero and that is correct: the stake is with the elector, not in the treasury.
+    // And surplus is not a withdrawable amount — calculate_min_coins subtracts each staked round's
+    // total_staked, so while rounds are in flight min_coins goes negative and surplus can exceed the
+    // entire balance.
+    console.info('    Instant unstake is paid from available_ton. While rounds are staked most GRAM sits')
+    console.info('    with the elector, so a low figure here is normal rather than a shortfall. Surplus is')
+    console.info('    a solvency margin, not a withdrawable balance: min_coins goes negative mid-round.')
     console.info()
 
     console.info('    Current Parent')
@@ -212,6 +266,15 @@ function formatDate(seconds: bigint): string {
 
 function formatTime(seconds: bigint): string {
     return new Date(Number(seconds) * 1000).toISOString().substring(11, 16)
+}
+
+// A deficit is a loan loss the borrower's collateral could not cover, so any non-zero value is an
+// incident rather than a statistic. It reads as plain "0 GRAM" the rest of the time.
+function formatDeficit(value: bigint, c: ReturnType<typeof makePalette>): string {
+    if (value === 0n) {
+        return '0 GRAM'
+    }
+    return c.redBold(formatNano(value) + ' GRAM  <-- UNRECOVERED LOAN LOSS, the treasury owes more than it holds')
 }
 
 function formatBoolean(value: boolean): string {

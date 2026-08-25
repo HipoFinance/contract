@@ -13,7 +13,7 @@ import { join } from 'path'
 // in the same transaction, before checking that the migrated storage still parses and still names the
 // same governor. It is code, not data: it runs with the treasury's full authority. Read it before you
 // sign, and read scripts/upgrade_treasury.md.
-const migratorName: string | null = null // e.g. 'upgrade-code-test/AddDeficit'
+const migratorName: string | null = 'upgrade-code-test/AddDeficit'
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
