@@ -2,7 +2,7 @@ import { Address, Dictionary } from '@ton/core'
 import { NetworkProvider } from '@ton/blueprint'
 import { ParticipationState, Request, Treasury } from '../wrappers/Treasury'
 import { Parent } from '../wrappers/Parent'
-import { makePalette } from '../wrappers/colors'
+import { makePalette, Palette } from '../wrappers/colors'
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
@@ -54,56 +54,84 @@ export async function run(provider: NetworkProvider) {
     const proposedGovernorSlice = treasuryState.proposedGovernor?.beginParse()
     const proposedGovernorAcceptAfter = formatDate(proposedGovernorSlice?.loadUintBig(32) ?? 0n)
     const proposedGovernorAddress = proposedGovernorSlice?.loadAddress().toString({ testOnly })
+    const proposedGovernorText = (proposedGovernorAddress ?? '') + ' ' + proposedGovernorAcceptAfter
     const roundsImbalancePercent = formatPercent((Number(treasuryState.roundsImbalance) + 1 + 256) / 512)
     const governanceFeePercent = formatPercent(Number(treasuryState.governanceFee) / 65535)
 
     console.info()
-    console.info('Treasury State')
-    console.info('==============')
-    console.info('              total_coins: %s GRAM', formatNano(treasuryState.totalCoins))
+    console.info(c.bold('Treasury State'))
+    console.info(c.grey('=============='))
+    console.info('              %s %s GRAM', c.grey('total_coins:'), formatNano(treasuryState.totalCoins))
     console.info(
-        '             total_tokens: %s hGRAM   Rate: %s',
+        '             %s %s hGRAM   %s %s',
+        c.grey('total_tokens:'),
         formatNano(treasuryState.totalTokens),
-        formatExchangeRate(exchangeRate),
+        c.grey('Rate:'),
+        c.green(formatExchangeRate(exchangeRate)),
     )
-    console.info('            total_staking: %s GRAM', formatNano(treasuryState.totalStaking))
-    console.info('          total_unstaking: %s hGRAM', formatNano(treasuryState.totalUnstaking))
-    console.info('    total_borrowers_stake: %s GRAM', formatNano(treasuryState.totalBorrowersStake))
-    console.info('                  deficit: %s', formatDeficit(deficit, c))
-    console.info('         rounds_imbalance: %s (%s)', Number(treasuryState.roundsImbalance), roundsImbalancePercent)
-    console.info('                  stopped: %s', formatBoolean(treasuryState.stopped))
-    console.info('             instant_mint: %s', formatBoolean(treasuryState.instantMint))
+    console.info('            %s %s GRAM', c.grey('total_staking:'), formatNano(treasuryState.totalStaking))
+    console.info('          %s %s hGRAM', c.grey('total_unstaking:'), formatNano(treasuryState.totalUnstaking))
+    console.info('    %s %s GRAM', c.grey('total_borrowers_stake:'), formatNano(treasuryState.totalBorrowersStake))
+    console.info('                  %s %s', c.grey('deficit:'), formatDeficit(deficit, c))
     console.info(
-        '            previous_rate: %s GRAM',
+        '         %s %s (%s)',
+        c.grey('rounds_imbalance:'),
+        Number(treasuryState.roundsImbalance),
+        roundsImbalancePercent,
+    )
+    console.info('                  %s %s', c.grey('stopped:'), formatBoolean(treasuryState.stopped, c, false))
+    console.info('             %s %s', c.grey('instant_mint:'), formatBoolean(treasuryState.instantMint, c, true))
+    console.info(
+        '            %s %s GRAM',
+        c.grey('previous_rate:'),
         formatExchangeRate(Number(treasuryState.previousRate) / 1_000_000_000),
     )
     console.info(
-        '             current_rate: %s GRAM   APY: %s',
+        '             %s %s GRAM   %s %s',
+        c.grey('current_rate:'),
         formatExchangeRate(Number(treasuryState.currentRate) / 1_000_000_000),
-        apyPercent,
+        c.grey('APY:'),
+        c.green(apyPercent),
     )
-    console.info('                   halter: %s', treasuryState.halter.toString({ testOnly }))
-    console.info('                 governor: %s', treasuryState.governor.toString({ testOnly }))
-    console.info('        proposed_governor: %s', (proposedGovernorAddress ?? '') + ' ' + proposedGovernorAcceptAfter)
-    console.info('           governance_fee: %s (%s)', Number(treasuryState.governanceFee), governanceFeePercent)
+    console.info('                   %s %s', c.grey('halter:'), c.cyan(treasuryState.halter.toString({ testOnly })))
+    console.info('                 %s %s', c.grey('governor:'), c.cyan(treasuryState.governor.toString({ testOnly })))
+    console.info(
+        '        %s %s',
+        c.grey('proposed_governor:'),
+        proposedGovernorAddress != null ? c.yellow(proposedGovernorText) : proposedGovernorText,
+    )
+    console.info(
+        '           %s %s (%s)',
+        c.grey('governance_fee:'),
+        Number(treasuryState.governanceFee),
+        governanceFeePercent,
+    )
     console.info()
 
-    console.info('    Liquidity')
-    console.info('    ---------')
-    console.info('                  balance: %s GRAM', formatNano(balance))
+    console.info('    %s', c.bold('Liquidity'))
+    console.info('    %s', c.grey('---------'))
+    console.info('                  %s %s GRAM', c.grey('balance:'), formatNano(balance))
     console.info(
-        '            available_ton: %s GRAM   (balance - 10 storage - borrowers stake)',
+        '            %s %s GRAM   %s',
+        c.grey('available_ton:'),
         formatNano(availableTon),
+        c.grey('(balance - 10 storage - borrowers stake)'),
     )
     console.info(
-        '      max burnable tokens: %s hGRAM  (%s of total_tokens instantly unstakeable)',
+        '      %s %s hGRAM  %s%s%s',
+        c.grey('max burnable tokens:'),
         formatNano(maxBurnableTokens),
+        c.grey('('),
         formatPercent(liquidityRatio),
+        c.grey(' of total_tokens instantly unstakeable)'),
     )
     console.info(
-        '                  surplus: %s GRAM   (balance - min_coins, so min_coins = %s GRAM)',
+        '                  %s %s GRAM   %s%s%s',
+        c.grey('surplus:'),
         formatNano(surplus),
+        c.grey('(balance - min_coins, so min_coins = '),
         formatNano(balance - surplus),
+        c.grey(' GRAM)'),
     )
     console.info()
     // Worth stating rather than leaving to be rediscovered from a confusing pair of numbers. Mid-round
@@ -111,48 +139,61 @@ export async function run(provider: NetworkProvider) {
     // And surplus is not a withdrawable amount — calculate_min_coins subtracts each staked round's
     // total_staked, so while rounds are in flight min_coins goes negative and surplus can exceed the
     // entire balance.
-    console.info('    Instant unstake is paid from available_ton. While rounds are staked most GRAM sits')
-    console.info('    with the elector, so a low figure here is normal rather than a shortfall. Surplus is')
-    console.info('    a solvency margin, not a withdrawable balance: min_coins goes negative mid-round.')
+    console.info('    %s', c.grey('Instant unstake is paid from available_ton. While rounds are staked most GRAM sits'))
+    console.info(
+        '    %s',
+        c.grey('with the elector, so a low figure here is normal rather than a shortfall. Surplus is'),
+    )
+    console.info('    %s', c.grey('a solvency margin, not a withdrawable balance: min_coins goes negative mid-round.'))
     console.info()
 
-    console.info('    Current Parent')
-    console.info('    --------------')
-    console.info('    %s    wallet code: %s', treasuryState.parent?.toString({ testOnly }), walletCode)
+    console.info('    %s', c.bold('Current Parent'))
+    console.info('    %s', c.grey('--------------'))
+    console.info(
+        '    %s    %s %s',
+        treasuryState.parent != null ? c.cyan(treasuryState.parent.toString({ testOnly })) : treasuryState.parent,
+        c.grey('wallet code:'),
+        walletCode != null ? c.grey(String(walletCode)) : walletCode,
+    )
     console.info()
 
-    console.info('    Old Parents')
-    console.info('    -----------')
+    console.info('    %s', c.bold('Old Parents'))
+    console.info('    %s', c.grey('-----------'))
     if (treasuryState.oldParents.size > 0) {
         for (const key of treasuryState.oldParents.keys()) {
-            console.info('    %s', Address.parseRaw('0:' + key.toString(16).padStart(64, '0')).toString({ testOnly }))
+            console.info(
+                '    %s',
+                c.cyan(Address.parseRaw('0:' + key.toString(16).padStart(64, '0')).toString({ testOnly })),
+            )
         }
+    } else {
+        console.info('    %s', c.grey('(none)'))
     }
     console.info()
 
-    console.info('    Collection Codes')
-    console.info('    ----------------')
+    console.info('    %s', c.bold('Collection Codes'))
+    console.info('    %s', c.grey('----------------'))
     for (const key of treasuryState.collectionCodes.keys()) {
-        console.info('    %s: %s', key.toString().padStart(10), treasuryState.collectionCodes.get(key))
+        console.info('    %s: %s', key.toString().padStart(10), c.grey(String(treasuryState.collectionCodes.get(key))))
     }
     console.info()
 
-    console.info('    Bill Codes')
-    console.info('    ----------')
+    console.info('    %s', c.bold('Bill Codes'))
+    console.info('    %s', c.grey('----------'))
     for (const key of treasuryState.billCodes.keys()) {
-        console.info('    %s: %s', key.toString().padStart(10), treasuryState.billCodes.get(key))
+        console.info('    %s: %s', key.toString().padStart(10), c.grey(String(treasuryState.billCodes.get(key))))
     }
     console.info()
 
-    console.info('    Loan Codes')
-    console.info('    ----------')
+    console.info('    %s', c.bold('Loan Codes'))
+    console.info('    %s', c.grey('----------'))
     for (const key of treasuryState.loanCodes.keys()) {
-        console.info('    %s: %s', key.toString().padStart(10), treasuryState.loanCodes.get(key))
+        console.info('    %s: %s', key.toString().padStart(10), c.grey(String(treasuryState.loanCodes.get(key))))
     }
     console.info()
 
     if (treasuryState.participations.size == 0) {
-        console.info('No Participations')
+        console.info(c.grey('No Participations'))
         console.info()
     }
 
@@ -162,71 +203,77 @@ export async function run(provider: NetworkProvider) {
             continue
         }
         const collectionAddress = await treasury.getCollectionAddress(key)
-        console.info('Participation %s', key.toString())
-        console.info('========================')
-        console.info('            round_since: %s', formatDate(key))
-        console.info('                  state: %s', formatState(participation.state))
-        console.info('                   size: %s', participation.size?.toString())
-        console.info('                 sorted: %s', participation.sorted?.size ?? '')
-        console.info('               requests: %s', participation.requests?.size ?? '')
-        console.info('               rejected: %s', participation.rejected?.size ?? '')
-        console.info('               accepted: %s', participation.accepted?.size ?? '')
-        console.info('                accrued: %s', participation.accrued?.size ?? '')
-        console.info('                 staked: %s', participation.staked?.size ?? '')
-        console.info('             recovering: %s', participation.recovering?.size ?? '')
-        console.info('           total_staked: %s GRAM', formatNano(participation.totalStaked ?? 0n))
-        console.info('        total_recovered: %s GRAM', formatNano(participation.totalRecovered ?? 0n))
-        console.info('      current_vset_hash: %s', participation.currentVsetHash?.toString(16))
-        console.info('         stake_held_for: %s', formatTime(participation.stakeHeldFor ?? 0n))
-        console.info('       stake_held_until: %s', formatDate(participation.stakeHeldUntil ?? 0n))
-        console.info('     collection address: %s', collectionAddress)
+        console.info(c.bold(`Participation ${key.toString()}`))
+        console.info(c.grey('========================'))
+        console.info('            %s %s', c.grey('round_since:'), formatDate(key))
+        console.info('                  %s %s', c.grey('state:'), formatState(participation.state, c))
+        console.info('                   %s %s', c.grey('size:'), participation.size?.toString())
+        console.info('                 %s %s', c.grey('sorted:'), participation.sorted?.size ?? '')
+        console.info('               %s %s', c.grey('requests:'), participation.requests?.size ?? '')
+        console.info('               %s %s', c.grey('rejected:'), participation.rejected?.size ?? '')
+        console.info('               %s %s', c.grey('accepted:'), participation.accepted?.size ?? '')
+        console.info('                %s %s', c.grey('accrued:'), participation.accrued?.size ?? '')
+        console.info('                 %s %s', c.grey('staked:'), participation.staked?.size ?? '')
+        console.info('             %s %s', c.grey('recovering:'), participation.recovering?.size ?? '')
+        console.info('           %s %s GRAM', c.grey('total_staked:'), formatNano(participation.totalStaked ?? 0n))
+        console.info('        %s %s GRAM', c.grey('total_recovered:'), formatNano(participation.totalRecovered ?? 0n))
+        console.info(
+            '      %s %s',
+            c.grey('current_vset_hash:'),
+            participation.currentVsetHash != null
+                ? c.grey(participation.currentVsetHash.toString(16))
+                : participation.currentVsetHash,
+        )
+        console.info('         %s %s', c.grey('stake_held_for:'), formatTime(participation.stakeHeldFor ?? 0n))
+        console.info('       %s %s', c.grey('stake_held_until:'), formatDate(participation.stakeHeldUntil ?? 0n))
+        console.info('     %s %s', c.grey('collection address:'), c.cyan(String(collectionAddress)))
         console.info()
 
         if (participation.requests != null && participation.requests.size > 0) {
-            console.info('    Requests')
-            console.info('    --------')
-            showRequests(participation.requests, testOnly)
+            console.info('    %s', c.bold('Requests'))
+            console.info('    %s', c.grey('--------'))
+            showRequests(participation.requests, testOnly, c)
             console.info()
         }
 
         if (participation.rejected != null && participation.rejected.size > 0) {
-            console.info('    Rejected')
-            console.info('    --------')
-            showRequests(participation.rejected, testOnly)
+            console.info('    %s', c.bold('Rejected'))
+            console.info('    %s', c.grey('--------'))
+            showRequests(participation.rejected, testOnly, c)
             console.info()
         }
 
         if (participation.accepted != null && participation.accepted.size > 0) {
-            console.info('    Accepted')
-            console.info('    --------')
-            showRequests(participation.accepted, testOnly)
+            console.info('    %s', c.bold('Accepted'))
+            console.info('    %s', c.grey('--------'))
+            showRequests(participation.accepted, testOnly, c)
             console.info()
         }
 
         if (participation.accrued != null && participation.accrued.size > 0) {
-            console.info('    Accrued')
-            console.info('    --------')
-            showRequests(participation.accrued, testOnly)
+            console.info('    %s', c.bold('Accrued'))
+            console.info('    %s', c.grey('--------'))
+            showRequests(participation.accrued, testOnly, c)
             console.info()
         }
 
         if (participation.staked != null && participation.staked.size > 0) {
-            console.info('    Staked')
-            console.info('    --------')
-            showRequests(participation.staked, testOnly)
+            console.info('    %s', c.bold('Staked'))
+            console.info('    %s', c.grey('--------'))
+            showRequests(participation.staked, testOnly, c)
             console.info()
         }
 
         if (participation.recovering != null && participation.recovering.size > 0) {
-            console.info('    Recovering')
-            console.info('    --------')
-            showRequests(participation.recovering, testOnly)
+            console.info('    %s', c.bold('Recovering'))
+            console.info('    %s', c.grey('--------'))
+            showRequests(participation.recovering, testOnly, c)
             console.info()
         }
     }
 }
 
-function showRequests(dict: Dictionary<bigint, Request>, testOnly: boolean) {
+function showRequests(dict: Dictionary<bigint, Request>, testOnly: boolean, c: Palette) {
     if (dict.size > 0) {
         for (const req of dict.keys()) {
             const request = dict.get(req)
@@ -236,7 +283,7 @@ function showRequests(dict: Dictionary<bigint, Request>, testOnly: boolean) {
                 formatPercent(Number(request?.borrowerRewardShare ?? 0n) / 255).padEnd(4),
                 formatNano(request?.loanAmount ?? 0n).padEnd(9),
                 formatNano(request?.stakeAmount ?? 0n).padEnd(9),
-                Address.parseRaw('0:' + req.toString(16).padStart(64, '0')).toString({ testOnly }),
+                c.cyan(Address.parseRaw('0:' + req.toString(16).padStart(64, '0')).toString({ testOnly })),
             )
         }
     }
@@ -270,38 +317,43 @@ function formatTime(seconds: bigint): string {
 
 // A deficit is a loan loss the borrower's collateral could not cover, so any non-zero value is an
 // incident rather than a statistic. It reads as plain "0 GRAM" the rest of the time.
-function formatDeficit(value: bigint, c: ReturnType<typeof makePalette>): string {
+function formatDeficit(value: bigint, c: Palette): string {
     if (value === 0n) {
         return '0 GRAM'
     }
     return c.redBold(formatNano(value) + ' GRAM  <-- UNRECOVERED LOAN LOSS, the treasury owes more than it holds')
 }
 
-function formatBoolean(value: boolean): string {
-    return value ? 'Yes' : 'No'
+function formatBoolean(value: boolean, c: Palette, goodIsTrue: boolean): string {
+    const text = value ? 'Yes' : 'No'
+    const good = value === goodIsTrue
+    if (good) {
+        return c.green(text)
+    }
+    return goodIsTrue ? c.yellow(text) : c.redBold(text)
 }
 
-function formatState(state: ParticipationState | undefined): string {
+function formatState(state: ParticipationState | undefined, c: Palette): string {
     if (state == null) {
-        return 'undefined'
+        return c.red('undefined')
     }
     switch (state) {
         case ParticipationState.Open:
-            return 'open'
+            return c.green('open')
         case ParticipationState.Distributing:
-            return 'distributing'
+            return c.cyan('distributing')
         case ParticipationState.Staked:
-            return 'staked'
+            return c.yellow('staked')
         case ParticipationState.Validating:
-            return 'validating'
+            return c.yellow('validating')
         case ParticipationState.Held:
-            return 'held'
+            return c.yellow('held')
         case ParticipationState.Recovering:
-            return 'recovering'
+            return c.cyan('recovering')
         case ParticipationState.ReadyToBurn:
-            return 'ready_to_burn'
+            return c.grey('ready_to_burn')
         case ParticipationState.Burning:
-            return 'burning'
+            return c.grey('burning')
     }
-    return 'unknown'
+    return c.red('unknown')
 }
