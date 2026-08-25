@@ -7,6 +7,7 @@ import { bodyOp } from './helper'
 import { op } from '../wrappers/common'
 import { Treasury } from '../wrappers/Treasury'
 import { dryRunUpgrade, formatDryRun } from '../wrappers/migrationDryRun'
+import { makePalette } from '../wrappers/colors'
 
 // The live treasury account captured from mainnet: its code as deployed, and its storage cell in the
 // pre-deficit layout. The deficit counter inserts a field into root storage, so every existing
@@ -348,7 +349,7 @@ describe('Treasury Migration', () => {
         // The storage cell itself must change even though no accounting value does.
         expect(result.after?.dataHash).not.toEqual(result.before.dataHash)
 
-        const rendered = formatDryRun(result)
+        const rendered = formatDryRun(result, makePalette(false))
         expect(rendered).toContain('deficit')
         expect(rendered).toContain('1 field(s) would change')
     })
@@ -368,7 +369,51 @@ describe('Treasury Migration', () => {
 
         expect(result.ok).toBe(false)
         expect(result.failure).toMatch(/FAIL|skipped/)
-        expect(formatDryRun(result)).toContain('Do not send this upgrade')
+        expect(formatDryRun(result, makePalette(false))).toContain('Do not send this upgrade')
+    })
+
+    // Built at runtime so no control character ever appears inside a regex literal.
+    const esc = String.fromCharCode(27)
+    const stripAnsi = (text: string) => text.split(new RegExp(esc + '\\[[0-9;]*m', 'g')).join('')
+
+    it('should colour the diff, and emit no escape codes when colour is off', async () => {
+        // A colour feature that quietly does nothing looks identical to one that works, so both
+        // directions are pinned. Piped output must stay clean: this text gets pasted to co-signers
+        // and captured into deploy records.
+        const { governor } = await stand()
+        const result = await dryRunUpgrade({
+            address: treasuryAddress,
+            currentCode: mainnetCode,
+            currentData: mainnetData,
+            newCode: treasuryCode,
+            migrateCode: migratorCode,
+            governor,
+        })
+
+        const plain = formatDryRun(result, makePalette(false))
+        expect(plain.includes(esc)).toBe(false)
+
+        const coloured = formatDryRun(result, makePalette(true))
+        expect(coloured).toContain('\u001b[31m') // removed value, red
+        expect(coloured).toContain('\u001b[32m') // added value, green
+        expect(coloured).toContain('\u001b[1;33m') // the "fields would change" warning, bold yellow
+
+        // Colour must not change the words, only their presentation.
+        expect(stripAnsi(coloured)).toEqual(plain)
+    })
+
+    it('should colour a failed dry run red', async () => {
+        const { governor } = await stand()
+        const result = await dryRunUpgrade({
+            address: treasuryAddress,
+            currentCode: mainnetCode,
+            currentData: mainnetData,
+            newCode: treasuryCode,
+            governor,
+        })
+        expect(result.ok).toBe(false)
+        expect(formatDryRun(result, makePalette(true))).toContain('\u001b[1;31m')
+        expect(formatDryRun(result, makePalette(false)).includes(esc)).toBe(false)
     })
 
     it('should refuse a migrator that would corrupt storage, in the dry run', async () => {

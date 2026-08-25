@@ -1,6 +1,7 @@
 import { Address, Cell, Dictionary, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, createShardAccount } from '@ton/sandbox'
 import { Treasury } from './Treasury'
+import { Palette, makePalette } from './colors'
 
 // Rehearses an upgrade against a real treasury account inside a local sandbox, so an operator can see
 // what a migration actually does to live state before signing anything.
@@ -173,56 +174,60 @@ export async function dryRunUpgrade(opts: {
 }
 
 // Renders the result for a terminal. Kept here so the script stays about the upgrade flow and this
-// stays testable on its own.
-export function formatDryRun(result: DryRunResult): string {
+// stays testable on its own. The palette is a parameter rather than read from the environment, so a
+// test can pin colour on or off instead of depending on how the runner attaches stdout.
+export function formatDryRun(result: DryRunResult, palette: Palette = makePalette()): string {
+    const c = palette
+    const rule = c.grey('================================================================================')
     const lines: string[] = []
-    lines.push('================================================================================')
-    lines.push('DRY RUN — this upgrade replayed against the live account in a local sandbox')
-    lines.push('================================================================================')
+    lines.push(rule)
+    lines.push(c.bold('DRY RUN — this upgrade replayed against the live account in a local sandbox'))
+    lines.push(rule)
 
     if (!result.ok) {
         lines.push('')
-        lines.push(`  RESULT: ${result.failure ?? 'unknown failure'}`)
+        lines.push('  ' + c.redBold('RESULT: ' + (result.failure ?? 'unknown failure')))
         lines.push('')
-        lines.push('  Nothing would change on chain: the treasury would stay on its current code')
-        lines.push('  with its current data. Do not send this upgrade.')
-        lines.push('================================================================================')
+        lines.push(c.red('  Nothing would change on chain: the treasury would stay on its current code'))
+        lines.push(c.red('  with its current data. Do not send this upgrade.'))
+        lines.push(rule)
         return lines.join('\n')
     }
 
     const after = result.after
     if (after == null) return lines.join('\n')
 
+    const move = (was: string, now: string) => `${c.red(was)} ${c.grey('->')} ${c.green(now)}`
+
     lines.push('')
+    lines.push(`  code hash   ${move(result.before.codeHash.slice(0, 16), after.codeHash.slice(0, 16))}`)
+    lines.push(`  data hash   ${move(result.before.dataHash.slice(0, 16), after.dataHash.slice(0, 16))}`)
     lines.push(
-        '  code hash   %before% -> %after%'
-            .replace('%before%', result.before.codeHash.slice(0, 16))
-            .replace('%after%', after.codeHash.slice(0, 16)),
-    )
-    lines.push(`  data hash   ${result.before.dataHash.slice(0, 16)} -> ${after.dataHash.slice(0, 16)}`)
-    lines.push(
-        `  data size   ${String(result.before.dataBits)} bits / ${String(result.before.dataRefs)} refs` +
-            ` -> ${String(after.dataBits)} bits / ${String(after.dataRefs)} refs`,
+        '  data size   ' +
+            move(
+                `${String(result.before.dataBits)} bits / ${String(result.before.dataRefs)} refs`,
+                `${String(after.dataBits)} bits / ${String(after.dataRefs)} refs`,
+            ),
     )
     lines.push('')
 
     if (result.changes.length === 0) {
-        lines.push('  STATE DIFF: no field changed. This upgrade replaces code only.')
+        lines.push('  ' + c.green('STATE DIFF: no field changed. This upgrade replaces code only.'))
     } else {
-        lines.push(`  STATE DIFF: ${String(result.changes.length)} field(s) would change.`)
-        lines.push('  Read every line. Anything here that you did not intend is a reason to stop.')
+        lines.push('  ' + c.yellowBold(`STATE DIFF: ${String(result.changes.length)} field(s) would change.`))
+        lines.push('  ' + c.yellow('Read every line. Anything here that you did not intend is a reason to stop.'))
         lines.push('')
-        const width = Math.max(...result.changes.map((c) => c.field.length))
+        const width = Math.max(...result.changes.map((ch) => ch.field.length))
         for (const change of result.changes) {
-            lines.push(`    ${change.field.padEnd(width)}  - ${change.before}`)
-            lines.push(`    ${' '.repeat(width)}  + ${change.after}`)
+            lines.push(`    ${c.cyan(change.field.padEnd(width))}  ${c.red('- ' + change.before)}`)
+            lines.push(`    ${' '.repeat(width)}  ${c.green('+ ' + change.after)}`)
         }
     }
 
     lines.push('')
-    lines.push('  Fields NOT covered by this diff: the contents of participations, loan_codes,')
-    lines.push('  collection_codes, bill_codes and old_parents. Only their entry counts are compared,')
-    lines.push('  because the migration moves them as opaque refs.')
-    lines.push('================================================================================')
+    lines.push(c.grey('  Fields NOT covered by this diff: the contents of participations, loan_codes,'))
+    lines.push(c.grey('  collection_codes, bill_codes and old_parents. Only their entry counts are compared,'))
+    lines.push(c.grey('  because the migration moves them as opaque refs.'))
+    lines.push(rule)
     return lines.join('\n')
 }

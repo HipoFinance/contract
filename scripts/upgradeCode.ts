@@ -2,6 +2,7 @@ import { Address, Cell } from '@ton/core'
 import { Treasury } from '../wrappers/Treasury'
 import { NetworkProvider, compile } from '@ton/blueprint'
 import { dryRunUpgrade, formatDryRun } from '../wrappers/migrationDryRun'
+import { makePalette } from '../wrappers/colors'
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 
@@ -16,6 +17,7 @@ const migratorName: string | null = null // e.g. 'upgrade-code-test/AddDeficit'
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
+    const c = makePalette()
 
     const newCode = await compile('Treasury')
 
@@ -28,35 +30,37 @@ export async function run(provider: NetworkProvider) {
     const migrateCode: Cell | undefined = migrator?.code
 
     console.info()
-    console.info('UPGRADING CODE')
-    console.info('==============')
-    console.info('1. Check upgrade_code in treasury.fc before proceeding')
-    console.info('2. Check upgrade_data in treasury.fc before proceeding')
-    console.info('3. Update and rebase this repo before continuing to have the correct git hash after upgrade')
-    console.info('==============')
+    console.info(c.bold('UPGRADING CODE'))
+    console.info(c.grey('=============='))
+    console.info('1. Update and rebase this repo before continuing to have the correct git hash after upgrade')
+    console.info('2. Check upgrade_code in treasury.fc before proceeding')
+    console.info('3. Check upgrade_data in treasury.fc before proceeding')
+    console.info(c.grey('=============='))
     console.info()
 
-    console.info('New code hash hex:      %s', newCode.hash().toString('hex'))
-    console.info('New code hash base64:   %s', newCode.hash().toString('base64'))
+    console.info('New code hash hex:      %s', c.cyan(newCode.hash().toString('hex')))
+    console.info('New code hash base64:   %s', c.cyan(newCode.hash().toString('base64')))
     console.info()
 
     if (migrator == null) {
-        console.info('Migration:              none — this upgrade changes code only')
+        console.info('Migration:              %s', c.green('none — this upgrade changes code only'))
         console.info()
     } else {
         // Anything below is executed by the treasury with full authority. Show it in full, every run,
         // so it is never something the operator scrolled past on the way to the code hash.
-        console.info('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        console.info('!! THIS UPGRADE CARRIES A ONE-OFF MIGRATION THAT WILL REWRITE TREASURY STORAGE')
-        console.info('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        console.info('!! Migrator:            %s', migrator.name)
-        console.info('!! Migrator hash hex:   %s', migrator.code.hash().toString('hex'))
-        console.info('!! Migrator bytes:      %s', migrator.code.toBoc().byteLength)
-        console.info('!!')
-        console.info('!! It is CODE, not data. The treasury runs it with full authority, once, inside')
-        console.info('!! this transaction. Publish this hash alongside the code hash, and have every')
-        console.info('!! signer review the source below rather than only the code hash.')
-        console.info('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        const bang = c.yellowBold('!!')
+        const bar = c.yellowBold('!'.repeat(80))
+        console.info(bar)
+        console.info(c.yellowBold('!! THIS UPGRADE CARRIES A ONE-OFF MIGRATION THAT WILL REWRITE TREASURY STORAGE'))
+        console.info(bar)
+        console.info('%s Migrator:            %s', bang, c.cyan(migrator.name))
+        console.info('%s Migrator hash hex:   %s', bang, c.cyan(migrator.code.hash().toString('hex')))
+        console.info('%s Migrator bytes:      %s', bang, String(migrator.code.toBoc().byteLength))
+        console.info(bang)
+        console.info('%s %s', bang, c.yellow('It is CODE, not data. The treasury runs it with full authority, once,'))
+        console.info('%s %s', bang, c.yellow('inside this transaction. Publish this hash alongside the code hash, and'))
+        console.info('%s %s', bang, c.yellow('have every signer review the source below, not only the code hash.'))
+        console.info(bar)
         console.info()
         printMigratorSource(migrator.name)
     }
@@ -67,7 +71,7 @@ export async function run(provider: NetworkProvider) {
 
     const state = await treasury.getState()
     if (state.state.type != 'active') {
-        console.info('Treasury account is not active')
+        console.info(c.redBold('Treasury account is not active'))
         return
     }
     console.info('  current code bytes: %s', state.state.code?.byteLength)
@@ -77,12 +81,12 @@ export async function run(provider: NetworkProvider) {
     // A migration is the one thing here that cannot be undone, so the operator should approve a diff
     // of real state rather than a description of intent.
     if (state.state.code == null || state.state.data == null) {
-        console.info('Treasury account has no code or data on chain')
+        console.info(c.redBold('Treasury account has no code or data on chain'))
         return
     }
     const liveState = await treasury.getTreasuryState()
     console.info()
-    console.info('Replaying the upgrade against live state...')
+    console.info(c.grey('Replaying the upgrade against live state...'))
     const dryRun = await dryRunUpgrade({
         address: treasuryAddress,
         currentCode: Cell.fromBoc(state.state.code)[0],
@@ -92,11 +96,11 @@ export async function run(provider: NetworkProvider) {
         governor: liveState.governor,
     })
     console.info()
-    console.info(formatDryRun(dryRun))
+    console.info(formatDryRun(dryRun, c))
     console.info()
 
     if (!dryRun.ok) {
-        console.info('Aborted: the dry run says this upgrade would fail. Nothing was sent.')
+        console.info(c.redBold('Aborted: the dry run says this upgrade would fail. Nothing was sent.'))
         return
     }
 
@@ -108,14 +112,14 @@ export async function run(provider: NetworkProvider) {
                 '\nEnter the migrator hash hex shown earlier to confirm you have read both',
         )
         if (confirmMigration.trim().toLowerCase() !== migrator.code.hash().toString('hex')) {
-            console.info('Migrator hash did not match. Aborted')
+            console.info(c.redBold('Migrator hash did not match. Aborted'))
             return
         }
     }
 
     const confirm = await ui.input('\n\nTo confirm the upgrade, enter yes in capital case')
     if (confirm !== 'YES') {
-        console.info('Aborted')
+        console.info(c.red('Aborted'))
         return
     }
 
@@ -129,15 +133,19 @@ export async function run(provider: NetworkProvider) {
 // Prints the migrator's source so the last thing the operator sees before signing is what will run,
 // not a hash standing in for it.
 function printMigratorSource(name: string) {
+    const c = makePalette()
     const path = migratorSourcePath(name)
     if (!existsSync(path)) {
-        console.info('WARNING: could not locate migrator source at %s. Read it manually before signing.', path)
+        // The operator's only signal that they are about to sign a migration whose source was never
+        // put in front of them, so it is the loudest thing on the screen.
+        console.info(c.redBold('WARNING: could not locate migrator source at ' + path))
+        console.info(c.redBold('         Read it manually before signing.'))
         console.info()
         return
     }
-    console.info('---- %s ----', path)
+    console.info(c.grey('---- ' + path + ' ----'))
     console.info(readFileSync(path, 'utf8'))
-    console.info('---- end of migrator source ----')
+    console.info(c.grey('---- end of migrator source ----'))
     console.info()
 }
 
