@@ -114,6 +114,13 @@ treasury's `load_data()` is the **new** parser and would misread the old cell. E
 
 ## Add Deficit Field
 
+> **Already performed on mainnet, 2026-08-25 08:37:57 UTC. Kept as the record of what was run.**
+> The upgrade carried code hash `SNR/og76GL2ZxdSSKNEy4HAjs0W4xWpXRvEG5abK3+A=` — the plain
+> `Treasury` build, no leftovers — and migrator `f7ce19beb5d30494…`, which is
+> `upgrade-code-test/AddDeficit`. `get_deficit()` on the treasury returns 0 and every other field
+> is unchanged. `migratorName` is back to `null`. Do not re-run it: the migrator ends its parse
+> with `end_parse()`, so a second run throws and reverts the whole upgrade.
+
 One-off migration for the deficit counter, inserting a `deficit` field into root storage between
 `total_borrowers_stake` and `parent`, starting at zero. Ship it in the same `upgrade_code` that
 deploys the treasury carrying the deficit counter and the borrower refund fix.
