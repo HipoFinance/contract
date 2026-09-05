@@ -7,7 +7,6 @@ import { bodyOp } from './helper'
 import { op } from '../wrappers/common'
 import { Treasury } from '../wrappers/Treasury'
 import { dryRunUpgrade, formatDryRun } from '../wrappers/migrationDryRun'
-import { compileAtHead } from '../wrappers/compileAtHead'
 import { makePalette } from '../wrappers/colors'
 
 // The live treasury account captured from mainnet: its code as deployed, and its storage cell in the
@@ -36,10 +35,14 @@ describe('Treasury Migration', () => {
 
     beforeAll(async () => {
         treasuryCode = await compile('Treasury')
-        // The deficit migration targeted the code of its own time, which is the committed tree -- the
-        // working tree is the next migration. Pinning it here keeps this file a record of what was
-        // actually run rather than something that has to be rewritten on every later layout change.
-        deficitEraCode = await compileAtHead('contracts/treasury.fc')
+        // The deficit migration targeted the code of its own time. That code is still what is on
+        // chain today -- post-deficit, pre-borrower-fee -- so the captured mainnet account is exactly
+        // it, byte for byte. Using the capture rather than building "the previous version" out of git
+        // keeps this file a record of what was actually run, and does not quietly change meaning when
+        // the next migration is committed.
+        deficitEraCode = Cell.fromBoc(
+            readFileSync(__dirname + '/fixtures/treasury-mainnet-2026-09-05-code.boc'),
+        )[0]
         migratorCode = await compile('upgrade-code-test/AddDeficit')
         borrowerFeeMigratorCode = await compile('upgrade-code-test/AddBorrowerFee')
         mainnetCode = Cell.fromBoc(readFileSync(__dirname + '/fixtures/treasury-mainnet-code.boc'))[0]

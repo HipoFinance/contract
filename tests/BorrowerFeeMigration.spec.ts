@@ -4,7 +4,6 @@ import '@ton/test-utils'
 import { Address, Cell, Dictionary, DictionaryValue, Slice, beginCell, toNano } from '@ton/core'
 import { readFileSync } from 'fs'
 import { Treasury, emptyDictionaryValue, requestDictionaryValue, sortedDictionaryValue } from '../wrappers/Treasury'
-import { compileAtHead } from '../wrappers/compileAtHead'
 
 // The borrower-fee upgrade changes three stored layouts at once, and all three have to be converted
 // by the migrator in the same transaction:
@@ -34,12 +33,15 @@ describe('Borrower Fee Migration', () => {
 
     beforeAll(async () => {
         treasuryCode = await compile('Treasury')
-        // The upgrade starts from the code that is actually on chain, which is the committed tree --
-        // the working tree is the change being landed. This matters: upgrade_code unpacks the
-        // extension before it hands over to the migrator, and it must do that with the OLD parser.
-        // Starting from the new code instead would fail on the old extension with exit 9 and prove
-        // nothing about the migration.
-        deployedCode = await compileAtHead('contracts/treasury.fc')
+        // The upgrade has to start from the code that is actually on chain, not from anything built
+        // out of this tree: upgrade_code unpacks the extension before handing over to the migrator,
+        // and it must do that with the OLD parser. Starting from the new code fails on the old
+        // extension with exit 9 and proves nothing.
+        //
+        // That is the captured mainnet code, byte for byte. Compiling "the previous version" from git
+        // was the earlier approach and is a trap -- it means "before my uncommitted changes", which
+        // silently stops being true the moment the change is committed.
+        deployedCode = Cell.fromBoc(readFileSync(__dirname + '/fixtures/treasury-mainnet-2026-09-05-code.boc'))[0]
         migratorCode = await compile('upgrade-code-test/AddBorrowerFee')
         // Distinct from treasuryAddress: upgrade_data replies with gas_excess to the caller, and a
         // treasury addressed to itself would reject its own reply as an unknown op.
@@ -455,11 +457,11 @@ describe('Borrower Fee Migration', () => {
             return { blockchain, treasury }
         }
 
-        it('should be a capture of the code this repo actually builds', async () => {
-            // If this fails, the repo no longer reproduces the deployed bytecode and the fixture is
-            // testing a migration against code that will never run it.
-            const deployed = await compileAtHead('contracts/treasury.fc')
-            expect(mainnetCode.hash().toString('hex')).toEqual(deployed.hash().toString('hex'))
+        it('should not be the code this upgrade releases', () => {
+            // The point of the capture is to be the OTHER side of the upgrade. If it ever equals the
+            // released build, the fixture has been refreshed past the migration it exists to exercise
+            // and every assertion below is testing a no-op.
+            expect(mainnetCode.hash().toString('hex')).not.toEqual(treasuryCode.hash().toString('hex'))
         })
 
         it('should be a capture taken before the borrower fee, with requests to convert', () => {
@@ -517,6 +519,48 @@ describe('Borrower Fee Migration', () => {
             expect(state.totalTokens).toEqual(totalTokens)
             expect(state.governor.toString()).toEqual(mainnetGovernor().toString())
             expect(state.governanceFee).toEqual(0n)
+        })
+
+        it('should read the pre-upgrade treasury through the released wrapper', async () => {
+            // showState and every other tool built on this wrapper is what an operator uses to decide
+            // WHEN to upgrade -- above all to see total_borrowers_stake reach zero, which is the deploy
+            // condition. Requests on chain are still in the layout before the borrower fee, so a
+            // wrapper that only understood the new one would fail against the very chain it exists to
+            // inspect. That is a regression this fixture can catch, so it does.
+            const blockchain = await Blockchain.create()
+            await blockchain.setShardAccount(
+                mainnetAddress,
+                createShardAccount({
+                    workchain: 0,
+                    address: mainnetAddress,
+                    code: mainnetCode,
+                    data: mainnetData,
+                    balance: toNano('100'),
+                }),
+            )
+            const treasury = blockchain.openContract(Treasury.createFromAddress(mainnetAddress))
+
+            const state = await treasury.getTreasuryState()
+            expect(state.totalCoins).toBeGreaterThan(0n)
+            // Absent from this code, and reported as disabled rather than throwing or shifting every
+            // field after it.
+            expect(state.borrowerFee).toEqual(0n)
+            expect(state.governanceFee).toEqual(0n)
+
+            // The requests it is holding read as legacy, at their true stored scale rather than
+            // silently rescaled -- a tool showing this number should show what the treasury holds.
+            const shares = sharesBefore()
+            let seen = 0
+            for (const [key, oldShare] of shares) {
+                const [round, borrower] = key.split(':')
+                const participation = await treasury.getParticipation(BigInt(round))
+                const request = participation.staked?.get(BigInt(borrower))
+                expect(request?.legacy).toBe(true)
+                expect(request?.borrowerRewardShare).toEqual(BigInt(oldShare))
+                expect(request?.requestFee).toEqual(0n)
+                seen += 1
+            }
+            expect(seen).toEqual(shares.size)
         })
     })
 })

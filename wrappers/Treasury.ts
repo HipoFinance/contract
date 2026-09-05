@@ -13,6 +13,7 @@ import {
     SendMode,
     Slice,
     TupleBuilder,
+    TupleReader,
 } from '@ton/core'
 import { op, tonValue } from './common'
 
@@ -44,7 +45,11 @@ export enum ParticipationState {
 
 export interface Request {
     minPayment: bigint
-    /** Out of 65535. An old uint8 bid of `n` is exactly `n * 257n` here. */
+    /**
+     * Out of 65535, unless `legacy` is set, in which case it is out of 255 and the equivalent new
+     * value is `borrowerRewardShare * 257n`. Reported as stored rather than normalised, so a tool
+     * showing this number shows what the treasury actually holds.
+     */
     borrowerRewardShare: bigint
     loanAmount: bigint
     accrueAmount: bigint
@@ -52,6 +57,8 @@ export interface Request {
     /** borrowerFee snapshotted when the request was made, so a later change cannot reprice it. */
     requestFee: bigint
     newStakeMsg: Cell
+    /** True when this record predates the borrower fee, i.e. was written by a treasury not yet upgraded. */
+    legacy?: boolean
 }
 
 export interface Participation {
@@ -97,6 +104,18 @@ export interface TreasuryConfig {
     collectionCodes: Dictionary<bigint, Cell>
     billCodes: Dictionary<bigint, Cell>
     oldParents: Dictionary<bigint, unknown>
+}
+
+// Reads a number the deployed contract may not return, without consuming the item that follows it
+// when it does not. `peek` throws on an empty stack and returns the item otherwise; only a number is
+// taken, so a cell sitting in that position is left for the next reader.
+function readOptionalNumber(stack: TupleReader): bigint {
+    try {
+        if (stack.peek().type !== 'int') return 0n
+    } catch {
+        return 0n
+    }
+    return stack.readBigNumber()
 }
 
 export function treasuryConfigToCell(config: TreasuryConfig): Cell {
@@ -157,17 +176,47 @@ export const requestDictionaryValue: DictionaryValue<Request> = {
             .storeUint(src.requestFee, 16)
             .storeRef(src.newStakeMsg)
     },
+    // Reads both the current layout and the one that predates the borrower fee.
+    //
+    // This wrapper has to work against a treasury that has not been upgraded yet, because the tools
+    // built on it -- showState above all -- are what an operator uses to decide WHEN to upgrade. A
+    // parser that only understood the new layout would fail on the very chain it is being used to
+    // inspect, which is exactly backwards.
+    //
+    // The two are told apart by which one consumes the record exactly. Both end in a single ref, and
+    // every field before it is either length-prefixed coins or a fixed-width integer, so reading the
+    // wrong layout desyncs and leaves the slice either short or with bits to spare. Try the current
+    // one first so that the common case costs nothing.
     parse: function (src: Slice): Request {
-        return {
+        const current = tryParseRequest(src.clone(), false)
+        if (current != null) return current
+
+        const legacy = tryParseRequest(src.clone(), true)
+        if (legacy != null) return legacy
+
+        throw new Error('request matches neither the current layout nor the one before the borrower fee')
+    },
+}
+
+function tryParseRequest(src: Slice, legacy: boolean): Request | undefined {
+    try {
+        const request: Request = {
             minPayment: src.loadCoins(),
-            borrowerRewardShare: src.loadUintBig(16),
+            borrowerRewardShare: src.loadUintBig(legacy ? 8 : 16),
             loanAmount: src.loadCoins(),
             accrueAmount: src.loadCoins(),
             stakeAmount: src.loadCoins(),
-            requestFee: src.loadUintBig(16),
+            requestFee: legacy ? 0n : src.loadUintBig(16),
             newStakeMsg: src.loadRef(),
+            legacy: legacy ? true : undefined,
         }
-    },
+        // Consuming the record exactly is what identifies the layout; anything left over means this
+        // was the wrong reading of it.
+        src.endParse()
+        return request
+    } catch {
+        return undefined
+    }
 }
 
 export const participationDictionaryValue: DictionaryValue<Participation> = {
@@ -1039,7 +1088,10 @@ export class Treasury implements Contract {
             governor: stack.readAddress(),
             proposedGovernor: stack.readCellOpt(),
             governanceFee: stack.readBigNumber(),
-            borrowerFee: stack.readBigNumber(),
+            // Absent from a treasury that has not been upgraded yet, where the next stack item is
+            // collection_codes instead. Same reason as the request parser above: these tools are what
+            // an operator uses to decide when to upgrade, so they have to read the chain as it is.
+            borrowerFee: readOptionalNumber(stack),
             collectionCodes: Dictionary.loadDirect(
                 Dictionary.Keys.BigUint(32),
                 Dictionary.Values.Cell(),

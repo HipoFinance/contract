@@ -287,10 +287,21 @@ function showRequests(dict: Dictionary<bigint, Request>, testOnly: boolean, c: P
     if (dict.size > 0) {
         for (const req of dict.keys()) {
             const request = dict.get(req)
+            // borrower_reward_share is out of 65535, or 255 on a request written before the borrower
+            // fee. Both appear here while a treasury is mid-upgrade, and dividing by the wrong one
+            // reads 2056/65535 -- a little over 3% -- as 806%.
+            const legacy = request?.legacy === true
+            const share = Number(request?.borrowerRewardShare ?? 0n) / (legacy ? 255 : 65535)
+            // The fee snapshotted into the request, as a share of what the borrower contracted to
+            // earn. A legacy request predates the fee and recovers untaxed whatever the rate is now.
+            const fee = legacy
+                ? c.grey('pre-fee')
+                : formatPercent(Number(request?.requestFee ?? 0n) / 65535)
             console.info(
-                '        min: %s   take: %s   loan: %s   stake: %s   borrower: %s',
+                '        min: %s   take: %s   fee: %s   loan: %s   stake: %s   borrower: %s',
                 formatNano(request?.minPayment ?? 0n).padEnd(10),
-                formatPercent(Number(request?.borrowerRewardShare ?? 0n) / 255).padEnd(4),
+                formatPercent(share).padEnd(4),
+                fee.padEnd(7),
                 formatNano(request?.loanAmount ?? 0n).padEnd(9),
                 formatNano(request?.stakeAmount ?? 0n).padEnd(9),
                 c.cyan(Address.parseRaw('0:' + req.toString(16).padStart(64, '0')).toString({ testOnly })),
