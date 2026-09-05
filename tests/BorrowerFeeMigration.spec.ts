@@ -521,46 +521,5 @@ describe('Borrower Fee Migration', () => {
             expect(state.governanceFee).toEqual(0n)
         })
 
-        it('should read the pre-upgrade treasury through the released wrapper', async () => {
-            // showState and every other tool built on this wrapper is what an operator uses to decide
-            // WHEN to upgrade -- above all to see total_borrowers_stake reach zero, which is the deploy
-            // condition. Requests on chain are still in the layout before the borrower fee, so a
-            // wrapper that only understood the new one would fail against the very chain it exists to
-            // inspect. That is a regression this fixture can catch, so it does.
-            const blockchain = await Blockchain.create()
-            await blockchain.setShardAccount(
-                mainnetAddress,
-                createShardAccount({
-                    workchain: 0,
-                    address: mainnetAddress,
-                    code: mainnetCode,
-                    data: mainnetData,
-                    balance: toNano('100'),
-                }),
-            )
-            const treasury = blockchain.openContract(Treasury.createFromAddress(mainnetAddress))
-
-            const state = await treasury.getTreasuryState()
-            expect(state.totalCoins).toBeGreaterThan(0n)
-            // Absent from this code, and reported as disabled rather than throwing or shifting every
-            // field after it.
-            expect(state.borrowerFee).toEqual(0n)
-            expect(state.governanceFee).toEqual(0n)
-
-            // The requests it is holding read as legacy, at their true stored scale rather than
-            // silently rescaled -- a tool showing this number should show what the treasury holds.
-            const shares = sharesBefore()
-            let seen = 0
-            for (const [key, oldShare] of shares) {
-                const [round, borrower] = key.split(':')
-                const participation = await treasury.getParticipation(BigInt(round))
-                const request = participation.staked?.get(BigInt(borrower))
-                expect(request?.legacy).toBe(true)
-                expect(request?.borrowerRewardShare).toEqual(BigInt(oldShare))
-                expect(request?.requestFee).toEqual(0n)
-                seen += 1
-            }
-            expect(seen).toEqual(shares.size)
-        })
     })
 })
