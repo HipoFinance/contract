@@ -48,8 +48,24 @@ function rate(totalCoins: bigint, totalTokens: bigint): string {
 
 // Reads everything the treasury exposes. Ordered, so two snapshots line up positionally and a field
 // appearing or disappearing between code versions is itself visible.
-async function snapshot(treasury: SandboxContract<Treasury>, code: Cell, data: Cell) {
-    const s = await treasury.getTreasuryState()
+async function snapshot(treasury: SandboxContract<Treasury>, code: Cell, data: Cell): Promise<Snapshot> {
+    const shell = {
+        codeHash: code.hash().toString('hex'),
+        dataHash: data.hash().toString('hex'),
+        dataBits: data.bits.length,
+        dataRefs: data.refs.length,
+    }
+
+    // A migration that changes the shape of get_treasury_state makes this wrapper unable to read the
+    // side of the upgrade it was not built for -- and that is precisely the upgrade an operator most
+    // wants to rehearse. Report what is still knowable from the raw cells rather than throwing, so
+    // the run reaches its verdict; the field-by-field diff is what degrades, not the pass/fail.
+    let s
+    try {
+        s = await treasury.getTreasuryState()
+    } catch {
+        return { ...shell, fields: [['state', 'not readable by this wrapper (get_treasury_state shape differs)']] }
+    }
 
     // get_deficit only exists after the upgrade that adds it, so its absence is information too.
     let deficit = 'absent (getter not in this code)'
@@ -79,18 +95,13 @@ async function snapshot(treasury: SandboxContract<Treasury>, code: Cell, data: C
         ['governor', s.governor.toString()],
         ['proposed_governor', s.proposedGovernor == null ? 'null' : s.proposedGovernor.hash().toString('hex')],
         ['governance_fee', String(s.governanceFee)],
+        ['borrower_fee', String(s.borrowerFee)],
         ['collection_codes', dictSize(s.collectionCodes)],
         ['bill_codes', dictSize(s.billCodes)],
         ['old_parents', dictSize(s.oldParents)],
     ]
 
-    return {
-        codeHash: code.hash().toString('hex'),
-        dataHash: data.hash().toString('hex'),
-        dataBits: data.bits.length,
-        dataRefs: data.refs.length,
-        fields,
-    }
+    return { ...shell, fields }
 }
 
 async function accountCells(blockchain: Blockchain, address: Address): Promise<{ code: Cell; data: Cell }> {
@@ -211,7 +222,19 @@ export function formatDryRun(result: DryRunResult, palette: Palette = makePalett
     )
     lines.push('')
 
-    if (result.changes.length === 0) {
+    // An empty change list means two very different things, and an operator must not have to guess
+    // which. Say so explicitly when the state could not be itemised at all.
+    const unreadable = (s: Snapshot) => s.fields.length === 1 && s.fields[0][0] === 'state'
+    if (unreadable(result.before) || unreadable(after)) {
+        lines.push('  ' + c.yellowBold('STATE DIFF: not readable across this upgrade.'))
+        lines.push(
+            '  ' +
+                c.yellow(
+                    'get_treasury_state changes shape here, so fields cannot be compared. The hashes above' +
+                        ' still hold. Verify this one by reading the migrator.',
+                ),
+        )
+    } else if (result.changes.length === 0) {
         lines.push('  ' + c.green('STATE DIFF: no field changed. This upgrade replaces code only.'))
     } else {
         lines.push('  ' + c.yellowBold(`STATE DIFF: ${String(result.changes.length)} field(s) would change.`))

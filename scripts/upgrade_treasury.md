@@ -299,3 +299,99 @@ holders are not diluted and the treasury balance does not change. Run it in the 
 11. Run step 6 to reset treasury code hash.
 
 12. Remove old library from librarian by executing `removeLibrary.ts` script.
+
+## Borrower Fee
+
+> **Not yet run.** Spec: `docs/specs/2026-08-31-borrower-fee-hpo-burn.md`.
+
+Adds the borrower fee, widens `borrower_reward_share` to 16 bits, and snapshots the fee rate into
+each loan request. Three stored layouts change together and the migrator converts all three in one
+transaction:
+
+1. the extension gains `borrower_fee` (`uint16`) after `governance_fee`, at zero
+2. every request gains a 16-bit `borrower_reward_share` (from `share8 * 257`, exact) and a 16-bit
+   `request_fee` (zero — those loans were committed before the fee existed and recover untaxed)
+3. every participation's `sorted` dict is rekeyed from 112 to 120 bits
+
+The migrator is `wrappers/upgrade-code-test/add_borrower_fee.fc`, exercised in
+`tests/BorrowerFeeMigration.spec.ts` against storage built in the deployed shape and upgraded from
+the deployed code, which the test compiles out of git rather than the working tree.
+
+### Before sending
+
+1. **Confirm the burner.** `burner::addr` is
+   `EQAGPJMxJ73OLpHUgQhI5YeQe2ZuAuUQ-4f_zfN4rV2Fl6Jp`, the deployed burner from the sibling `burner`
+   repository. It treats `op::take_borrower_fee` as a payment rather than a known op, so nothing on
+   its side has to change; check that it is still active and still that code before enabling the fee.
+2. **Send while `total_borrowers_stake` is zero.** Read it with `showState.ts`. Zero means no
+   pending requests, so `requests` and `sorted` are empty on every participation and step 3 above is
+   a no-op — only the records in `staked` and `recovering` need converting, which is about four.
+   The migrator's cost scales with the number of stored requests, so check the count rather than
+   assuming it.
+3. **Upgrade the treasury BEFORE the borrowers, not after.** This is a breaking change to
+   `op::request_loan`: `borrower_reward_share` is now a `uint16` out of 65535. Both orderings have a
+   window in which requests bounce, so the question is which window you control.
+
+   - Borrowers first: they send 16 bits to a treasury that reads 8, leaving 8 bits over at
+     `end_parse()`. It throws. Every request bounces from the moment they are upgraded until the
+     treasury is, and that gap is bounded only by how long you wait for
+     `total_borrowers_stake == 0`.
+   - Treasury first: old borrowers send 8 bits where 16 are read, which underflows and throws. They
+     bounce only until you roll the binaries — and the deploy condition itself
+     (`total_borrowers_stake == 0`) already puts you between request windows, so the gap is a window
+     you chose rather than one you are waiting out.
+
+   Nothing is lost either way. `request_loan` is bounceable, so the collateral returns; the cost is a
+   missed round. Port an existing bid by multiplying by 257 — a share of 8 becomes 2056, identical
+   economics.
+
+### How long the window is
+
+`total_borrowers_stake` drops to zero when a round's requests are consumed by
+`participate_in_election`, and stays there until the validator set rotates and borrowers begin
+requesting for the round after. That is the whole gap, and it recurs every round period — 65536 s,
+about 18 h 12 m.
+
+The borrower's request loop has a one-minute floor, so it fires within about a minute of a round
+opening. Do not plan on borrowing time from the far end of the window.
+
+Read the exact edge before starting: `showState.ts` gives `total_borrowers_stake` and the
+participation states, and the round the treasury is about to rotate into is the largest `round_since`
+in `participations`. On 2026-09-05 the gap ran until 17:19:04 UTC, roughly 1 h 50 m from when it was
+measured.
+
+### Running it
+
+1. In `scripts/upgradeCode.ts`, set:
+
+    ```ts
+    const migratorName: string | null = 'upgrade-code-test/AddBorrowerFee'
+    ```
+
+2. Run the script. It prints the migrator hash and its full source and requires the hash typed back.
+
+   **The dry run will not show a field diff for this upgrade.** `dryRunUpgrade` reads state through
+   `get_treasury_state`, and this upgrade adds a field to it, so neither side can be itemised by a
+   single wrapper. It reports `STATE DIFF: not readable across this upgrade`, and the code hash, data
+   hash and cell size still hold. Read the migrator, not the diff.
+
+3. Set `migratorName` back to `null` once it has landed.
+
+4. Verify with `showState.ts`: `borrower_fee` reads `0 (0.00% of borrower reward) disabled`, and
+   `total_coins`, `total_tokens`, `parent`, `governor`, `halter` and the exchange rate are unchanged.
+   The code hash should equal the plain `Treasury` build.
+
+5. Enable the fee as a **separate** governance action once the upgrade is confirmed healthy:
+
+    ```
+    npx blueprint run setBorrowerFee
+    ```
+
+   `32767` is half of each borrower's contractual share of a round's reward. The script prints the
+   current rate, the share every borrower currently in the book bid, and what the new rate would take
+   from each — the same rate is a different deal for each of them, which the number alone hides — and
+   then asks for the value to be typed a second time.
+
+   `0` remains the kill switch, and it disables the `fee::min_burn` floor along with the rate. The
+   rate is snapshotted into each request, so setting it never reprices a loan already requested; it
+   applies from the next request onwards.

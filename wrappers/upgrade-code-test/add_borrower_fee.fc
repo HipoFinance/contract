@@ -1,0 +1,209 @@
+#include "../../contracts/imports/stdlib.fc";
+
+;; One-off migrator for the borrower fee. Three layout changes land together:
+;;
+;;   1. `borrower_fee` (uint16) is inserted into the extension cell after `governance_fee`,
+;;      starting at zero, which reproduces today's behaviour exactly until governance sets it.
+;;   2. Every stored request gains a 16-bit `borrower_reward_share` in place of its 8-bit one and a
+;;      16-bit `request_fee` before the `new_stake_msg` ref. Shares map as `share * 257`, exact
+;;      because 255 * 257 = 65535, so an in-flight loan's economics do not move. `request_fee` is
+;;      zero: those loans were committed before the fee existed and must recover untaxed.
+;;   3. Every participation's `sorted` dict is rebuilt with 120-bit keys, because
+;;      `request_sort_key` now carries the share at its full 16 bits rather than 8.
+;;
+;; This is never deployed. It rides inside the upgrade message as `migrate_code`, and the treasury
+;; blesses the cell and enters it at 0x6d67 for the duration of one transaction. See `run_migrator`
+;; in contracts/treasury.fc and the procedure in scripts/upgrade_treasury.md.
+;;
+;; Three rules, all enforced by tests/TreasuryMigration.spec.ts:
+;;   - no COMMIT, or a failed migration becomes permanent instead of reverting
+;;   - no SETCODE, or this could redirect the treasury behind the upgrade message's back
+;;   - everything inlined, so the compiled cell holds exactly method ids 0 and 0x6d67. EXECUTE
+;;     leaves c3 pointing at the treasury, so a non-inlined function here would CALLDICT into the
+;;     treasury's own dictionary. `inline` is substitution at the call site, so the request-dict
+;;     conversion below is duplicated six times in the output rather than dispatched to.
+;;
+;; It parses the old layout by hand rather than through a helper. By the time this runs,
+;; upgrade_code has already called set_c3, so the treasury's own load_data() and unpack_request()
+;; are the NEW parsers and would misread every old record.
+;;
+;; The trailing end_parse() calls are the re-run guard. Against storage that already carries the
+;; new layout the request parses leave bits over, so a second run throws and the upgrade reverts.
+;;
+;; Cost scales with the number of stored requests: `max_validators` (100) per participation across
+;; up to 8 participations in the worst case. Send this while `total_borrowers_stake` is zero, which
+;; means no pending requests, `requests` and `sorted` are empty on every participation, and only
+;; the records in `staked` and `recovering` need converting. A migrator that runs out of gas exits
+;; non-zero, so c4 and c5 are discarded and the treasury stays on its old code and data.
+
+;; Same shape as request_sort_key in contracts/imports/utils.fc, at the widened 120-bit key. Kept
+;; as a private copy because a migrator cannot call into the treasury; tests/TreasuryMigration.spec.ts
+;; asserts the two agree.
+int migrate_sort_key(int min_payment, int borrower_reward_share, int loan_amount) inline {
+    int treasury_reward_share = 65535 - borrower_reward_share;
+    int min_payment_round = min_payment >> 30;
+    int loan_amount_round = max(1, loan_amount >> 40);
+    int loan_amount_round_comp = (1 << 80) - loan_amount_round;
+    int efficieny = min((1 << 24) - 1, muldiv(min_payment_round, 1000, loan_amount_round));
+    return (efficieny << (16 + 80)) + (treasury_reward_share << 80) + loan_amount_round_comp;
+}
+
+;; Rewrites one borrower_addr -> request dict from the old layout to the new one.
+cell migrate_requests(cell old_requests) inline {
+    cell new_requests = new_dict();
+    int addr = -1;
+    do {
+        ( addr, slice r, int more? ) = old_requests.udict_get_next?(256, addr);
+        if more? {
+            int min_payment = r~load_coins();
+            int borrower_reward_share = r~load_uint(8);
+            int loan_amount = r~load_coins();
+            int accrue_amount = r~load_coins();
+            int stake_amount = r~load_coins();
+            cell new_stake_msg = r~load_ref();
+            r.end_parse();
+
+            new_requests~udict_set_builder(256, addr, begin_cell()
+                .store_coins(min_payment)
+                .store_uint(borrower_reward_share * 257, 16)
+                .store_coins(loan_amount)
+                .store_coins(accrue_amount)
+                .store_coins(stake_amount)
+                .store_uint(0, 16) ;; request_fee -- committed before the fee existed
+                .store_ref(new_stake_msg));
+        }
+    } until ~ more?;
+    return new_requests;
+}
+
+() migrate() impure method_id(0x6d67) {
+    slice old = get_data().begin_parse();
+    int total_coins = old~load_coins();
+    int total_tokens = old~load_coins();
+    int total_staking = old~load_coins();
+    int total_unstaking = old~load_coins();
+    int total_borrowers_stake = old~load_coins();
+    int deficit = old~load_coins();
+    slice parent = old~load_msg_addr();
+    cell participations = old~load_dict();
+    int rounds_imbalance = old~load_uint(8);
+    int stopped? = old~load_int(1);
+    int instant_mint? = old~load_int(1);
+    cell loan_codes = old~load_ref();
+    cell extension = old~load_ref();
+    old.end_parse();
+
+    slice ext = extension.begin_parse();
+    int previous_rate = ext~load_coins();
+    int current_rate = ext~load_coins();
+    slice halter = ext~load_msg_addr();
+    slice governor = ext~load_msg_addr();
+    cell proposed_governor = ext~load_maybe_ref();
+    int governance_fee = ext~load_uint(16);
+    cell collection_codes = ext~load_ref();
+    cell bill_codes = ext~load_ref();
+    cell old_parents = ext~load_dict();
+    ext.end_parse();
+
+    cell new_extension = begin_cell()
+        .store_coins(previous_rate)
+        .store_coins(current_rate)
+        .store_slice(halter)
+        .store_slice(governor)
+        .store_maybe_ref(proposed_governor)
+        .store_uint(governance_fee, 16)
+        .store_uint(0, 16) ;; borrower_fee -- disabled until governance sets it
+        .store_ref(collection_codes)
+        .store_ref(bill_codes)
+        .store_dict(old_parents)
+        .end_cell();
+
+    cell new_participations = new_dict();
+    int round_since = -1;
+    do {
+        ( round_since, slice ps, int more? ) = participations.udict_get_next?(32, round_since);
+        if more? {
+            int state = ps~load_uint(4);
+            int size = ps~load_uint(16);
+            cell sorted = ps~load_dict();
+            cell requests = ps~load_dict();
+            cell rejected = ps~load_dict();
+            cell accepted = ps~load_dict();
+            cell accrued = ps~load_dict();
+            cell staked = ps~load_dict();
+            cell recovering = ps~load_dict();
+            int total_staked = ps~load_coins();
+            int total_recovered = ps~load_coins();
+            int current_vset_hash = ps~load_uint(256);
+            int stake_held_for = ps~load_uint(32);
+            int stake_held_until = ps~load_uint(32);
+            ps.end_parse();
+
+            requests = migrate_requests(requests);
+            rejected = migrate_requests(rejected);
+            accepted = migrate_requests(accepted);
+            accrued = migrate_requests(accrued);
+            staked = migrate_requests(staked);
+            recovering = migrate_requests(recovering);
+
+            ;; Rebuild sorted at the new key width from the converted requests. The old dict is
+            ;; discarded rather than rekeyed: its keys were built from 8-bit shares, and only
+            ;; `requests` is ever indexed by it, so re-deriving is both simpler and self-consistent.
+            ;; It is empty on any participation past distributing, which is every participation
+            ;; while total_borrowers_stake is zero.
+            cell new_sorted = new_dict();
+            int addr = -1;
+            do {
+                ( addr, slice r, int has_request? ) = requests.udict_get_next?(256, addr);
+                if has_request? {
+                    int min_payment = r~load_coins();
+                    int borrower_reward_share = r~load_uint(16);
+                    int loan_amount = r~load_coins();
+                    int sort_key = migrate_sort_key(min_payment, borrower_reward_share, loan_amount);
+                    ( cell bucket, _ ) = new_sorted.udict_get_ref?(120, sort_key);
+                    bucket~udict_set_builder(256, addr, begin_cell());
+                    new_sorted~udict_set_ref(120, sort_key, bucket);
+                }
+            } until ~ has_request?;
+
+            new_participations~udict_set_builder(32, round_since, begin_cell()
+                .store_uint(state, 4)
+                .store_uint(size, 16)
+                .store_dict(new_sorted)
+                .store_dict(requests)
+                .store_dict(rejected)
+                .store_dict(accepted)
+                .store_dict(accrued)
+                .store_dict(staked)
+                .store_dict(recovering)
+                .store_coins(total_staked)
+                .store_coins(total_recovered)
+                .store_uint(current_vset_hash, 256)
+                .store_uint(stake_held_for, 32)
+                .store_uint(stake_held_until, 32));
+        }
+    } until ~ more?;
+
+    begin_cell()
+        .store_coins(total_coins)
+        .store_coins(total_tokens)
+        .store_coins(total_staking)
+        .store_coins(total_unstaking)
+        .store_coins(total_borrowers_stake)
+        .store_coins(deficit)
+        .store_slice(parent)
+        .store_dict(new_participations)
+        .store_uint(rounds_imbalance, 8)
+        .store_int(stopped?, 1)
+        .store_int(instant_mint?, 1)
+        .store_ref(loan_codes)
+        .store_ref(new_extension)
+        .end_cell()
+        .set_data();
+}
+
+;; A migrator is never deployed and never receives a message. This exists only because a compiled
+;; contract needs an entry point, and it is the other half of the two-method-id rule above.
+() recv_internal(cell in_msg_full, slice in_msg_body) impure {
+    throw(0xffff);
+}

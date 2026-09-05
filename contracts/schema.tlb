@@ -241,12 +241,16 @@ new_stake_msg#_
     signature:^bits512
         = NewStakeMsg;
 
+// borrower_reward_share widened from uint8/255 to uint16/65535. This is a BREAKING change to the
+// message: an old-format request carries only 8 bits here and throws on cell underflow. request_loan
+// is bounceable, so the collateral returns and nothing is lost, but the request does not land. Port
+// an existing bid exactly as share * 257, since 255 * 257 = 65535.
 request_loan#36335da9
     query_id:uint64
     round_since:uint32
     loan_amount:Coins
     min_payment:Coins
-    borrower_reward_share:uint8
+    borrower_reward_share:uint16
     new_stake_msg:^NewStakeMsg
         = InternalMsgBody;
 
@@ -319,6 +323,13 @@ set_instant_mint#535b09d2
 set_governance_fee#470fe5f6
     query_id:uint64
     new_governance_fee:uint16
+        = InternalMsgBody;
+
+// Out of 65535 of each borrower's contractual share of a round's reward, charged on top of what the
+// pool receives and paid from the borrower's own funds. 0 disables the mechanism entirely.
+set_borrower_fee#3b9a4c17
+    query_id:uint64
+    new_borrower_fee:uint16
         = InternalMsgBody;
 
 set_rounds_imbalance#1b4463b6
@@ -623,6 +634,12 @@ take_profit#8b556813
     query_id:uint64
         = InternalMsgBody;
 
+// Carries the borrower fee to the burner, in GRAM, at loan recovery. Sent only when borrower_fee is
+// non-zero, with ignore_errors so a burner that cannot accept it can never wedge the round.
+take_borrower_fee#5e2d81f4
+    query_id:uint64
+        = InternalMsgBody;
+
 //
 // Staker Ops
 //
@@ -654,10 +671,11 @@ remove_library#6bd0ce52
 log_loan#1
     round_since:uint32
     min_payment:Coins
-    borrower_reward_share:uint8
+    borrower_reward_share:uint16
     loan_amount:Coins
     accrue_amount:Coins
     stake_amount:Coins
+    borrower_fee:uint16
     borrower:MsgAddress
         = LogMsgBody;
 
@@ -669,6 +687,7 @@ log_repayment#2
     stakers_share:Coins
     governor_share:Coins
     borrower_share:Coins
+    burn_share:Coins
     borrower:MsgAddress
         = LogMsgBody;
 
@@ -708,19 +727,22 @@ proposed_governor#_
     new_governor:MsgAddress
         = ProposedGovernor;
 
+// borrower_fee is snapshotted from the extension when the request is made, so a later
+// set_borrower_fee cannot reprice a loan already committed.
 request#_
     min_payment:Coins
-    borrower_reward_share:uint8
+    borrower_reward_share:uint16
     loan_amount:Coins
     accrue_amount:Coins
     stake_amount:Coins
+    borrower_fee:uint16
     new_stake_msg:^NewStakeMsg
         = Request;
 
 participation#_
     state:uint4
     size:uint16
-    sorted:(HashmapE 112 (Hashmap 256 True))
+    sorted:(HashmapE 120 (Hashmap 256 True))
     requests:(HashmapE 256 Request)
     rejected:(HashmapE 256 Request)
     accepted:(HashmapE 256 Request)
@@ -741,6 +763,7 @@ extension#_
     governor:MsgAddress
     proposed_governor:(Maybe ^ProposedGovernor)
     governance_fee:uint16
+    borrower_fee:uint16
     collection_codes:(Hashmap 32 ^Cell)
     bill_codes:(Hashmap 32 ^Cell)
     old_parents:(HashmapE 256 True)

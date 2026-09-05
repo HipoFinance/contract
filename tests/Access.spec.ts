@@ -83,6 +83,7 @@ describe('Access', () => {
                     governor: governor.address,
                     proposedGovernor: null,
                     governanceFee: 4096n,
+                    borrowerFee: 0n,
                     collectionCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         collectionCode,
@@ -248,7 +249,7 @@ describe('Access', () => {
             loanAmount: '350000',
             minPayment: '100',
             roundSince: 1n,
-            borrowerRewardShare: 102n,
+            borrowerRewardShare: 26214n,
             newStakeMsg: await createNewStakeMsg(mainchainWallet.address, 1n),
         })
         expect(result4.transactions).toHaveTransaction({
@@ -277,7 +278,7 @@ describe('Access', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
 
@@ -1368,7 +1369,7 @@ describe('Access', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -1376,7 +1377,7 @@ describe('Access', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -1384,7 +1385,7 @@ describe('Access', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg3,
         })
 

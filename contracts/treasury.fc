@@ -27,6 +27,7 @@ global slice halter;
 global slice governor;
 global cell proposed_governor;
 global int governance_fee;
+global int borrower_fee;
 global cell collection_codes;
 global cell bill_codes;
 global cell old_parents;
@@ -76,6 +77,7 @@ global cell old_parents;
         .store_slice(governor)
         .store_maybe_ref(proposed_governor)
         .store_uint(governance_fee, 16)
+        .store_uint(borrower_fee, 16)
         .store_ref(collection_codes)
         .store_ref(bill_codes)
         .store_dict(old_parents)
@@ -90,6 +92,7 @@ global cell old_parents;
     governor = s~load_msg_addr();
     proposed_governor = s~load_maybe_ref();
     governance_fee = s~load_uint(16);
+    borrower_fee = s~load_uint(16);
     collection_codes = s~load_ref();
     bill_codes = s~load_ref();
     old_parents = s~load_dict();
@@ -176,32 +179,40 @@ int holds_bills?(int state) inline {
     return (state > participation::open) & (state < participation::burning);
 }
 
+;; borrower_reward_share is 16 bits out of 65535, not 8 out of 255: one step of the old scale moved
+;; a borrower's own take by 1/share, which at the shares actually bid (8/255) was 12.5% and at 1/255
+;; left no move but zero. request_fee is the rate snapshotted from the extension when the request was
+;; made, so a set_borrower_fee cannot reprice a loan already committed -- there is no quiet window to
+;; change it in, because with interleaved round chains some participation is always mid-flight.
 builder pack_request
     ( int min_payment
     , int borrower_reward_share
     , int loan_amount
     , int accrue_amount
     , int stake_amount
+    , int request_fee
     , cell new_stake_msg
     ) inline_ref {
     return begin_cell()
         .store_coins(min_payment)
-        .store_uint(borrower_reward_share, 8)
+        .store_uint(borrower_reward_share, 16)
         .store_coins(loan_amount)
         .store_coins(accrue_amount)
         .store_coins(stake_amount)
+        .store_uint(request_fee, 16)
         .store_ref(new_stake_msg);
 }
 
-(int, int, int, int, int, cell) unpack_request(slice s) inline_ref {
+(int, int, int, int, int, int, cell) unpack_request(slice s) inline_ref {
     int min_payment = s~load_coins();
-    int borrower_reward_share = s~load_uint(8);
+    int borrower_reward_share = s~load_uint(16);
     int loan_amount = s~load_coins();
     int accrue_amount = s~load_coins();
     int stake_amount = s~load_coins();
+    int request_fee = s~load_uint(16);
     cell new_stake_msg = s~load_ref();
     s.end_parse();
-    return ( min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount, new_stake_msg );
+    return ( min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount, request_fee, new_stake_msg );
 }
 
 cell find_code(cell dict, int round_since) inline {
@@ -612,11 +623,22 @@ cell find_code(cell dict, int round_since) inline {
 }
 
 () request_loan(slice src, slice s) impure inline {
+    ;; borrower_fee lives in the extension and is snapshotted into the request below, so this
+    ;; handler has to unpack it -- it reads only root fields otherwise. That cost is in
+    ;; gas::request_loan and therefore in request_loan_fee, which borrowers read before attaching
+    ;; gas rather than hard-coding.
+    unpack_extension();
+
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     int loan_amount = s~load_coins();
     int min_payment = s~load_coins();
-    int borrower_reward_share = s~load_uint(8);
+    ;; 16 bits, not the 8 this used to be. An old-format request carries exactly 8 bits here before
+    ;; its ref, so this throws on cell underflow; request_loan is bounceable, so the borrower's
+    ;; collateral comes straight back and they find out on their next attempt. A loud failure was
+    ;; chosen over a compatibility tail precisely because the silent alternative would misread a
+    ;; bid. An existing uint8 bid ports exactly as share * 257, since 255 * 257 = 65535.
+    int borrower_reward_share = s~load_uint(16);
     cell new_stake_msg = s~load_ref();
     s.end_parse();
     check_new_stake_msg(new_stake_msg.begin_parse());
@@ -642,15 +664,16 @@ cell find_code(cell dict, int round_since) inline {
             , _
             , old_stake_amount
             , _
+            , _
             ) = unpack_request(old_request);
 
             int old_sort_key = request_sort_key(old_min_payment, old_borrower_reward_share, old_loan_amount);
-            ( cell old_bucket, _ ) = sorted.udict_get_ref?(112, old_sort_key);
+            ( cell old_bucket, _ ) = sorted.udict_get_ref?(120, old_sort_key);
             old_bucket~udict_delete?(256, borrower_addr);
             if old_bucket.null?() {
-                sorted~udict_delete?(112, old_sort_key);
+                sorted~udict_delete?(120, old_sort_key);
             } else {
-                sorted~udict_set_ref(112, old_sort_key, old_bucket);
+                sorted~udict_set_ref(120, old_sort_key, old_bucket);
             }
         }
     } else {
@@ -677,31 +700,38 @@ cell find_code(cell dict, int round_since) inline {
     throw_unless(err::not_accepting_loan_requests, now() < participate_since);
     throw_unless(err::invalid_parameters, loan_amount > 0);
     throw_unless(err::insufficient_funds, stake_amount + loan_amount >= min_stake + fee::new_stake_confirmation);
-    throw_unless(err::insufficient_funds, stake_amount >= min_payment + max_punishment);
+    ;; Collateral has to cover the burn floor as well, so the fee is committed at request time. Only
+    ;; the floor is checked: the rate-based part depends on the round's reward, which is unknown
+    ;; here, but it is charged out of the borrower's own reward, so nothing but the floor can reach
+    ;; collateral.
+    int min_burn = borrower_fee > 0 ? fee::min_burn : 0;
+    throw_unless(err::insufficient_funds, stake_amount >= min_payment + min_burn + max_punishment);
     throw_if(err::stopped, stopped?);
 
-    builder request = pack_request(min_payment, borrower_reward_share, loan_amount, 0, stake_amount, new_stake_msg);
+    builder request = pack_request(
+        min_payment, borrower_reward_share, loan_amount, 0, stake_amount, borrower_fee, new_stake_msg
+    );
     requests~udict_set_builder(256, borrower_addr, request);
     size += 1;
 
     int sort_key = request_sort_key(min_payment, borrower_reward_share, loan_amount);
-    ( cell bucket, _ ) = sorted.udict_get_ref?(112, sort_key);
+    ( cell bucket, _ ) = sorted.udict_get_ref?(120, sort_key);
     bucket~udict_set_builder(256, borrower_addr, begin_cell());
-    sorted~udict_set_ref(112, sort_key, bucket);
+    sorted~udict_set_ref(120, sort_key, bucket);
 
     ( int max_validators, _, _ ) = get_validators_config();
     max_validators = min(max_validators, 100); ;; before increasing 100, check gas usage using MaxGas
     if size > max_validators {
-        ( int last_sort_key, slice v, _ ) = sorted~udict_delete_get_min?(112);
+        ( int last_sort_key, slice v, _ ) = sorted~udict_delete_get_min?(120);
         cell last_bucket = v~load_ref();
         ( int last_borrower_addr, _, _ ) = last_bucket~udict_delete_get_max?(256);
         ( slice last_request, _ ) = requests~udict_delete_get?(256, last_borrower_addr);
         size -= 1;
         ifnot last_bucket.null?() {
-            sorted~udict_set_ref(112, last_sort_key, last_bucket);
+            sorted~udict_set_ref(120, last_sort_key, last_bucket);
         }
         builder last_borrower = create_address(chain::base, last_borrower_addr);
-        ( _, _, _, _, int last_stake_amount, _ ) = unpack_request(last_request);
+        ( _, _, _, _, int last_stake_amount, _, _ ) = unpack_request(last_request);
         total_borrowers_stake -= last_stake_amount;
 
         builder rejected = begin_cell()
@@ -872,18 +902,18 @@ cell find_code(cell dict, int round_since) inline {
 
     while remain & (gas_consumed() < soft_gas_limit) & ~ sorted.dict_empty?() {
         ;; sorted is in ascending order, read from the end
-        ( int k, slice v, _ ) = sorted.udict_get_max?(112);
+        ( int k, slice v, _ ) = sorted.udict_get_max?(120);
         cell bucket = v~load_ref();
         while remain & (gas_consumed() < soft_gas_limit) & ~ bucket.dict_empty?() {
             remain -= 1;
             ( int borrower_addr, _, _ ) = bucket~udict_delete_get_min?(256);
             if bucket.dict_empty?() {
-                sorted~udict_delete?(112, k);
+                sorted~udict_delete?(120, k);
             } else {
-                sorted~udict_set_ref(112, k, bucket);
+                sorted~udict_set_ref(120, k, bucket);
             }
             ( slice request, _ ) = requests~udict_delete_get?(256, borrower_addr);
-            ( _, _, int loan_amount, _, _, _ ) = unpack_request(request);
+            ( _, _, int loan_amount, _, _, _, _ ) = unpack_request(request);
             if available >= loan_amount {
                 available -= loan_amount;
                 allocated += loan_amount;
@@ -903,14 +933,17 @@ cell find_code(cell dict, int round_since) inline {
         , int loan_amount
         , _
         , int stake_amount
+        , int request_fee
         , cell new_stake_msg
         ) = unpack_request(request);
         int accrue_amount = muldiv(available, loan_amount, allocated);
         int total_loan_amount = loan_amount + accrue_amount + stake_amount;
         int max_punishment = max_recommended_punishment_for_validator_misbehaviour(total_loan_amount);
-        if stake_amount >= min_payment + max_punishment {
+        int min_burn = request_fee > 0 ? fee::min_burn : 0;
+        if stake_amount >= min_payment + min_burn + max_punishment {
             builder accrued_request = pack_request(
-                min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount, new_stake_msg
+                min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount,
+                request_fee, new_stake_msg
             );
             accrued~udict_set_builder(256, borrower_addr, accrued_request);
         } else {
@@ -1057,6 +1090,7 @@ cell find_code(cell dict, int round_since) inline {
         , int loan_amount
         , int accrue_amount
         , int stake_amount
+        , int request_fee
         , cell new_stake_msg
         ) = unpack_request(request);
         builder borrower = create_address(chain::base, borrower_addr);
@@ -1073,7 +1107,10 @@ cell find_code(cell dict, int round_since) inline {
             .store_ref(new_stake_msg);
         send_msg(true, loan, state_init, body, ton_amount, send::regular);
 
-        log_loan(round_since, min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount, borrower);
+        log_loan(
+            round_since, min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount,
+            request_fee, borrower
+        );
     }
 
     ;; send back staked amount of rejected requests
@@ -1083,7 +1120,7 @@ cell find_code(cell dict, int round_since) inline {
         ;; this code may already carry a size that does not count its rejected requests
         size = max(0, size - 1);
         ( int borrower_addr, slice request, _ ) = rejected~udict_delete_get_min?(256);
-        ( _, _, _, _, int stake_amount, _ ) = unpack_request(request);
+        ( _, _, _, _, int stake_amount, _, _ ) = unpack_request(request);
         builder borrower = create_address(chain::base, borrower_addr);
         total_borrowers_stake -= stake_amount;
 
@@ -1329,6 +1366,8 @@ cell find_code(cell dict, int round_since) inline {
 
     int reserve_amount = 0;
     int stake_amount = 0;
+    ;; declared out here with stake_amount because both are read by the sends after this block
+    int burn_share = 0;
     int settled? = false;
     ( _, int borrower_addr ) = parse_std_addr(borrower);
     ( slice ps, int f? ) = participations.udict_get?(32, round_since);
@@ -1362,6 +1401,7 @@ cell find_code(cell dict, int round_since) inline {
             , int loan_amount
             , int accrue_amount
             , stake_amount
+            , int request_fee
             , _
             ) = unpack_request(request);
 
@@ -1372,10 +1412,27 @@ cell find_code(cell dict, int round_since) inline {
             ( _, _, int recover_stake_fee ) = request_loan_fee();
             int reward = incoming_ton - loan_amount - accrue_amount - stake_amount - recover_stake_fee;
             if reward >= 0 {
-                int treasury_reward_share = 255 - borrower_reward_share;
-                int treasury_reward = max(min_payment, muldiv(reward, treasury_reward_share, 255));
+                int treasury_reward_share = 65535 - borrower_reward_share;
+                int treasury_reward = max(min_payment, muldiv(reward, treasury_reward_share, 65535));
                 int borrower_reward = reward - treasury_reward;
                 stake_amount += borrower_reward;
+                ;; The burner is paid out of what is left to the borrower, never out of
+                ;; treasury_reward -- the pool's take, and therefore the exchange rate, is untouched.
+                ;; The base is the borrower's contractual share of the gross reward, so bidding a
+                ;; min_payment at or above the reward cannot shrink it: that clamp only moves the
+                ;; borrower's realised take, not this. Because the base is the borrower's own reward,
+                ;; the rate is bounded by construction -- at 65535 they keep nothing but still lose
+                ;; no collateral, so there is no rate at which an unexpectedly large or small round
+                ;; can turn their position into a loss. The floor covers the one case the base
+                ;; cannot: a borrower who contracted for no reward at all.
+                if request_fee > 0 {
+                    int burn_base = muldiv(reward, borrower_reward_share, 65535);
+                    burn_share = min(
+                        stake_amount,
+                        max(fee::min_burn, muldiv(burn_base, request_fee, 65535))
+                    );
+                    stake_amount -= burn_share;
+                }
                 fee = muldiv(treasury_reward, governance_fee, 65535);
                 new_coins = treasury_reward - fee;
                 total_coins += new_coins;
@@ -1400,6 +1457,13 @@ cell find_code(cell dict, int round_since) inline {
                 ;; then try to take at most min_payment
                 int treasury_reward = min(stake_amount, min_payment);
                 stake_amount -= treasury_reward;
+                ;; reward is negative here, so the contractual base is zero and only the floor
+                ;; applies -- clamped to whatever collateral survived the punishment and the pool's
+                ;; min_payment, which are both paid first.
+                if request_fee > 0 {
+                    burn_share = min(stake_amount, fee::min_burn);
+                    stake_amount -= burn_share;
+                }
                 fee = muldiv(treasury_reward, governance_fee, 65535);
                 new_coins = treasury_reward - fee;
                 total_coins += new_coins;
@@ -1414,12 +1478,16 @@ cell find_code(cell dict, int round_since) inline {
                 ;; if the elector returned less than the recovery cost. raw_reserve would then throw,
                 ;; and recover_stake_result is non-bounceable, so nothing would retry: the round would
                 ;; sit in recovering forever and owes_reward? would block every later round's bills.
-                reserve_amount = max(0, incoming_ton - stake_amount - fee - recover_stake_fee);
+                ;; burn_share is subtracted alongside stake_amount: it has already left stake_amount
+                ;; above, and reserving it would keep it in the treasury instead of sending it on to
+                ;; the burner, with nothing recording that it was owed.
+                reserve_amount = max(0, incoming_ton - stake_amount - burn_share - fee - recover_stake_fee);
                 total_recovered += reserve_amount;
             }
 
             log_repayment(
-                round_since, incoming_ton, loan_amount, accrue_amount, new_coins, fee, stake_amount, borrower
+                round_since, incoming_ton, loan_amount, accrue_amount, new_coins, fee, stake_amount,
+                burn_share, borrower
             );
 
             if shortfall {
@@ -1469,6 +1537,20 @@ cell find_code(cell dict, int round_since) inline {
             .store_uint(op::loan_result, 32)
             .store_uint(query_id, 64);
         send_msg(false, borrower.to_builder(), null(), result, stake_amount, send::ignore_errors);
+    }
+
+    ;; Must be sent, not reserved: take_profit below sweeps the unreserved balance to the governor,
+    ;; so anything left implicit would go there instead. ignore_errors is not optional either --
+    ;; recover_stake_result is non-bounceable, and a throw here would strand the round in recovering
+    ;; forever, blocking every later round's bills through owes_reward?.
+    if burn_share > 0 {
+        builder burn = begin_cell()
+            .store_uint(op::take_borrower_fee, 32)
+            .store_uint(query_id, 64);
+        send_msg(
+            false, create_address(burner::wc, burner::addr), null(), burn, burn_share,
+            send::pay_gas_separately + send::ignore_errors
+        );
     }
 
     builder profit = begin_cell()
@@ -1612,6 +1694,28 @@ cell find_code(cell dict, int round_since) inline {
         .store_uint(op::gas_excess, 32)
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+}
+
+;; The rate charged to borrowers, out of 65535 of their contractual share of a round's reward. It is
+;; snapshotted into each request when it is made, so a change here only affects loans requested after
+;; it -- there is no window in which no participation is mid-flight, so retroactive repricing had to
+;; be ruled out structurally rather than by timing the call.
+;; Zero disables the mechanism completely, floor included.
+() set_borrower_fee(slice src, slice s) impure inline {
+    unpack_extension();
+
+    int query_id = s~load_uint(64);
+    borrower_fee = s~load_uint(16);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+
+    pack_extension();
 }
 
 () set_governance_fee(slice src, slice s) impure inline {
@@ -2304,6 +2408,10 @@ int calculate_min_coins() inline_ref {
         return set_instant_mint(src, s);
     }
 
+    if op == op::set_borrower_fee {
+        return set_borrower_fee(src, s);
+    }
+
     if op == op::set_governance_fee {
         return set_governance_fee(src, s);
     }
@@ -2467,10 +2575,76 @@ var get_treasury_state() method_id {
         , governor
         , proposed_governor
         , governance_fee
+        , borrower_fee
         , collection_codes
         , bill_codes
         , old_parents
         );
+}
+
+;; A borrower's request for a round, and which stage of the round it is sitting in. Without this
+;; nothing about a bid is observable off-chain: get_participation returns the raw dicts, so a caller
+;; would have to know the internal packing, and min_payment could only be inferred by arithmetic on
+;; total_borrowers_stake. stage is 0 when nothing was found, otherwise the participation:: state the
+;; request is conceptually in.
+(int, int, int, int, int, int, int) get_loan_request(int round_since, slice borrower) method_id {
+    load_data();
+
+    ( _, int borrower_addr ) = parse_std_addr(borrower);
+    ( slice ps, int f? ) = participations.udict_get?(32, round_since);
+    ifnot f? {
+        return ( false, 0, 0, 0, 0, 0, 0 );
+    }
+
+    ( _
+    , _
+    , _
+    , cell requests
+    , cell rejected
+    , cell accepted
+    , cell accrued
+    , cell staked
+    , cell recovering
+    , _, _, _, _, _
+    ) = unpack_participation(ps);
+
+    int stage = 0;
+    ( slice request, int e? ) = requests.udict_get?(256, borrower_addr);
+    if e? { stage = participation::open; }
+    ifnot e? {
+        ( request, e? ) = rejected.udict_get?(256, borrower_addr);
+        if e? { stage = participation::distributing; }
+    }
+    ifnot e? {
+        ( request, e? ) = accepted.udict_get?(256, borrower_addr);
+        if e? { stage = participation::distributing; }
+    }
+    ifnot e? {
+        ( request, e? ) = accrued.udict_get?(256, borrower_addr);
+        if e? { stage = participation::distributing; }
+    }
+    ifnot e? {
+        ( request, e? ) = staked.udict_get?(256, borrower_addr);
+        if e? { stage = participation::staked; }
+    }
+    ifnot e? {
+        ( request, e? ) = recovering.udict_get?(256, borrower_addr);
+        if e? { stage = participation::recovering; }
+    }
+    ifnot e? {
+        return ( false, 0, 0, 0, 0, 0, 0 );
+    }
+
+    ( int min_payment
+    , int borrower_reward_share
+    , int loan_amount
+    , int accrue_amount
+    , int stake_amount
+    , int request_fee
+    , _
+    ) = unpack_request(request);
+
+    return ( stage, min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount, request_fee );
 }
 
 var get_participation(int round_since) method_id {

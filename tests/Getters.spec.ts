@@ -100,6 +100,7 @@ describe('Getters', () => {
                     governor: governor.address,
                     proposedGovernor: null,
                     governanceFee: 4096n,
+                    borrowerFee: 0n,
                     collectionCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         collectionCode,
@@ -247,7 +248,7 @@ describe('Getters', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg,
         })
 

@@ -92,6 +92,7 @@ const int op::set_halter = 0x16bb5b17;
 const int op::set_stopped = 0x0e5e9773;
 const int op::set_instant_mint = 0x535b09d2;
 const int op::set_governance_fee = 0x470fe5f6;
+const int op::set_borrower_fee = 0x3b9a4c17;
 const int op::set_rounds_imbalance = 0x1b4463b6;
 const int op::set_deficit = 0x75be0d1a;
 const int op::send_message_to_loan = 0x0e93f65b;
@@ -145,6 +146,7 @@ const int op::proxy_recover_stake = 0x407cb243;
 const int op::request_rejected = 0xcd0f2116;
 const int op::loan_result = 0xfaaa8366;
 const int op::take_profit = 0x8b556813;
+const int op::take_borrower_fee = 0x5e2d81f4;
 
 const int op::withdrawal_notification = 0xf0fa223b;
 
@@ -154,14 +156,14 @@ const int op::remove_library = 0x6bd0ce52;
 
 const int gas::send_tokens = 10678;
 const int gas::receive_tokens = 11691;
-const int gas::deposit_coins = 19268;
+const int gas::deposit_coins = 19362;
 const int gas::proxy_save_coins = 6175;
 const int gas::save_coins = 7091;
 const int gas::mint_bill = 7757;
 const int gas::assign_bill = 5960;
 const int gas::burn_bill = 6558;
 const int gas::bill_burned = 12316;
-const int gas::mint_tokens = 12256;
+const int gas::mint_tokens = 12353;
 const int gas::proxy_tokens_minted = 6841;
 const int gas::tokens_minted = 13453;
 const int gas::unstake_tokens = 9040;
@@ -170,7 +172,7 @@ const int gas::reserve_tokens = 15521;
 const int gas::burn_tokens = 17400;
 const int gas::proxy_tokens_burned = 7307;
 const int gas::tokens_burned = 7179;
-const int gas::send_unstake_all = 13605;
+const int gas::send_unstake_all = 13818;
 const int gas::proxy_unstake_all = 6553;
 const int gas::unstake_all = 7423;
 const int gas::upgrade_wallet = 7618;
@@ -179,7 +181,7 @@ const int gas::migrate_wallet = 12802;
 const int gas::proxy_merge_wallet = 7841;
 const int gas::merge_wallet = 7443;
 
-const int gas::request_loan = 45000;
+const int gas::request_loan = 47000;
 const int gas::participate_in_election = 29000;
 const int gas::decide_loan_requests = 21000;
 const int gas::process_loan_requests = 31000;
@@ -188,7 +190,7 @@ const int gas::vset_changed = 11000;
 const int gas::finish_participation = 13000;
 const int gas::recover_stakes = 22000;
 const int gas::proxy_recover_stake = 5000;
-const int gas::recover_stake_result = 52000;
+const int gas::recover_stake_result = 53000;
 const int gas::burn_all = 8000;
 const int gas::last_bill_burned = 19000;
 const int gas::new_stake = 18000;
@@ -201,6 +203,23 @@ const int gas::recover_stake_ok = 6000;
 const int fee::treasury_storage = 10000000000; ;; 10 GRAM
 const int fee::librarian_storage = 1000000000; ;; 1 GRAM
 const int fee::new_stake_confirmation = 1000000000; ;; 1 GRAM
+;; Smallest burn a borrower fee can produce, so that every accepted loan burns something even when
+;; the borrower contracted for no reward at all (borrower_reward_share = 0) or the round was
+;; punished. Only ever charged while borrower_fee > 0, and always clamped to the funds the
+;; borrower actually has left, so it can never drive the loan_result payout negative.
+const int fee::min_burn = 1000000000; ;; 1 GRAM
+
+
+;; Recipient of the borrower fee: EQAGPJMxJ73OLpHUgQhI5YeQe2ZuAuUQ-4f_zfN4rV2Fl6Jp, the deployed
+;; burner contract, which buys HPO with the GRAM it receives and burns it. Its source is the sibling
+;; `burner` repository; it treats op::take_borrower_fee as a payment rather than a known op, so the
+;; treasury needs no cooperation from it beyond the address.
+;;
+;; A constant rather than a stored field because the extension cell has all four refs taken and an
+;; inline address would not fit its bit budget either. Changing it is therefore a treasury upgrade.
+;; See docs/specs/2026-08-31-borrower-fee-hpo-burn.md.
+const int burner::wc = 0; ;; basechain -- chain::base is declared further down this file
+const int burner::addr = 0x063c933127bdce2e91d4810848e587907b666e02e510fb87ffcdf378ad5d8597;
 
 
 const int log::loan = 0x1;

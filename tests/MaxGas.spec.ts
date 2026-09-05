@@ -47,7 +47,7 @@ const constantsFile = join('contracts', 'imports', 'constants.fc')
 
 // Constants deliberately left below what their op costs, with the exact gap pinned so it cannot widen unnoticed.
 // See the note above the last test for why gas::migrate_wallet is here and when to remove it.
-const pinnedShortfalls = new Map<string, bigint>([['migrate_wallet', 646n]])
+const pinnedShortfalls = new Map<string, bigint>([['migrate_wallet', 953n]])
 
 const loanKeys = [
     'request_loan',
@@ -217,6 +217,7 @@ describe('Max Gas', () => {
                     governor: governor.address,
                     proposedGovernor: null,
                     governanceFee: 4096n,
+                    borrowerFee: 0n,
                     collectionCodes,
                     billCodes,
                     oldParents,
@@ -857,7 +858,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg,
         })
 
@@ -1014,7 +1015,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
 
@@ -1023,7 +1024,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         expect(result1.transactions).toHaveLength(2)
@@ -1039,10 +1040,11 @@ describe('Max Gas', () => {
         }
         const request = {
             minPayment: toNano('50'),
-            borrowerRewardShare: 102n,
+            borrowerRewardShare: 26214n,
             loanAmount: toNano('300000'),
             accrueAmount: 0n,
             stakeAmount: toNano('151'),
+            requestFee: 0n,
             newStakeMsg: emptyNewStakeMsg,
         }
         const bucket = sorted.get(sorted.keys()[0])
@@ -1081,7 +1083,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         expect(result2.transactions).toHaveLength(2)
@@ -1092,7 +1094,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         expect(result3.transactions).toHaveLength(3)
@@ -1226,7 +1228,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
 
@@ -1235,7 +1237,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         expect(result1.transactions).toHaveLength(2)
@@ -1251,10 +1253,11 @@ describe('Max Gas', () => {
         }
         const request = {
             minPayment: toNano('50'),
-            borrowerRewardShare: 102n,
+            borrowerRewardShare: 26214n,
             loanAmount: toNano('300000'),
             accrueAmount: 0n,
             stakeAmount: toNano('151'),
+            requestFee: 0n,
             newStakeMsg: emptyNewStakeMsg,
         }
         for (const i of Array(count - 1).keys()) {
@@ -1290,7 +1293,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         expect(result2.transactions).toHaveLength(2)
@@ -1301,7 +1304,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         expect(result3.transactions).toHaveLength(3)
@@ -1410,7 +1413,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
 
@@ -1419,7 +1422,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         expect(result1.transactions).toHaveLength(2)
@@ -1435,10 +1438,11 @@ describe('Max Gas', () => {
         }
         const request = {
             minPayment: toNano('50'),
-            borrowerRewardShare: 102n,
+            borrowerRewardShare: 26214n,
             loanAmount: toNano('300000'),
             accrueAmount: 0n,
             stakeAmount: toNano('151'),
+            requestFee: 0n,
             newStakeMsg: emptyNewStakeMsg,
         }
         for (const i of Array(count - 1).keys()) {
@@ -1474,7 +1478,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         expect(result2.transactions).toHaveLength(2)
@@ -1485,7 +1489,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         expect(result3.transactions).toHaveLength(3)
@@ -1583,7 +1587,7 @@ describe('Max Gas', () => {
                     roundSince: until1,
                     loanAmount: '300000',
                     minPayment: '50',
-                    borrowerRewardShare: 102n, // 40%
+                    borrowerRewardShare: 26214n, // 40%
                     newStakeMsg,
                 })
                 expect(result.transactions).toHaveLength(2)
@@ -1832,6 +1836,14 @@ describe('Max Gas', () => {
     // driven by the webapp, which funds it properly. Someone bypassing that flow still has roughly 10,380 gas of
     // real headroom, from forward fees budgeted for messages that are never sent and the storage reserve the
     // wallet sweeps in. Raise the constant and delete the pin when the next wallet and parent version ship.
+    //
+    // The gap widened from 646 to 953 with the borrower fee. Note where it did NOT come from: op::migrate_wallet
+    // is handled by the TREASURY, not by a wallet -- parent.fc sends it there -- so what grew is the treasury
+    // handler, which now unpacks one more field from the extension. Wallet, Parent and Loan all still compile to
+    // exactly their deployed hashes; only Treasury moved, which is the point of that upgrade. So the reason for
+    // the pin is intact: gas::migrate_wallet is read by upgrade_wallet_fee in utils.fc, which is compiled into
+    // wallet.fc, and raising it would move the Wallet hash away from the bytecode on mainnet to fix a shortfall
+    // in a contract that is being replaced anyway.
     it('should declare gas constants that cover the measured gas', () => {
         const declared = readDeclaredGas()
         const problems: string[] = []

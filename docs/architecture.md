@@ -97,10 +97,38 @@ otherwise hold that round's bills forever.
 `distribute` limits how much can be lent in one round via `rounds_imbalance`, so one of the
 two round chains cannot starve the other. Borrowers post their own stake alongside the loan
 (`total_borrowers_stake`); on recovery, the reward is split by `borrower_reward_share` (out
-of 255), the treasury's share pays `governance_fee` (out of 65535) to the governor, and the
+of 65535), the treasury's share pays `governance_fee` (out of 65535) to the governor, and the
 remainder increases `total_coins` for all hGRAM holders. Losses are deducted from the
 borrower's own stake first — stakers are only exposed after the borrower's stake is
 exhausted.
+
+### The borrower fee
+
+`borrower_fee` (out of 65535) charges the borrower a share of their **contractual** reward,
+`reward * borrower_reward_share / 65535`, and sends it in GRAM to the hardcoded `burner`
+address, whose proceeds buy HPO on the open market and burn it. See
+`docs/specs/2026-08-31-borrower-fee-hpo-burn.md`.
+
+Three properties are worth knowing before changing anything near it:
+
+- **It is charged on top of the pool's take, never carved out of it.** The fee comes out of
+  `stake_amount` — the borrower's own funds — so `treasury_reward`, `new_coins` and the
+  exchange rate are untouched. This is what distinguishes it from `governance_fee`, which
+  reduces what reaches stakers. Priority on recovery is punishment, then the pool, then the
+  burner, then the borrower.
+- **The base is the contractual share, not the realised one.** Bidding `min_payment` at or
+  above the reward drives a borrower's *realised* take to zero through the
+  `max(min_payment, ...)` clamp, but not their contractual share, so that route pays the fee
+  from collateral rather than escaping it. Basing it on `treasury_reward` instead would close
+  one more case — `borrower_reward_share = 0` — but would impose a hard ceiling of
+  `share/(255-share)`, putting every useful rate in a sliver at the bottom of the range. On the
+  contractual share the parameter is self-limiting: 65535 takes the whole reward and no
+  collateral. `fee::min_burn` (1 GRAM) is the floor that keeps a zero-share bid paying
+  something.
+- **The rate is snapshotted into each request.** `borrower_fee` is read at recovery, but from
+  the request, not the extension — so `set_borrower_fee` cannot reprice a committed loan. There
+  is no window in which no participation is mid-flight, so this had to be structural rather
+  than a matter of timing the governance call.
 
 ## Deposit flow (`deposit_coins`)
 
@@ -160,7 +188,7 @@ operations, each with a graph and a script in `scripts/`:
 - Governor handover is two-step with a 24-hour delay (`propose_governor` →
   `accept_governance`).
 - `set_stopped` halts new deposits; `set_instant_mint` toggles deferred minting;
-  `set_governance_fee` and `set_rounds_imbalance` tune economics.
+  `set_governance_fee`, `set_borrower_fee` and `set_rounds_imbalance` tune economics.
 - Upgrades: `upgrade_code` for the treasury itself (see `scripts/upgrade_treasury.md` for
   the procedure), `proxy_upgrade_code` for the parent, and per-user wallet upgrades
   (`send_upgrade_wallet` / `migrate_wallet`) with `old_parents` allowing balances to merge

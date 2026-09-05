@@ -90,6 +90,7 @@ describe('Deficit', () => {
             governor: governorAddress,
             proposedGovernor: null,
             governanceFee,
+            borrowerFee: 0n,
             collectionCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                 0n,
                 collectionCode,
@@ -144,6 +145,7 @@ describe('Deficit', () => {
                 loanAmount: loan.loanAmount,
                 accrueAmount: loan.accrueAmount,
                 stakeAmount: loan.stakeAmount,
+                requestFee: 0n,
                 newStakeMsg: Cell.EMPTY,
             }
             recovering.set(BigInt('0x' + loan.borrower.hash.toString('hex')), request)

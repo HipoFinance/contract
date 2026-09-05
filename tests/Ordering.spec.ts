@@ -85,6 +85,7 @@ describe('Ordering', () => {
                     governor: governor.address,
                     proposedGovernor: null,
                     governanceFee: 4096n,
+                    borrowerFee: 0n,
                     collectionCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         collectionCode,
@@ -183,6 +184,7 @@ describe('Ordering', () => {
             loanAmount: 0n,
             accrueAmount: 0n,
             stakeAmount: 0n,
+            requestFee: 0n,
             newStakeMsg: Cell.EMPTY,
         })
         return { state: ParticipationState.Recovering, size: 1n, recovering }
@@ -224,6 +226,7 @@ describe('Ordering', () => {
             loanAmount: 0n,
             accrueAmount: 0n,
             stakeAmount: rejectedStakeAmount,
+            requestFee: 0n,
             newStakeMsg: Cell.EMPTY,
         })
         return { state, size, rejected }

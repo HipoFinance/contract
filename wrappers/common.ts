@@ -79,6 +79,7 @@ export const op = {
     setStopped: 0x0e5e9773,
     setInstantMint: 0x535b09d2,
     setGovernanceFee: 0x470fe5f6,
+    setBorrowerFee: 0x3b9a4c17,
     setRoundsImbalance: 0x1b4463b6,
     setDeficit: 0x75be0d1a,
     sendMessageToLoan: 0x0e93f65b,
@@ -132,6 +133,7 @@ export const op = {
     requestRejected: 0xcd0f2116,
     loanResult: 0xfaaa8366,
     takeProfit: 0x8b556813,
+    takeBorrowerFee: 0x5e2d81f4,
 
     withdrawalNotification: 0xf0fa223b,
 

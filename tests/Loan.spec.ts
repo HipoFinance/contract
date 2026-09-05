@@ -97,6 +97,7 @@ describe('Loan', () => {
                     governor: governor.address,
                     proposedGovernor: null,
                     governanceFee: 4096n,
+                    borrowerFee: 0n,
                     collectionCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         collectionCode,
@@ -182,7 +183,7 @@ describe('Loan', () => {
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: emptyNewStakeMsg,
         })
 
@@ -247,7 +248,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -255,7 +256,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -263,7 +264,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg3,
         })
 
@@ -410,7 +411,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -418,7 +419,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -426,7 +427,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg3,
         })
 
@@ -518,7 +519,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -526,7 +527,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -534,7 +535,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg3,
         })
 
@@ -632,7 +633,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -640,7 +641,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -648,7 +649,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg3,
         })
 
@@ -902,6 +903,7 @@ describe('Loan', () => {
             loanAmount: 0n,
             accrueAmount: 0n,
             stakeAmount: 0n,
+            requestFee: 0n,
             newStakeMsg: Cell.EMPTY,
         })
         state.participations.set(roundSince, {
@@ -992,7 +994,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -1000,7 +1002,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -1008,7 +1010,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg3,
         })
 
@@ -1127,7 +1129,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -1135,7 +1137,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -1143,7 +1145,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg3,
         })
 
@@ -1358,7 +1360,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -1366,7 +1368,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -1374,7 +1376,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg3,
         })
 
@@ -1503,7 +1505,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -1511,7 +1513,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -1519,7 +1521,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg3,
         })
 
@@ -1622,14 +1624,15 @@ describe('Loan', () => {
         const vset1 = createVset(since1, until1)
         setConfig(blockchain, config.currentValidators, vset1)
 
-        const sorted = Dictionary.empty(Dictionary.Keys.BigUint(112), sortedDictionaryValue)
+        const sorted = Dictionary.empty(Dictionary.Keys.BigUint(120), sortedDictionaryValue)
         const requests = Dictionary.empty(Dictionary.Keys.BigUint(256), requestDictionaryValue)
         const request = {
             minPayment: toNano('50'),
-            borrowerRewardShare: 102n,
+            borrowerRewardShare: 26214n,
             loanAmount: toNano('300000'),
             accrueAmount: 0n,
             stakeAmount: toNano('1000'),
+            requestFee: 0n,
             newStakeMsg: emptyNewStakeMsg,
         }
         for (let i = 0n; i < count; i += 1n) {
@@ -1667,7 +1670,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: emptyNewStakeMsg,
         })
 
@@ -1687,7 +1690,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '400000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: emptyNewStakeMsg,
         })
 
@@ -1741,7 +1744,7 @@ describe('Loan', () => {
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: emptyNewStakeMsg,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -1749,7 +1752,7 @@ describe('Loan', () => {
             roundSince: until,
             loanAmount: '5000000000',
             minPayment: '1',
-            borrowerRewardShare: 255n, // 100%
+            borrowerRewardShare: 65535n, // 100%
             newStakeMsg: emptyNewStakeMsg,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -1762,11 +1765,13 @@ describe('Loan', () => {
         })
 
         const participation = await treasury.getParticipation(until)
-        const sorted = participation.sorted ?? Dictionary.empty(Dictionary.Keys.BigUint(112), sortedDictionaryValue)
+        const sorted = participation.sorted ?? Dictionary.empty(Dictionary.Keys.BigUint(120), sortedDictionaryValue)
         const keys = sorted.keys()
         expect(keys).toHaveLength(3)
         expect(keys[0]).toEqual((1n << 80n) - (toNano('5000000000') >> 40n))
-        expect(keys[1]).toEqual((169n << (80n + 8n)) + ((255n - 102n) << 80n) + ((1n << 80n) - 272n))
-        expect(keys[2]).toEqual((1n << 112n) - 1n)
+        expect(keys[1]).toEqual((169n << (80n + 16n)) + ((65535n - 26214n) << 80n) + ((1n << 80n) - 272n))
+        // borrower3 bids the maximum on every term, which must land exactly on the top of the key
+        // space -- the 24 + 16 + 80 layout is an exact fit for 120 bits with no slack
+        expect(keys[2]).toEqual((1n << 120n) - 1n)
     })
 })

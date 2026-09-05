@@ -20,6 +20,7 @@ global slice halter;
 global slice governor;
 global cell proposed_governor;
 global int governance_fee;
+global int borrower_fee;
 global cell collection_codes;
 global cell bill_codes;
 global cell old_parents;
@@ -69,6 +70,11 @@ global cell old_parents;
     governor = s~load_msg_addr();
     proposed_governor = s~load_maybe_ref();
     governance_fee = s~load_uint(16);
+    ;; This migrator is superseded and kept as the record of a procedure already run on mainnet, but
+    ;; its parse still has to track the current extension layout: it ends with end_parse(), so a field
+    ;; added after it was written makes it throw. Nothing here writes the extension back -- save_data
+    ;; carries it as an opaque ref -- so reading the field through is all that is needed.
+    borrower_fee = s~load_uint(16);
     collection_codes = s~load_ref();
     bill_codes = s~load_ref();
     old_parents = s~load_dict();

@@ -172,6 +172,12 @@ Use the get method `get_treasury_state` of **treasury** with no parameters, whic
 
 1. `governance_fee`: The governance fee, taken after each round of validation.
 
+1. `borrower_fee`: The borrower fee, out of 65535 of each borrower's contractual share of a
+   round's reward (`reward * borrower_reward_share / 65535`). It is charged **on top of** what the
+   pool receives, out of the borrower's own funds, so it never reduces `treasury_reward` and never
+   affects the exchange rate. Zero disables it. The rate in force is snapshotted into each request
+   when it is made, so changing it never reprices a loan already committed.
+
 1. `collection_codes`: The codes of collection smart contracts. It's a dictionary to gradually upgrade the codes while already participating in previous rounds.
 
 1. `bill_codes`: The codes of bill smart contracts. It's a dictionary to gradually upgrade the codes while already participating in previous rounds.
@@ -299,7 +305,16 @@ upgrade, the treasury cannot.
 
 - **Borrower flows**: `request_loan#36335da9` (borrower → treasury), and at round end
   `recover_stake_result#0fca4c86` → treasury → `loan_result#faaa8366` (borrower's stake
-  plus reward share) and `take_profit` (governance fee).
+  plus reward share), `take_borrower_fee#5e2d81f4` (the borrower fee, to the burner) and
+  `take_profit` (governance fee).
+
+  > **Breaking change for borrowers.** `borrower_reward_share` in `request_loan` is now a
+  > `uint16` out of 65535, not a `uint8` out of 255. An old-format request carries only 8 bits
+  > there and throws on cell underflow; the message is bounceable, so the collateral comes back
+  > and nothing is lost, but the request does not land and the borrower misses the round. Port an
+  > existing bid exactly by multiplying by 257 — `255 * 257 = 65535`, so a share of 8 becomes 2056
+  > with identical economics. The widening exists because one step of the old scale moved a
+  > borrower's own take by `1/share`, which at the shares actually bid was over 12%.
 
 ## Calculating Remaining Time Until Withdrawal
 

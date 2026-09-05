@@ -78,6 +78,7 @@ describe('Large', () => {
                     governor: governor.address,
                     proposedGovernor: null,
                     governanceFee: 4096n,
+                    borrowerFee: 0n,
                     collectionCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         collectionCode,
@@ -156,10 +157,11 @@ describe('Large', () => {
         const count = 100n
         const request = {
             minPayment: toNano('50'),
-            borrowerRewardShare: 102n,
+            borrowerRewardShare: 26214n,
             loanAmount: toNano('300000'),
             accrueAmount: 0n,
             stakeAmount: toNano('1000'),
+            requestFee: 0n,
             newStakeMsg: emptyNewStakeMsg,
         }
         const staked = Dictionary.empty(Dictionary.Keys.BigUint(256), requestDictionaryValue)
@@ -213,14 +215,15 @@ describe('Large', () => {
         const count1 = 50n
         const count2 = 50n
         const count3 = 50n
-        const sorted = Dictionary.empty(Dictionary.Keys.BigUint(112), sortedDictionaryValue)
+        const sorted = Dictionary.empty(Dictionary.Keys.BigUint(120), sortedDictionaryValue)
         const requests = Dictionary.empty(Dictionary.Keys.BigUint(256), requestDictionaryValue)
         const request = {
             minPayment: toNano('50'),
-            borrowerRewardShare: 102n,
+            borrowerRewardShare: 26214n,
             loanAmount: toNano('300000'),
             accrueAmount: 0n,
             stakeAmount: toNano('101'),
+            requestFee: 0n,
             newStakeMsg: emptyNewStakeMsg,
         }
         const bucket = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Buffer(0))

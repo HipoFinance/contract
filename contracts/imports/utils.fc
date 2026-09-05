@@ -66,15 +66,17 @@ builder store_log(builder b, builder log) inline {
 , int loan_amount
 , int accrue_amount
 , int stake_amount
+, int borrower_fee
 , builder borrower
 ) impure inline {
     builder log = begin_cell()
         .store_uint(round_since, 32)
         .store_coins(min_payment)
-        .store_uint(borrower_reward_share, 8)
+        .store_uint(borrower_reward_share, 16)
         .store_coins(loan_amount)
         .store_coins(accrue_amount)
         .store_coins(stake_amount)
+        .store_uint(borrower_fee, 16)
         .store_builder(borrower);
     emit_log(log::loan, log);
 }
@@ -87,6 +89,7 @@ builder store_log(builder b, builder log) inline {
 , int stakers_share
 , int governor_share
 , int borrower_share
+, int burn_share
 , slice borrower
 ) impure inline {
     builder log = begin_cell()
@@ -97,6 +100,7 @@ builder store_log(builder b, builder log) inline {
         .store_coins(stakers_share)
         .store_coins(governor_share)
         .store_coins(borrower_share)
+        .store_coins(burn_share)
         .store_slice(borrower);
     emit_log(log::repayment, log);
 }
@@ -304,12 +308,24 @@ int request_sort_key(int min_payment, int borrower_reward_share, int loan_amount
     ;;   1. efficieny
     ;;   2. treasury reward share
     ;;   3. least loan amount
-    int treasury_reward_share = 255 - borrower_reward_share;
+    ;;
+    ;; The key is 120 bits: 24 for efficieny, 16 for treasury_reward_share, 80 for the loan
+    ;; amount complement. That is an exact fit -- the largest key is precisely 2^120 - 1 -- so the
+    ;; sorted dict is keyed at 120 and nothing here may widen without widening that too.
+    ;;
+    ;; treasury_reward_share keeps its full 16 bits on purpose. Packing it into the 8 bits it used
+    ;; while borrower_reward_share was a uint8 would be monotone, so a worse offer could never
+    ;; outrank a better one -- but it would collapse offers within 1/256 of each other into a tie,
+    ;; and the tie falls through to the loan amount, where the smaller loan wins. A borrower could
+    ;; then bid up to 255/65535 worse for the pool, rank equally, and take the round on loan size.
+    ;; That band does not exist while the share is a uint8, because the next expressible value is a
+    ;; whole step worse; it would be created by widening the share and not the key.
+    int treasury_reward_share = 65535 - borrower_reward_share;
     int min_payment_round = min_payment >> 30; ;; round to around 1 GRAM
     int loan_amount_round = max(1, loan_amount >> 40); ;; round to around 1100 GRAM
     int loan_amount_round_comp = (1 << 80) - loan_amount_round;
     int efficieny = min((1 << 24) - 1, muldiv(min_payment_round, 1000, loan_amount_round));
-    return (efficieny << (8 + 80)) + (treasury_reward_share << 80) + loan_amount_round_comp;
+    return (efficieny << (16 + 80)) + (treasury_reward_share << 80) + loan_amount_round_comp;
 }
 
 () check_new_stake_msg(slice cs) impure inline {
@@ -614,6 +630,7 @@ int unstake_all_fee() {
         mc_s_fwd_fee + ;; recover_stake_ok
         mc_m_fwd_fee + ;; recover_stake_result
         s_fwd_fee + ;; loan_result
+        s_fwd_fee + ;; take_borrower_fee
         s_fwd_fee + ;; take_profit
         l_fwd_fee + ;; burn_all
         s_fwd_fee; ;; last_bill_burned
@@ -645,7 +662,9 @@ int unstake_all_fee() {
         mc_s_fwd_fee + ;; proxy_recover_stake
         mc_s_fwd_fee + ;; recover_stake
         mc_s_fwd_fee + ;; recover_stake_ok
-        mc_m_fwd_fee; ;; recover_stake_result
+        mc_m_fwd_fee + ;; recover_stake_result
+        s_fwd_fee; ;; take_borrower_fee -- sent from recover_stake_result out of what it leaves
+                   ;; unreserved, alongside loan_result and take_profit
 
     int recover_stake_fee = mc_storage_fee + recover_compute_fee + recover_forward_fee;
 

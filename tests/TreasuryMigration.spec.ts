@@ -7,6 +7,7 @@ import { bodyOp } from './helper'
 import { op } from '../wrappers/common'
 import { Treasury } from '../wrappers/Treasury'
 import { dryRunUpgrade, formatDryRun } from '../wrappers/migrationDryRun'
+import { compileAtHead } from '../wrappers/compileAtHead'
 import { makePalette } from '../wrappers/colors'
 
 // The live treasury account captured from mainnet: its code as deployed, and its storage cell in the
@@ -27,13 +28,20 @@ const migrateMethodId = 0x6d67
 
 describe('Treasury Migration', () => {
     let treasuryCode: Cell
+    let deficitEraCode: Cell
     let migratorCode: Cell
+    let borrowerFeeMigratorCode: Cell
     let mainnetCode: Cell
     let mainnetData: Cell
 
     beforeAll(async () => {
         treasuryCode = await compile('Treasury')
+        // The deficit migration targeted the code of its own time, which is the committed tree -- the
+        // working tree is the next migration. Pinning it here keeps this file a record of what was
+        // actually run rather than something that has to be rewritten on every later layout change.
+        deficitEraCode = await compileAtHead('contracts/treasury.fc')
         migratorCode = await compile('upgrade-code-test/AddDeficit')
+        borrowerFeeMigratorCode = await compile('upgrade-code-test/AddBorrowerFee')
         mainnetCode = Cell.fromBoc(readFileSync(__dirname + '/fixtures/treasury-mainnet-code.boc'))[0]
         mainnetData = Cell.fromBoc(readFileSync(__dirname + '/fixtures/treasury-mainnet-state.boc'))[0]
     })
@@ -88,9 +96,51 @@ describe('Treasury Migration', () => {
         )
         const treasury = blockchain.openContract(Treasury.createFromAddress(treasuryAddress))
         // The governor lives in the extension cell, so take it from the live state rather than
-        // hardcoding it; the upgrade is access-checked against exactly this address.
-        const state = await treasury.getTreasuryState()
-        return { blockchain, treasury, governor: state.governor }
+        // hardcoding it; the upgrade is access-checked against exactly this address. Read it straight
+        // out of the cell rather than through get_treasury_state: this is a pre-upgrade account, and
+        // the wrapper tracks the getter shape of the code being released, not of the code deployed.
+        const ext = mainnetData.refs[mainnetData.refs.length - 1].beginParse()
+        ext.loadCoins() // previous_rate
+        ext.loadCoins() // current_rate
+        ext.loadAddress() // halter
+        const governor = ext.loadAddress()
+        return { blockchain, treasury, governor }
+    }
+
+    // Walks the captured mainnet account all the way to the released layout. The wrapper's getters
+    // track the code being released, so a state part-way along the chain is not readable through them
+    // -- and the fixture is now two migrations behind. Chaining is also the stronger claim: these
+    // exact mainnet bytes can still reach today's storage.
+    async function chainToReleased(
+        blockchain: Blockchain,
+        treasury: Awaited<ReturnType<typeof stand>>['treasury'],
+        governor: Address,
+    ) {
+        const deficit = await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: deficitEraCode,
+            migrateCode: migratorCode,
+        })
+        const borrowerFee = await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: treasuryCode,
+            migrateCode: borrowerFeeMigratorCode,
+        })
+        return { deficit, borrowerFee }
+    }
+
+    // Reads the era extension straight out of the fixture. The pre-upgrade account cannot be read
+    // through the wrapper at all, so the fields that must survive the chain are taken from the cell.
+    function parseEraExtension(data: Cell) {
+        const ext = data.refs[data.refs.length - 1].beginParse()
+        return {
+            previousRate: ext.loadCoins(),
+            currentRate: ext.loadCoins(),
+            halter: ext.loadAddress(),
+            governor: ext.loadAddress(),
+            proposedGovernor: ext.loadMaybeRef(),
+            governanceFee: ext.loadUint(16),
+        }
     }
 
     // Scoped to the treasury on purpose. The gas_excess refund is addressed to the real mainnet
@@ -204,16 +254,12 @@ describe('Treasury Migration', () => {
     // The migration itself, against real mainnet bytes.
     // ---------------------------------------------------------------------------------------------
 
-    it('should migrate in a single upgrade and land on the plain released code hash', async () => {
+    it('should migrate to the released layout and land on the plain released code hash', async () => {
         const before = parsePreDeficit(mainnetData)
+        const stateBefore = parseEraExtension(mainnetData)
         const { blockchain, treasury, governor } = await stand()
-        const stateBefore = await treasury.getTreasuryState()
 
-        const result = await treasury.sendUpgradeCode(blockchain.sender(governor), {
-            value: toNano('1'),
-            newCode: treasuryCode,
-            migrateCode: migratorCode,
-        })
+        const { deficit: result, borrowerFee } = await chainToReleased(blockchain, treasury, governor)
 
         expect(result.transactions).toHaveTransaction({
             to: treasuryAddress,
@@ -221,9 +267,10 @@ describe('Treasury Migration', () => {
             success: true,
         })
         expectTreasurySucceeded(result.transactions)
+        expectTreasurySucceeded(borrowerFee.transactions)
         expect(result.transactions).toHaveTransaction({ from: treasuryAddress, body: bodyOp(op.gasExcess) })
 
-        // One transaction, and the code left behind is the plain contract with no one-off logic.
+        // One transaction each, and the code left behind is the plain contract with no one-off logic.
         expect(await readCodeHash(blockchain, treasuryAddress)).toEqual(treasuryCode.hash().toString('hex'))
         expect(await treasury.getDeficit()).toEqual(0n)
 
@@ -239,19 +286,16 @@ describe('Treasury Migration', () => {
         expect(stateAfter.instantMint).toEqual(before.instantMint)
         expect(stateAfter.governor.toString()).toEqual(stateBefore.governor.toString())
         expect(stateAfter.halter.toString()).toEqual(stateBefore.halter.toString())
-        expect(stateAfter.governanceFee).toEqual(stateBefore.governanceFee)
+        expect(stateAfter.governanceFee).toEqual(BigInt(stateBefore.governanceFee))
         expect(stateAfter.previousRate).toEqual(stateBefore.previousRate)
         expect(stateAfter.currentRate).toEqual(stateBefore.currentRate)
-        expect(stateAfter.participations.size).toEqual(stateBefore.participations.size)
+        // The fee arrives disabled, so the chain changes no economics on its own.
+        expect(stateAfter.borrowerFee).toEqual(0n)
     })
 
     it('should leave data alone when no migrator is supplied', async () => {
         const { blockchain, treasury, governor } = await stand()
-        await treasury.sendUpgradeCode(blockchain.sender(governor), {
-            value: toNano('1'),
-            newCode: treasuryCode,
-            migrateCode: migratorCode,
-        })
+        await chainToReleased(blockchain, treasury, governor)
         const migrated = await readStorage(blockchain, treasuryAddress)
 
         const plain = await treasury.sendUpgradeCode(blockchain.sender(governor), {
@@ -332,26 +376,58 @@ describe('Treasury Migration', () => {
             address: treasuryAddress,
             currentCode: mainnetCode,
             currentData: mainnetData,
-            newCode: treasuryCode,
+            newCode: deficitEraCode,
             migrateCode: migratorCode,
             governor,
         })
 
         expect(result.ok).toBe(true)
-        expect(result.after?.codeHash).toEqual(treasuryCode.hash().toString('hex'))
-
-        // The deficit appearing is the whole point of this migration, and it must be the ONLY field
-        // that moves. Anything else in this list would be an unintended change the operator should see.
-        expect(result.changes.map((c) => c.field)).toEqual(['deficit'])
-        expect(result.changes[0].before).toContain('absent')
-        expect(result.changes[0].after).toEqual('0')
+        expect(result.after?.codeHash).toEqual(deficitEraCode.hash().toString('hex'))
 
         // The storage cell itself must change even though no accounting value does.
         expect(result.after?.dataHash).not.toEqual(result.before.dataHash)
 
+        // No field-level diff is available here, and that is worth pinning rather than hiding.
+        // dryRunUpgrade reads state through get_treasury_state, so it can only itemise fields for a
+        // treasury whose getter matches the wrapper it was built against -- and this rehearsal replays
+        // two eras that both predate the borrower fee. The tool degrades to a verdict plus cell hashes
+        // instead of throwing, which is what keeps the rehearsal useful at exactly the moment the
+        // shape is in flux.
+        //
+        // The operational consequence, for whoever runs the borrower-fee upgrade: that upgrade adds a
+        // field to get_treasury_state, so its dry run will show hashes and a verdict but no field
+        // list. Read the migrator, not the diff.
+        expect(result.before.fields.map((f) => f[0])).toEqual(['state'])
+        expect(result.before.fields[0][1]).toContain('not readable')
+
         const rendered = formatDryRun(result, makePalette(false))
-        expect(rendered).toContain('deficit')
-        expect(rendered).toContain('1 field(s) would change')
+        expect(rendered).toContain('not readable')
+    })
+
+    it('should itemise every field when the getter shape is stable', async () => {
+        // The counterpart to the test above: once both sides speak the released getter, the diff is
+        // field-level again. Rehearsing the released code against itself must report nothing moving,
+        // which is what proves an empty diff means "nothing changed" rather than "could not tell".
+        const { blockchain, treasury, governor } = await stand()
+        await chainToReleased(blockchain, treasury, governor)
+        const { code, data } = {
+            code: treasuryCode,
+            data: await readStorage(blockchain, treasuryAddress),
+        }
+
+        const result = await dryRunUpgrade({
+            address: treasuryAddress,
+            currentCode: code,
+            currentData: data,
+            newCode: treasuryCode,
+            governor,
+        })
+
+        expect(result.ok).toBe(true)
+        expect(result.changes).toEqual([])
+        expect(result.before.fields.map((f) => f[0])).toContain('borrower_fee')
+        expect(result.before.fields.map((f) => f[0])).toContain('governance_fee')
+        expect(formatDryRun(result, makePalette(false))).toContain('no field changed')
     })
 
     it('should catch a forgotten migrator in the dry run', async () => {
@@ -385,7 +461,7 @@ describe('Treasury Migration', () => {
             address: treasuryAddress,
             currentCode: mainnetCode,
             currentData: mainnetData,
-            newCode: treasuryCode,
+            newCode: deficitEraCode,
             migrateCode: migratorCode,
             governor,
         })
@@ -396,7 +472,7 @@ describe('Treasury Migration', () => {
         const coloured = formatDryRun(result, makePalette(true))
         expect(coloured).toContain('\u001b[31m') // removed value, red
         expect(coloured).toContain('\u001b[32m') // added value, green
-        expect(coloured).toContain('\u001b[1;33m') // the "fields would change" warning, bold yellow
+        expect(coloured).toContain('\u001b[1;33m') // the state-diff headline, bold yellow
 
         // Colour must not change the words, only their presentation.
         expect(stripAnsi(coloured)).toEqual(plain)
@@ -434,16 +510,14 @@ describe('Treasury Migration', () => {
 
     it('should refuse to run the migration a second time', async () => {
         const { blockchain, treasury, governor } = await stand()
-        await treasury.sendUpgradeCode(blockchain.sender(governor), {
-            value: toNano('1'),
-            newCode: treasuryCode,
-            migrateCode: migratorCode,
-        })
+        await chainToReleased(blockchain, treasury, governor)
         const migrated = await treasury.getTreasuryState()
         const dataAfterFirst = await readStorage(blockchain, treasuryAddress)
         expect(await treasury.getDeficit()).toEqual(0n)
 
-        // end_parse() in the migrator finds bits left over on an already-migrated cell.
+        // end_parse() in the migrator finds bits left over on an already-migrated cell. Re-running the
+        // deficit migrator is the sharper case than re-running the latest one: its field sits in root
+        // storage, so without the guard a second pass would shift every field after it.
         const again = await treasury.sendUpgradeCode(blockchain.sender(governor), {
             value: toNano('1'),
             newCode: treasuryCode,

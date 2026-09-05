@@ -57,6 +57,7 @@ export async function run(provider: NetworkProvider) {
     const proposedGovernorText = (proposedGovernorAddress ?? '') + ' ' + proposedGovernorAcceptAfter
     const roundsImbalancePercent = formatPercent((Number(treasuryState.roundsImbalance) + 1 + 256) / 512)
     const governanceFeePercent = formatPercent(Number(treasuryState.governanceFee) / 65535)
+    const borrowerFeePercent = formatPercent(Number(treasuryState.borrowerFee) / 65535)
 
     console.info()
     console.info(c.bold('Treasury State'))
@@ -105,6 +106,15 @@ export async function run(provider: NetworkProvider) {
         c.grey('governance_fee:'),
         Number(treasuryState.governanceFee),
         governanceFeePercent,
+    )
+    // Of each borrower's contractual share of a round's reward, charged on top of the pool's take.
+    // Zero disables it, floor included, so it is worth reading as on/off before reading as a rate.
+    console.info(
+        '             %s %s (%s of borrower reward)%s',
+        c.grey('borrower_fee:'),
+        treasuryState.borrowerFee === 0n ? Number(treasuryState.borrowerFee) : c.yellow(String(treasuryState.borrowerFee)),
+        borrowerFeePercent,
+        treasuryState.borrowerFee === 0n ? c.grey('  disabled') : '',
     )
     console.info()
 

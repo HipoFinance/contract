@@ -106,6 +106,7 @@ describe('BorrowerRefund', () => {
                     governor: governor.address,
                     proposedGovernor: null,
                     governanceFee,
+                    borrowerFee: 0n,
                     collectionCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         collectionCode,
@@ -210,7 +211,7 @@ describe('BorrowerRefund', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: await createNewStakeMsg(loan1.address, until1),
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -218,7 +219,7 @@ describe('BorrowerRefund', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: await createNewStakeMsg(loan2.address, until1),
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -226,7 +227,7 @@ describe('BorrowerRefund', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
-            borrowerRewardShare: 102n, // 40%
+            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: await createNewStakeMsg(loan3.address, until1),
         })
 
@@ -461,10 +462,11 @@ describe('BorrowerRefund', () => {
         const recovering = Dictionary.empty(Dictionary.Keys.BigUint(256), requestDictionaryValue)
         recovering.set(BigInt('0x' + borrower.address.hash.toString('hex')), {
             minPayment: toNano('60'),
-            borrowerRewardShare: 102n,
+            borrowerRewardShare: 26214n,
             loanAmount: toNano('300000'),
             accrueAmount: toNano('50000'),
             stakeAmount: toNano('161'),
+            requestFee: 0n,
             newStakeMsg: Cell.EMPTY,
         })
         const state = await treasury.getTreasuryState()
