@@ -16,6 +16,7 @@ import {
 import { config, op } from '../wrappers/common'
 import { Loan } from '../wrappers/Loan'
 import {
+    ParticipationState,
     Treasury,
     TreasuryFees,
     emptyDictionaryValue,
@@ -447,5 +448,64 @@ describe('Borrower Fee', () => {
         // would take the round. That is the concrete shape this test exists to prevent.
         expect(betterKey).not.toEqual(worseKey)
         expect(betterKey >> 80n).toBeGreaterThan(worseKey >> 80n)
+    })
+
+    it('should tell an open request apart from no request at all', async () => {
+        // ParticipationState.Open is 0, and so is "nothing here". Without a separate found flag these
+        // two are the same eight zeroes, and they are exactly the pair a caller wants to distinguish
+        // while a round is open: has this borrower bid yet, or not?
+        const times = await treasury.getTimes()
+        const electedFor = times.nextRoundSince - times.currentRoundSince
+        const since = BigInt(Math.floor(Date.now() / 1000)) - electedFor / 2n
+        const until = since + electedFor
+        setConfig(blockchain, config.currentValidators, createVset(since, until))
+
+        const bidder = await blockchain.treasury('bidder')
+        const absent = await blockchain.treasury('absent')
+
+        // Nothing anywhere yet: the round itself does not exist.
+        const unknownRound = await treasury.getLoanRequest(until, bidder.address)
+        expect(unknownRound.found).toBe(false)
+
+        await treasury.sendRequestLoan(bidder.getSender(), {
+            value: toNano('151') + fees.requestLoanFee,
+            roundSince: until,
+            loanAmount: '300000',
+            minPayment: '50',
+            borrowerRewardShare: 26214n,
+            newStakeMsg: emptyNewStakeMsg,
+        })
+
+        const bid = await treasury.getLoanRequest(until, bidder.address)
+        expect(bid.found).toBe(true)
+        expect(bid.stage).toEqual(ParticipationState.Open)
+        expect(bid.minPayment).toEqual(toNano('50'))
+        expect(bid.borrowerRewardShare).toEqual(26214n)
+        expect(bid.loanAmount).toEqual(toNano('300000'))
+        expect(bid.requestFee).toEqual(0n)
+
+        // Same round, a borrower who never bid. Identical to the bidder on every field except found.
+        const missing = await treasury.getLoanRequest(until, absent.address)
+        expect(missing.found).toBe(false)
+        expect(missing.stage).toEqual(ParticipationState.Open)
+        expect(missing.minPayment).toEqual(0n)
+    })
+
+    it('should report the stage and the snapshotted fee as a round advances', async () => {
+        const { borrower, until1, request } = await runRound({
+            borrowerFee: 655n,
+            minPayment: '50',
+            borrowerRewardShare: 26214n,
+            reward: '400',
+        })
+
+        // runRound drives the round to recovery, so by now the participation is gone and the getter
+        // has to say so rather than returning a zeroed request that reads as a real one.
+        const after = await treasury.getLoanRequest(until1, borrower.address)
+        expect(after.found).toBe(false)
+
+        // While it was staked the rate snapshotted into the request was readable, which is what the
+        // getter exists for -- nothing else exposes it.
+        expect(request?.requestFee).toEqual(655n)
     })
 })

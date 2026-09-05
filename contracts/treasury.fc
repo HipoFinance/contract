@@ -2585,15 +2585,19 @@ var get_treasury_state() method_id {
 ;; A borrower's request for a round, and which stage of the round it is sitting in. Without this
 ;; nothing about a bid is observable off-chain: get_participation returns the raw dicts, so a caller
 ;; would have to know the internal packing, and min_payment could only be inferred by arithmetic on
-;; total_borrowers_stake. stage is 0 when nothing was found, otherwise the participation:: state the
-;; request is conceptually in.
-(int, int, int, int, int, int, int) get_loan_request(int round_since, slice borrower) method_id {
+;; total_borrowers_stake.
+;;
+;; found? is a separate field rather than a sentinel in stage, because participation::open is 0 and
+;; so is "nothing here" -- a request still sitting in the requests dict would otherwise be
+;; indistinguishable from a borrower who never bid, which is precisely the pair a caller most wants
+;; to tell apart while a round is open.
+(int, int, int, int, int, int, int, int) get_loan_request(int round_since, slice borrower) method_id {
     load_data();
 
     ( _, int borrower_addr ) = parse_std_addr(borrower);
     ( slice ps, int f? ) = participations.udict_get?(32, round_since);
     ifnot f? {
-        return ( false, 0, 0, 0, 0, 0, 0 );
+        return ( false, 0, 0, 0, 0, 0, 0, 0 );
     }
 
     ( _
@@ -2632,7 +2636,7 @@ var get_treasury_state() method_id {
         if e? { stage = participation::recovering; }
     }
     ifnot e? {
-        return ( false, 0, 0, 0, 0, 0, 0 );
+        return ( false, 0, 0, 0, 0, 0, 0, 0 );
     }
 
     ( int min_payment
@@ -2644,7 +2648,7 @@ var get_treasury_state() method_id {
     , _
     ) = unpack_request(request);
 
-    return ( stage, min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount, request_fee );
+    return ( true, stage, min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount, request_fee );
 }
 
 var get_participation(int round_since) method_id {

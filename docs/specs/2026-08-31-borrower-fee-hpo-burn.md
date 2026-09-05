@@ -423,6 +423,12 @@ the argument for this design — not a claim that the fee is free.
   borrower's bid is observable: `get_participation` returns the raw dicts, so a caller must know
   the internal packing, and `min_payment` can only be inferred from `total_borrowers_stake`
   arithmetic. Getters cost nothing on-chain.
+
+  `found?` has to be its own field rather than a sentinel value in `stage`: `participation::open`
+  is 0 and so is "nothing here", so a request still sitting in the `requests` dict would otherwise
+  be indistinguishable from a borrower who never bid — the one pair a caller most wants to tell
+  apart while a round is open. The first release of this getter got that wrong, collapsing the two
+  into a single field, and shipped without a test covering it.
 - `wrappers/Treasury.ts` — the setter, the new getter, and the `Request` / `TreasuryConfig` fields.
 - `wrappers/burner.ts` — reads `burner::wc` / `burner::addr` out of `constants.fc`, so the script and
   the tests share one source for an address that only exists in the contract source.
@@ -534,9 +540,11 @@ the argument for this design — not a claim that the fee is free.
   loses no collateral beyond `fee::min_burn`, and the pool's `treasury_reward` is unchanged.
 - **`borrower_reward_share = 0` test.** The base is zero, the burner receives exactly
   `fee::min_burn`, and the pool receives the whole reward.
-- **Getter test.** `get_loan_request` returns the bid a borrower submitted, reports the correct
-  `stage` as the round advances through `requests` -> `accrued` -> `staked`, and reports
-  `found? = false` for an unknown borrower or a deleted round.
+- **Getter test.** `get_loan_request` returns the bid a borrower submitted and reports
+  `found? = false` for an unknown borrower or a deleted round. The case that matters: a borrower with
+  an open request and a borrower with none must differ, even though both report
+  `stage = participation::open`. That assertion fails against a getter that folds `found?` into
+  `stage`.
 - **Legacy wire format is rejected loudly.** An old-format `op::request_loan` throws on cell
   underflow, the message bounces, and the borrower's collateral is returned in full — no silent
   misparse and no funds stranded.

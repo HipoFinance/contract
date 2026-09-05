@@ -54,6 +54,21 @@ export interface Request {
     newStakeMsg: Cell
 }
 
+export interface LoanRequest {
+    /** False when the round is unknown or the borrower has no request in it. Every other field is 0 then. */
+    found: boolean
+    /** The participation state the request is conceptually in. Meaningless unless `found`. */
+    stage: ParticipationState
+    minPayment: bigint
+    /** Out of 65535. */
+    borrowerRewardShare: bigint
+    loanAmount: bigint
+    accrueAmount: bigint
+    stakeAmount: bigint
+    /** The borrower fee snapshotted when the request was made. */
+    requestFee: bigint
+}
+
 export interface Participation {
     state?: ParticipationState
     size?: bigint
@@ -1047,6 +1062,35 @@ export class Treasury implements Contract {
             ),
             billCodes: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell(), stack.readCell()),
             oldParents: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), emptyDictionaryValue, stack.readCellOpt()),
+        }
+    }
+
+    /**
+     * A borrower's bid for a round, and which stage of the round it is sitting in.
+     *
+     * `found` is separate from `stage` on purpose: `ParticipationState.Open` is 0 and so is "nothing
+     * here", so a request still in the requests dict would otherwise look identical to a borrower who
+     * never bid.
+     */
+    async getLoanRequest(
+        provider: ContractProvider,
+        roundSince: bigint,
+        borrower: Address,
+    ): Promise<LoanRequest> {
+        const args = new TupleBuilder()
+        args.writeNumber(roundSince)
+        args.writeAddress(borrower)
+        const { stack } = await provider.get('get_loan_request', args.build())
+        const found = stack.readBoolean()
+        return {
+            found,
+            stage: Number(stack.readBigNumber()),
+            minPayment: stack.readBigNumber(),
+            borrowerRewardShare: stack.readBigNumber(),
+            loanAmount: stack.readBigNumber(),
+            accrueAmount: stack.readBigNumber(),
+            stakeAmount: stack.readBigNumber(),
+            requestFee: stack.readBigNumber(),
         }
     }
 
