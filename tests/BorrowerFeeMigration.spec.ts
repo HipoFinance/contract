@@ -5,6 +5,59 @@ import { Address, Cell, Dictionary, DictionaryValue, Slice, beginCell, toNano } 
 import { readFileSync } from 'fs'
 import { Treasury, emptyDictionaryValue, requestDictionaryValue, sortedDictionaryValue } from '../wrappers/Treasury'
 
+// Reads the borrower-fee-era storage cell by hand.
+//
+// The wrapper cannot do it: get_treasury_state was later widened to 24 values, with deficit and
+// round_duration inserted rather than appended, so the released wrapper reads only that shape. This
+// spec's whole subject is the state as it stood BEFORE that, which is why the fields it asserts on
+// come off the cell -- the same technique the pre-upgrade capture is read with below.
+function parseBorrowerFeeEraState(data: Cell) {
+    const root = data.beginParse()
+    const totalCoins = root.loadCoins()
+    const totalTokens = root.loadCoins()
+    root.loadCoins() // total_staking
+    root.loadCoins() // total_unstaking
+    const totalBorrowersStake = root.loadCoins()
+    root.loadCoins() // deficit
+    root.loadMaybeAddress() // parent
+    root.loadMaybeRef() // participations
+    const roundsImbalance = BigInt(root.loadUint(8))
+    root.loadBit() // stopped
+    root.loadBit() // instant_mint
+    root.loadRef() // loan_codes
+
+    const ext = root.loadRef().beginParse()
+    const previousRate = ext.loadCoins()
+    const currentRate = ext.loadCoins()
+    const halter = ext.loadAddress()
+    const governor = ext.loadAddress()
+    ext.loadMaybeRef() // proposed_governor
+    const governanceFee = BigInt(ext.loadUint(16))
+    const borrowerFee = BigInt(ext.loadUint(16))
+
+    return {
+        totalCoins,
+        totalTokens,
+        totalBorrowersStake,
+        roundsImbalance,
+        previousRate,
+        currentRate,
+        halter,
+        governor,
+        governanceFee,
+        borrowerFee,
+    }
+}
+
+async function readEraState(blockchain: Blockchain, address: Address) {
+    const contract = await blockchain.getContract(address)
+    const account = contract.account.account?.storage.state
+    if (account?.type !== 'active' || account.state.data == null) {
+        throw new Error('treasury account is not active')
+    }
+    return parseBorrowerFeeEraState(account.state.data)
+}
+
 // The borrower-fee upgrade changes three stored layouts at once, and all three have to be converted
 // by the migrator in the same transaction:
 //
@@ -242,15 +295,15 @@ describe('Borrower Fee Migration', () => {
     // ---- what the migration has to produce ------------------------------------------------------
 
     it('should leave the fee disabled, so the upgrade alone changes no economics', async () => {
-        const { treasury } = await migrated()
-        const state = await treasury.getTreasuryState()
+        const { blockchain, treasury } = await migrated()
+        const state = await readEraState(blockchain, treasury.address)
         expect(state.borrowerFee).toEqual(0n)
         expect(state.governanceFee).toEqual(0n)
     })
 
     it('should preserve every root and extension field it does not own', async () => {
-        const { treasury } = await migrated()
-        const state = await treasury.getTreasuryState()
+        const { blockchain, treasury } = await migrated()
+        const state = await readEraState(blockchain, treasury.address)
         expect(state.totalCoins).toEqual(toNano('8000000'))
         expect(state.totalTokens).toEqual(toNano('6900000'))
         expect(state.totalBorrowersStake).toEqual(toNano('2000'))
@@ -355,7 +408,7 @@ describe('Borrower Fee Migration', () => {
         // request parses have bits left over. Without this a second upgrade would silently double
         // the shares.
         const { blockchain, treasury } = await migrated()
-        const before = await treasury.getTreasuryState()
+        const before = await readEraState(blockchain, treasury.address)
 
         const again = await treasury.sendUpgradeCode(blockchain.sender(governor), {
             value: '0.1',
@@ -364,7 +417,7 @@ describe('Borrower Fee Migration', () => {
         })
         expect(again.transactions).toHaveTransaction({ to: treasuryAddress, success: false })
 
-        const after = await treasury.getTreasuryState()
+        const after = await readEraState(blockchain, treasury.address)
         expect(after.totalCoins).toEqual(before.totalCoins)
         const p = await treasury.getParticipation(1000n)
         expect(p.staked?.get(borrowerA)?.borrowerRewardShare).toEqual(102n * 257n)
@@ -511,13 +564,13 @@ describe('Borrower Fee Migration', () => {
         })
 
         it('should leave the fee disabled and every other field untouched', async () => {
-            const { treasury } = await migratedMainnet()
-            const state = await treasury.getTreasuryState()
+            const { blockchain, treasury } = await migratedMainnet()
+            const state = await readEraState(blockchain, treasury.address)
 
             expect(state.borrowerFee).toEqual(0n)
 
-            // Read straight from the capture: the pre-upgrade account cannot be read through the
-            // wrapper, so these come from the cell.
+            // Read straight from the capture: neither side of this upgrade is a shape the released
+            // wrapper reads, so both come from the cell.
             const s = mainnetData.beginParse()
             const totalCoins = s.loadCoins()
             const totalTokens = s.loadCoins()

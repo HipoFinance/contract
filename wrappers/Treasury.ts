@@ -1042,32 +1042,16 @@ export class Treasury implements Contract {
         }
     }
 
-    /**
-     * The tuple mirrors the treasury's storage order. `deficit`, `roundDuration` and
-     * `lastSettledRound` were INSERTED into it rather than appended, so the released shape is 24
-     * values where the previous one was 21 -- a breaking change for anything reading it by position.
-     *
-     * A pre-upgrade treasury is still readable here, by shape. That is not politeness: migrationDryRun
-     * reads the OLD state to show the operator a field-level diff of an upgrade before it is signed,
-     * and showState has to keep working against mainnet while the chain is still on the old code.
-     * Without this branch both fall over on exactly the upgrade that most warrants a rehearsal, since
-     * the first inserted field lands where an address is expected and throws.
-     *
-     * Drop the old branch once the upgrade has landed, the way ad9e3a2 dropped the borrower-fee
-     * cross-version reads.
-     */
+    /** The tuple mirrors the treasury's storage order and covers every field the treasury stores. */
     async getTreasuryState(provider: ContractProvider): Promise<TreasuryConfig> {
         const { stack } = await provider.get('get_treasury_state', [])
-        const preUpgrade = stack.remaining === 21
 
         const totalCoins = stack.readBigNumber()
         const totalTokens = stack.readBigNumber()
         const totalStaking = stack.readBigNumber()
         const totalUnstaking = stack.readBigNumber()
         const totalBorrowersStake = stack.readBigNumber()
-        // The old getter did not expose it, so fall back to the getter that did. It is a real number
-        // on either side of the upgrade and must not be reported as zero.
-        const deficit = preUpgrade ? await this.getDeficit(provider) : stack.readBigNumber()
+        const deficit = stack.readBigNumber()
         const parent = stack.readAddressOpt()
         const participations = Dictionary.loadDirect(
             Dictionary.Keys.BigUint(32),
@@ -1084,10 +1068,8 @@ export class Treasury implements Contract {
         )
         const previousRate = stack.readBigNumber()
         const currentRate = stack.readBigNumber()
-        // Zero is not a measurement a live treasury can report: the migrator seeds both from config,
-        // so zero here means "this treasury predates the fields" and nothing else.
-        const roundDuration = preUpgrade ? 0n : stack.readBigNumber()
-        const lastSettledRound = preUpgrade ? 0n : stack.readBigNumber()
+        const roundDuration = stack.readBigNumber()
+        const lastSettledRound = stack.readBigNumber()
 
         return {
             totalCoins,
@@ -1217,18 +1199,6 @@ export class Treasury implements Contract {
 
     async getSurplus(provider: ContractProvider): Promise<bigint> {
         const { stack } = await provider.get('get_surplus', [])
-        return stack.readBigNumber()
-    }
-
-    /**
-     * Reads a PRE-UPGRADE treasury only. `get_deficit` was removed once `get_treasury_state` grew to
-     * return everything the treasury stores, so this throws against the current code. It survives
-     * because the old getter tuple has no deficit field, and `getTreasuryState` needs some way to
-     * report a real number when it reads a treasury that is still on the old code. Delete it with
-     * that branch.
-     */
-    async getDeficit(provider: ContractProvider): Promise<bigint> {
-        const { stack } = await provider.get('get_deficit', [])
         return stack.readBigNumber()
     }
 

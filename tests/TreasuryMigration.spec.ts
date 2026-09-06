@@ -161,6 +161,28 @@ describe('Treasury Migration', () => {
         }
     }
 
+    // The borrower-fee-era extension, read from the account's cell. The released wrapper reads only
+    // the 24-value tuple, and this is the shape BEFORE the fields that widened it were inserted --
+    // the same reason parseEraExtension above reads the fixture rather than calling the getter.
+    async function readEraExtension(blockchain: Blockchain) {
+        const contract = await blockchain.getContract(treasuryAddress)
+        const account = contract.account.account?.storage.state
+        if (account?.type !== 'active' || account.state.data == null) {
+            throw new Error('treasury account is not active')
+        }
+        const data = account.state.data
+        const ext = data.refs[data.refs.length - 1].beginParse()
+        const previousRate = ext.loadCoins()
+        const currentRate = ext.loadCoins()
+        const halter = ext.loadAddress()
+        const governor = ext.loadAddress()
+        ext.loadMaybeRef() // proposed_governor
+        const governanceFee = BigInt(ext.loadUint(16))
+        const borrowerFee = BigInt(ext.loadUint(16))
+        const totalCoins = data.beginParse().loadCoins()
+        return { previousRate, currentRate, halter, governor, governanceFee, borrowerFee, totalCoins }
+    }
+
     // Scoped to the treasury on purpose. The gas_excess refund is addressed to the real mainnet
     // governor, which exists on chain but not in this sandbox, so it lands on an uninitialized
     // account and shows as aborted. That is an artifact of replaying mainnet state locally, and the
@@ -340,7 +362,7 @@ describe('Treasury Migration', () => {
             migrateCode: borrowerFeeMigratorCode,
         })
         await treasury.sendSetBorrowerFee(blockchain.sender(governor), { value: toNano('1'), newBorrowerFee: liveFee })
-        const before = await treasury.getTreasuryState()
+        const before = await readEraExtension(blockchain)
         expect(before.borrowerFee).toEqual(liveFee)
 
         const result = await treasury.sendUpgradeCode(blockchain.sender(governor), {
@@ -357,66 +379,8 @@ describe('Treasury Migration', () => {
         expect(after.previousRate).toEqual(before.previousRate)
         expect(after.currentRate).toEqual(before.currentRate)
         expect(after.governor.toString()).toEqual(before.governor.toString())
-        expect(after.oldParents.size).toEqual(before.oldParents.size)
-    })
-
-    // The read an operator's dry run depends on. get_treasury_state's shape changed with this release
-    // -- deficit, round_duration and last_settled_round were inserted, taking it from 21 values to 24
-    // -- so the wrapper has to read the CURRENT chain, which is still on the old shape, in order to
-    // show a field-level diff of the upgrade before it is signed. It is also what keeps showState
-    // usable in the window before the upgrade lands. Without the branch, the first inserted field
-    // arrives where an address is expected and throws.
-    it('should read a pre-upgrade treasury through the released wrapper', async () => {
-        const { blockchain, treasury, governor } = await stand()
-        await treasury.sendUpgradeCode(blockchain.sender(governor), {
-            value: toNano('1'),
-            newCode: deficitEraCode,
-            migrateCode: migratorCode,
-        })
-        await treasury.sendUpgradeCode(blockchain.sender(governor), {
-            value: toNano('1'),
-            newCode: borrowerFeeEraCode,
-            migrateCode: borrowerFeeMigratorCode,
-        })
-        await treasury.sendSetBorrowerFee(blockchain.sender(governor), { value: toNano('1'), newBorrowerFee: 32768n })
-
-        // The account is now shaped exactly like mainnet is today, and this wrapper is the one that
-        // ships with the upgrade. Reading it must work, and every field must land where it belongs.
-        const state = await treasury.getTreasuryState()
-        const fromCell = parseEraExtension(mainnetData)
-        expect(state.governor.toString()).toEqual(governor.toString())
-        expect(state.halter.toString()).toEqual(fromCell.halter.toString())
-        expect(state.previousRate).toEqual(fromCell.previousRate)
-        expect(state.currentRate).toEqual(fromCell.currentRate)
-        expect(state.governanceFee).toEqual(BigInt(fromCell.governanceFee))
-        expect(state.borrowerFee).toEqual(32768n)
-        expect(state.totalCoins).toEqual(parsePreDeficit(mainnetData).totalCoins)
-        // deficit is not in the old tuple at all, so the wrapper falls back to get_deficit rather than
-        // reporting a zero it did not read.
-        expect(state.deficit).toEqual(await treasury.getDeficit())
-        // and the two fields the old code does not have read as zero, which no live treasury reports:
-        // the migrator seeds both from config.
-        expect(state.roundDuration).toEqual(0n)
-        expect(state.lastSettledRound).toEqual(0n)
-
-        // The dry run is the thing this exists for, so check it end to end: it must itemise the before
-        // side rather than fall back to "not readable by this wrapper".
-        const contract = await blockchain.getContract(treasuryAddress)
-        const deployed = contract.account.account?.storage.state
-        if (deployed?.type !== 'active' || deployed.state.code == null || deployed.state.data == null) {
-            throw new Error('treasury account is not active')
-        }
-        const result = await dryRunUpgrade({
-            address: treasuryAddress,
-            currentCode: deployed.state.code,
-            currentData: deployed.state.data,
-            newCode: treasuryCode,
-            migrateCode: roundDurationMigratorCode,
-            governor,
-        })
-        expect(result.ok).toBe(true)
-        expect(result.before.fields.length).toBeGreaterThan(1)
-        expect(result.before.fields.map(([name]) => name)).toContain('round_duration')
+        expect(after.halter.toString()).toEqual(before.halter.toString())
+        expect(after.totalCoins).toEqual(before.totalCoins)
     })
 
     it('should leave data alone when no migrator is supplied', async () => {

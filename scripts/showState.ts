@@ -44,13 +44,7 @@ export async function run(provider: NetworkProvider) {
     // round where nothing was lent never settles, so the treasury widens this to two rounds when one
     // is skipped, and to however many passed after an idle stretch. Dividing by a nominal round
     // length instead would report an unchanged APY for a pool whose true rate of growth had halved.
-    // Zero means a treasury from before the field existed, so fall back to the round length from
-    // get_times until the upgrade has landed; drop that with the wrapper's tolerant read.
-    let duration = Number(treasuryState.roundDuration)
-    if (duration === 0) {
-        const times = await treasury.getTimes()
-        duration = Number(times.nextRoundSince - times.currentRoundSince)
-    }
+    const duration = Number(treasuryState.roundDuration)
     const year = 365 * 24 * 60 * 60
     const compoundingFrequency = year / duration
     const growth = Number(treasuryState.currentRate) / Number(treasuryState.previousRate)

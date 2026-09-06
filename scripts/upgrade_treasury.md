@@ -482,10 +482,18 @@ becomes a real measurement. Consumers can move to it immediately — the seed is
 a protocol that is validating every round — but the value is only load-bearing after that first
 settlement.
 
-Two temporary cross-version reads go away once it has: the 21-value branch in `getTreasuryState`
-(`wrappers/Treasury.ts`), including its `getDeficit` fallback, and the `duration === 0` fallback to
-`getTimes` in `scripts/showState.ts`. Remove them the way `ad9e3a2` removed the borrower-fee ones,
-after checking that nothing still reads a pre-upgrade treasury.
+Both temporary cross-version reads are gone, removed after the upgrade landed and the chain was
+checked rather than assumed: `get_treasury_state` returns 24 fields on mainnet, `get_deficit` answers
+with exit code 11, and `round_duration` and `last_settled_round` came back seeded at 65536 and the
+current round. What went with them: the 21-value branch in `getTreasuryState` and its `getDeficit`
+fallback, the `getDeficit` wrapper method itself, `showState`'s `duration === 0` fallback to
+`getTimes`, and the test that read a pre-upgrade treasury through the released wrapper.
+
+The migration specs still assert on pre-upgrade state, and they read it off the storage cell now --
+`parseBorrowerFeeEraState` in `BorrowerFeeMigration.spec.ts` and `readEraExtension` in
+`TreasuryMigration.spec.ts` -- which is what the fixture-reading helpers in those files already did.
+A migration spec whose subject is an older layout cannot go through a wrapper that tracks the
+current one, and pretending otherwise is what the tolerance was papering over.
 
 The downstream updates are the other half of this rollout. Ours go out with the upgrade; the two
 DefiLlama PRs are opened once the new shape is live on chain, since the adapters have to read the
