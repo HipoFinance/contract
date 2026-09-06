@@ -92,10 +92,11 @@ export interface TreasuryConfig {
     totalStaking: bigint
     totalUnstaking: bigint
     totalBorrowersStake: bigint
-    // Optional so that a config round-tripped through getTreasuryState still packs: get_treasury_state
-    // deliberately does not expose it, since that tuple is ABI for the sdk and the gauge exporter.
-    // Read it with getDeficit() instead. Undefined packs as zero, which is a fresh treasury.
-    deficit?: bigint
+    /**
+     * How much pool money defaulting borrowers walked away with, since the governor last cleared the
+     * counter. Returned by `get_treasury_state` in its storage position.
+     */
+    deficit: bigint
     parent: Address | null
     participations: Dictionary<bigint, Participation>
     roundsImbalance: bigint
@@ -104,6 +105,15 @@ export interface TreasuryConfig {
     loanCodes: Dictionary<bigint, Cell>
     previousRate: bigint
     currentRate: bigint
+    /**
+     * How long the rate pair took to grow, in seconds: the gap between the `round_since` of the two
+     * most recently settled rounds. Not the length of a round -- rounds where nothing was lent never
+     * settle, so this widens to two rounds when one is skipped and to however many passed after an
+     * idle stretch. It is the denominator an APY built on `previousRate`/`currentRate` needs.
+     */
+    roundDuration: bigint
+    /** The highest round whose reward is in `currentRate`. Only ever moves forwards. */
+    lastSettledRound: bigint
     halter: Address
     governor: Address
     proposedGovernor: Cell | null
@@ -118,6 +128,8 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
     const treasuryExtension = beginCell()
         .storeCoins(config.previousRate)
         .storeCoins(config.currentRate)
+        .storeUint(config.roundDuration, 32)
+        .storeUint(config.lastSettledRound, 32)
         .storeAddress(config.halter)
         .storeAddress(config.governor)
         .storeMaybeRef(config.proposedGovernor)
@@ -132,7 +144,7 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeCoins(config.totalStaking)
         .storeCoins(config.totalUnstaking)
         .storeCoins(config.totalBorrowersStake)
-        .storeCoins(config.deficit ?? 0n)
+        .storeCoins(config.deficit)
         .storeAddress(config.parent)
         .storeDict(config.participations)
         .storeUint(config.roundsImbalance, 8)
@@ -1030,26 +1042,70 @@ export class Treasury implements Contract {
         }
     }
 
+    /**
+     * The tuple mirrors the treasury's storage order. `deficit`, `roundDuration` and
+     * `lastSettledRound` were INSERTED into it rather than appended, so the released shape is 24
+     * values where the previous one was 21 -- a breaking change for anything reading it by position.
+     *
+     * A pre-upgrade treasury is still readable here, by shape. That is not politeness: migrationDryRun
+     * reads the OLD state to show the operator a field-level diff of an upgrade before it is signed,
+     * and showState has to keep working against mainnet while the chain is still on the old code.
+     * Without this branch both fall over on exactly the upgrade that most warrants a rehearsal, since
+     * the first inserted field lands where an address is expected and throws.
+     *
+     * Drop the old branch once the upgrade has landed, the way ad9e3a2 dropped the borrower-fee
+     * cross-version reads.
+     */
     async getTreasuryState(provider: ContractProvider): Promise<TreasuryConfig> {
         const { stack } = await provider.get('get_treasury_state', [])
+        const preUpgrade = stack.remaining === 21
+
+        const totalCoins = stack.readBigNumber()
+        const totalTokens = stack.readBigNumber()
+        const totalStaking = stack.readBigNumber()
+        const totalUnstaking = stack.readBigNumber()
+        const totalBorrowersStake = stack.readBigNumber()
+        // The old getter did not expose it, so fall back to the getter that did. It is a real number
+        // on either side of the upgrade and must not be reported as zero.
+        const deficit = preUpgrade ? await this.getDeficit(provider) : stack.readBigNumber()
+        const parent = stack.readAddressOpt()
+        const participations = Dictionary.loadDirect(
+            Dictionary.Keys.BigUint(32),
+            participationDictionaryValue,
+            stack.readCellOpt(),
+        )
+        const roundsImbalance = stack.readBigNumber()
+        const stopped = stack.readBoolean()
+        const instantMint = stack.readBoolean()
+        const loanCodes = Dictionary.loadDirect(
+            Dictionary.Keys.BigUint(32),
+            Dictionary.Values.Cell(),
+            stack.readCell(),
+        )
+        const previousRate = stack.readBigNumber()
+        const currentRate = stack.readBigNumber()
+        // Zero is not a measurement a live treasury can report: the migrator seeds both from config,
+        // so zero here means "this treasury predates the fields" and nothing else.
+        const roundDuration = preUpgrade ? 0n : stack.readBigNumber()
+        const lastSettledRound = preUpgrade ? 0n : stack.readBigNumber()
+
         return {
-            totalCoins: stack.readBigNumber(),
-            totalTokens: stack.readBigNumber(),
-            totalStaking: stack.readBigNumber(),
-            totalUnstaking: stack.readBigNumber(),
-            totalBorrowersStake: stack.readBigNumber(),
-            parent: stack.readAddressOpt(),
-            participations: Dictionary.loadDirect(
-                Dictionary.Keys.BigUint(32),
-                participationDictionaryValue,
-                stack.readCellOpt(),
-            ),
-            roundsImbalance: stack.readBigNumber(),
-            stopped: stack.readBoolean(),
-            instantMint: stack.readBoolean(),
-            loanCodes: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell(), stack.readCell()),
-            previousRate: stack.readBigNumber(),
-            currentRate: stack.readBigNumber(),
+            totalCoins,
+            totalTokens,
+            totalStaking,
+            totalUnstaking,
+            totalBorrowersStake,
+            deficit,
+            parent,
+            participations,
+            roundsImbalance,
+            stopped,
+            instantMint,
+            loanCodes,
+            previousRate,
+            currentRate,
+            roundDuration,
+            lastSettledRound,
             halter: stack.readAddress(),
             governor: stack.readAddress(),
             proposedGovernor: stack.readCellOpt(),
@@ -1164,6 +1220,13 @@ export class Treasury implements Contract {
         return stack.readBigNumber()
     }
 
+    /**
+     * Reads a PRE-UPGRADE treasury only. `get_deficit` was removed once `get_treasury_state` grew to
+     * return everything the treasury stores, so this throws against the current code. It survives
+     * because the old getter tuple has no deficit field, and `getTreasuryState` needs some way to
+     * report a real number when it reads a treasury that is still on the old code. Delete it with
+     * that branch.
+     */
     async getDeficit(provider: ContractProvider): Promise<bigint> {
         const { stack } = await provider.get('get_deficit', [])
         return stack.readBigNumber()

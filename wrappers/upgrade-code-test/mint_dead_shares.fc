@@ -16,6 +16,8 @@ global cell extension;
 
 global int previous_rate;
 global int current_rate;
+global int round_duration;
+global int last_settled_round;
 global slice halter;
 global slice governor;
 global cell proposed_governor;
@@ -66,6 +68,8 @@ global cell old_parents;
     slice s = extension.begin_parse();
     previous_rate = s~load_coins();
     current_rate = s~load_coins();
+    round_duration = s~load_uint(32);
+    last_settled_round = s~load_uint(32);
     halter = s~load_msg_addr();
     governor = s~load_msg_addr();
     proposed_governor = s~load_maybe_ref();

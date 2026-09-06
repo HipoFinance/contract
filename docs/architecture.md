@@ -79,7 +79,8 @@ Each participation moves through these states (`participation::*` in
 6. **recovering (5)** — after `stake_held_until`, `finish_participation` triggers
    `recover_stakes`; each `recover_stake_result` books rewards or punishments.
 7. **ready_to_burn (6)** — the last loan of this round is recovered, its rewards are in
-   `total_coins`, and `current_rate`/`previous_rate` are updated. The round holds its bills
+   `total_coins`, and `current_rate`/`previous_rate` are updated, along with `round_duration`
+   and `last_settled_round`. The round holds its bills
    here for as long as any *older* round can still book rewards, so that deferred deposits
    cannot mint at a rate which excludes them.
 8. **burning (7)** — no older round owes rewards any more, so `burn_all` is sent to the
@@ -262,6 +263,24 @@ The treasury's persistent state is split into frequently-loaded fields (`save_da
 `load_data`) and a rarely-needed `extension` cell (`pack_extension` / `unpack_extension`) to
 keep gas low on hot paths. **Any upgrade must keep the stored data layout compatible or
 migrate it explicitly.**
+
+`round_duration` and `last_settled_round` sit in the extension immediately after the rate pair,
+because they describe it: `round_duration` is the interval `previous_rate` grew into
+`current_rate` over, measured as the gap between the `round_since` of the two most recently
+settled rounds, and `last_settled_round` is the highest round whose reward is in `current_rate`.
+It is deliberately not a round length. Rounds in which nothing was lent never reach the settlement
+branch, so the pair freezes while the pool is idle and the interval widens to match — which is
+what keeps an APY built on those two rates honest when the protocol validates every other round,
+or stops for a week. Both only ever move forwards, so an older round that settles out of order
+books its reward without disturbing an interval that has already been measured.
+
+`get_treasury_state` returns the tuple in storage order — root fields as `save_data` writes them,
+then extension fields as `pack_extension` does — so it now covers everything the treasury stores,
+`deficit` included, and an integrator can check the list against the layout rather than a changelog.
+That tuple is ABI, and putting `deficit`, `round_duration` and `last_settled_round` in their storage
+positions rather than at the end was a breaking change for every reader that indexes it: ours were
+updated with the release, and DefiLlama's fee and yield adapters needed upstream PRs. Weigh that
+again before moving a field; the order above is not free to rearrange.
 
 ## Testing
 

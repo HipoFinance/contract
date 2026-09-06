@@ -12,6 +12,14 @@ global int total_borrowers_stake;
 ;; cell with the other accounting totals rather than in the extension, so that every write to it is
 ;; persisted by recv_internal's trailing save_data() and cannot be dropped by a handler that returns
 ;; without repacking the extension.
+;;
+;; Deliberately absent from calculate_min_coins: the coins are already missing from the balance, so
+;; get_surplus is already lower by this much, and reserving against it a second time would
+;; double-count the same loss.
+;;
+;; Read it from get_treasury_state, which returns it in this position. It had a getter of its own
+;; until that tuple grew to cover everything the treasury stores, which left nothing for the getter
+;; to add.
 global int deficit;
 global slice parent;
 global cell participations;
@@ -23,6 +31,8 @@ global cell extension;
 
 global int previous_rate;
 global int current_rate;
+global int round_duration;
+global int last_settled_round;
 global slice halter;
 global slice governor;
 global cell proposed_governor;
@@ -73,6 +83,8 @@ global cell old_parents;
     extension = begin_cell()
         .store_coins(previous_rate)
         .store_coins(current_rate)
+        .store_uint(round_duration, 32)
+        .store_uint(last_settled_round, 32)
         .store_slice(halter)
         .store_slice(governor)
         .store_maybe_ref(proposed_governor)
@@ -88,6 +100,8 @@ global cell old_parents;
     slice s = extension.begin_parse();
     previous_rate = s~load_coins();
     current_rate = s~load_coins();
+    round_duration = s~load_uint(32);
+    last_settled_round = s~load_uint(32);
     halter = s~load_msg_addr();
     governor = s~load_msg_addr();
     proposed_governor = s~load_maybe_ref();
@@ -1497,6 +1511,25 @@ cell find_code(cell dict, int round_since) inline {
             }
 
             if rejected.dict_empty?() & accrued.dict_empty?() & staked.dict_empty?() & recovering.dict_empty?() {
+                ;; The interval the rate pair below grew over, which is not the same thing as the
+                ;; length of a round. Rounds where nothing was lent never reach this branch at all --
+                ;; process_loan_requests hands them straight to ready_to_burn -- so the rates simply
+                ;; freeze while the pool is idle. Measuring the gap between the round_since of the two
+                ;; most recently settled rounds is what keeps the two halves of an APY honest: a
+                ;; skipped round widens it to two, an idle week to however many rounds passed, and a
+                ;; prolonged round lands in it by itself, because round_since is the validator set's
+                ;; real utime_since rather than a nominal length read from config.
+                ;;
+                ;; Both fields only ever move forwards. Settlements are not necessarily in round order
+                ;; -- see the note below on an older round still owing its reward -- and letting
+                ;; last_settled_round walk backwards would measure the round after an out-of-order
+                ;; pair as two rounds when its own reward is worth one, halving the reported rate. So
+                ;; an older round that settles late updates the rates and nothing else; the reward it
+                ;; adds belongs to the interval the next settlement measures.
+                if round_since > last_settled_round {
+                    round_duration = round_since - last_settled_round;
+                    last_settled_round = round_since;
+                }
                 previous_rate = current_rate;
                 current_rate = muldiv(total_coins, 1000000000, total_tokens);
                 ;; This round has settled, but an older round may still add its reward to total_coins,
@@ -2557,12 +2590,23 @@ var get_treasury_state() method_id {
     load_data();
     unpack_extension();
 
+    ;; The tuple mirrors storage order exactly: root fields in their save_data order, then extension
+    ;; fields in their pack_extension order. Everything the treasury stores is here, so an integrator
+    ;; needs one call and can check the list against the layout rather than against a changelog.
+    ;;
+    ;; That order was chosen over an append-only one deliberately, and it is a BREAKING change to the
+    ;; ABI: `deficit`, `round_duration` and `last_settled_round` are inserted, not appended, so every
+    ;; consumer reading this tuple by position shifts. Ours are updated alongside; DefiLlama's fee and
+    ;; yield adapters index it at hardcoded offsets and need upstream PRs, which is a known cost of
+    ;; this change rather than an oversight. If a field is ever added again, weigh that cost again --
+    ;; do not assume this precedent makes inserting free.
     return
         ( total_coins
         , total_tokens
         , total_staking
         , total_unstaking
         , total_borrowers_stake
+        , deficit
         , parent
         , participations
         , rounds_imbalance
@@ -2571,6 +2615,8 @@ var get_treasury_state() method_id {
         , loan_codes
         , previous_rate
         , current_rate
+        , round_duration
+        , last_settled_round
         , halter
         , governor
         , proposed_governor
@@ -2726,17 +2772,6 @@ int get_surplus() method_id {
     int min_coins = calculate_min_coins();
 
     return ton_balance - min_coins;
-}
-
-;; How much pool money defaulting borrowers walked away with, in total, since the governor last cleared
-;; the counter. Deliberately absent from get_treasury_state, whose tuple is ABI for the sdk and the
-;; gauge exporter, and deliberately absent from calculate_min_coins: the coins are already missing from
-;; the balance, so get_surplus above is already lower by this much and reserving against it a second
-;; time would double-count the same loss.
-int get_deficit() method_id {
-    load_data();
-
-    return deficit;
 }
 
 int get_max_punishment(int stake) method_id {

@@ -24,7 +24,7 @@ import { Treasury, emptyDictionaryValue, requestDictionaryValue, sortedDictionar
 const treasuryAddress = Address.parse('EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ')
 
 describe('Borrower Fee Migration', () => {
-    let treasuryCode: Cell
+    let borrowerFeeEraCode: Cell
     let deployedCode: Cell
     let migratorCode: Cell
 
@@ -32,7 +32,13 @@ describe('Borrower Fee Migration', () => {
     let halter: Address
 
     beforeAll(async () => {
-        treasuryCode = await compile('Treasury')
+        // Pinned to the code of its own time rather than built via compile('Treasury'), which has
+        // since moved one migration further (round_duration). Upgrading to today's build would leave
+        // the extension this migrator produces 64 bits short of what load_data() expects, failing for
+        // a reason that has nothing to do with the borrower-fee migration under test here.
+        borrowerFeeEraCode = Cell.fromBoc(
+            readFileSync(__dirname + '/fixtures/treasury-borrower-fee-era-code.boc'),
+        )[0]
         // The upgrade has to start from the code that is actually on chain, not from anything built
         // out of this tree: upgrade_code unpacks the extension before handing over to the migrator,
         // and it must do that with the OLD parser. Starting from the new code fails on the old
@@ -226,7 +232,7 @@ describe('Borrower Fee Migration', () => {
         const { blockchain, treasury } = await stand(deployedCode)
         const result = await treasury.sendUpgradeCode(blockchain.sender(governor), {
             value: '0.1',
-            newCode: treasuryCode,
+            newCode: borrowerFeeEraCode,
             migrateCode: migratorCode,
         })
         expect(result.transactions).not.toHaveTransaction({ to: treasuryAddress, success: false })
@@ -353,7 +359,7 @@ describe('Borrower Fee Migration', () => {
 
         const again = await treasury.sendUpgradeCode(blockchain.sender(governor), {
             value: '0.1',
-            newCode: treasuryCode,
+            newCode: borrowerFeeEraCode,
             migrateCode: migratorCode,
         })
         expect(again.transactions).toHaveTransaction({ to: treasuryAddress, success: false })
@@ -448,7 +454,7 @@ describe('Borrower Fee Migration', () => {
             const treasury = blockchain.openContract(Treasury.createFromAddress(mainnetAddress))
             const result = await treasury.sendUpgradeCode(blockchain.sender(mainnetGovernor()), {
                 value: '0.1',
-                newCode: treasuryCode,
+                newCode: borrowerFeeEraCode,
                 migrateCode: migratorCode,
             })
             // The gas_excess refund is addressed to the real governor, which is not an account in this
@@ -459,9 +465,9 @@ describe('Borrower Fee Migration', () => {
 
         it('should not be the code this upgrade releases', () => {
             // The point of the capture is to be the OTHER side of the upgrade. If it ever equals the
-            // released build, the fixture has been refreshed past the migration it exists to exercise
-            // and every assertion below is testing a no-op.
-            expect(mainnetCode.hash().toString('hex')).not.toEqual(treasuryCode.hash().toString('hex'))
+            // borrower-fee era build this spec upgrades to, the fixture has been refreshed past the
+            // migration it exists to exercise and every assertion below is testing a no-op.
+            expect(mainnetCode.hash().toString('hex')).not.toEqual(borrowerFeeEraCode.hash().toString('hex'))
         })
 
         it('should be a capture taken before the borrower fee, with requests to convert', () => {

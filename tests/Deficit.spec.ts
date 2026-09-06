@@ -78,6 +78,7 @@ describe('Deficit', () => {
             totalStaking: 0n,
             totalUnstaking: 0n,
             totalBorrowersStake: 0n,
+            deficit: 0n,
             parent: null,
             participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
             roundsImbalance: 255n,
@@ -86,6 +87,8 @@ describe('Deficit', () => {
             loanCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(0n, loanCode),
             previousRate: 1_000_000_000n,
             currentRate: 1_000_000_000n,
+            roundDuration: 0n,
+            lastSettledRound: 0n,
             halter: halterAddress,
             governor: governorAddress,
             proposedGovernor: null,
@@ -97,7 +100,6 @@ describe('Deficit', () => {
             ),
             billCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(0n, billCode),
             oldParents: Dictionary.empty(Dictionary.Keys.BigUint(256), emptyDictionaryValue),
-            deficit: 0n,
         }
     }
 
@@ -193,7 +195,7 @@ describe('Deficit', () => {
             }),
         )
         expect(await treasury.getSurplus()).toBeGramValue('0')
-        expect(await treasury.getDeficit()).toBeGramValue(deficit)
+        expect((await treasury.getTreasuryState()).deficit).toBeGramValue(deficit)
     }
 
     // Sends the recover_stake_result that the loan contract for (borrower, roundSince) would send,
@@ -344,7 +346,7 @@ describe('Deficit', () => {
         expect(compensation).toBeLessThan(stakeAmount) // ... and the collateral really did cover it
 
         const state = await treasury.getTreasuryState()
-        expect(await treasury.getDeficit()).toBeGramValue('0')
+        expect((await treasury.getTreasuryState()).deficit).toBeGramValue('0')
         expect(logs(result.externals, deficitTopic)).toHaveLength(0)
 
         // total_coins moved up by exactly min_payment less the governance fee, which is the whole of
@@ -392,7 +394,7 @@ describe('Deficit', () => {
         const expectedDeficit = loanAmount + accrueAmount + rsf - incomingTon
         expect(expectedDeficit).toBeGreaterThan(0n)
 
-        const deficit = await treasury.getDeficit()
+        const deficit = (await treasury.getTreasuryState()).deficit
         expect(deficit).toEqual(expectedDeficit)
         expect(deficit).toBeBetween(toNano('499990'), toNano('500010')) // ~ 700000 lent, 200000 back
 
@@ -446,7 +448,7 @@ describe('Deficit', () => {
             success: true,
         })
         const shortfall1 = loanAmount + rsf - incomingTonOf(result1.externals)
-        const deficit1 = await treasury.getDeficit()
+        const deficit1 = (await treasury.getTreasuryState()).deficit
         expect(deficit1).toEqual(shortfall1)
 
         const result2 = await settle(second, toNano('50000'))
@@ -458,7 +460,7 @@ describe('Deficit', () => {
         const shortfall2 = loanAmount + rsf - incomingTonOf(result2.externals)
         expect(shortfall2).toBeGreaterThan(shortfall1) // the second borrower defaulted harder
 
-        const deficit2 = await treasury.getDeficit()
+        const deficit2 = (await treasury.getTreasuryState()).deficit
         expect(deficit2).toEqual(shortfall1 + shortfall2)
         expect(deficit2).toBeBetween(toNano('449990'), toNano('450010')) // 600000 lent, 150000 back
 
@@ -492,7 +494,7 @@ describe('Deficit', () => {
             },
         ])
         await settle(borrower, toNano('200000'))
-        expect(await treasury.getDeficit()).toBeGreaterThan(0n)
+        expect((await treasury.getTreasuryState()).deficit).toBeGreaterThan(0n)
 
         // the halter may flip instant_mint and stopped, but not this
         const halterResult = await treasury.sendSetDeficit(halter.getSender(), { value: '0.1', newDeficit: 0n })
@@ -503,7 +505,7 @@ describe('Deficit', () => {
             success: false,
             exitCode: 103, // err::access_denied
         })
-        expect(await treasury.getDeficit()).toBeGreaterThan(0n)
+        expect((await treasury.getTreasuryState()).deficit).toBeGreaterThan(0n)
 
         const strangerResult = await treasury.sendSetDeficit((await blockchain.treasury('stranger')).getSender(), {
             value: '0.1',
@@ -515,7 +517,7 @@ describe('Deficit', () => {
             success: false,
             exitCode: 103,
         })
-        expect(await treasury.getDeficit()).toBeGreaterThan(0n)
+        expect((await treasury.getTreasuryState()).deficit).toBeGreaterThan(0n)
 
         // the governor sets an absolute value: first a partial top-up, then a full clear
         const partial = await treasury.sendSetDeficit(governor.getSender(), {
@@ -534,7 +536,7 @@ describe('Deficit', () => {
             body: bodyOp(op.gasExcess),
             success: true,
         })
-        expect(await treasury.getDeficit()).toBeGramValue(toNano('123.456'))
+        expect((await treasury.getTreasuryState()).deficit).toBeGramValue(toNano('123.456'))
 
         const cleared = await treasury.sendSetDeficit(governor.getSender(), { value: '0.1', newDeficit: 0n })
         expect(cleared.transactions).toHaveTransaction({
@@ -543,7 +545,7 @@ describe('Deficit', () => {
             body: bodyOp(op.setDeficit),
             success: true,
         })
-        expect(await treasury.getDeficit()).toBeGramValue('0')
+        expect((await treasury.getTreasuryState()).deficit).toBeGramValue('0')
 
         // ... and the rest of the extension survived the round trip
         const state = await treasury.getTreasuryState()
@@ -581,7 +583,7 @@ describe('Deficit', () => {
         expect(result.transactions).not.toHaveTransaction({ inMessageBounced: true })
         expect(result.transactions).not.toHaveTransaction({ success: false })
 
-        expect(await treasury.getDeficit()).toBeGreaterThan(0n)
+        expect((await treasury.getTreasuryState()).deficit).toBeGreaterThan(0n)
 
         // burn_ready_participations moved the round past ready_to_burn and sent the collection its
         // burn_all; the collection had no bills left to burn, so it reported straight back.
@@ -605,7 +607,7 @@ describe('Deficit', () => {
         expect(state.currentRate).toBe(1_000_000_000n)
         // ... and the round's own bookkeeping did not clobber the counter on the way out
         const rsf = await recoverStakeFee()
-        expect(await treasury.getDeficit()).toEqual(
+        expect((await treasury.getTreasuryState()).deficit).toEqual(
             toNano('300000') + toNano('400000') + rsf - incomingTonOf(result.externals),
         )
     })

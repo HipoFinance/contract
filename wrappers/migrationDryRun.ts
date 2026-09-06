@@ -67,14 +67,6 @@ async function snapshot(treasury: SandboxContract<Treasury>, code: Cell, data: C
         return { ...shell, fields: [['state', 'not readable by this wrapper (get_treasury_state shape differs)']] }
     }
 
-    // get_deficit only exists after the upgrade that adds it, so its absence is information too.
-    let deficit = 'absent (getter not in this code)'
-    try {
-        deficit = String(await treasury.getDeficit())
-    } catch {
-        // left as absent
-    }
-
     const fields: [string, string][] = [
         ['total_coins', String(s.totalCoins)],
         ['total_tokens', String(s.totalTokens)],
@@ -82,7 +74,7 @@ async function snapshot(treasury: SandboxContract<Treasury>, code: Cell, data: C
         ['total_staking', String(s.totalStaking)],
         ['total_unstaking', String(s.totalUnstaking)],
         ['total_borrowers_stake', String(s.totalBorrowersStake)],
-        ['deficit', deficit],
+        ['deficit', String(s.deficit)],
         ['parent', s.parent?.toString() ?? 'null'],
         ['participations', dictSize(s.participations)],
         ['rounds_imbalance', String(s.roundsImbalance)],
@@ -99,6 +91,11 @@ async function snapshot(treasury: SandboxContract<Treasury>, code: Cell, data: C
         ['collection_codes', dictSize(s.collectionCodes)],
         ['bill_codes', dictSize(s.billCodes)],
         ['old_parents', dictSize(s.oldParents)],
+        // Trailing values in the getter, so a treasury from before they existed reports 0 here
+        // rather than being unreadable. The migrator seeds both from config, so 0 -> nonzero is what
+        // this upgrade should look like, and 0 -> 0 means the migrator did not run.
+        ['round_duration', String(s.roundDuration)],
+        ['last_settled_round', String(s.lastSettledRound)],
     ]
 
     return { ...shell, fields }

@@ -148,6 +148,8 @@ Use the get method `get_treasury_state` of **treasury** with no parameters, whic
 
 1. `total_borrowers_stake`: Total GRAM coins that borrowers provided to take a loan.
 
+1. `deficit`: Total GRAM that defaulting borrowers walked away with, since the governor last cleared the counter. The exchange rate never moves down for a loss, so this is where an uncovered shortfall is recorded instead; `total_coins` keeps its full claim and the governor tops the treasury back up by hand.
+
 1. `parent`: The address of the current hGRAM parent/minter/master contract.
 
 1. `participations`: A dictionary containing data for active participation in election and validation rounds.
@@ -163,6 +165,10 @@ Use the get method `get_treasury_state` of **treasury** with no parameters, whic
 1. `previous_rate`: Exchange rate before last round, multiplied by one billion.
 
 1. `current_rate`: Exchange rate after last round, multiplied by one billion.
+
+1. `round_duration`: The number of seconds that `previous_rate` took to grow into `current_rate`, measured on chain as the gap between the start times of the two most recently settled validation rounds. This is **not** the length of a round: the protocol only updates the rate pair when a round it lent into settles, so a round in which nothing was lent widens this interval instead of passing unnoticed. Use it as the denominator when annualising the rate pair — see *Calculating APY of hGRAM* below.
+
+1. `last_settled_round`: The start time of the most recent validation round whose reward is included in `current_rate`. Compare it against the current round to tell how fresh the rate pair is; it only ever moves forward.
 
 1. `halter`: The address of the halter who can stop the protocol, i.e. setting the stopped flag.
 
@@ -183,6 +189,8 @@ Use the get method `get_treasury_state` of **treasury** with no parameters, whic
 1. `bill_codes`: The codes of bill smart contracts. It's a dictionary to gradually upgrade the codes while already participating in previous rounds.
 
 1. `old_parents`: The list of old parent/minter/master smart contract addresses, which the treasury will accept to upgrade their wallets to the latest/current parent.
+
+> **Breaking change.** `deficit`, `round_duration` and `last_settled_round` were added to this list at the positions above, not at the end, so that it mirrors the treasury's storage layout and one call returns everything the contract stores. Readers that index this tuple by position — rather than by name — must be updated for the release that introduced them. The list went from 21 values to 24. The same release **removed the `get_deficit` method**: this tuple now covers everything the treasury stores, so it was the only reader of that getter's reason to exist.
 
 ## Reading Times
 
@@ -258,7 +266,18 @@ Both totals include the protocol's dead shares (unowned tokens and their backing
 
 The GRAM rewards paid to validators change in each round of validation, because of different runtime conditions, like for example, the number of transactions in that round. As a result, APY is only an estimate and can be calculated based on the performance of the last validation round.
 
-To calculate it, use the `current_rate` and `previous_rate` fields returned from the `get_treasury_state` method. You may also use the `get_times` method to calculate the duration of the last round, so that in case of a change in network configuration, there is no need to update the calculation code. Here is an [example implementation](https://github.com/HipoFinance/sdk-example/blob/c165c95350b7df19b30f42e037d882cec2d4b865/src/Model.ts#L304).
+To calculate it, use the `current_rate`, `previous_rate` and `round_duration` fields returned from the `get_treasury_state` method:
+
+```
+growth = current_rate / previous_rate
+apy    = growth ^ (365 * 24 * 60 * 60 / round_duration) - 1
+```
+
+All three come from the same call, so the whole calculation needs one get method and one snapshot of state.
+
+Use `round_duration` rather than a round length worked out from `get_times`. The two agree while the protocol lends into every round, but they diverge exactly when it does not: the rate pair only moves when a round the protocol lent into settles, so if liquidity falls and only every other round is used, the growth per update roughly doubles while a round length does not — annualising by the round length would report an unchanged APY for a pool whose true rate of growth had halved. The same applies after an idle stretch. `round_duration` is the interval those two rates actually describe, so it stays correct in both cases and needs no adjustment if the network's round length changes.
+
+Here is an [example implementation](https://github.com/HipoFinance/sdk-example/blob/c165c95350b7df19b30f42e037d882cec2d4b865/src/Model.ts#L304), written before `round_duration` existed and still using `get_times`.
 
 ## Explorer Actions
 

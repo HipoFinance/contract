@@ -1,7 +1,7 @@
 import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import '@ton/test-utils'
-import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core'
+import { Address, beginCell, Cell, Dictionary, TupleReader, toNano } from '@ton/core'
 import {
     between,
     bodyOp,
@@ -85,6 +85,7 @@ describe('Getters', () => {
                     totalStaking: 0n,
                     totalUnstaking: 0n,
                     totalBorrowersStake: 0n,
+                    deficit: 0n,
                     parent: null,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                     roundsImbalance: 255n,
@@ -96,6 +97,8 @@ describe('Getters', () => {
                     ),
                     previousRate: 1_000_000_000n,
                     currentRate: 1_000_000_000n,
+                    roundDuration: 0n,
+                    lastSettledRound: 0n,
                     halter: halter.address,
                     governor: governor.address,
                     proposedGovernor: null,
@@ -305,6 +308,90 @@ describe('Getters', () => {
         )
         expect(treasuryState.billCodes.get(0n)?.toBoc().toString('base64')).toEqual(billCode.toBoc().toString('base64'))
         expect(treasuryState.oldParents.size).toEqual(0)
+        // Nothing has settled on a fresh treasury, so there is no interval to report yet.
+        expect(treasuryState.roundDuration).toEqual(0n)
+        expect(treasuryState.lastSettledRound).toEqual(0n)
+        expect(treasuryState.deficit).toEqual(0n)
+    })
+
+    // get_deficit was removed when get_treasury_state grew to return everything the treasury stores.
+    // A removed get method is a breaking change for anything that called it -- the gauge did -- so it
+    // is worth an assertion rather than an absence nobody notices until a dashboard goes blank.
+    it('should no longer expose get_deficit, now that the state tuple carries it', async () => {
+        const contract = await blockchain.getContract(treasury.address)
+        const result = await contract.get('get_deficit').catch((e: unknown) => e)
+        expect(result).toBeInstanceOf(Error)
+
+        const treasuryState = await treasury.getTreasuryState()
+        expect(treasuryState.deficit).toEqual(0n)
+    })
+
+    // get_treasury_state's tuple is ABI, and it mirrors storage order: root fields in save_data order,
+    // then extension fields in pack_extension order. The website, mcp, sdk, sdk-example and the gauge
+    // read it positionally, and DefiLlama's fee and yield adapters index it at hardcoded offsets that
+    // nobody here can redeploy -- so a field that moves is a field that silently misreads somewhere
+    // else, and the release that moved deficit, round_duration and last_settled_round into place had
+    // to be coordinated with all of them. This pins the result rather than trusting a reviewer to
+    // notice, so the next such move is a deliberate one.
+    it('should keep every get_treasury_state field at its established position', async () => {
+        const contract = await blockchain.getContract(treasury.address)
+        const stack = new TupleReader((await contract.get('get_treasury_state')).stack)
+
+        const positions = [
+            'total_coins',
+            'total_tokens',
+            'total_staking',
+            'total_unstaking',
+            'total_borrowers_stake',
+            'deficit',
+            'parent',
+            'participations',
+            'rounds_imbalance',
+            'stopped',
+            'instant_mint',
+            'loan_codes',
+            'previous_rate',
+            'current_rate',
+            'round_duration',
+            'last_settled_round',
+            'halter',
+            'governor',
+            'proposed_governor',
+            'governance_fee',
+            'borrower_fee',
+            'collection_codes',
+            'bill_codes',
+            'old_parents',
+        ]
+        expect(stack.remaining).toEqual(positions.length)
+
+        // Read positionally the way an external consumer does, and check the values that are cheap to
+        // identify. Anything inserted rather than appended shifts these and fails here.
+        expect(stack.readBigNumber()).toBeGramValue('10') // total_coins, the dead shares alone
+        expect(stack.readBigNumber()).toBeGramValue('10') // total_tokens
+        expect(stack.readBigNumber()).toEqual(0n) // total_staking
+        expect(stack.readBigNumber()).toEqual(0n) // total_unstaking
+        expect(stack.readBigNumber()).toEqual(0n) // total_borrowers_stake
+        expect(stack.readBigNumber()).toEqual(0n) // deficit
+        expect(stack.readAddress()).toEqualAddress(parent.address)
+        stack.readCellOpt() // participations
+        expect(stack.readBigNumber()).toEqual(255n) // rounds_imbalance
+        expect(stack.readBoolean()).toEqual(false) // stopped
+        stack.readBoolean() // instant_mint
+        stack.readCell() // loan_codes
+        expect(stack.readBigNumber()).toEqual(1_000_000_000n) // previous_rate
+        expect(stack.readBigNumber()).toEqual(1_000_000_000n) // current_rate
+        expect(stack.readBigNumber()).toEqual(0n) // round_duration
+        expect(stack.readBigNumber()).toEqual(0n) // last_settled_round
+        expect(stack.readAddress().toString()).toEqual(halter.address.toString())
+        expect(stack.readAddress().toString()).toEqual(governor.address.toString())
+        expect(stack.readCellOpt()).toEqual(null) // proposed_governor
+        expect(stack.readBigNumber()).toEqual(4096n) // governance_fee
+        expect(stack.readBigNumber()).toEqual(0n) // borrower_fee
+        stack.readCell() // collection_codes
+        stack.readCell() // bill_codes
+        stack.readCellOpt() // old_parents
+        expect(stack.remaining).toEqual(0)
     })
 
     it('should return wallet state', async () => {

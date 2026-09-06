@@ -302,7 +302,16 @@ holders are not diluted and the treasury balance does not change. Run it in the 
 
 ## Borrower Fee
 
-> **Not yet run.** Spec: `docs/specs/2026-08-31-borrower-fee-hpo-burn.md`.
+> **Already performed on mainnet.** Spec: `docs/specs/2026-08-31-borrower-fee-hpo-burn.md`. Kept as
+> the record of what was run. The treasury now carries the borrower-fee layout, and the fee itself
+> has been set by governance rather than being left at the zero the migrator seeds. Do not re-run
+> it: the migrator ends its parses with `end_parse()`, so a second run throws and reverts the whole
+> upgrade.
+>
+> The code this released is captured as `tests/fixtures/treasury-borrower-fee-era-code.boc`, hash
+> `200e562398228a563957dbac54f6c8fc869b5b93f247d4f6e5b32059b4bd626e`. That is what a treasury on
+> chain should be running until the round-duration upgrade below lands; check it with
+> `showCodeHashes.ts`.
 
 Adds the borrower fee, widens `borrower_reward_share` to 16 bits, and snapshots the fee rate into
 each loan request. Three stored layouts change together and the migrator converts all three in one
@@ -395,3 +404,89 @@ measured.
    `0` remains the kill switch, and it disables the `fee::min_burn` floor along with the rate. The
    rate is snapshotted into each request, so setting it never reprices a loan already requested; it
    applies from the next request onwards.
+
+## Round Duration
+
+> **Not yet run.** Spec: `docs/specs/2026-09-06-round-duration.md`.
+
+Adds `round_duration` and `last_settled_round` (`uint32` each) to the extension, immediately after
+`current_rate`. They record the interval the rate pair grew over, so an APY can be computed from a
+single `get_treasury_state` call and stays correct when the protocol skips rounds. No other layout
+changes, and `participations` is moved as an opaque dict.
+
+**This release also changes the shape of `get_treasury_state`,** which is a separate matter from the
+storage migration and does not involve the migrator at all. `deficit`, `round_duration` and
+`last_settled_round` are returned in their storage positions rather than appended, so the tuple goes
+from 21 values to 24 and every reader that indexes it by position must be updated. Plan that as part
+of the rollout, not after it:
+
+The release also **removes the `get_deficit` method**, for the same reason: the tuple now covers
+everything stored, so the standalone getter had nothing left to add. Anything calling it gets a
+failed get method rather than a wrong answer.
+
+- **Ours, to deploy alongside:** website, mcp, sdk, sdk-example, gauge. The gauge is the one that
+  calls `get_deficit`, so it needs the getter removal as well as the reordering.
+- **Upstream, needing merged PRs:** `dimension-adapters/fees/hipo` and
+  `yield-server/src/adaptors/hipo`, both of which read `stack[11]`, `stack[12]` and `stack[16]`.
+  `DefiLlama-Adapters/projects/hipo` reads `result[0]` and `result[2]` only, so it is unaffected.
+- Old readers fail loudly rather than quietly: the first inserted field arrives where an address is
+  expected, so they throw instead of reporting wrong numbers.
+
+The migrator is `wrappers/upgrade-code-test/add_round_duration.fc`, exercised in
+`tests/TreasuryMigration.spec.ts` against the captured mainnet account, chained through the deficit
+and borrower-fee migrations so each migrator is tested against the layout it was written for.
+
+Unlike the borrower-fee migration, this one's cost does not scale with anything stored, so it does
+**not** need a window with `total_borrowers_stake` at zero.
+
+### Before sending
+
+1. **Confirm the starting layout.** This migrator reads the borrower-fee layout, which is what is on
+   chain: the borrower-fee migration above has already run. So this upgrade goes out on its own, with
+   nothing to chain ahead of it. Confirm before sending anyway, since it is one command —
+   `showCodeHashes.ts` should report
+   `200e562398228a563957dbac54f6c8fc869b5b93f247d4f6e5b32059b4bd626e` for the treasury. Against a
+   pre-borrower-fee treasury this migrator reverts, which is the safe failure but a wasted
+   transaction.
+2. **Check the seeds.** The migrator reads config params 15 and 34 and seeds `round_duration` with
+   `validators_elected_for` and `last_settled_round` with the current round's start. The dry run
+   prints both: `round_duration` should be the network's round length in seconds (~65536) and
+   `last_settled_round` a plausible recent timestamp. `0 -> 0` on either means the migrator did not
+   run.
+
+### Sending
+
+1. In `scripts/upgradeCode.ts`, set:
+
+    ```ts
+    const migratorName: string | null = 'upgrade-code-test/AddRoundDuration'
+    ```
+
+2. Run the script. It prints the migrator hash and its full source, and requires the hash typed back
+   before sending. Read the source at that prompt; it is the last point before signing.
+
+3. Set `migratorName` back to `null` once the migration has landed.
+
+4. Verify with `showState.ts`: `round_duration` and `last settled` are populated, the `deficit` line
+   still reads (it comes from the state tuple now, not from `get_deficit`), the APY line still reads
+   sensibly, and `total_coins`, `total_tokens`, `parent`, `governor`, `halter`, the exchange rate and
+   `borrower_fee` are all unchanged. `borrower_fee` is the one to read closely — it is live,
+   so it carries a real rate rather than zero, and the migrator rewriting the extension around it is
+   the only thing standing between that rate and a silent reset. The dry run prints it before and
+   after. The code hash should equal the plain `Treasury` build.
+
+### After it lands
+
+`round_duration` is nominal until the first round settles under the new code, at which point it
+becomes a real measurement. Consumers can move to it immediately — the seed is the right answer for
+a protocol that is validating every round — but the value is only load-bearing after that first
+settlement.
+
+Two temporary cross-version reads go away once it has: the 21-value branch in `getTreasuryState`
+(`wrappers/Treasury.ts`), including its `getDeficit` fallback, and the `duration === 0` fallback to
+`getTimes` in `scripts/showState.ts`. Remove them the way `ad9e3a2` removed the borrower-fee ones,
+after checking that nothing still reads a pre-upgrade treasury.
+
+The downstream updates are the other half of this rollout. Ours go out with the upgrade; the two
+DefiLlama PRs are opened once the new shape is live on chain, since the adapters have to read the
+tuple as it actually is.

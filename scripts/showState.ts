@@ -21,7 +21,6 @@ export async function run(provider: NetworkProvider) {
     const balance = await treasury.getBalance()
     const maxBurnableTokens = await treasury.getMaxBurnableTokens()
     const surplus = await treasury.getSurplus()
-    const deficit = await treasury.getDeficit()
 
     // What reserve_tokens and burn_tokens actually spend from, mirrored here so the number on screen is
     // the one the contract uses. It deliberately does not subtract total_staking: that would hide
@@ -41,9 +40,17 @@ export async function run(provider: NetworkProvider) {
 
     const exchangeRate = Number(treasuryState.totalCoins) / Number(treasuryState.totalTokens)
 
-    const times = await treasury.getTimes()
-    // Rates update once per round length while validating on both round chains.
-    const duration = Number(times.nextRoundSince - times.currentRoundSince)
+    // The interval the rate pair actually grew over, which is not the same as a round length: a
+    // round where nothing was lent never settles, so the treasury widens this to two rounds when one
+    // is skipped, and to however many passed after an idle stretch. Dividing by a nominal round
+    // length instead would report an unchanged APY for a pool whose true rate of growth had halved.
+    // Zero means a treasury from before the field existed, so fall back to the round length from
+    // get_times until the upgrade has landed; drop that with the wrapper's tolerant read.
+    let duration = Number(treasuryState.roundDuration)
+    if (duration === 0) {
+        const times = await treasury.getTimes()
+        duration = Number(times.nextRoundSince - times.currentRoundSince)
+    }
     const year = 365 * 24 * 60 * 60
     const compoundingFrequency = year / duration
     const growth = Number(treasuryState.currentRate) / Number(treasuryState.previousRate)
@@ -73,7 +80,7 @@ export async function run(provider: NetworkProvider) {
     console.info('            %s %s GRAM', c.grey('total_staking:'), formatNano(treasuryState.totalStaking))
     console.info('          %s %s hGRAM', c.grey('total_unstaking:'), formatNano(treasuryState.totalUnstaking))
     console.info('    %s %s GRAM', c.grey('total_borrowers_stake:'), formatNano(treasuryState.totalBorrowersStake))
-    console.info('                  %s %s', c.grey('deficit:'), formatDeficit(deficit, c))
+    console.info('                  %s %s', c.grey('deficit:'), formatDeficit(treasuryState.deficit, c))
     console.info(
         '         %s %s (%s)',
         c.grey('rounds_imbalance:'),
@@ -93,6 +100,13 @@ export async function run(provider: NetworkProvider) {
         formatExchangeRate(Number(treasuryState.currentRate) / 1_000_000_000),
         c.grey('APY:'),
         c.green(apyPercent),
+    )
+    console.info(
+        '           %s %s   %s %s',
+        c.grey('round_duration:'),
+        formatDuration(duration),
+        c.grey('last settled:'),
+        treasuryState.lastSettledRound > 0n ? formatDate(treasuryState.lastSettledRound) : c.grey('never'),
     )
     console.info('                   %s %s', c.grey('halter:'), c.cyan(treasuryState.halter.toString({ testOnly })))
     console.info('                 %s %s', c.grey('governor:'), c.cyan(treasuryState.governor.toString({ testOnly })))
@@ -315,6 +329,14 @@ function formatPercent(amount: number): string {
 
 function formatExchangeRate(rate: number): string {
     return rate.toLocaleString(undefined, { maximumFractionDigits: 5 })
+}
+
+// Whole hours and minutes, because a round is ~18h and the interesting thing about this number is
+// whether it is one round or several, not the seconds.
+function formatDuration(seconds: number): string {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    return `${String(hours)}h ${String(minutes)}m`
 }
 
 function formatDate(seconds: bigint): string {

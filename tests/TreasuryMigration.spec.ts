@@ -29,7 +29,9 @@ describe('Treasury Migration', () => {
     let treasuryCode: Cell
     let deficitEraCode: Cell
     let migratorCode: Cell
+    let borrowerFeeEraCode: Cell
     let borrowerFeeMigratorCode: Cell
+    let roundDurationMigratorCode: Cell
     let mainnetCode: Cell
     let mainnetData: Cell
 
@@ -44,7 +46,15 @@ describe('Treasury Migration', () => {
             readFileSync(__dirname + '/fixtures/treasury-mainnet-2026-09-05-code.boc'),
         )[0]
         migratorCode = await compile('upgrade-code-test/AddDeficit')
+        // Likewise, the borrower-fee migration targeted the code of its own time -- post-deficit,
+        // pre-round-duration -- which is one migration behind treasuryCode now. Chaining through this
+        // captured code, rather than straight to treasuryCode, keeps each migrator tested against the
+        // layout it was actually written for.
+        borrowerFeeEraCode = Cell.fromBoc(
+            readFileSync(__dirname + '/fixtures/treasury-borrower-fee-era-code.boc'),
+        )[0]
         borrowerFeeMigratorCode = await compile('upgrade-code-test/AddBorrowerFee')
+        roundDurationMigratorCode = await compile('upgrade-code-test/AddRoundDuration')
         mainnetCode = Cell.fromBoc(readFileSync(__dirname + '/fixtures/treasury-mainnet-code.boc'))[0]
         mainnetData = Cell.fromBoc(readFileSync(__dirname + '/fixtures/treasury-mainnet-state.boc'))[0]
     })
@@ -126,10 +136,15 @@ describe('Treasury Migration', () => {
         })
         const borrowerFee = await treasury.sendUpgradeCode(blockchain.sender(governor), {
             value: toNano('1'),
-            newCode: treasuryCode,
+            newCode: borrowerFeeEraCode,
             migrateCode: borrowerFeeMigratorCode,
         })
-        return { deficit, borrowerFee }
+        const roundDuration = await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: treasuryCode,
+            migrateCode: roundDurationMigratorCode,
+        })
+        return { deficit, borrowerFee, roundDuration }
     }
 
     // Reads the era extension straight out of the fixture. The pre-upgrade account cannot be read
@@ -262,7 +277,7 @@ describe('Treasury Migration', () => {
         const stateBefore = parseEraExtension(mainnetData)
         const { blockchain, treasury, governor } = await stand()
 
-        const { deficit: result, borrowerFee } = await chainToReleased(blockchain, treasury, governor)
+        const { deficit: result, borrowerFee, roundDuration } = await chainToReleased(blockchain, treasury, governor)
 
         expect(result.transactions).toHaveTransaction({
             to: treasuryAddress,
@@ -271,11 +286,12 @@ describe('Treasury Migration', () => {
         })
         expectTreasurySucceeded(result.transactions)
         expectTreasurySucceeded(borrowerFee.transactions)
+        expectTreasurySucceeded(roundDuration.transactions)
         expect(result.transactions).toHaveTransaction({ from: treasuryAddress, body: bodyOp(op.gasExcess) })
 
         // One transaction each, and the code left behind is the plain contract with no one-off logic.
         expect(await readCodeHash(blockchain, treasuryAddress)).toEqual(treasuryCode.hash().toString('hex'))
-        expect(await treasury.getDeficit()).toEqual(0n)
+        expect((await treasury.getTreasuryState()).deficit).toEqual(0n)
 
         const stateAfter = await treasury.getTreasuryState()
         expect(stateAfter.totalCoins).toEqual(before.totalCoins)
@@ -294,6 +310,113 @@ describe('Treasury Migration', () => {
         expect(stateAfter.currentRate).toEqual(stateBefore.currentRate)
         // The fee arrives disabled, so the chain changes no economics on its own.
         expect(stateAfter.borrowerFee).toEqual(0n)
+
+        // round_duration and last_settled_round are seeded from the live network config rather than
+        // left at zero -- nominal until the first settlement measures a real interval, but never
+        // absent. Derived from get_times rather than hardcoded, since they come from the sandbox's own
+        // config.
+        const times = await treasury.getTimes()
+        expect(stateAfter.lastSettledRound).toEqual(times.currentRoundSince)
+        expect(stateAfter.roundDuration).toEqual(times.nextRoundUntil - times.nextRoundSince)
+    })
+
+    // The captured account predates the borrower fee, so chaining through the borrower-fee migrator
+    // leaves that field at the zero it seeds -- and zero survives an off-by-one offset just as well as
+    // a correct one does. On mainnet the fee is live and carries a real rate, so the value the round
+    // duration migrator has to preserve is a non-zero one sitting immediately before the two refs it
+    // rewrites the extension around. Set it between the two migrations and read it back after.
+    it('should carry a live borrower fee through the round duration migration', async () => {
+        const { blockchain, treasury, governor } = await stand()
+        const liveFee = 32768n // half of 65535, rounded up; the shape of a fee that is actually set
+
+        await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: deficitEraCode,
+            migrateCode: migratorCode,
+        })
+        await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: borrowerFeeEraCode,
+            migrateCode: borrowerFeeMigratorCode,
+        })
+        await treasury.sendSetBorrowerFee(blockchain.sender(governor), { value: toNano('1'), newBorrowerFee: liveFee })
+        const before = await treasury.getTreasuryState()
+        expect(before.borrowerFee).toEqual(liveFee)
+
+        const result = await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: treasuryCode,
+            migrateCode: roundDurationMigratorCode,
+        })
+        expectTreasurySucceeded(result.transactions)
+
+        const after = await treasury.getTreasuryState()
+        expect(after.borrowerFee).toEqual(liveFee)
+        // and the fields on either side of it came through too, so this is not a coincidence of offset
+        expect(after.governanceFee).toEqual(before.governanceFee)
+        expect(after.previousRate).toEqual(before.previousRate)
+        expect(after.currentRate).toEqual(before.currentRate)
+        expect(after.governor.toString()).toEqual(before.governor.toString())
+        expect(after.oldParents.size).toEqual(before.oldParents.size)
+    })
+
+    // The read an operator's dry run depends on. get_treasury_state's shape changed with this release
+    // -- deficit, round_duration and last_settled_round were inserted, taking it from 21 values to 24
+    // -- so the wrapper has to read the CURRENT chain, which is still on the old shape, in order to
+    // show a field-level diff of the upgrade before it is signed. It is also what keeps showState
+    // usable in the window before the upgrade lands. Without the branch, the first inserted field
+    // arrives where an address is expected and throws.
+    it('should read a pre-upgrade treasury through the released wrapper', async () => {
+        const { blockchain, treasury, governor } = await stand()
+        await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: deficitEraCode,
+            migrateCode: migratorCode,
+        })
+        await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: borrowerFeeEraCode,
+            migrateCode: borrowerFeeMigratorCode,
+        })
+        await treasury.sendSetBorrowerFee(blockchain.sender(governor), { value: toNano('1'), newBorrowerFee: 32768n })
+
+        // The account is now shaped exactly like mainnet is today, and this wrapper is the one that
+        // ships with the upgrade. Reading it must work, and every field must land where it belongs.
+        const state = await treasury.getTreasuryState()
+        const fromCell = parseEraExtension(mainnetData)
+        expect(state.governor.toString()).toEqual(governor.toString())
+        expect(state.halter.toString()).toEqual(fromCell.halter.toString())
+        expect(state.previousRate).toEqual(fromCell.previousRate)
+        expect(state.currentRate).toEqual(fromCell.currentRate)
+        expect(state.governanceFee).toEqual(BigInt(fromCell.governanceFee))
+        expect(state.borrowerFee).toEqual(32768n)
+        expect(state.totalCoins).toEqual(parsePreDeficit(mainnetData).totalCoins)
+        // deficit is not in the old tuple at all, so the wrapper falls back to get_deficit rather than
+        // reporting a zero it did not read.
+        expect(state.deficit).toEqual(await treasury.getDeficit())
+        // and the two fields the old code does not have read as zero, which no live treasury reports:
+        // the migrator seeds both from config.
+        expect(state.roundDuration).toEqual(0n)
+        expect(state.lastSettledRound).toEqual(0n)
+
+        // The dry run is the thing this exists for, so check it end to end: it must itemise the before
+        // side rather than fall back to "not readable by this wrapper".
+        const contract = await blockchain.getContract(treasuryAddress)
+        const deployed = contract.account.account?.storage.state
+        if (deployed?.type !== 'active' || deployed.state.code == null || deployed.state.data == null) {
+            throw new Error('treasury account is not active')
+        }
+        const result = await dryRunUpgrade({
+            address: treasuryAddress,
+            currentCode: deployed.state.code,
+            currentData: deployed.state.data,
+            newCode: treasuryCode,
+            migrateCode: roundDurationMigratorCode,
+            governor,
+        })
+        expect(result.ok).toBe(true)
+        expect(result.before.fields.length).toBeGreaterThan(1)
+        expect(result.before.fields.map(([name]) => name)).toContain('round_duration')
     })
 
     it('should leave data alone when no migrator is supplied', async () => {
@@ -307,7 +430,7 @@ describe('Treasury Migration', () => {
         })
         expectTreasurySucceeded(plain.transactions)
         expect((await readStorage(blockchain, treasuryAddress)).equals(migrated)).toBe(true)
-        expect(await treasury.getDeficit()).toEqual(0n)
+        expect((await treasury.getTreasuryState()).deficit).toEqual(0n)
     })
 
     it('should reject an empty cell rather than treating it as no migrator', async () => {
@@ -516,7 +639,7 @@ describe('Treasury Migration', () => {
         await chainToReleased(blockchain, treasury, governor)
         const migrated = await treasury.getTreasuryState()
         const dataAfterFirst = await readStorage(blockchain, treasuryAddress)
-        expect(await treasury.getDeficit()).toEqual(0n)
+        expect((await treasury.getTreasuryState()).deficit).toEqual(0n)
 
         // end_parse() in the migrator finds bits left over on an already-migrated cell. Re-running the
         // deficit migrator is the sharper case than re-running the latest one: its field sits in root
@@ -532,6 +655,18 @@ describe('Treasury Migration', () => {
         const after = await treasury.getTreasuryState()
         expect(after.totalCoins).toEqual(migrated.totalCoins)
         expect(after.governor.toString()).toEqual(migrated.governor.toString())
-        expect(await treasury.getDeficit()).toEqual(0n)
+        expect((await treasury.getTreasuryState()).deficit).toEqual(0n)
+
+        // Same guard, for the round-duration migrator: its fields sit at the end of the extension, so
+        // a second pass would find the trailing end_parse() with 64 bits left over rather than shift
+        // anything -- but the upgrade must still be refused and storage left untouched.
+        const dataAfterDeficitRerun = await readStorage(blockchain, treasuryAddress)
+        const roundDurationAgain = await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: treasuryCode,
+            migrateCode: roundDurationMigratorCode,
+        })
+        expect(roundDurationAgain.transactions).toHaveTransaction({ to: treasuryAddress, success: false })
+        expect((await readStorage(blockchain, treasuryAddress)).equals(dataAfterDeficitRerun)).toBe(true)
     })
 })
