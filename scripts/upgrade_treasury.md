@@ -114,33 +114,65 @@ treasury's `load_data()` is the **new** parser and would misread the old cell. E
 
 ## Changing the shape of a getter
 
-`get_treasury_state` returns a flat tuple that every consumer reads **positionally**, and it mirrors
-the treasury's storage order, so a new field is inserted rather than appended. Nothing on chain
-breaks; every off-chain reader does. Treat the list below as the rollout checklist for any change to
-that tuple — or to `get_times`, `get_participation`, `get_loan_request` or `get_treasury_fees` — and
-grep `~/code/HipoFinance/` for the method name before sending, because the list is a floor.
+`get_treasury_state` returns a flat tuple that every consumer reads **positionally**. A field inserted
+into the middle of it breaks nothing on chain and every off-chain reader — so **append**. Storage is a
+separate question with a separate answer: nothing off chain parses the extension cell, so a new field
+goes wherever it belongs there, and only the tuple has to stay append-only. The round-duration release
+tied the two together and paid for it; the census below is what that cost.
+
+Insert only when there is a reason that survives contact with this section, and then treat the list
+below as the rollout checklist — for that tuple, or for `get_times`, `get_participation`,
+`get_loan_request` or `get_treasury_fees` — and grep `~/code/HipoFinance/` for the method name before
+sending, because the list is a floor. Where a field lands matters even then: an insert after
+`last_settled_round` spares `yield-server`, and one after `current_rate` does not.
 
 **In this repo**, updated in the same commit as the contract: `wrappers/Treasury.ts`
 (`getTreasuryState`, `TreasuryConfig`), `wrappers/migrationDryRun.ts`, `scripts/showState.ts`.
 
 **Ours, deployed alongside the upgrade:**
 
-| repo                 | reads                                                                               | notes                                           |
-| -------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `borrower`           | `process.go`, tonutils-go, indices for `participations`, `stopped?`, `borrower_fee` | **roll this one with the treasury** — see below |
-| `website`            | through the sdk wrapper                                                             |                                                 |
-| `mcp`                | through the sdk wrapper                                                             |                                                 |
-| `sdk`, `sdk-example` | `Treasury.ts`, sequential `stack.read*`                                             | the wrapper everything else inherits            |
-| `gauge`              | `actor/treasury.go`, checks the field count                                         | also called `get_deficit` until it was removed  |
+| repo                 | reads                                                                               | notes                                                    |
+| -------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `borrower`           | `process.go`, tonutils-go, indices for `participations`, `stopped?`, `borrower_fee` | **roll this one with the treasury** — see below           |
+| `website`            | through the sdk wrapper                                                             |                                                          |
+| `mcp`                | through the sdk wrapper                                                             |                                                          |
+| `sdk`, `sdk-example` | `Treasury.ts`, sequential `stack.read*`                                             | the wrapper everything else inherits                     |
+| `gauge`              | `actor/treasury.go`, checks the field count                                         | also called `get_deficit` until it was removed           |
+| `vesting`            | `index.html`, `HIPO_JETTON_MINTER_ADDRESS_INDEX`, then `.loadAddress()`             | live at `vesting.hipo.finance`; **broken, see below**     |
+| `club`               | `assets/index-*.js`, sequential `read*` — a built bundle, fix at its source          | live at `club.hipo.finance`; **broken, see below**        |
+| `dune`               | `exporter/export-rates.mjs`, indexed with a comment naming each position             | dormant since 2026-08-20; **broken, see below**           |
+| `burner`             | `scripts/deployBurner.ts`; `imports/constants.fc` cites an index in a comment        | deploy-time only, not a running service — verify before use |
+
+Readers that take only `total_coins` and `total_tokens` survive any insert after index 2 and are
+listed so the next census does not have to rediscover them: `hpo-trader/trader/tonclient/hipo.go`
+(and its comment is right — never read the rate pair as an exchange rate) and
+`website/scripts/hipo-fund-snapshot.mjs`.
 
 `driver` and `hipostat` read the tuple too, both from a shape several releases stale. Both were
 archived on 2026-09-07 and are no longer part of any rollout.
 
-**Upstream, needing merged PRs:** `dimension-adapters/fees/hipo` and
-`yield-server/src/adaptors/hipo` read the tuple at hardcoded offsets.
+**Upstream, needing merged PRs:** `dimension-adapters/fees/hipo` reads `stack[1]`, `[12]`, `[13]`,
+`[14]` and `[19]`; `yield-server/src/adaptors/hipo` reads `stack[12]`, `[13]` and `[14]` and stops.
 `DefiLlama-Adapters/projects/hipo` reads `result[0]` and `result[2]`, so it survives any insert
 after index 2. Open these once the new shape is live on chain, since the adapters have to read the
-tuple as it actually is.
+tuple as it actually is. Note how much the exact insert point matters: an insert after
+`last_settled_round` spares `yield-server` and an insert after `current_rate` does not.
+
+### The census of 2026-09-07, and why this list is still only a floor
+
+The `borrower` failure below was not the only one. A grep of `~/code/HipoFinance/` on 2026-09-07 —
+the one this section already tells you to run — found that the round-duration release broke three
+more readers that were on nobody's list, because `deficit` took index 5, the slot `parent` had
+occupied. `vesting` and `club` are both live user-facing sites and both call an address reader on
+what is now an integer, so they throw; on `vesting` that is the call that resolves a holder's hGRAM
+wallet address. `dune`'s exporter has not run since 2026-08-20 and will fail when it does.
+
+Two lessons, in order of importance. First, **run the grep, and grep the deployed artifacts too** —
+`club` was only found because the search covered a built `assets/index-*.js` bundle with no local
+source. Second, this is the argument that reversed the insert-don't-append decision in
+`docs/specs/2026-09-07-two-round-rate-window.md`: a list that has twice failed to be the population
+is not a list worth re-running for the sake of field adjacency. **Prefer appending unless there is a
+reason that survives contact with this section.**
 
 ### Why `borrower` is not just one more reader
 
@@ -550,3 +582,97 @@ current one, and pretending otherwise is what the tolerance was papering over.
 The downstream updates are the other half of this rollout. Ours go out with the upgrade; the two
 DefiLlama PRs are opened once the new shape is live on chain, since the adapters have to read the
 tuple as it actually is.
+
+## Two-Round Rate Window
+
+Spec: `docs/specs/2026-09-07-two-round-rate-window.md`. **Not yet performed.**
+
+Two changes to what the treasury publishes about its own growth, and one layout change to carry them.
+
+- The rate window is measured in `burn_ready_participations`, once per barrier release, instead of in
+  `recover_stake_result` at settlement. Settlement is not ordered, so the old placement paired a delta
+  from one event with an interval from another; at the barrier the pairing is exact by construction.
+- The window spans **two** releases instead of one, which cancels the round-to-round oscillation
+  `rounds_imbalance` produces. `round_duration` is renamed `window_duration` — same position, same
+  width, and about twice the value.
+- `mid_rate` (`store_coins`) and `mid_round` (`uint32`) are stored after `last_settled_round`, with
+  the pair they describe, and **appended** to the getter tuple, which goes from 24 values to 26.
+
+### This one does not break any reader
+
+Deliberately, and it is the point of the design. Positions 0–23 are untouched and the three window
+fields keep their meaning — start rate, end rate, span — so anything that annualises by dividing by
+the span keeps working with no change and simply stops seeing a sawtooth. Verified against the code,
+not assumed: `dimension-adapters` (`stack[1]`, `[12]`, `[13]`, `[14]`, `[19]`), `yield-server`
+(`stack[12]`, `[13]`, `[14]`), `DefiLlama-Adapters` (`result[0]`, `[2]`), `hpo-trader` and
+`website/scripts/hipo-fund-snapshot.mjs` (both `0`, `1`) all keep working untouched. **No upstream PR
+is needed.**
+
+What does need updating is ours, and only for the rename, which is a compile error rather than a
+silent break: `wrappers/Treasury.ts`, `wrappers/migrationDryRun.ts`, `scripts/showState.ts` in this
+repo, then `sdk` and everything downstream of it. Announce the widened window in the release notes so
+nobody reads a doubled `window_duration` as a bug.
+
+Still fix `vesting`, `club` and `dune` — they are broken by the *previous* release, not this one.
+
+### The migrator
+
+`wrappers/upgrade-code-test/add_two_round_window.fc`, exercised in `tests/TreasuryMigration.spec.ts`
+against the captured mainnet account, chained through the deficit, borrower-fee and round-duration
+migrations so each migrator keeps being tested against the layout it was written for.
+
+Unlike `add_round_duration.fc` it **reads no network config**. The seeds come from state the treasury
+already holds — `mid_rate = previous_rate` and `mid_round = last_settled_round - round_duration` —
+which reconstructs the observation one release back, because that is exactly what the old pair and its
+interval describe. So the published window is unchanged on landing and becomes a genuine two-round
+window at the first release after the upgrade, with no warm-up.
+
+It asserts `round_duration > 0` and `last_settled_round > round_duration` before seeding. Both hold on
+chain today (65536 and `1788694280`), and a violation would publish a nonsense span with nothing on
+chain saying so.
+
+Its cost does not scale with anything stored, so it needs **no** quiet window with
+`total_borrowers_stake` at zero.
+
+### Before sending
+
+1. **Confirm the starting layout.** This migrator reads the round-duration layout, which is what is on
+   chain. `showCodeHashes.ts` should report the round-duration release's treasury hash, and
+   `get_treasury_state` should return 24 values. Against any earlier treasury it reverts, which is the
+   safe failure but a wasted transaction.
+2. **Check the seeds in the dry run.** `mid_rate` should equal the `previous_rate` printed beside it,
+   and `mid_round` should equal `last_settled_round` minus `window_duration`. `0 -> 0` on either means
+   the migrator did not run.
+3. **Read `window_duration` on the before side.** It is the value the migrator carries through and the
+   one `mid_round` is derived from, so a wrong value here propagates.
+
+### Sending
+
+1. In `scripts/upgradeCode.ts`, set:
+
+    ```ts
+    const migratorName: string | null = 'upgrade-code-test/AddTwoRoundWindow'
+    ```
+
+2. Run the script. It prints the migrator hash and its full source, and requires the hash typed back
+   before sending. Read the source at that prompt; it is the last point before signing.
+
+3. Set `migratorName` back to `null` once the migration has landed.
+
+4. Verify with `showState.ts`: `window_duration` and `last settled` are populated and unchanged from
+   before the upgrade, the APY line reads the same as it did (the window has not widened yet — that
+   happens at the first release), and `total_coins`, `total_tokens`, `parent`, `governor`, `halter`,
+   the exchange rate, `deficit` and `borrower_fee` are all unchanged. The code hash should equal the
+   plain `Treasury` build.
+
+### After it lands
+
+The first barrier release after the upgrade publishes the first genuine two-round window, at which
+point `window_duration` roughly doubles and the APY figure stops alternating. That is expected, not a
+regression — watch for it rather than being surprised by it, and check that `last_settled_round`
+advances with it.
+
+Watch also for the change this makes to *when* the pair moves: nothing is published while an older
+round still owes its reward. In the elector-rejection case that is about a round of silence where
+there used to be a spurious 0%. A stale `last_settled_round` with a healthy `participations` list is
+the expected shape there, not a wedge.

@@ -83,6 +83,11 @@ async function snapshot(treasury: SandboxContract<Treasury>, code: Cell, data: C
         ['loan_codes', dictSize(s.loanCodes)],
         ['previous_rate', String(s.previousRate)],
         ['current_rate', String(s.currentRate)],
+        ['window_duration', String(s.windowDuration)],
+        ['last_settled_round', String(s.lastSettledRound)],
+        // Listed in STORAGE order, which is where these two live; the getter returns them last.
+        ['mid_rate', String(s.midRate)],
+        ['mid_round', String(s.midRound)],
         ['halter', s.halter.toString()],
         ['governor', s.governor.toString()],
         ['proposed_governor', s.proposedGovernor == null ? 'null' : s.proposedGovernor.hash().toString('hex')],
@@ -91,11 +96,6 @@ async function snapshot(treasury: SandboxContract<Treasury>, code: Cell, data: C
         ['collection_codes', dictSize(s.collectionCodes)],
         ['bill_codes', dictSize(s.billCodes)],
         ['old_parents', dictSize(s.oldParents)],
-        // Trailing values in the getter, so a treasury from before they existed reports 0 here
-        // rather than being unreadable. The migrator seeds both from config, so 0 -> nonzero is what
-        // this upgrade should look like, and 0 -> 0 means the migrator did not run.
-        ['round_duration', String(s.roundDuration)],
-        ['last_settled_round', String(s.lastSettledRound)],
     ]
 
     return { ...shell, fields }

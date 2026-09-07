@@ -78,13 +78,12 @@ Each participation moves through these states (`participation::*` in
 5. **held (4)** — the next `vset_changed`; the round is over but stakes are frozen.
 6. **recovering (5)** — after `stake_held_until`, `finish_participation` triggers
    `recover_stakes`; each `recover_stake_result` books rewards or punishments.
-7. **ready_to_burn (6)** — the last loan of this round is recovered, its rewards are in
-   `total_coins`, and `current_rate`/`previous_rate` are updated, along with `round_duration`
-   and `last_settled_round`. The round holds its bills
-   here for as long as any *older* round can still book rewards, so that deferred deposits
-   cannot mint at a rate which excludes them.
+7. **ready_to_burn (6)** — the last loan of this round is recovered and its rewards are in
+   `total_coins`. The round holds its bills here for as long as any *older* round can still book
+   rewards, so that deferred deposits cannot mint at a rate which excludes them.
 8. **burning (7)** — no older round owes rewards any more, so `burn_all` is sent to the
-   round's collection. Every bill burns back into the treasury (`mint_tokens` /
+   round's collection. This is also where the published rate window is measured — see
+   *The rate window* below. Every bill burns back into the treasury (`mint_tokens` /
    `burn_tokens`), and `last_bill_burned` deletes the participation.
 
 `vset_changed` is driven by config parameter changes (elector validator-set updates), and
@@ -264,39 +263,68 @@ The treasury's persistent state is split into frequently-loaded fields (`save_da
 keep gas low on hot paths. **Any upgrade must keep the stored data layout compatible or
 migrate it explicitly.**
 
-`round_duration` and `last_settled_round` sit in the extension immediately after the rate pair,
-because they describe it: `round_duration` is the interval `previous_rate` grew into
-`current_rate` over, measured as the gap between the `round_since` of the two most recently
-settled rounds, and `last_settled_round` is the highest round whose reward is in `current_rate`.
-It is deliberately not a round length. Rounds in which nothing was lent never reach the settlement
-branch, so the pair freezes while the pool is idle and the interval widens to match — which is
-what keeps an APY built on those two rates honest when the protocol validates every other round,
-or stops for a week. Both only ever move forwards, so an older round that settles out of order
-books its reward without disturbing an interval that has already been measured.
+### The rate window
 
-That last part has a cost worth knowing about. The rate pair moves on **every** settlement, but
-`round_duration` advances only on an in-order one, so the two describe the same event in steady
-state and come apart briefly when they disagree. With settlement order R+1, R, R+2 — which happens
-when the elector rejects R+1's stake and it finishes ahead of R, still validating — R+1 and R each
-book one round's reward while `round_duration` reads two rounds, and R+2 restores the pairing. A
-consumer annualising the rate pair therefore reads about half the true rate for two settlements,
-never more than the truth, and the two readings together are still the correct time-average for that
-window.
+Four fields describe how fast the pool is growing: `previous_rate` and `current_rate` bracket a
+window, `window_duration` is its span in seconds, and `last_settled_round` is the highest round
+whose reward is in `current_rate`. They are deliberately not a round length and not a per-round
+delta. All four are written in exactly one place — `burn_ready_participations`, once per scan —
+and that is what makes them exactly paired.
 
-Pairing every delta with its own gap is not a one-scalar problem: it would mean recording the
-interval per settlement, since the right gap for a late round R is measured from the highest settled
-round below it, not from the highest settled round overall. That was judged not worth the storage
-for an anomaly that is rare, self-correcting and conservative in direction — but it is a real limit
-on what `round_duration` can be read to mean, and it is why a consumer that needs exactness should
-use `last_settled_round` to tell whether the pair it is looking at is the in-order one.
+**Why at the barrier and not at settlement.** Settlement is not ordered. When the elector rejects a
+whole round's stakes, `new_stake_error` runs `recover_stake_result` within seconds, so a newer round
+can settle while an older one is still validating. A snapshot taken at settlement therefore pairs a
+delta from one event with an interval from another; the rejected round used to publish a spurious
+0% against a two-round interval, and it sat there for about a round. At the barrier there is no such
+gap: a round only reaches `ready_to_burn` with its own reward already in `total_coins`, and
+`owes_reward?` guarantees nothing under the released run still owes one. So the growth across a
+release is exactly the reward of the rounds it released, and the span is exactly theirs.
+
+Note which half has to wait. Deferring the *reward* instead — parking each round's rate update to be
+released in order — over-reports, because `total_coins` is credited per loan recovery rather than at
+settlement, so a deferred per-round snapshot captures rewards booked after it should have been
+taken. Only the snapshot can wait; the reward cannot.
+
+**Why the window is two releases wide.** `rounds_imbalance` lets one round chain lend more than the
+other, so the reward booked per release alternates and a one-release window sawtooths every round —
+live, that was roughly ±7.6% about the mean, twice a day. Two releases always cover one high chain
+and one low chain, so the published figure is level. Sliding it needs three observations, not two:
+at release *N* the window starts at *N-2*, and rolling forward needs *N-1*, which the pair never
+held. `mid_rate` and `mid_round` are that third observation. `previous_rate`'s own round is not
+stored because it is derivable as `last_settled_round - window_duration`.
+
+Every released round advances the window, including one that lent nothing and reached the barrier
+straight from `process_loan_requests`. Over a two-release window that is the honest reading rather
+than a dilution: the window then spans one lending round and one idle one, which is what keeps the
+figure level when liquidity only covers every other round, and it lets a pool whose borrowers are
+bidding but which is lending nothing report zero growth while it is happening. A pool with no
+`request_loan` at all creates no participation, so nothing is released and the window simply freezes.
+
+`mid_rate` and `mid_round` are stored immediately after `last_settled_round`, with the pair they
+describe, and returned **last** by `get_treasury_state`. Those are separate decisions: nothing off
+chain parses the extension cell, so grouping there is free, while the tuple is an interface every
+reader indexes by position.
+
+The three rates are `store_coins`. A fixed `uint64` was specced and reverted: at the bound the coin
+supply actually imposes — dead shares pin `total_tokens`, so the rate cannot pass ~5.9e17 — it saves
+twelve bits and turns an over-large rate from a cell that widens into a `store_uint` that throws
+inside `pack_extension`. The comment above `pack_extension` carries the budget.
 
 `get_treasury_state` returns the tuple in storage order — root fields as `save_data` writes them,
 then extension fields as `pack_extension` does — so it now covers everything the treasury stores,
 `deficit` included, and an integrator can check the list against the layout rather than a changelog.
-That tuple is ABI, and putting `deficit`, `round_duration` and `last_settled_round` in their storage
-positions rather than at the end was a breaking change for every reader that indexes it: ours were
-updated with the release, and DefiLlama's fee and yield adapters needed upstream PRs. Weigh that
-again before moving a field; the order above is not free to rearrange.
+That tuple is ABI, and two rules govern it. It is **append-only**: a field is never inserted and
+never moved, so an index that means something today means the same thing forever. And it is
+**complete**: everything the treasury stores appears in it, which is what let `get_deficit` be
+deleted.
+
+It deliberately does *not* mirror storage order any more. Putting `deficit`, `round_duration` and
+`last_settled_round` in their storage positions rather than at the end was a breaking change for every
+reader that indexes the tuple, and the census in `scripts/upgrade_treasury.md` records what it cost —
+four readers broken, three of them on no checklist. The mirror bought only the ability to check the
+tuple against the layout, which an integrator cannot do anyway, so it was given up rather than paid
+for again. **Append.** The rollout checklist is a floor, not the population: this getter is documented
+publicly and read through a published SDK, so it has readers nobody here can enumerate.
 
 ## Testing
 

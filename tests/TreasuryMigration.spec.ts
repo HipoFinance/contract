@@ -32,6 +32,8 @@ describe('Treasury Migration', () => {
     let borrowerFeeEraCode: Cell
     let borrowerFeeMigratorCode: Cell
     let roundDurationMigratorCode: Cell
+    let roundDurationEraCode: Cell
+    let twoRoundWindowMigratorCode: Cell
     let mainnetCode: Cell
     let mainnetData: Cell
 
@@ -55,6 +57,14 @@ describe('Treasury Migration', () => {
         )[0]
         borrowerFeeMigratorCode = await compile('upgrade-code-test/AddBorrowerFee')
         roundDurationMigratorCode = await compile('upgrade-code-test/AddRoundDuration')
+        // And the round-duration migration targeted the code of its own time, which is what is on
+        // chain today: post-borrower-fee, pre-two-round-window. Same reason as the two captures above
+        // -- each migrator keeps being exercised against the layout it was written for, so the chain
+        // grows a step per release instead of quietly retargeting old migrators at new code.
+        roundDurationEraCode = Cell.fromBoc(
+            readFileSync(__dirname + '/fixtures/treasury-round-duration-era-code.boc'),
+        )[0]
+        twoRoundWindowMigratorCode = await compile('upgrade-code-test/AddTwoRoundWindow')
         mainnetCode = Cell.fromBoc(readFileSync(__dirname + '/fixtures/treasury-mainnet-code.boc'))[0]
         mainnetData = Cell.fromBoc(readFileSync(__dirname + '/fixtures/treasury-mainnet-state.boc'))[0]
     })
@@ -141,10 +151,15 @@ describe('Treasury Migration', () => {
         })
         const roundDuration = await treasury.sendUpgradeCode(blockchain.sender(governor), {
             value: toNano('1'),
-            newCode: treasuryCode,
+            newCode: roundDurationEraCode,
             migrateCode: roundDurationMigratorCode,
         })
-        return { deficit, borrowerFee, roundDuration }
+        const twoRoundWindow = await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: treasuryCode,
+            migrateCode: twoRoundWindowMigratorCode,
+        })
+        return { deficit, borrowerFee, roundDuration, twoRoundWindow }
     }
 
     // Reads the era extension straight out of the fixture. The pre-upgrade account cannot be read
@@ -299,7 +314,12 @@ describe('Treasury Migration', () => {
         const stateBefore = parseEraExtension(mainnetData)
         const { blockchain, treasury, governor } = await stand()
 
-        const { deficit: result, borrowerFee, roundDuration } = await chainToReleased(blockchain, treasury, governor)
+        const {
+            deficit: result,
+            borrowerFee,
+            roundDuration,
+            twoRoundWindow,
+        } = await chainToReleased(blockchain, treasury, governor)
 
         expect(result.transactions).toHaveTransaction({
             to: treasuryAddress,
@@ -309,6 +329,7 @@ describe('Treasury Migration', () => {
         expectTreasurySucceeded(result.transactions)
         expectTreasurySucceeded(borrowerFee.transactions)
         expectTreasurySucceeded(roundDuration.transactions)
+        expectTreasurySucceeded(twoRoundWindow.transactions)
         expect(result.transactions).toHaveTransaction({ from: treasuryAddress, body: bodyOp(op.gasExcess) })
 
         // One transaction each, and the code left behind is the plain contract with no one-off logic.
@@ -333,13 +354,20 @@ describe('Treasury Migration', () => {
         // The fee arrives disabled, so the chain changes no economics on its own.
         expect(stateAfter.borrowerFee).toEqual(0n)
 
-        // round_duration and last_settled_round are seeded from the live network config rather than
-        // left at zero -- nominal until the first settlement measures a real interval, but never
-        // absent. Derived from get_times rather than hardcoded, since they come from the sandbox's own
-        // config.
+        // last_settled_round and the window span are seeded by the round-duration migrator from the
+        // live network config rather than left at zero, and the two-round-window migrator carries the
+        // span straight through into window_duration. Derived from get_times rather than hardcoded,
+        // since they come from the sandbox's own config.
         const times = await treasury.getTimes()
         expect(stateAfter.lastSettledRound).toEqual(times.currentRoundSince)
-        expect(stateAfter.roundDuration).toEqual(times.nextRoundUntil - times.nextRoundSince)
+        expect(stateAfter.windowDuration).toEqual(times.nextRoundUntil - times.nextRoundSince)
+
+        // The two new slots are seeded from state the treasury already held -- no config read -- so
+        // the window is a genuine two-round one from the first release after the upgrade rather than
+        // after a warm-up. Seeding mid from current_rate instead would have pinned it to one round
+        // forever, since the roll would keep copying the newest observation into both slots.
+        expect(stateAfter.midRate).toEqual(stateBefore.previousRate)
+        expect(stateAfter.midRound).toEqual(stateAfter.lastSettledRound - stateAfter.windowDuration)
     })
 
     // The captured account predates the borrower fee, so chaining through the borrower-fee migrator
@@ -367,10 +395,16 @@ describe('Treasury Migration', () => {
 
         const result = await treasury.sendUpgradeCode(blockchain.sender(governor), {
             value: toNano('1'),
-            newCode: treasuryCode,
+            newCode: roundDurationEraCode,
             migrateCode: roundDurationMigratorCode,
         })
         expectTreasurySucceeded(result.transactions)
+        const window = await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: treasuryCode,
+            migrateCode: twoRoundWindowMigratorCode,
+        })
+        expectTreasurySucceeded(window.transactions)
 
         const after = await treasury.getTreasuryState()
         expect(after.borrowerFee).toEqual(liveFee)
@@ -632,5 +666,17 @@ describe('Treasury Migration', () => {
         })
         expect(roundDurationAgain.transactions).toHaveTransaction({ to: treasuryAddress, success: false })
         expect((await readStorage(blockchain, treasuryAddress)).equals(dataAfterDeficitRerun)).toBe(true)
+
+        // And for the two-round-window migrator. Its fields are appended, so a second pass reads every
+        // field back out of the same place and only trips at the trailing end_parse(), with mid_rate
+        // and mid_round left over.
+        const dataAfterRoundDurationRerun = await readStorage(blockchain, treasuryAddress)
+        const windowAgain = await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: treasuryCode,
+            migrateCode: twoRoundWindowMigratorCode,
+        })
+        expect(windowAgain.transactions).toHaveTransaction({ to: treasuryAddress, success: false })
+        expect((await readStorage(blockchain, treasuryAddress)).equals(dataAfterRoundDurationRerun)).toBe(true)
     })
 })

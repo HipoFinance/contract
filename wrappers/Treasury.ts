@@ -106,12 +106,15 @@ export interface TreasuryConfig {
     previousRate: bigint
     currentRate: bigint
     /**
-     * How long the rate pair took to grow, in seconds: the gap between the `round_since` of the two
-     * most recently settled rounds. Not the length of a round -- rounds where nothing was lent never
-     * settle, so this widens to two rounds when one is skipped and to however many passed after an
-     * idle stretch. It is the denominator an APY built on `previousRate`/`currentRate` needs.
+     * How long `previousRate` took to grow into `currentRate`, in seconds: the span the published
+     * window covers, measured between the `round_since` of two barrier releases. Not the length of a
+     * round -- the window covers **two** releases, so in steady state this is about two rounds, and
+     * it widens further across rounds where nothing was lent. It is the denominator an APY built on
+     * `previousRate`/`currentRate` needs, and pairing it with the wrong one is the mistake it exists
+     * to prevent. Renamed from `roundDuration` when the window widened, so the break is a compile
+     * error rather than a silently halved APY.
      */
-    roundDuration: bigint
+    windowDuration: bigint
     /** The highest round whose reward is in `currentRate`. Only ever moves forwards. */
     lastSettledRound: bigint
     halter: Address
@@ -122,14 +125,26 @@ export interface TreasuryConfig {
     collectionCodes: Dictionary<bigint, Cell>
     billCodes: Dictionary<bigint, Cell>
     oldParents: Dictionary<bigint, unknown>
+    /**
+     * The middle observation of the three the window slides over: the rate at the previous release
+     * and the round it happened on. Not published for its own sake -- it is the slot that lets
+     * `previousRate` lag two releases instead of one, which is what cancels the round-to-round
+     * oscillation that `roundsImbalance` produces. Stored next to the rate pair but returned LAST by
+     * `get_treasury_state`, which is append-only so that no positional reader ever moves; see
+     * `docs/specs/2026-09-07-two-round-rate-window.md`.
+     */
+    midRate: bigint
+    midRound: bigint
 }
 
 export function treasuryConfigToCell(config: TreasuryConfig): Cell {
     const treasuryExtension = beginCell()
         .storeCoins(config.previousRate)
         .storeCoins(config.currentRate)
-        .storeUint(config.roundDuration, 32)
+        .storeUint(config.windowDuration, 32)
         .storeUint(config.lastSettledRound, 32)
+        .storeCoins(config.midRate)
+        .storeUint(config.midRound, 32)
         .storeAddress(config.halter)
         .storeAddress(config.governor)
         .storeMaybeRef(config.proposedGovernor)
@@ -1042,7 +1057,7 @@ export class Treasury implements Contract {
         }
     }
 
-    /** The tuple mirrors the treasury's storage order and covers every field the treasury stores. */
+    /** The tuple is append-only and covers every field the treasury stores; it does not mirror storage order. */
     async getTreasuryState(provider: ContractProvider): Promise<TreasuryConfig> {
         const { stack } = await provider.get('get_treasury_state', [])
 
@@ -1068,7 +1083,7 @@ export class Treasury implements Contract {
         )
         const previousRate = stack.readBigNumber()
         const currentRate = stack.readBigNumber()
-        const roundDuration = stack.readBigNumber()
+        const windowDuration = stack.readBigNumber()
         const lastSettledRound = stack.readBigNumber()
 
         return {
@@ -1086,7 +1101,7 @@ export class Treasury implements Contract {
             loanCodes,
             previousRate,
             currentRate,
-            roundDuration,
+            windowDuration,
             lastSettledRound,
             halter: stack.readAddress(),
             governor: stack.readAddress(),
@@ -1100,6 +1115,10 @@ export class Treasury implements Contract {
             ),
             billCodes: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell(), stack.readCell()),
             oldParents: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), emptyDictionaryValue, stack.readCellOpt()),
+            // Returned last by the getter, whatever their place in storage. Property order is the
+            // read order here, so these two stay at the bottom of this object.
+            midRate: stack.readBigNumber(),
+            midRound: stack.readBigNumber(),
         }
     }
 

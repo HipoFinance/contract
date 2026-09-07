@@ -40,11 +40,12 @@ export async function run(provider: NetworkProvider) {
 
     const exchangeRate = Number(treasuryState.totalCoins) / Number(treasuryState.totalTokens)
 
-    // The interval the rate pair actually grew over, which is not the same as a round length: a
-    // round where nothing was lent never settles, so the treasury widens this to two rounds when one
-    // is skipped, and to however many passed after an idle stretch. Dividing by a nominal round
-    // length instead would report an unchanged APY for a pool whose true rate of growth had halved.
-    const duration = Number(treasuryState.roundDuration)
+    // The interval the rate pair actually grew over, which is not the same as a round length: the
+    // window spans two barrier releases, so in steady state it is about two rounds, and it widens
+    // further across rounds where nothing was lent. Dividing by a nominal round length instead would
+    // report an unchanged APY for a pool whose true rate of growth had halved -- and would now be
+    // out by a factor of two on top of that.
+    const duration = Number(treasuryState.windowDuration)
     const year = 365 * 24 * 60 * 60
     const compoundingFrequency = year / duration
     const growth = Number(treasuryState.currentRate) / Number(treasuryState.previousRate)
@@ -96,8 +97,8 @@ export async function run(provider: NetworkProvider) {
         c.green(apyPercent),
     )
     console.info(
-        '           %s %s   %s %s',
-        c.grey('round_duration:'),
+        '          %s %s   %s %s',
+        c.grey('window_duration:'),
         formatDuration(duration),
         c.grey('last settled:'),
         treasuryState.lastSettledRound > 0n ? formatDate(treasuryState.lastSettledRound) : c.grey('never'),

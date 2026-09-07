@@ -1,0 +1,130 @@
+#include "../../contracts/imports/stdlib.fc";
+
+;; One-off migrator for the two-round rate window. One layout change in the extension cell:
+;; `mid_rate` (store_coins) and `mid_round` (uint32) are inserted after `last_settled_round`, next to
+;; the rate pair they describe. Nothing off chain parses this cell, so grouping here is free; what
+;; must not move is get_treasury_state's tuple, and there the two are appended instead. See
+;; docs/specs/2026-09-07-two-round-rate-window.md.
+;;
+;; Nothing is re-encoded. Widening the rates to a fixed uint64 was specced and reverted during
+;; implementation: at the bound the coin supply actually imposes it costs the same bits as varuint16
+;; and it can throw where varuint16 cannot. See the note above pack_extension in treasury.fc.
+;;
+;; Unlike add_round_duration.fc this reads NO network config. The seeds come from state the treasury
+;; already holds:
+;;
+;;   mid_rate  = previous_rate
+;;   mid_round = last_settled_round - round_duration
+;;
+;; which reconstructs the observation one release back, because that is exactly what the old pair
+;; and its interval describe. The effect is that the published window is unchanged on landing --
+;; [previous_rate, current_rate] over the same interval, the reading that is live today -- and
+;; becomes a genuine two-round window at the FIRST release after the upgrade, with no warm-up. That
+;; is worth more than it looks: seeding the mid slot from current_rate instead would have pinned the
+;; window to one round forever, since the roll would keep copying the newest observation into both.
+;;
+;; `participations` is not touched: this migration moves it as an opaque dict, so it needs no quiet
+;; window and its cost does not scale with anything stored.
+;;
+;; This is never deployed. It rides inside the upgrade message as `migrate_code`, and the treasury
+;; blesses the cell and enters it at 0x6d67 for the duration of one transaction. See `run_migrator`
+;; in contracts/treasury.fc and the procedure in scripts/upgrade_treasury.md.
+;;
+;; Three rules, all enforced by tests/TreasuryMigration.spec.ts:
+;;   - no COMMIT, or a failed migration becomes permanent instead of reverting
+;;   - no SETCODE, or this could redirect the treasury behind the upgrade message's back
+;;   - everything inlined, so the compiled cell holds exactly method ids 0 and 0x6d67. EXECUTE
+;;     leaves c3 pointing at the treasury, so a non-inlined function here would CALLDICT into the
+;;     treasury's own dictionary.
+;;
+;; It parses the old layout by hand rather than through a helper. By the time this runs, upgrade_code
+;; has already called set_c3, so the treasury's own load_data() and unpack_extension() are the NEW
+;; parsers, which expect two trailing fields the old cell does not carry.
+;;
+;; The trailing end_parse() calls are the re-run guard. Run against storage that already carries the
+;; new layout, this parse reads mid_rate and mid_round as halter, so it goes off the rails at the
+;; first load_msg_addr and cannot reach the end of the cell with the right bits and refs consumed.
+;; Whether it throws there or at end_parse, a second run reverts the upgrade whole.
+
+() migrate() impure method_id(0x6d67) {
+    slice old = get_data().begin_parse();
+    int total_coins = old~load_coins();
+    int total_tokens = old~load_coins();
+    int total_staking = old~load_coins();
+    int total_unstaking = old~load_coins();
+    int total_borrowers_stake = old~load_coins();
+    int deficit = old~load_coins();
+    slice parent = old~load_msg_addr();
+    cell participations = old~load_dict();
+    int rounds_imbalance = old~load_uint(8);
+    int stopped? = old~load_int(1);
+    int instant_mint? = old~load_int(1);
+    cell loan_codes = old~load_ref();
+    cell extension = old~load_ref();
+    old.end_parse();
+
+    slice ext = extension.begin_parse();
+    int previous_rate = ext~load_coins();
+    int current_rate = ext~load_coins();
+    int round_duration = ext~load_uint(32);
+    int last_settled_round = ext~load_uint(32);
+    slice halter = ext~load_msg_addr();
+    slice governor = ext~load_msg_addr();
+    cell proposed_governor = ext~load_maybe_ref();
+    int governance_fee = ext~load_uint(16);
+    int borrower_fee = ext~load_uint(16);
+    cell collection_codes = ext~load_ref();
+    cell bill_codes = ext~load_ref();
+    cell old_parents = ext~load_dict();
+    ext.end_parse();
+
+    ;; The seeds are only meaningful if the round-duration release actually seeded these two, which
+    ;; it did from config param 15 and 34. Asserting rather than trusting: a zero round_duration
+    ;; would seed mid_round at last_settled_round and pin the window to a zero-length interval, and a
+    ;; round_duration at or above last_settled_round would underflow it. Both would publish nonsense
+    ;; until two releases had passed, with nothing on chain saying so. Throwing exits non-zero, which
+    ;; discards c4 and c5 and leaves the treasury on its old code and data -- failing the rehearsal
+    ;; is the right outcome.
+    throw_unless(101, round_duration > 0);
+    throw_unless(102, last_settled_round > round_duration);
+
+    cell new_extension = begin_cell()
+        .store_coins(previous_rate)
+        .store_coins(current_rate)
+        .store_uint(round_duration, 32)   ;; window_duration -- same value, wider meaning from here
+        .store_uint(last_settled_round, 32)
+        .store_coins(previous_rate)                           ;; mid_rate
+        .store_uint(last_settled_round - round_duration, 32)  ;; mid_round
+        .store_slice(halter)
+        .store_slice(governor)
+        .store_maybe_ref(proposed_governor)
+        .store_uint(governance_fee, 16)
+        .store_uint(borrower_fee, 16)
+        .store_ref(collection_codes)
+        .store_ref(bill_codes)
+        .store_dict(old_parents)
+        .end_cell();
+
+    begin_cell()
+        .store_coins(total_coins)
+        .store_coins(total_tokens)
+        .store_coins(total_staking)
+        .store_coins(total_unstaking)
+        .store_coins(total_borrowers_stake)
+        .store_coins(deficit)
+        .store_slice(parent)
+        .store_dict(participations)
+        .store_uint(rounds_imbalance, 8)
+        .store_int(stopped?, 1)
+        .store_int(instant_mint?, 1)
+        .store_ref(loan_codes)
+        .store_ref(new_extension)
+        .end_cell()
+        .set_data();
+}
+
+;; A migrator is never deployed and never receives a message. This exists only because a compiled
+;; contract needs an entry point, and it is the other half of the two-method-id rule above.
+() recv_internal(cell in_msg_full, slice in_msg_body) impure {
+    throw(0xffff);
+}

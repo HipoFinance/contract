@@ -162,15 +162,13 @@ Use the get method `get_treasury_state` of **treasury** with no parameters, whic
 
 1. `loan_codes`: The codes of loan smart contracts. It's a dictionary to gradually upgrade the codes while already participating in previous rounds.
 
-1. `previous_rate`: Exchange rate before last round, multiplied by one billion.
+1. `previous_rate`: The exchange rate at the start of the published window, multiplied by one billion.
 
-1. `current_rate`: Exchange rate after last round, multiplied by one billion.
+1. `current_rate`: The exchange rate at the end of it, multiplied by one billion.
 
-1. `round_duration`: The number of seconds that `previous_rate` took to grow into `current_rate`, measured on chain as the gap between the start times of the two most recently settled validation rounds. This is **not** the length of a round: the protocol only updates the rate pair when a round it lent into settles, so a round in which nothing was lent widens this interval instead of passing unnoticed. Use it as the denominator when annualising the rate pair — see *Calculating APY of hGRAM* below.
+1. `window_duration`: The number of seconds `previous_rate` took to grow into `current_rate`. This is **not** the length of a round. The window spans **two** of the treasury's rate observations, so in normal operation it is about two rounds long, and it widens further across rounds in which nothing was lent. Use it as the denominator when annualising the rate pair — see *Calculating APY of hGRAM* below. Formerly named `round_duration`, when the window was one observation wide.
 
 1. `last_settled_round`: The start time of the most recent validation round whose reward is included in `current_rate`. Compare it against the current round to tell how fresh the rate pair is; it only ever moves forward.
-
-> **One caveat on the pairing.** `previous_rate` and `current_rate` move on every settlement, while `round_duration` and `last_settled_round` advance only when a round settles in order. The three are exactly paired in normal operation. They come apart briefly when an older round settles late — the treasury allows this, and it happens when the elector rejects a newer round's stake so that it finishes ahead of an older round still validating. For two settlements the rate delta is then one round's reward while `round_duration` reads two rounds, so an APY computed across that window reads low, never high, and the next in-order settlement restores it. The two readings together still average correctly over the window.
 
 1. `halter`: The address of the halter who can stop the protocol, i.e. setting the stopped flag.
 
@@ -192,7 +190,11 @@ Use the get method `get_treasury_state` of **treasury** with no parameters, whic
 
 1. `old_parents`: The list of old parent/minter/master smart contract addresses, which the treasury will accept to upgrade their wallets to the latest/current parent.
 
-> **Breaking change.** `deficit`, `round_duration` and `last_settled_round` were added to this list at the positions above, not at the end, so that it mirrors the treasury's storage layout and one call returns everything the contract stores. Readers that index this tuple by position — rather than by name — must be updated for the release that introduced them. The list went from 21 values to 24. The same release **removed the `get_deficit` method**: this tuple now covers everything the treasury stores, so it was the only reader of that getter's reason to exist.
+1. `mid_rate`: The exchange rate at the middle of the three observations the window slides over, multiplied by one billion. Bookkeeping rather than something to publish: it is what lets `previous_rate` lag two observations instead of one. Most readers should ignore it. It is returned here, at the end, even though the treasury stores it next to the rate pair — this list is append-only, and where a field sits in storage does not decide where it appears in the tuple.
+
+1. `mid_round`: The start time of the validation round that middle observation was taken on.
+
+> **This list is append-only.** A field is never inserted into it and never moved, so an index that means something today means the same thing forever. That rule is newer than the list: `deficit`, `round_duration` and `last_settled_round` were once *inserted* at their positions above so the list would mirror the treasury's storage layout, which shifted every reader indexing by position and broke several. `mid_rate` and `mid_round` were therefore **appended** — the list went from 24 values to 26, positions 0–23 are exactly what they were, and a reader that divides by the interval field keeps working with no change and simply sees a steadier number. The list is also complete: everything the treasury stores is here, which is why the `get_deficit` method was removed when `deficit` joined it.
 
 ## Reading Times
 
@@ -266,20 +268,22 @@ Both totals include the protocol's dead shares (unowned tokens and their backing
 
 ## Calculating APY of hGRAM
 
-The GRAM rewards paid to validators change in each round of validation, because of different runtime conditions, like for example, the number of transactions in that round. As a result, APY is only an estimate and can be calculated based on the performance of the last validation round.
+The GRAM rewards paid to validators change in each round of validation, because of different runtime conditions, like for example, the number of transactions in that round. As a result, APY is only an estimate.
 
-To calculate it, use the `current_rate`, `previous_rate` and `round_duration` fields returned from the `get_treasury_state` method:
+To calculate it, use the `current_rate`, `previous_rate` and `window_duration` fields returned from the `get_treasury_state` method:
 
 ```
 growth = current_rate / previous_rate
-apy    = growth ^ (365 * 24 * 60 * 60 / round_duration) - 1
+apy    = growth ^ (365 * 24 * 60 * 60 / window_duration) - 1
 ```
 
 All three come from the same call, so the whole calculation needs one get method and one snapshot of state.
 
-Use `round_duration` rather than a round length worked out from `get_times`. The two agree while the protocol lends into every round, but they diverge exactly when it does not: the rate pair only moves when a round the protocol lent into settles, so if liquidity falls and only every other round is used, the growth per update roughly doubles while a round length does not — annualising by the round length would report an unchanged APY for a pool whose true rate of growth had halved. The same applies after an idle stretch. `round_duration` is the interval those two rates actually describe, so it stays correct in both cases and needs no adjustment if the network's round length changes.
+Use `window_duration` rather than a round length worked out from `get_times`. The two never agree — the window is about two rounds long — and they diverge further exactly when liquidity falls: the rate pair only moves when the treasury releases a settled round, so if only every other round is lent into, the growth per window holds while a round length does not. Annualising by a round length would report roughly double the truth, and would keep reporting an unchanged APY for a pool whose true rate of growth had halved. `window_duration` is the span those two rates actually describe, so it stays correct in every case and needs no adjustment if the network's round length changes.
 
-Here is an [example implementation](https://github.com/HipoFinance/sdk-example/blob/c165c95350b7df19b30f42e037d882cec2d4b865/src/Model.ts#L304), written before `round_duration` existed and still using `get_times`.
+**Why the window is two observations wide.** The treasury lends through two interleaved chains of rounds, and `rounds_imbalance` lets one chain lend more than the other, so the reward booked per observation alternates. A window one observation wide inherits that alternation and sawtooths every round. Two observations always cover one of each, so the published figure is level. A consequence worth knowing: the pair is published when a settled round is *released*, which can be a round or so after it settles if an older round is still owed its reward — so the figure is deliberately a little behind, and `last_settled_round` tells you how far.
+
+Here is an [example implementation](https://github.com/HipoFinance/sdk-example/blob/c165c95350b7df19b30f42e037d882cec2d4b865/src/Model.ts#L304), written before any of these fields existed and still using `get_times`.
 
 ## Explorer Actions
 

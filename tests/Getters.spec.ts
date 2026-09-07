@@ -97,7 +97,7 @@ describe('Getters', () => {
                     ),
                     previousRate: 1_000_000_000n,
                     currentRate: 1_000_000_000n,
-                    roundDuration: 0n,
+                    windowDuration: 0n,
                     lastSettledRound: 0n,
                     halter: halter.address,
                     governor: governor.address,
@@ -113,6 +113,8 @@ describe('Getters', () => {
                         billCode,
                     ),
                     oldParents: Dictionary.empty(Dictionary.Keys.BigUint(256), emptyDictionaryValue),
+                    midRate: 1_000_000_000n,
+                    midRound: 0n,
                 },
                 treasuryCode,
             ),
@@ -308,9 +310,11 @@ describe('Getters', () => {
         )
         expect(treasuryState.billCodes.get(0n)?.toBoc().toString('base64')).toEqual(billCode.toBoc().toString('base64'))
         expect(treasuryState.oldParents.size).toEqual(0)
-        // Nothing has settled on a fresh treasury, so there is no interval to report yet.
-        expect(treasuryState.roundDuration).toEqual(0n)
+        // Nothing has been released on a fresh treasury, so there is no window to report yet.
+        expect(treasuryState.windowDuration).toEqual(0n)
         expect(treasuryState.lastSettledRound).toEqual(0n)
+        expect(treasuryState.midRate).toEqual(1_000_000_000n)
+        expect(treasuryState.midRound).toEqual(0n)
         expect(treasuryState.deficit).toEqual(0n)
     })
 
@@ -326,13 +330,17 @@ describe('Getters', () => {
         expect(treasuryState.deficit).toEqual(0n)
     })
 
-    // get_treasury_state's tuple is ABI, and it mirrors storage order: root fields in save_data order,
-    // then extension fields in pack_extension order. The website, mcp, sdk, sdk-example and the gauge
-    // read it positionally, and DefiLlama's fee and yield adapters index it at hardcoded offsets that
-    // nobody here can redeploy -- so a field that moves is a field that silently misreads somewhere
-    // else, and the release that moved deficit, round_duration and last_settled_round into place had
-    // to be coordinated with all of them. This pins the result rather than trusting a reviewer to
-    // notice, so the next such move is a deliberate one.
+    // get_treasury_state's tuple is ABI, and it is APPEND-ONLY: an index that means something today
+    // means the same thing forever. It deliberately no longer mirrors storage order -- mid_rate and
+    // mid_round are stored beside the rate pair they describe and returned last -- because storage is
+    // the contract's own business while this tuple is an interface.
+    //
+    // The website, mcp, sdk, sdk-example and the gauge read it positionally, and DefiLlama's fee and
+    // yield adapters index it at hardcoded offsets nobody here can redeploy. Beyond those it is
+    // documented publicly and read through a published SDK, so it has readers nobody can enumerate:
+    // the release that moved deficit, round_duration and last_settled_round into place had to be
+    // coordinated with every reader anyone could name, and still broke vesting, club and dune. This
+    // pins the result rather than trusting a reviewer to notice.
     it('should keep every get_treasury_state field at its established position', async () => {
         const contract = await blockchain.getContract(treasury.address)
         const stack = new TupleReader((await contract.get('get_treasury_state')).stack)
@@ -352,7 +360,7 @@ describe('Getters', () => {
             'loan_codes',
             'previous_rate',
             'current_rate',
-            'round_duration',
+            'window_duration',
             'last_settled_round',
             'halter',
             'governor',
@@ -362,6 +370,11 @@ describe('Getters', () => {
             'collection_codes',
             'bill_codes',
             'old_parents',
+            // Appended, though they are stored next to the rate pair. Everything above keeps the
+            // position it had in the previous release, which is the property that let this change
+            // ship without a single reader being updated -- DefiLlama's adapters included.
+            'mid_rate',
+            'mid_round',
         ]
         expect(stack.remaining).toEqual(positions.length)
 
@@ -381,7 +394,7 @@ describe('Getters', () => {
         stack.readCell() // loan_codes
         expect(stack.readBigNumber()).toEqual(1_000_000_000n) // previous_rate
         expect(stack.readBigNumber()).toEqual(1_000_000_000n) // current_rate
-        expect(stack.readBigNumber()).toEqual(0n) // round_duration
+        expect(stack.readBigNumber()).toEqual(0n) // window_duration
         expect(stack.readBigNumber()).toEqual(0n) // last_settled_round
         expect(stack.readAddress().toString()).toEqual(halter.address.toString())
         expect(stack.readAddress().toString()).toEqual(governor.address.toString())
@@ -391,6 +404,8 @@ describe('Getters', () => {
         stack.readCell() // collection_codes
         stack.readCell() // bill_codes
         stack.readCellOpt() // old_parents
+        expect(stack.readBigNumber()).toEqual(1_000_000_000n) // mid_rate
+        expect(stack.readBigNumber()).toEqual(0n) // mid_round
         expect(stack.remaining).toEqual(0)
     })
 

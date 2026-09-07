@@ -69,7 +69,11 @@ describe('Deficit', () => {
     let fees: TreasuryFees
 
     const deadShares = toNano('10')
-    const roundSince = 0n
+    // A plausible utime_since rather than 0. The rate window only advances when the round released is
+    // above `last_settled_round`, which a fresh config leaves at 0 -- so a synthetic round_since of 0
+    // would leave `current_rate` untouched here and make the rate assertions below fail for a reason
+    // that has nothing to do with deficits. No real round_since can be 0.
+    const roundSince = 1_700_000_000n
 
     function makeConfig(halterAddress: Address, governorAddress: Address, governanceFee = 4096n): TreasuryConfig {
         return {
@@ -87,7 +91,7 @@ describe('Deficit', () => {
             loanCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(0n, loanCode),
             previousRate: 1_000_000_000n,
             currentRate: 1_000_000_000n,
-            roundDuration: 0n,
+            windowDuration: 0n,
             lastSettledRound: 0n,
             halter: halterAddress,
             governor: governorAddress,
@@ -100,6 +104,8 @@ describe('Deficit', () => {
             ),
             billCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(0n, billCode),
             oldParents: Dictionary.empty(Dictionary.Keys.BigUint(256), emptyDictionaryValue),
+            midRate: 1_000_000_000n,
+            midRound: 0n,
         }
     }
 

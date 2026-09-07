@@ -31,8 +31,14 @@ global cell extension;
 
 global int previous_rate;
 global int current_rate;
-global int round_duration;
+global int window_duration;
 global int last_settled_round;
+;; The window's middle observation, stored with the pair it belongs to. get_treasury_state returns
+;; these two at the END of its tuple instead, which is not an inconsistency: storage is this
+;; contract's own business, while the tuple is an interface every off-chain reader indexes by
+;; position. Grouping here and appending there costs nothing and satisfies both.
+global int mid_rate;
+global int mid_round;
 global slice halter;
 global slice governor;
 global cell proposed_governor;
@@ -79,12 +85,27 @@ global cell old_parents;
     ds.end_parse();
 }
 
+;; The three rates stay store_coins. A fixed uint64 was tried and reverted: it is not smaller in any
+;; state this contract can reach, and it can throw where varuint16 cannot.
+;;
+;; The bit budget, against the 1023-bit cell ceiling, with 664 bits of non-rate fields here:
+;;   - realistic (rate ~1.16e9, 4 bytes each):            664 + 3 x 36 = 772
+;;   - every coin in existence pooled (rate ~5.9e17):     664 + 3 x 68 = 868
+;;   - varuint16's own maximum (rate >= 2^112):           664 + 3 x 124 = 1036
+;; Only the third overflows, and it is unreachable: dead shares pin total_tokens at ~8.6e9 nano and
+;; the coin supply caps total_coins at ~5.1e18 nano, so muldiv(total_coins, 1e9, total_tokens) cannot
+;; exceed ~5.9e17. That bound is the binding one, not the encoding, which is what makes uint64 pure
+;; downside -- it costs the same 868 bits at the same bound and turns an over-large rate from a cell
+;; that widens into a store_uint that throws exit 5 inside pack_extension, wedging every op that
+;; touches the extension.
 () pack_extension() impure inline_ref {
     extension = begin_cell()
         .store_coins(previous_rate)
         .store_coins(current_rate)
-        .store_uint(round_duration, 32)
+        .store_uint(window_duration, 32)
         .store_uint(last_settled_round, 32)
+        .store_coins(mid_rate)
+        .store_uint(mid_round, 32)
         .store_slice(halter)
         .store_slice(governor)
         .store_maybe_ref(proposed_governor)
@@ -100,8 +121,10 @@ global cell old_parents;
     slice s = extension.begin_parse();
     previous_rate = s~load_coins();
     current_rate = s~load_coins();
-    round_duration = s~load_uint(32);
+    window_duration = s~load_uint(32);
     last_settled_round = s~load_uint(32);
+    mid_rate = s~load_coins();
+    mid_round = s~load_uint(32);
     halter = s~load_msg_addr();
     governor = s~load_msg_addr();
     proposed_governor = s~load_maybe_ref();
@@ -1013,6 +1036,20 @@ cell find_code(cell dict, int round_since) inline {
     ;; not settled yet. That round still adds its reward to total_coins later, and every round after
     ;; it must keep holding its bills until it does. Scanning from the lowest round instead of from
     ;; the round that just settled also releases any round that an earlier scan could not release.
+    ;;
+    ;; This is also where the published rate window is measured, once per scan rather than once per
+    ;; settlement. A round only reaches ready_to_burn with its own rewards already in total_coins,
+    ;; and the barrier below guarantees no round under the released run still owes one, so the growth
+    ;; across a release is exactly the reward of the rounds it released and the interval is exactly
+    ;; their span. Measuring at settlement instead is what let the two come apart: settlement is not
+    ;; ordered -- an elector rejection finishes a round in seconds, ahead of an older one still
+    ;; validating -- so the pair moved on every settlement while the interval only moved on an
+    ;; in-order one, and a rejected round published a 0% reading against a two-round interval.
+    ;;
+    ;; Deferring the reward instead of the snapshot is the trap here, and it fails the other way:
+    ;; total_coins is credited per loan recovery, not at settlement, so a per-round snapshot released
+    ;; in order would capture rewards booked after it and over-report. Only the snapshot can wait.
+    int highest = 0;
     int k = -1;
     do {
         ( k, slice v, int f? ) = participations.udict_get_next?(32, k);
@@ -1042,6 +1079,14 @@ cell find_code(cell dict, int round_since) inline {
                 );
                 participations~udict_set_builder(32, k, pb);
 
+                ;; Every released round counts, including one that lent nothing and reached
+                ;; ready_to_burn straight from process_loan_requests. Over a two-release window that
+                ;; is the honest reading and not a dilution: the window then spans one lending round
+                ;; and one idle one, which is what keeps the published rate level when liquidity only
+                ;; covers every other round, and it lets a pool whose borrowers are bidding but which
+                ;; is lending nothing report zero growth while it happens rather than in hindsight.
+                highest = k;
+
                 send_burn_all(query_id, k);
             }
             if owes_reward?(state) {
@@ -1049,6 +1094,27 @@ cell find_code(cell dict, int round_since) inline {
             }
         }
     } until ~ f?;
+
+    ;; Roll the window: [mid, highest] becomes the published span and the old newest becomes the new
+    ;; mid. Each old value is read before it is overwritten, so the order of these six lines matters.
+    ;; The guard covers a scan that released nothing, and a round that retry_burn_all released around
+    ;; the scan -- that leaves last_settled_round where it was, so the next scan's span still covers
+    ;; the bypassed round and the reward it had already booked.
+    if highest > last_settled_round {
+        previous_rate = mid_rate;
+        window_duration = highest - mid_round;
+        mid_rate = current_rate;
+        mid_round = last_settled_round;
+        current_rate = muldiv(total_coins, 1000000000, total_tokens);
+        last_settled_round = highest;
+
+        ;; Packed here, inside the branch, because two of the three callers -- process_loan_requests
+        ;; and retry_burn_ready -- never call pack_extension themselves; only recover_stake_result
+        ;; did, and only for the rate write that used to live there. Leaving it to the callers would
+        ;; drop this update on two paths out of three, silently. Inside the branch rather than after
+        ;; the scan so a process_loan_requests continuation that releases nothing pays nothing.
+        pack_extension();
+    }
 }
 
 () process_loan_requests(slice src, slice s) impure inline {
@@ -1511,27 +1577,12 @@ cell find_code(cell dict, int round_since) inline {
             }
 
             if rejected.dict_empty?() & accrued.dict_empty?() & staked.dict_empty?() & recovering.dict_empty?() {
-                ;; The interval the rate pair below grew over, which is not the same thing as the
-                ;; length of a round. Rounds where nothing was lent never reach this branch at all --
-                ;; process_loan_requests hands them straight to ready_to_burn -- so the rates simply
-                ;; freeze while the pool is idle. Measuring the gap between the round_since of the two
-                ;; most recently settled rounds is what keeps the two halves of an APY honest: a
-                ;; skipped round widens it to two, an idle week to however many rounds passed, and a
-                ;; prolonged round lands in it by itself, because round_since is the validator set's
-                ;; real utime_since rather than a nominal length read from config.
+                ;; The rate window is not measured here. Settlement is not ordered, so a snapshot
+                ;; taken at this point pairs a delta with an interval that belongs to a different
+                ;; event; burn_ready_participations takes it at release instead, where the barrier
+                ;; makes the pairing exact. Nothing in this branch touches the extension any more,
+                ;; which is why this function no longer packs it.
                 ;;
-                ;; Both fields only ever move forwards. Settlements are not necessarily in round order
-                ;; -- see the note below on an older round still owing its reward -- and letting
-                ;; last_settled_round walk backwards would measure the round after an out-of-order
-                ;; pair as two rounds when its own reward is worth one, halving the reported rate. So
-                ;; an older round that settles late updates the rates and nothing else; the reward it
-                ;; adds belongs to the interval the next settlement measures.
-                if round_since > last_settled_round {
-                    round_duration = round_since - last_settled_round;
-                    last_settled_round = round_since;
-                }
-                previous_rate = current_rate;
-                current_rate = muldiv(total_coins, 1000000000, total_tokens);
                 ;; This round has settled, but an older round may still add its reward to total_coins,
                 ;; for example when the elector rejects this round's stake instantly and it finishes
                 ;; ahead of an older round that is still validating. Burning the bills now would mint
@@ -1591,7 +1642,9 @@ cell find_code(cell dict, int round_since) inline {
         .store_uint(query_id, 64);
     send_msg(false, governor.to_builder(), null(), profit, 0, send::unreserved_balance + send::ignore_errors);
 
-    pack_extension();
+    ;; No pack_extension: this handler's only extension write was the rate pair, which now lives in
+    ;; burn_ready_participations and is packed there. Packing again would be a wasted rebuild of the
+    ;; cell on the settlement path.
 }
 
 () last_bill_burned(slice src, slice s) impure inline {
@@ -2590,16 +2643,30 @@ var get_treasury_state() method_id {
     load_data();
     unpack_extension();
 
-    ;; The tuple mirrors storage order exactly: root fields in their save_data order, then extension
-    ;; fields in their pack_extension order. Everything the treasury stores is here, so an integrator
-    ;; needs one call and can check the list against the layout rather than against a changelog.
+    ;; Two rules govern this tuple, and only the first is about ordering:
     ;;
-    ;; That order was chosen over an append-only one deliberately, and it is a BREAKING change to the
-    ;; ABI: `deficit`, `round_duration` and `last_settled_round` are inserted, not appended, so every
-    ;; consumer reading this tuple by position shifts. Ours are updated alongside; DefiLlama's fee and
-    ;; yield adapters index it at hardcoded offsets and need upstream PRs, which is a known cost of
-    ;; this change rather than an oversight. If a field is ever added again, weigh that cost again --
-    ;; do not assume this precedent makes inserting free.
+    ;;   1. It is APPEND-ONLY. A field is never inserted and never moved, so an index that means
+    ;;      something today means the same thing forever. This is the rule that protects readers.
+    ;;   2. It is COMPLETE. Everything the treasury stores appears here, so an integrator makes one
+    ;;      call and never has to reach for a second getter.
+    ;;
+    ;; It no longer mirrors storage order, and that is deliberate rather than drift. `mid_rate` and
+    ;; `mid_round` are stored next to the rate pair they belong to, because that is where a reader of
+    ;; this contract looks for them, and returned last, because moving anything here would shift every
+    ;; off-chain reader that indexes by position. Storage is this contract's own business; the tuple
+    ;; is an interface. Serving both costs nothing.
+    ;;
+    ;; The previous release wrote "if a field is ever added again, weigh that cost again", having
+    ;; inserted `deficit`, `round_duration` and `last_settled_round` and shifted every positional
+    ;; reader to keep the mirror. It was weighed, and the mirror lost. A census of ~/code/HipoFinance
+    ;; on 2026-09-07 found that insert had broken four readers, of which three were on no checklist --
+    ;; `vesting` and `club`, both live user-facing sites, and `dune` -- and the fourth, `borrower`, is
+    ;; the only off-chain sender of finish_participation, so two validators missed a round and a stake
+    ;; sat in the elector six hours past stake_held_until. The rollout list is a floor, not the
+    ;; population: this getter is documented publicly and read through a published SDK, so it has
+    ;; readers nobody here can enumerate, and rule 1 is the only thing that protects them.
+    ;;
+    ;; See docs/specs/2026-09-07-two-round-rate-window.md and the census in scripts/upgrade_treasury.md.
     return
         ( total_coins
         , total_tokens
@@ -2615,7 +2682,7 @@ var get_treasury_state() method_id {
         , loan_codes
         , previous_rate
         , current_rate
-        , round_duration
+        , window_duration
         , last_settled_round
         , halter
         , governor
@@ -2625,6 +2692,8 @@ var get_treasury_state() method_id {
         , collection_codes
         , bill_codes
         , old_parents
+        , mid_rate
+        , mid_round
         );
 }
 

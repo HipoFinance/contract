@@ -1,5 +1,12 @@
 # Record the Round Duration Alongside the Rate Pair
 
+> **Partly superseded by `2026-09-07-two-round-rate-window.md`.** Still current: why the interval is
+> measured from `round_since` rather than read from network config, and the rejected alternatives that
+> follow from it. No longer current: the monotonic guard and the "not a one-scalar problem" conclusion
+> (the pairing is now exact, measured once per barrier release rather than per settlement); the field
+> name `round_duration`, now `window_duration` over a two-release window; and the decision to insert
+> new fields rather than append them, which this spec's own rollout is the evidence against.
+
 ## Problem
 
 The website runs two scheduled reads against the treasury: one for `get_treasury_state` and one
