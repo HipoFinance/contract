@@ -112,6 +112,50 @@ rather than through a helper: by the time it runs, `set_c3` has already happened
 treasury's `load_data()` is the **new** parser and would misread the old cell. End that parse with
 `end_parse()` — that is what makes a second run throw and revert instead of corrupting.
 
+## Changing the shape of a getter
+
+`get_treasury_state` returns a flat tuple that every consumer reads **positionally**, and it mirrors
+the treasury's storage order, so a new field is inserted rather than appended. Nothing on chain
+breaks; every off-chain reader does. Treat the list below as the rollout checklist for any change to
+that tuple — or to `get_times`, `get_participation`, `get_loan_request` or `get_treasury_fees` — and
+grep `~/code/HipoFinance/` for the method name before sending, because the list is a floor.
+
+**In this repo**, updated in the same commit as the contract: `wrappers/Treasury.ts`
+(`getTreasuryState`, `TreasuryConfig`), `wrappers/migrationDryRun.ts`, `scripts/showState.ts`.
+
+**Ours, deployed alongside the upgrade:**
+
+| repo                 | reads                                                                               | notes                                           |
+| -------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `borrower`           | `process.go`, tonutils-go, indices for `participations`, `stopped?`, `borrower_fee` | **roll this one with the treasury** — see below |
+| `website`            | through the sdk wrapper                                                             |                                                 |
+| `mcp`                | through the sdk wrapper                                                             |                                                 |
+| `sdk`, `sdk-example` | `Treasury.ts`, sequential `stack.read*`                                             | the wrapper everything else inherits            |
+| `gauge`              | `actor/treasury.go`, checks the field count                                         | also called `get_deficit` until it was removed  |
+| `hipostat`           | `usecase/treasury.go`                                                               |                                                 |
+| ~~`driver`~~         | `usecase/contract.go`                                                               | retired, archived 2026-09-07                    |
+
+**Upstream, needing merged PRs:** `dimension-adapters/fees/hipo` and
+`yield-server/src/adaptors/hipo` read the tuple at hardcoded offsets.
+`DefiLlama-Adapters/projects/hipo` reads `result[0]` and `result[2]`, so it survives any insert
+after index 2. Open these once the new shape is live on chain, since the adapters have to read the
+tuple as it actually is.
+
+### Why `borrower` is not just one more reader
+
+It is the only off-chain sender of `finish_participation` (`op::finish_participation`, `0x23274435`)
+— nothing else in the fleet sends it, and the contract has no timer of its own. `loadTreasuryState`
+runs at the top of its `Process` loop, so a shifted index takes out the `request_loan` loop and the
+recovery poke in the same panic, for every operator running it, not just ours. The failure leaves no
+trace on chain to search for: the request never gets built, so there is no bounced message, only
+wallets that stop sending.
+
+The consequence is that stakes stay in the elector past `stake_held_until` until somebody pokes the
+treasury by hand (`scripts/finishParticipation.ts`) or a borrower on a working build comes along.
+That is what happened on 2026-09-06: this release went out without `borrower` on the list, two nodes
+missed round `1788759816` entirely, and round `1788628744`'s stakes came back about six hours late,
+after a `stake_not_returned` alert. Fixed in `borrower@37f2e4e`.
+
 ## Add Deficit Field
 
 > **Already performed on mainnet, 2026-08-25 08:37:57 UTC. Kept as the record of what was run.**
@@ -407,7 +451,10 @@ measured.
 
 ## Round Duration
 
-> **Not yet run.** Spec: `docs/specs/2026-09-06-round-duration.md`.
+> **Already performed on mainnet, 2026-09-06.** Spec: `docs/specs/2026-09-06-round-duration.md`.
+> Kept as the record of what was run. `get_treasury_state` returns 24 fields on chain and
+> `get_deficit` answers with exit code 11. Do not re-run it: the migrator ends its parses with
+> `end_parse()`, so a second run throws and reverts the whole upgrade.
 
 Adds `round_duration` and `last_settled_round` (`uint32` each) to the extension, immediately after
 `current_rate`. They record the interval the rate pair grew over, so an APY can be computed from a
@@ -424,13 +471,17 @@ The release also **removes the `get_deficit` method**, for the same reason: the 
 everything stored, so the standalone getter had nothing left to add. Anything calling it gets a
 failed get method rather than a wrong answer.
 
-- **Ours, to deploy alongside:** website, mcp, sdk, sdk-example, gauge. The gauge is the one that
-  calls `get_deficit`, so it needs the getter removal as well as the reordering.
-- **Upstream, needing merged PRs:** `dimension-adapters/fees/hipo` and
-  `yield-server/src/adaptors/hipo`, both of which read `stack[11]`, `stack[12]` and `stack[16]`.
-  `DefiLlama-Adapters/projects/hipo` reads `result[0]` and `result[2]` only, so it is unaffected.
+- **Ours, to deploy alongside** and **upstream, needing merged PRs:** see
+  _Changing the shape of a getter_ above. The gauge additionally calls `get_deficit`, so it needs
+  the getter removal as well as the reordering.
 - Old readers fail loudly rather than quietly: the first inserted field arrives where an address is
   expected, so they throw instead of reporting wrong numbers.
+- **`borrower` was left off this list when the release went out, and that is what the checklist
+  above exists to prevent.** It reads `participations` at what is now `parent`, so it panicked on
+  every cycle: two validators missed round `1788759816` and a stake sat in the elector about six
+  hours past `stake_held_until`, because nothing else sends `finish_participation`. `hipostat` and
+  the now-retired `driver` were found stale in the same sweep. Naming the readers the requester
+  happens to remember is not the same as enumerating them.
 
 The migrator is `wrappers/upgrade-code-test/add_round_duration.fc`, exercised in
 `tests/TreasuryMigration.spec.ts` against the captured mainnet account, chained through the deficit
