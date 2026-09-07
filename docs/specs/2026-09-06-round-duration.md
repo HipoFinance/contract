@@ -81,6 +81,20 @@ It is also the better meaning for a value consumers can read: `last_settled_roun
 round whose reward is in `current_rate`*, which is what makes it usable for detecting a stale rate.
 The backwards version would report the protocol as a round further behind than it is.
 
+**What the guard costs.** Raised by a reviewer on the DefiLlama fee adapter, and it is a fair hit.
+The rate pair moves on **every** settlement while `round_duration` advances only on an in-order one,
+so across the R+1, R, R+2 sequence above both R+1 and R book one round's reward against a two-round
+interval. Anything annualising the pair reads about half the true rate for those two settlements —
+low, never high — and R+2 restores the pairing. The two readings together are still the correct
+time-average for the window.
+
+Pairing every delta with its own gap is not a one-scalar problem. The right gap for a late round R
+runs from the highest settled round *below* R, not from the highest settled round overall, so it
+would need an interval recorded per settlement. Not worth the storage for an anomaly that is rare,
+self-correcting and conservative in direction — but it is a real limit on what `round_duration`
+means, and it is now stated in `docs/architecture.md` and `docs/integration.md` rather than left for
+the next reader to derive.
+
 ### Rejected alternatives
 
 - **Deriving it at read time from the network config** (`validators_elected_for`, or
