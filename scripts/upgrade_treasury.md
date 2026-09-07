@@ -137,11 +137,17 @@ sending, because the list is a floor. Where a field lands matters even then: an 
 | `website`            | through the sdk wrapper                                                             |                                                          |
 | `mcp`                | through the sdk wrapper                                                             |                                                          |
 | `sdk`, `sdk-example` | `Treasury.ts`, sequential `stack.read*`                                             | the wrapper everything else inherits                     |
-| `gauge`              | `actor/treasury.go`, checks the field count                                         | also called `get_deficit` until it was removed           |
-| `vesting`            | `index.html`, `HIPO_JETTON_MINTER_ADDRESS_INDEX`, then `.loadAddress()`             | live at `vesting.hipo.finance`; **broken, see below**     |
-| `club`               | `assets/index-*.js`, sequential `read*` — a built bundle, fix at its source          | live at `club.hipo.finance`; **broken, see below**        |
-| `dune`               | `exporter/export-rates.mjs`, indexed with a comment naming each position             | dormant since 2026-08-20; **broken, see below**           |
-| `burner`             | `scripts/deployBurner.ts`; `imports/constants.fc` cites an index in a comment        | deploy-time only, not a running service — verify before use |
+| `gauge`              | `actor/treasury.go`, checks the field count                                         | the check was an equality; **broke on an append** — see below |
+| `vesting`            | `index.html`, `HIPO_JETTON_MINTER_ADDRESS_INDEX`, then `.loadAddress()`             | live at `vesting.hipo.finance`; fixed 2026-09-07          |
+| `club`               | built bundle in `HipoFinance/club`; source is `HipoGang/webapp`, via the `sdk`       | live at `club.hipo.finance`; fixed 2026-09-07 by an SDK bump |
+| `dune`               | `exporter/export-rates.mjs`, indexed with a comment naming each position             | dormant 2026-08-20 → 2026-09-07; fixed                    |
+| `burner`             | `scripts/deployBurner.ts`; `imports/constants.fc` cites an index in a comment        | deploy-time only; was broken, fixed 2026-09-07           |
+
+`club` deserves its own line in a rollout, because fixing it is not a code edit. The source is
+`HipoGang/webapp`, which reads the treasury only through `@hipo-finance/sdk`, so it is fixed by
+bumping that dependency. Deploying it means: **pull `HipoFinance/club` first** — the team pushes
+built artifacts there directly, and `HipoGang/webapp` may be behind — then `npm run build` and copy
+`dist/` over the whole repo. `dist/` is the complete site, `public/` and all.
 
 Readers that take only `total_coins` and `total_tokens` survive any insert after index 2 and are
 listed so the next census does not have to rediscover them: `hpo-trader/trader/tonclient/hipo.go`
@@ -165,7 +171,9 @@ the one this section already tells you to run — found that the round-duration 
 more readers that were on nobody's list, because `deficit` took index 5, the slot `parent` had
 occupied. `vesting` and `club` are both live user-facing sites and both call an address reader on
 what is now an integer, so they throw; on `vesting` that is the call that resolves a holder's hGRAM
-wallet address. `dune`'s exporter has not run since 2026-08-20 and will fail when it does.
+wallet address. `dune`'s exporter has not run since 2026-08-20 and will fail when it does. All three
+were fixed on 2026-09-07, along with `burner`, which the table had listed as unverified and which
+turned out to be broken the same way.
 
 Two lessons, in order of importance. First, **run the grep, and grep the deployed artifacts too** —
 `club` was only found because the search covered a built `assets/index-*.js` bundle with no local
@@ -173,6 +181,22 @@ source. Second, this is the argument that reversed the insert-don't-append decis
 `docs/specs/2026-09-07-two-round-rate-window.md`: a list that has twice failed to be the population
 is not a list worth re-running for the sake of field adjacency. **Prefer appending unless there is a
 reason that survives contact with this section.**
+
+### Appending is not free either: `gauge`
+
+The two-round-window release appended, moved no existing index, needed no upstream PR — and still
+took `gauge` off the air. Its reader guarded itself with `fields != 24`, so a tuple that grew to 26
+failed the check and `getTreasuryState` returned an error before reading anything. The whole treasury
+series stopped, on an upgrade that could not have touched a single field it reads.
+
+The guard was right to exist and wrong in its comparison: **too few is fatal, too many is not.** A
+short tuple means an older treasury whose indices are shifted, and the accessors panic on the type
+they did not expect. A long one means the treasury grew, and it only grows by appending. Fixed in
+`gauge` to `fields < 24`, with the rule split into a testable function.
+
+So when checking readers before a release, do not stop at "does this index still mean what it says".
+Also ask **whether anything asserts the tuple's length**, in a wrapper, a schema, or a test. That is
+a different failure and appending does not spare you from it.
 
 ### Why `borrower` is not just one more reader
 
@@ -620,7 +644,9 @@ silent break: `wrappers/Treasury.ts`, `wrappers/migrationDryRun.ts`, `scripts/sh
 repo, then `sdk` and everything downstream of it. Announce the widened window in the release notes so
 nobody reads a doubled `window_duration` as a bug.
 
-Still fix `vesting`, `club` and `dune` — they are broken by the *previous* release, not this one.
+`vesting`, `club`, `dune` and `burner` were broken by the *previous* release and were all fixed on
+2026-09-07, after this one landed. `gauge` was broken by *this* release, through a field-count
+assertion rather than an index — see _Appending is not free either_ above.
 
 ### The migrator
 
