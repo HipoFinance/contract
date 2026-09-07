@@ -170,6 +170,8 @@ Use the get method `get_treasury_state` of **treasury** with no parameters, whic
 
 1. `last_settled_round`: The start time of the most recent validation round whose reward is included in `current_rate`. Compare it against the current round to tell how fresh the rate pair is; it only ever moves forward.
 
+> **One caveat on the pairing.** `previous_rate` and `current_rate` move on every settlement, while `round_duration` and `last_settled_round` advance only when a round settles in order. The three are exactly paired in normal operation. They come apart briefly when an older round settles late — the treasury allows this, and it happens when the elector rejects a newer round's stake so that it finishes ahead of an older round still validating. For two settlements the rate delta is then one round's reward while `round_duration` reads two rounds, so an APY computed across that window reads low, never high, and the next in-order settlement restores it. The two readings together still average correctly over the window.
+
 1. `halter`: The address of the halter who can stop the protocol, i.e. setting the stopped flag.
 
 1. `governor`: The address of the governor who can upgrade the protocol, and will receive the protocol fees.

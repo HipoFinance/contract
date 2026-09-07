@@ -274,6 +274,22 @@ what keeps an APY built on those two rates honest when the protocol validates ev
 or stops for a week. Both only ever move forwards, so an older round that settles out of order
 books its reward without disturbing an interval that has already been measured.
 
+That last part has a cost worth knowing about. The rate pair moves on **every** settlement, but
+`round_duration` advances only on an in-order one, so the two describe the same event in steady
+state and come apart briefly when they disagree. With settlement order R+1, R, R+2 — which happens
+when the elector rejects R+1's stake and it finishes ahead of R, still validating — R+1 and R each
+book one round's reward while `round_duration` reads two rounds, and R+2 restores the pairing. A
+consumer annualising the rate pair therefore reads about half the true rate for two settlements,
+never more than the truth, and the two readings together are still the correct time-average for that
+window.
+
+Pairing every delta with its own gap is not a one-scalar problem: it would mean recording the
+interval per settlement, since the right gap for a late round R is measured from the highest settled
+round below it, not from the highest settled round overall. That was judged not worth the storage
+for an anomaly that is rare, self-correcting and conservative in direction — but it is a real limit
+on what `round_duration` can be read to mean, and it is why a consumer that needs exactness should
+use `last_settled_round` to tell whether the pair it is looking at is the in-order one.
+
 `get_treasury_state` returns the tuple in storage order — root fields as `save_data` writes them,
 then extension fields as `pack_extension` does — so it now covers everything the treasury stores,
 `deficit` included, and an integrator can check the list against the layout rather than a changelog.
