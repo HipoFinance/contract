@@ -659,11 +659,18 @@ Its cost does not scale with anything stored, so it needs **no** quiet window wi
 
 3. Set `migratorName` back to `null` once the migration has landed.
 
-4. Verify with `showState.ts`: `window_duration` and `last settled` are populated and unchanged from
-   before the upgrade, the APY line reads the same as it did (the window has not widened yet — that
-   happens at the first release), and `total_coins`, `total_tokens`, `parent`, `governor`, `halter`,
-   the exchange rate, `deficit` and `borrower_fee` are all unchanged. The code hash should equal the
-   plain `Treasury` build.
+4. Verify with `showState.ts`: `mid_rate` and `mid_round` are populated where they read zero before,
+   `window_duration` and `last settled` are unchanged, the APY line reads the same as it did (the
+   window has not widened yet — that happens at the first release), and `total_coins`, `total_tokens`,
+   `parent`, `governor`, `halter`, the exchange rate, `deficit` and `borrower_fee` are all unchanged.
+   The code hash should equal the plain `Treasury` build.
+
+5. **Then remove the cross-version read.** `getTreasuryState` branches on a stack length of 24 so it
+   can read a pre-upgrade treasury — without it `showState` and the dry run cannot read the chain
+   *before* this upgrade, which is when they are needed. Once the upgrade has landed there is no old
+   side left: delete the branch, the `midRate`/`midRound` zero fallbacks, and the cross-version case in
+   `tests/TreasuryMigration.spec.ts`. Check the chain first rather than assuming, the way `e6f8696`
+   did.
 
 ### After it lands
 

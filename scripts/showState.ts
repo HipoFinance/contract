@@ -103,6 +103,17 @@ export async function run(provider: NetworkProvider) {
         c.grey('last settled:'),
         treasuryState.lastSettledRound > 0n ? formatDate(treasuryState.lastSettledRound) : c.grey('never'),
     )
+    // The window's middle observation. Not interesting day to day, but it is what proves the
+    // two-round-window migration seeded correctly: `mid_rate` should be the rate the pool was at one
+    // release back and `mid_round` the round it happened on. Zero for both means this treasury is
+    // still on the pre-upgrade code, which the wrapper reads by shape rather than throwing.
+    console.info(
+        '                 %s %s GRAM   %s %s',
+        c.grey('mid_rate:'),
+        formatExchangeRate(Number(treasuryState.midRate) / 1_000_000_000),
+        c.grey('mid_round:'),
+        treasuryState.midRound > 0n ? formatDate(treasuryState.midRound) : c.grey('never'),
+    )
     console.info('                   %s %s', c.grey('halter:'), c.cyan(treasuryState.halter.toString({ testOnly })))
     console.info('                 %s %s', c.grey('governor:'), c.cyan(treasuryState.governor.toString({ testOnly })))
     console.info(

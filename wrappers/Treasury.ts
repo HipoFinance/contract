@@ -1057,9 +1057,26 @@ export class Treasury implements Contract {
         }
     }
 
-    /** The tuple is append-only and covers every field the treasury stores; it does not mirror storage order. */
+    /**
+     * The tuple is append-only and covers every field the treasury stores; it does not mirror storage
+     * order.
+     *
+     * A pre-upgrade treasury is still readable here, by shape. That is not politeness: migrationDryRun
+     * reads the OLD state to show the operator a field-level diff of an upgrade before it is signed,
+     * and showState has to keep working against mainnet while the chain is still on the old code.
+     * Without this branch both fall over on exactly the upgrade that most warrants a rehearsal.
+     *
+     * Cheaper than the last one, because `midRate` and `midRound` are appended rather than inserted:
+     * the 24 values before them parse identically, so only the tail needs a branch. They are reported
+     * as zero, which no upgraded treasury can report -- the migrator seeds `mid_rate` from
+     * `previous_rate` and `mid_round` from `last_settled_round - round_duration`, both non-zero.
+     *
+     * Drop this branch once the upgrade has landed, the way e6f8696 dropped the round-duration
+     * cross-version reads and ad9e3a2 the borrower-fee ones.
+     */
     async getTreasuryState(provider: ContractProvider): Promise<TreasuryConfig> {
         const { stack } = await provider.get('get_treasury_state', [])
+        const preUpgrade = stack.remaining === 24
 
         const totalCoins = stack.readBigNumber()
         const totalTokens = stack.readBigNumber()
@@ -1117,8 +1134,8 @@ export class Treasury implements Contract {
             oldParents: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), emptyDictionaryValue, stack.readCellOpt()),
             // Returned last by the getter, whatever their place in storage. Property order is the
             // read order here, so these two stay at the bottom of this object.
-            midRate: stack.readBigNumber(),
-            midRound: stack.readBigNumber(),
+            midRate: preUpgrade ? 0n : stack.readBigNumber(),
+            midRound: preUpgrade ? 0n : stack.readBigNumber(),
         }
     }
 

@@ -375,6 +375,58 @@ describe('Treasury Migration', () => {
     // a correct one does. On mainnet the fee is live and carries a real rate, so the value the round
     // duration migrator has to preserve is a non-zero one sitting immediately before the two refs it
     // rewrites the extension around. Set it between the two migrations and read it back after.
+    // The released wrapper has to read a treasury from BOTH sides of this upgrade, because
+    // migrationDryRun reads the old state to show the operator a diff before anything is signed and
+    // showState has to keep working against mainnet while the chain is still on the old code. Without
+    // it both throw EOF on exactly the upgrade that most warrants a rehearsal. Delete this case when
+    // the cross-version branch goes, after the upgrade lands.
+    it('should read a pre-upgrade treasury through the released wrapper', async () => {
+        const { blockchain, treasury, governor } = await stand()
+
+        await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: deficitEraCode,
+            migrateCode: migratorCode,
+        })
+        await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: borrowerFeeEraCode,
+            migrateCode: borrowerFeeMigratorCode,
+        })
+        await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: roundDurationEraCode,
+            migrateCode: roundDurationMigratorCode,
+        })
+
+        // 24 values on chain, 26 expected by the wrapper. Every field before the two new ones lands
+        // where it belongs, because they are appended rather than inserted.
+        const before = await treasury.getTreasuryState()
+        expect(before.totalCoins).toBeGreaterThan(0n)
+        expect(before.totalTokens).toBeGreaterThan(0n)
+        expect(before.windowDuration).toBeGreaterThan(0n)
+        expect(before.lastSettledRound).toBeGreaterThan(0n)
+        expect(before.deficit).toEqual(0n)
+
+        // Zero is the tell, and no upgraded treasury can report it: the migrator seeds mid_rate from
+        // previous_rate and mid_round from last_settled_round - round_duration, both non-zero.
+        expect(before.midRate).toEqual(0n)
+        expect(before.midRound).toEqual(0n)
+
+        const result = await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: treasuryCode,
+            migrateCode: twoRoundWindowMigratorCode,
+        })
+        expectTreasurySucceeded(result.transactions)
+
+        const after = await treasury.getTreasuryState()
+        expect(after.midRate).toEqual(before.previousRate)
+        expect(after.midRound).toEqual(before.lastSettledRound - before.windowDuration)
+        expect(after.windowDuration).toEqual(before.windowDuration)
+        expect(after.lastSettledRound).toEqual(before.lastSettledRound)
+    })
+
     it('should carry a live borrower fee through the round duration migration', async () => {
         const { blockchain, treasury, governor } = await stand()
         const liveFee = 32768n // half of 65535, rounded up; the shape of a fee that is actually set

@@ -248,7 +248,8 @@ has never been used in production.
 - `wrappers/upgrade-code-test/add_two_round_window.fc` — new migrator (below).
 - `wrappers/upgrade-code-test/reset_data.fc`, `mint_dead_shares.fc` — both parse the extension by hand
   and end with `end_parse()`; they must track the new layout.
-- `scripts/showState.ts` — `windowDuration`; the APY line is unchanged arithmetic.
+- `scripts/showState.ts` — `windowDuration`; the APY line is unchanged arithmetic; a `mid_rate` /
+  `mid_round` line so the migration's seeds can be verified after it lands.
 - `docs/integration.md` — rename the field and rewrite its description for a two-round window; **delete
   the "One caveat on the pairing" paragraph at `:173`**, which this change makes obsolete; note the two
   appended fields and that existing positions are unchanged.
@@ -309,6 +310,14 @@ It follows the three enforced rules — no `COMMIT`, no `SETCODE`, fully inlined
 revert: every field sits in the same place in the new layout, so a re-run reads through to the end and
 trips on `mid_rate`/`mid_round` left over. `participations` moves as an opaque dict, so no quiet window
 is needed.
+
+**Cross-version read, temporary.** `getTreasuryState` branches on stack length so it can still read a
+24-value pre-upgrade treasury, reporting `midRate` and `midRound` as zero. Without it `migrationDryRun`
+cannot show the before side of the diff and `showState` cannot read mainnet at all while the chain is
+still on the old code — both of which are needed to *rehearse and sign this very upgrade*. Cheaper than
+the equivalent branch in the last two releases, because appended fields mean the 24 values before them
+parse identically and only the tail needs the branch. Zero is a safe tell: the migrator seeds both from
+non-zero state. Remove it once the upgrade has landed, the way `e6f8696` and `ad9e3a2` did.
 
 **Integrators need to do nothing.** Positions 0–23 are unchanged and the three window fields keep their
 meaning, so a reader dividing by the interval stays correct and merely stops seeing a sawtooth. The
