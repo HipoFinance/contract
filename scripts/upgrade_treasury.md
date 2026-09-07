@@ -132,8 +132,9 @@ grep `~/code/HipoFinance/` for the method name before sending, because the list 
 | `mcp`                | through the sdk wrapper                                                             |                                                 |
 | `sdk`, `sdk-example` | `Treasury.ts`, sequential `stack.read*`                                             | the wrapper everything else inherits            |
 | `gauge`              | `actor/treasury.go`, checks the field count                                         | also called `get_deficit` until it was removed  |
-| `hipostat`           | `usecase/treasury.go`                                                               |                                                 |
-| ~~`driver`~~         | `usecase/contract.go`                                                               | retired, archived 2026-09-07                    |
+
+`driver` and `hipostat` read the tuple too, both from a shape several releases stale. Both were
+archived on 2026-09-07 and are no longer part of any rollout.
 
 **Upstream, needing merged PRs:** `dimension-adapters/fees/hipo` and
 `yield-server/src/adaptors/hipo` read the tuple at hardcoded offsets.
@@ -479,8 +480,8 @@ failed get method rather than a wrong answer.
 - **`borrower` was left off this list when the release went out, and that is what the checklist
   above exists to prevent.** It reads `participations` at what is now `parent`, so it panicked on
   every cycle: two validators missed round `1788759816` and a stake sat in the elector about six
-  hours past `stake_held_until`, because nothing else sends `finish_participation`. `hipostat` and
-  the now-retired `driver` were found stale in the same sweep. Naming the readers the requester
+  hours past `stake_held_until`, because nothing else sends `finish_participation`. `hipostat` and `driver`
+  were found stale in the same sweep, and both have since been retired. Naming the readers the requester
   happens to remember is not the same as enumerating them.
 
 The migrator is `wrappers/upgrade-code-test/add_round_duration.fc`, exercised in
