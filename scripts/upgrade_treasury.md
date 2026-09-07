@@ -140,7 +140,7 @@ sending, because the list is a floor. Where a field lands matters even then: an 
 | `gauge`              | `actor/treasury.go`, checks the field count                                         | the check was an equality; **broke on an append** — see below |
 | `vesting`            | `index.html`, `HIPO_JETTON_MINTER_ADDRESS_INDEX`, then `.loadAddress()`             | live at `vesting.hipo.finance`; fixed 2026-09-07          |
 | `club`               | built bundle in `HipoFinance/club`; source is `HipoGang/webapp`, via the `sdk`       | live at `club.hipo.finance`; fixed 2026-09-07 by an SDK bump |
-| `dune`               | `exporter/export-rates.mjs`, indexed with a comment naming each position             | dormant 2026-08-20 → 2026-09-07; fixed                    |
+| `dune`               | `exporter/export-rates.mjs`, indexed with a comment naming each position             | its cron failed silently for a day; fixed 2026-09-07      |
 | `burner`             | `scripts/deployBurner.ts`; `imports/constants.fc` cites an index in a comment        | deploy-time only; was broken, fixed 2026-09-07           |
 
 `club` deserves its own line in a rollout, because fixing it is not a code edit. The source is
@@ -171,9 +171,16 @@ the one this section already tells you to run — found that the round-duration 
 more readers that were on nobody's list, because `deficit` took index 5, the slot `parent` had
 occupied. `vesting` and `club` are both live user-facing sites and both call an address reader on
 what is now an integer, so they throw; on `vesting` that is the call that resolves a holder's hGRAM
-wallet address. `dune`'s exporter has not run since 2026-08-20 and will fail when it does. All three
-were fixed on 2026-09-07, along with `burner`, which the table had listed as unverified and which
-turned out to be broken the same way.
+wallet address. `dune`'s exporter is a scheduled job, so it failed where nobody was looking: last
+success 2026-09-06 11:04 UTC, then four straight failures before anyone noticed. All three were
+fixed on 2026-09-07, along with `burner`, which the table had listed as unverified and which turned
+out to be broken the same way.
+
+A note on how that last fact was nearly missed. The first pass through `dune` read a **stale local
+clone** and concluded the exporter had been dormant since 2026-08-20 — off by two weeks, and it
+would have made the outage look like an old, low-stakes one instead of same-day fallout from this
+release. `git fetch` before judging a sibling repo's state, and prefer `gh run list` over the commit
+log for anything driven by a cron.
 
 Two lessons, in order of importance. First, **run the grep, and grep the deployed artifacts too** —
 `club` was only found because the search covered a built `assets/index-*.js` bundle with no local
