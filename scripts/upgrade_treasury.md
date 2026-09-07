@@ -690,6 +690,12 @@ point `window_duration` doubles and the APY figure stops alternating. That is ex
 regression — watch for it rather than being surprised by it, and check that `last_settled_round`
 advances with it.
 
+**The APY itself must not move materially.** `window_duration` doubling is not a halving of the
+published rate: `previous_rate` rolls back to the observation two releases ago at the same moment, so
+the window covers two rounds of reward over two rounds of time and both halves of the ratio scale
+together. A reading that actually halves means the two halves came from different events, which is
+the defect this release removed — treat it as a bug and not as the new normal.
+
 For this release the numbers are known in advance, because no release had happened yet when the
 upgrade landed: round `1788759816` settles after its hold, and that release should set
 `window_duration` to `1788759816 - 1788628744` = **131072** exactly, `last_settled_round` to
