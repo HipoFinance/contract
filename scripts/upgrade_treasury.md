@@ -585,7 +585,14 @@ tuple as it actually is.
 
 ## Two-Round Rate Window
 
-Spec: `docs/specs/2026-09-07-two-round-rate-window.md`. **Not yet performed.**
+> **Already performed on mainnet, 2026-09-07.** Spec: `docs/specs/2026-09-07-two-round-rate-window.md`.
+> Kept as the record of what was run. Verified on chain rather than assumed: `get_treasury_state`
+> returns **26** values, the deployed code hash is
+> `430d16608514e5b924e6abc8621820dc4b5328baab456a71fc114e2e6d978dd6` (the plain `Treasury` build),
+> `mid_rate` came back at `1163839627` equal to `previous_rate`, `mid_round` at `1788628744` equal to
+> `last_settled_round - window_duration`, and `borrower_fee` survived the extension rewrite at `32767`.
+> Do not re-run it: the migrator ends its parses with `end_parse()`, so a second run throws and reverts
+> the whole upgrade.
 
 Two changes to what the treasury publishes about its own growth, and one layout change to carry them.
 
@@ -665,19 +672,30 @@ Its cost does not scale with anything stored, so it needs **no** quiet window wi
    `parent`, `governor`, `halter`, the exchange rate, `deficit` and `borrower_fee` are all unchanged.
    The code hash should equal the plain `Treasury` build.
 
-5. **Then remove the cross-version read.** `getTreasuryState` branches on a stack length of 24 so it
-   can read a pre-upgrade treasury — without it `showState` and the dry run cannot read the chain
-   *before* this upgrade, which is when they are needed. Once the upgrade has landed there is no old
-   side left: delete the branch, the `midRate`/`midRound` zero fallbacks, and the cross-version case in
-   `tests/TreasuryMigration.spec.ts`. Check the chain first rather than assuming, the way `e6f8696`
-   did.
+5. **Then remove the cross-version read.** Done, after the chain was checked rather than assumed.
+   `getTreasuryState` had branched on a stack length of 24 so it could read a pre-upgrade treasury —
+   without it `showState` and the dry run cannot read the chain *before* this upgrade, which is when
+   they are needed, and both threw `EOF` until it was added. Gone with it: the branch, the
+   `midRate`/`midRound` zero fallbacks, and the cross-version case in `tests/TreasuryMigration.spec.ts`.
+
+   Note for next time: this was **missed in the first release commit** and only surfaced when the
+   upgrade script was run. The two releases before it both carried the same branch, so it belongs on
+   the checklist rather than in anyone's memory — if a release changes the tuple's length in either
+   direction, the wrapper needs to read both sides of it until the chain has caught up.
 
 ### After it lands
 
 The first barrier release after the upgrade publishes the first genuine two-round window, at which
-point `window_duration` roughly doubles and the APY figure stops alternating. That is expected, not a
+point `window_duration` doubles and the APY figure stops alternating. That is expected, not a
 regression — watch for it rather than being surprised by it, and check that `last_settled_round`
 advances with it.
+
+For this release the numbers are known in advance, because no release had happened yet when the
+upgrade landed: round `1788759816` settles after its hold, and that release should set
+`window_duration` to `1788759816 - 1788628744` = **131072** exactly, `last_settled_round` to
+`1788759816`, `mid_round` to `1788694280`, and `previous_rate` to the `1163839627` that `mid_rate`
+was seeded with. If `window_duration` is still 65536 well after that round's `stake_held_until`,
+something did not release.
 
 Watch also for the change this makes to *when* the pair moves: nothing is published while an older
 round still owes its reward. In the elector-rejection case that is about a round of silence where
