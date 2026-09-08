@@ -40,6 +40,12 @@ export async function run(provider: NetworkProvider) {
 
     const exchangeRate = Number(treasuryState.totalCoins) / Number(treasuryState.totalTokens)
 
+    // Consumers should call computeApy() from @hipo-finance/sdk rather than copy this. This script
+    // deliberately does not: the SDK is derived FROM this repository -- it follows whatever shape
+    // get_treasury_state grows into -- so depending on it here would point the dependency backwards
+    // and make the contract's own tooling lag its downstream. It also reads this repo's
+    // TreasuryConfig, not the SDK's. If the two ever disagree, this one is right by construction.
+    //
     // The interval the rate pair actually grew over, which is not the same as a round length: the
     // window spans two barrier releases, so in steady state it is about two rounds, and it widens
     // further across rounds where nothing was lent. Dividing by a nominal round length instead would
