@@ -651,6 +651,13 @@ silent break: `wrappers/Treasury.ts`, `wrappers/migrationDryRun.ts`, `scripts/sh
 repo, then `sdk` and everything downstream of it. Announce the widened window in the release notes so
 nobody reads a doubled `window_duration` as a bug.
 
+**Done 2026-09-08**: `sdk@6.0.0`, then `website`, `mcp`, `sdk-example` and `HipoGang/webapp` (rebuilt
+into `HipoFinance/club`). One trap surfaced there and it is the reason to read a rename rather than
+apply it: the website's `roundsPerYear` counts HPO reward payouts and needs a **round length**, not
+this window. Renaming it mechanically would have said rounds take ~36h and halved every HPO figure on
+the page. The treasury no longer publishes a round length at all, so anything that needs one must
+take it from `get_times` or a constant — grep for round-length uses separately from APY uses.
+
 `vesting`, `club`, `dune` and `burner` were broken by the *previous* release and were all fixed on
 2026-09-07, after this one landed. `gauge` was broken by *this* release, through a field-count
 assertion rather than an index — see _Appending is not free either_ above.
@@ -729,12 +736,27 @@ the window covers two rounds of reward over two rounds of time and both halves o
 together. A reading that actually halves means the two halves came from different events, which is
 the defect this release removed — treat it as a bug and not as the new normal.
 
-For this release the numbers are known in advance, because no release had happened yet when the
-upgrade landed: round `1788759816` settles after its hold, and that release should set
-`window_duration` to `1788759816 - 1788628744` = **131072** exactly, `last_settled_round` to
-`1788759816`, `mid_round` to `1788694280`, and `previous_rate` to the `1163839627` that `mid_rate`
-was seeded with. If `window_duration` is still 65536 well after that round's `stake_held_until`,
-something did not release.
+For this release the numbers were known in advance, because no release had happened yet when the
+upgrade landed. **It fired on 2026-09-08 and every predicted value matched**, which is the proof the
+migrator seeded the mid slot correctly and that the roll in `burn_ready_participations` reads each
+old value before overwriting it:
+
+| field                | before     | predicted  | observed on chain |
+| -------------------- | ---------- | ---------- | ----------------- |
+| `window_duration`    | 65536      | 131072     | **131072**        |
+| `last_settled_round` | 1788694280 | 1788759816 | 1788759816        |
+| `mid_rate`           | 1163839627 | 1164156495 | 1164156495        |
+| `mid_round`          | 1788628744 | 1788694280 | 1788694280        |
+| `previous_rate`      | 1163839627 | unchanged  | 1163839627        |
+
+`current_rate` came out at `1164402398`, so the published APY is **12.33%** — normal, and not the
+~6% a genuine halving would have shown. Worth recording what the *old* code would have published
+from the same release: **10.70%**, annualising the newest observation alone. The 1.6-point gap is
+exactly the round-to-round noise this release exists to remove, so that spread is the feature
+working rather than a discrepancy to chase.
+
+If `window_duration` is ever back at 65536 well after a round's `stake_held_until`, something did
+not release.
 
 Watch also for the change this makes to *when* the pair moves: nothing is published while an older
 round still owes its reward. In the elector-rejection case that is about a round of silence where
