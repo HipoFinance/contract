@@ -765,3 +765,99 @@ Watch also for the change this makes to *when* the pair moves: nothing is publis
 round still owes its reward. In the elector-rejection case that is about a round of silence where
 there used to be a spurious 0%. A stale `last_settled_round` with a healthy `participations` list is
 the expected shape there, not a wedge.
+
+## Repoint the Burner
+
+Spec: `docs/specs/2026-08-31-borrower-fee-hpo-burn.md`, which anticipated this exact upgrade under
+_Why the burner address is a constant and not a stored field_ — "replacing the address later requires
+a treasury upgrade". This is that upgrade being spent, once.
+
+One constant changes and nothing else:
+
+```
+const int burner::addr = 0x063c...8597;   ;; EQAGPJMxJ73OLpHUgQhI5YeQe2ZuAuUQ-4f_zfN4rV2Fl6Jp
+const int burner::addr = 0xdc8d...5030;   ;; EQDcjZDWvotoVE0X4HSdt2pR3b2sBZ4XikzSVSdPiqdQMLRK
+```
+
+**There is no migrator and no storage change.** `burner::addr` is compile-time, so the treasury's
+`c4` is untouched, the getter tuple keeps its 26 values, and no reader anywhere needs anything — this
+is the one upgrade in this file that the census section does not apply to. Leave `migratorName` at
+`null`.
+
+The reason for the move is on the burner's side: the first burner had no `set_code`, so improving it
+meant redeploying it, and the address moved with it. The replacement is upgradable in place, which is
+what should stop this section from being needed a third time. See the sibling repo's
+`4629667`.
+
+### Why the diff is exactly one constant, and how that was shown
+
+Not asserted — reproduced. Reverting `burner::addr` alone and rebuilding gives
+`430d16608514e5b924e6abc8621820dc4b5328baab456a71fc114e2e6d978dd6`, which is byte-for-byte the code
+hash on chain. So the release is the deployed treasury plus the new address and nothing that drifted
+into the working tree beside it:
+
+| build                             | code hash                                                          |
+| --------------------------------- | ------------------------------------------------------------------ |
+| deployed / old address rebuilt    | `430d16608514e5b924e6abc8621820dc4b5328baab456a71fc114e2e6d978dd6` |
+| this release                      | `22d7118ecc29fdab794f99a4111b503e20d995ceec725eca6d6da5808b05acc8` |
+
+Worth doing on any constant-only release. It is cheap, and it is the only check that distinguishes
+"I changed one line" from "I changed one line and shipped whatever else was open".
+
+### Before sending
+
+1. **Confirm the new burner is the code you think it is.** Build the sibling repo (`npx blueprint
+   build Burner`) and compare its hash to the account's `code_hash` on chain. On 2026-09-09 both were
+   `Xt0fOmGJm+czrkKAeT3c+2Qvmx5fi20dPk5ESNsOIi8=`. An address alone proves nothing here; the treasury
+   is about to send it money on every recovery.
+2. **Confirm it still takes the fee as a payment.** The treasury needs exactly one thing from the
+   burner and it is not a handler: `op::take_borrower_fee` must fall through to the payment branch,
+   and the treasury must stay absent from the `from_route?` change-detector that suppresses a cycle.
+   Both hold in the deployed code — check them rather than assuming, because a burner that classified
+   the treasury as returned change would bank every fee and never burn it, silently.
+3. **Check it is warm.** `get_burner_data` should show discovered `hgram_wallet` and `hpo_wallet` and
+   a non-zero `total_burned`; `get_progress` should show `hgram_pending` and `hpo_pending` at zero.
+   On 2026-09-09 it had run one full cycle (2.01 GRAM in, 265.05 HPO burned) with both wallets known,
+   so the first fee after the repoint starts a swap immediately instead of paying for discovery.
+4. **Check the old burner is idle before you strand it.** `get_progress` on
+   `EQAGPJ...l6Jp`: both pending amounts must be zero, or a leg is mid-flight and repointing leaves it
+   for a poke that nothing will send. It read `0, 0` with 5 deposits, 4 swaps and 4 burns behind it.
+5. **No quiet window is needed.** Nothing here scales with stored requests and no layout changes, so
+   `total_borrowers_stake` does not have to be zero. The upgrade can go out at any point in a round.
+
+### Sending
+
+1. Leave `const migratorName: string | null = null` in `scripts/upgradeCode.ts`.
+2. Run it. **The dry run should show a code-hash change and an otherwise empty state diff** — that is
+   the whole acceptance test. Any field appearing under `STATE DIFF` means something other than the
+   constant went out with this build; stop and find it.
+3. Verify with `showState.ts` that `total_coins`, `total_tokens`, `parent`, `governor`, `halter`, the
+   exchange rate, `deficit`, `borrower_fee` and the rate window are all unchanged, and that the code
+   hash is now `22d7118e...`.
+
+### After it lands
+
+1. **Watch the first loan recovery.** That is the only event that exercises the change. The fee
+   should arrive at `EQDcjZ...MLRK` and `total_received` there should rise by it. Until a round
+   settles, nothing about this upgrade is observable on chain.
+2. **Retire the old burner.** It keeps whatever balance it holds (1.004 GRAM on 2026-09-09) and will
+   never be paid again. Per the sibling repo's runbook, the tool for emptying a burner you are
+   retiring is `withdrawGram` with the sweep option — **not** `rescue`, which stops early when
+   nothing is stuck and is meant for a dead route.
+3. **Find the other payers and the other trackers.** Grep `~/code/HipoFinance/` for the old address
+   rather than reasoning about who cares; this is the cost the burner repo redeployed to stop paying.
+   Done on 2026-09-09, and the result was not what was assumed:
+
+   - `dimension-adapters/fees/hipo` needs **nothing**. It takes the burn from the treasury's own
+     repayment log (`v[6]`), not from the burner's balance, so it follows the fee and not the
+     address. Worth knowing before anyone opens a reflexive upstream PR.
+   - `hpo-trader` is a **second payer into the burner**, not a tracker — it routes realized arb and
+     peg profit there. Its spec still names the old address. Not yet implemented when this landed,
+     so it is a spec correction rather than a break, but it is money that would otherwise go to a
+     retired contract.
+   - `burner/wrappers/addresses.ts` still held the old address, which is what the burner's own
+     scripts point at.
+
+   The general shape: a **tracker** keyed on the treasury survives this, a tracker keyed on the
+   burner does not, and a **payer** is the case that actually loses money — the retired burner still
+   works, so a stale payer silently splits the burn across two addresses instead of failing.

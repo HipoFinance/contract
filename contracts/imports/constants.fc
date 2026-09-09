@@ -210,7 +210,7 @@ const int fee::new_stake_confirmation = 1000000000; ;; 1 GRAM
 const int fee::min_burn = 1000000000; ;; 1 GRAM
 
 
-;; Recipient of the borrower fee: EQAGPJMxJ73OLpHUgQhI5YeQe2ZuAuUQ-4f_zfN4rV2Fl6Jp, the deployed
+;; Recipient of the borrower fee: EQDcjZDWvotoVE0X4HSdt2pR3b2sBZ4XikzSVSdPiqdQMLRK, the deployed
 ;; burner contract, which buys HPO with the GRAM it receives and burns it. Its source is the sibling
 ;; `burner` repository; it treats op::take_borrower_fee as a payment rather than a known op, so the
 ;; treasury needs no cooperation from it beyond the address.
@@ -218,8 +218,14 @@ const int fee::min_burn = 1000000000; ;; 1 GRAM
 ;; A constant rather than a stored field because the extension cell has all four refs taken and an
 ;; inline address would not fit its bit budget either. Changing it is therefore a treasury upgrade.
 ;; See docs/specs/2026-08-31-borrower-fee-hpo-burn.md.
+;;
+;; Repointed 2026-09-09 from EQAGPJMxJ73OLpHUgQhI5YeQe2ZuAuUQ-4f_zfN4rV2Fl6Jp, the first burner. That
+;; one had no set_code, so improving it meant redeploying it, and the address that identifies the
+;; burn to every outside tracker moved with it. The one named here can be upgraded in place, so this
+;; should be the last time a treasury upgrade is spent on following the burner.
+;; See scripts/upgrade_treasury.md, "Repoint the Burner".
 const int burner::wc = 0; ;; basechain -- chain::base is declared further down this file
-const int burner::addr = 0x063c933127bdce2e91d4810848e587907b666e02e510fb87ffcdf378ad5d8597;
+const int burner::addr = 0xdc8d90d6be8b68544d17e0749db76a51ddbdac059e178a4cd255274f8aa75030;
 
 
 const int log::loan = 0x1;

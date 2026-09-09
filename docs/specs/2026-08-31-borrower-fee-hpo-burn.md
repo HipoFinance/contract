@@ -23,6 +23,12 @@ sibling `burner` repository, which buys HPO with the GRAM it receives and burns 
 `op::take_borrower_fee` as a payment rather than a known op, so the treasury needs no cooperation
 from it beyond the address.
 
+> **Address superseded 2026-09-09**, to `EQDcjZDWvotoVE0X4HSdt2pR3b2sBZ4XikzSVSdPiqdQMLRK`.
+> Everything above still holds: the same swap-and-burn contract, improved and redeployed, still
+> treating `op::take_borrower_fee` as a payment. What moved is only the address, and the section
+> below on what a constant costs is the part that got exercised. See `scripts/upgrade_treasury.md`,
+> "Repoint the Burner".
+
 The tax base is the borrower's **contractual share of the gross reward**,
 `muldiv(reward, borrower_reward_share, 65535)`, and `borrower_fee` is a fraction of it out of
 65535 — so `32767` means "half of what the borrower contracted to earn". **The chosen rate is
