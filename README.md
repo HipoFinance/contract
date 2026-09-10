@@ -130,6 +130,8 @@ reimplement it.
   the alternatives that were rejected.
 - [`scripts/upgrade_treasury.md`](scripts/upgrade_treasury.md) — the mainnet upgrade runbook, and a
   record of every upgrade performed.
+- [`CHANGELOG.md`](CHANGELOG.md) — what changed and when, organised by mainnet release, with the
+  deployed code hash for each.
 
 ## Graphs
 
