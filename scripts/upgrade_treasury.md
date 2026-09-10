@@ -141,18 +141,22 @@ sending, because the list is a floor. Where a field lands matters even then: an 
 | `sdk`, `sdk-example` | `Treasury.ts`, sequential `stack.read*`                                             | the wrapper everything else inherits                     |
 | `gauge`              | `actor/treasury.go`, checks the field count                                         | the check was an equality; **broke on an append** — see below |
 | `vesting`            | `index.html`, `HIPO_JETTON_MINTER_ADDRESS_INDEX`, then `.loadAddress()`             | live at `vesting.hipo.finance`; fixed 2026-09-07          |
-| `club`               | built bundle in `HipoFinance/club-build`; source is `HipoFinance/club`, via the `sdk` | live at `club.hipo.finance`; fixed 2026-09-07 by an SDK bump |
+| `club-web`           | built bundle in `HipoFinance/club-web-build`; source is `HipoFinance/club-web`, via the `sdk` | live at `club.hipo.finance`; fixed 2026-09-07 by an SDK bump |
 | `dune`               | `exporter/export-rates.mjs`, indexed with a comment naming each position             | its cron failed silently for a day; fixed 2026-09-07      |
 | `burner`             | `scripts/deployBurner.ts`; `imports/constants.fc` cites an index in a comment        | deploy-time only; was broken, fixed 2026-09-07           |
 
-`club` deserves its own line in a rollout, because fixing it is not a code edit. The source is
-`HipoFinance/club` (private; it was `HipoGang/webapp` until 2026-09-08), which reads the treasury only
-through `@hipo-finance/sdk`, so it is fixed by bumping that dependency. The build output lives in a
-second, **public** repo, `HipoFinance/club-build` — that split is not tidiness, it is what lets a
-private source serve a public Pages site without a paid plan, so do not try to collapse it.
-Deploying means: **pull `club-build` first** — the team pushes built artifacts there directly, and
-the source clone may be behind — then `npm run build` and copy
-`dist/` over the whole repo. `dist/` is the complete site, `public/` and all.
+`club-web` deserves its own line in a rollout, because fixing it is not a code edit. The source is
+`HipoFinance/club-web` (private; `HipoFinance/club` until 2026-09-10, and `HipoGang/webapp` until
+2026-09-08), which reads the treasury only through `@hipo-finance/sdk`, so it is fixed by bumping
+that dependency. The build output lives in a second, **public** repo, `HipoFinance/club-web-build`
+— that split is not tidiness, it is what lets a private source serve a public Pages site without a
+paid plan, so do not try to collapse it.
+
+Deploying it is **automatic** since 2026-09-08: a push to `club-web`'s `main` builds the site and
+publishes `dist/` into `club-web-build`, and the workflow then reloads the live page until it
+reports the commit it just built. So the rollout step here is an SDK bump and a commit, not a
+manual build. Do not commit to `club-web-build` by hand — the next push to the source silently
+discards it.
 
 Readers that take only `total_coins` and `total_tokens` survive any insert after index 2 and are
 listed so the next census does not have to rediscover them: `hpo-trader/trader/tonclient/hipo.go`
