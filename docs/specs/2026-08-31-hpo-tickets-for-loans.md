@@ -1,9 +1,11 @@
 # HPO tickets for loan requests
 
-> **Status: deferred design record. Not approved for implementation.**
-> Recorded so the analysis is not re-derived. The income→HPO link is being built first as a
-> borrower-reward cut — see `2026-08-31-borrower-fee-hpo-burn.md`. Revisit this when borrower
-> count grows enough that a per-borrower cost is material.
+> **Status: closed 2026-09-10. Not implemented; no longer queued.**
+> Recorded so the analysis is not re-derived. The income→HPO link was built as a borrower-reward
+> cut instead — see `2026-08-31-borrower-fee-hpo-burn.md`, live on mainnet since the 2026-09-09
+> burner release — and that is considered sufficient. Nothing here is rejected on its merits;
+> it is simply not needed while the fee route covers the same ground at no per-borrower cost.
+> Reopen only if a concrete need appears.
 
 ## Problem
 

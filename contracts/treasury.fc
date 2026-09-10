@@ -2262,16 +2262,21 @@ int calculate_min_coins() inline_ref {
     upgrade_data(src, query_id, migrate_code, return_excess);
 }
 
-;; TODO, when a new parent is deployed: give parent.fc the same migration mechanism as the treasury,
-;; a run_migrator plus the null-and-empty guard in its upgrade_data. Until then the name below is
-;; aspirational for the parent path. parent.fc still carries the plain template, which ignores this
-;; cell entirely, so a migrator proxied to the parent is SILENTLY DROPPED rather than executed.
+;; The parent has no migration mechanism: parent.fc carries the plain template, with no run_migrator
+;; and no null-and-empty guard in its upgrade_data, so it ignores the migrator cell entirely and a
+;; migrator proxied to the parent is SILENTLY DROPPED rather than executed. The name below is
+;; aspirational for the parent path.
 ;;
 ;; That is not dangerous by itself. A parent migration that was needed and did not run leaves the new
 ;; code reading the old layout, so load_data() throws and the upgrade reverts whole. The bad case is a
 ;; migrator that was meant to do something other than change the layout: it would be dropped without
 ;; a word and the upgrade would report success. Do not proxy a migrator to the parent until parent.fc
 ;; runs one. See scripts/upgrade_treasury.md.
+;;
+;; This is not queued work. An in-place parent upgrade is not planned: the path has not been used in
+;; one to two years, and the expected route for a new parent is to deploy a fresh one that replaces
+;; this contract, not to migrate this one. Give parent.fc the treasury's mechanism only if that plan
+;; changes, and before proxying anything to it.
 () proxy_upgrade_code(slice src, slice s) impure inline {
     unpack_extension();
 

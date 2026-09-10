@@ -1,8 +1,9 @@
 # Minimum bid efficiency for loan requests
 
-> **Status: problem record. No design agreed; needs its own interview before implementation.**
+> **Status: closed 2026-09-10 — no change. The behaviour is by design.**
 > Found while specifying `2026-08-31-borrower-fee-hpo-burn.md`. Recorded separately because it
-> is a pre-existing property of the auction, not something that change introduces.
+> is a pre-existing property of the auction, not something that change introduces. The analysis
+> below stands; the decision it was waiting for is in *Decision* at the end.
 
 ## Problem
 
@@ -34,7 +35,7 @@ the punishment path is unchanged. It is that a round's entire reward can be capt
 borrower who contributed nothing but a server, at a collateral cost of ~101 GRAM, whenever the
 pool has capacity nobody else bid for. Stakers see a round with no reward and no explanation.
 
-## Directions not yet evaluated
+## Options considered
 
 - A governance-set minimum efficiency (`min_payment * 2^k / loan_amount`) checked in
   `request_loan`, rejecting bids below it. Simple, but sets a price floor that could leave
@@ -46,7 +47,26 @@ pool has capacity nobody else bid for. Stakers see a round with no reward and no
 - Doing nothing, on the grounds that a bid returning nothing is still better than idle GRAM
   and the situation resolves itself as borrower count grows.
 
-The last option is genuinely arguable and is why this needs an interview rather than a design.
+## Decision
+
+**Do nothing.** The last option was adopted; the first three are rejected.
+
+The auction already contains the defence. A zero-return bid sorts last, so it can never displace
+a request that pays the pool anything at all — it only ever consumes capacity that no better bid
+asked for. In that situation the alternative is not a better round, it is idle GRAM: the pool
+earns nothing either way, and at least the coins are validating. There is no state in which
+accepting the bid is worse for stakers than rejecting it.
+
+The three gating designs all buy protection against a case that cannot occur by adding a floor
+that can leave capacity unlent when the market is thin — trading a harmless outcome for a real
+one. A price floor is also the wrong instrument here: what actually raises the pool's take is
+more borrowers bidding against each other, and competition is expected to push efficiency *up*
+over time, not down. The situation this spec describes is a symptom of two borrowers, not of a
+missing rule.
+
+Revisit only if the premise breaks — if a bid returning nothing to the pool ever starts
+displacing one that would have paid, the sort order is what changed, and that is a different
+spec.
 
 ## Interaction with the burner spec
 
