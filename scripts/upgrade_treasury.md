@@ -88,7 +88,7 @@ same governor. It does **not** validate accounting: a migrator that writes a wro
 will be accepted. That is deliberate — migrations sometimes need to change those values, as the
 dead-shares migration did — but do not mistake the check for an accounting guarantee.
 
-### The parent does not run migrators yet
+### The parent does not run migrators
 
 `migrate_code` is named that way throughout `treasury.fc`, including in `proxy_upgrade_code`, which
 forwards an upgrade to another contract. **`parent.fc` has not been given this mechanism.** It still
@@ -100,9 +100,11 @@ the new code reading the old layout, `load_data()` throws, and the upgrade rever
 case is a migrator meant to do something other than change the layout — it would be dropped without
 a word while the upgrade reported success.
 
-**Do not proxy a migrator to the parent until `parent.fc` runs one.** Giving it `run_migrator` and
-the same null-and-empty guard is a TODO for whenever a new parent is deployed, which is also when
-its code hash is free to move.
+**Do not proxy a migrator to the parent until `parent.fc` runs one.** That is not queued work: an
+in-place parent upgrade is not planned, and the expected route for a new parent is to deploy a fresh
+one that replaces this contract rather than to migrate it. If that plan ever changes, give
+`parent.fc` the treasury's `run_migrator` and the same null-and-empty guard first — at the same time
+as the deploy that frees its code hash to move — and only then proxy anything to it.
 
 ### Writing one
 
