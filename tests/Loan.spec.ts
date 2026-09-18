@@ -377,6 +377,79 @@ describe('Loan', () => {
         accumulateFees(result.transactions)
     })
 
+    it('should not charge the treasury for an external it rejects', async () => {
+        // Every external handler runs its throw_unless checks BEFORE accept_message, so a message
+        // sent at the wrong moment is discarded in the compute phase: no transaction is committed
+        // and nobody pays for it.
+        //
+        // That is not an incidental property. HipoFinance/poker fires these three at the first
+        // second a transition can be legal and retries every minute until the state moves, and in
+        // blind mode - when it cannot trust get_treasury_state - it fires all three at every
+        // candidate round and lets these guards do the filtering. A service doing that would be
+        // unusable if a rejected external cost the treasury anything, and it would be dangerous if
+        // one could half-apply. See docs/specs/2026-09-18-poke-service.md.
+        const times = await treasury.getTimes()
+        const electedFor = times.nextRoundSince - times.currentRoundSince
+        const since = BigInt(Math.floor(Date.now() / 1000)) - electedFor / 2n
+        const until = since + electedFor
+        setConfig(blockchain, config.currentValidators, createVset(since, until))
+
+        // An open round whose election window has not opened yet: exactly what a poker aims all
+        // three messages at, with none of them yet the right one.
+        const state = await treasury.getTreasuryState()
+        state.participations.set(until, { state: ParticipationState.Open })
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(state),
+                balance: toNano('10'),
+            }),
+        )
+
+        const balanceBefore = await treasury.getBalance()
+        const stateBefore = treasuryConfigToCell(await treasury.getTreasuryState())
+
+        const rejected: [string, () => Promise<unknown>, number][] = [
+            // Open, but now() is still short of min(participate_since, round_since).
+            [
+                'participate_in_election',
+                () => treasury.sendParticipateInElection({ roundSince: until }),
+                err.tooSoonToParticipate,
+            ],
+            // Open is neither staked nor validating.
+            ['vset_changed', () => treasury.sendVsetChanged({ roundSince: until }), err.vsetNotChangeable],
+            // Open is not held.
+            [
+                'finish_participation',
+                () => treasury.sendFinishParticipation({ roundSince: until }),
+                err.notReadyToFinishParticipation,
+            ],
+        ]
+
+        for (const [name, send, exitCode] of rejected) {
+            let thrown: unknown
+            try {
+                await send()
+            } catch (e) {
+                thrown = e
+            }
+            // Checked outside the catch, so that "it was accepted" fails as itself rather than
+            // being swallowed and reported as a missing exit code.
+            expect({ name, exitCode: (thrown as EmulationError | undefined)?.exitCode }).toEqual({ name, exitCode })
+        }
+
+        // Not "roughly the same": identical. A rejected external leaves no transaction at all, so
+        // the balance has not moved by a nanoGRAM and every stored field is byte for byte what it
+        // was - which is what makes retrying one every second free.
+        const balanceAfter = await treasury.getBalance()
+        const stateAfter = treasuryConfigToCell(await treasury.getTreasuryState())
+        expect(balanceAfter).toEqual(balanceBefore)
+        expect(stateAfter.hash().toString('hex')).toEqual(stateBefore.hash().toString('hex'))
+    })
+
     it('should handle external participate message only once', async () => {
         const times = await treasury.getTimes()
         const electedFor = times.nextRoundSince - times.currentRoundSince

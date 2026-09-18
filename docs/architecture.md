@@ -195,6 +195,31 @@ operations, each with a graph and a script in `scripts/`:
   from a previous parent.
 - `gift_coins` donates GRAM to the pool (raises the rate for everyone).
 
+### Who sends the externals
+
+`participate_in_election`, `vset_changed` and `finish_participation` are the only messages that
+advance a participation, and nothing on chain sends them. They are **unsigned externals**: each
+handler runs its `throw_unless` checks before `accept_message()`, so anyone may send one, a
+mistimed one is discarded in the compute phase at nobody's expense, and only a correctly timed one
+costs the treasury a transaction. That is what makes an unauthenticated driver safe.
+
+For a long time the only senders were borrower-operated machines, which meant the protocol advanced
+only while somebody else's validator tooling was running. The comment above `get_treasury_state`
+records what that cost once. A dedicated driver of last resort now runs alongside them —
+`HipoFinance/poker`, two instances, holding no key because these three messages need none. It pokes
+at the first second each transition becomes legal and retries every minute until the state moves,
+and it treats a successful send as meaning nothing until the state itself changes. Borrowers still
+poke; it is redundancy, not a replacement. See `docs/specs/2026-09-18-poke-service.md`.
+
+Two consequences are worth keeping in mind when changing anything near this. Because these messages
+are unauthenticated, **`set_stopped` does not stop a round being lent**: `participate_in_election`,
+`distribute` and `process_loan_requests` have no `stopped?` check, so a halted treasury still lends
+the open round's already-placed requests when someone pokes it. The poke service withholds that one
+message while `stopped?` is set, which mitigates but does not close it — anyone else may still send
+it. And the retries (`retry_distribute`, `retry_recover_stakes`, `retry_burn_all`,
+`retry_mint_bill`) are deliberately *not* automated: they are internal, governor-or-halter gated,
+and `retry_burn_all` encodes a judgment that belongs to a person.
+
 ### Repairing a wedged burn chain
 
 A round's bills burn as a chain: the collection sends `burn_bill` to bill *i*, and only the
