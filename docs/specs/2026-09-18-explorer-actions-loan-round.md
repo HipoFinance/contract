@@ -74,10 +74,11 @@ Nothing in this repository's contracts, wrappers, or tests. Per repository:
 - `tonkeeper/tongo`, `abi/schemas/hipo_finance.xml`: declare the eleven ops. Three of them —
   `participate_in_election`, `vset_changed`, `finish_participation` — must be declared as
   **ext_in**, not internal: `route_external_message` is the only handler that accepts them,
-  and it accepts nothing else. Note `finish_participation` carries `query_id:uint32`, not the
-  `uint64` every other op uses; declaring it wrong would silently misparse `round_since`.
-  `proxy_new_stake` carries `new_stake_msg:^NewStakeMsg` — declare it by reference to the
-  Elector's existing schema rather than restating it.
+  and it accepts nothing else. `proxy_new_stake` carries `new_stake_msg:^NewStakeMsg` —
+  declare it by reference to the Elector's existing schema rather than restating it. Declare
+  the pre-2026-09-05 `request_loan` layout as well, or history stops decoding: the
+  `borrower_reward_share` widening means an old request underflows the current declaration
+  rather than merely misreporting.
 - `tonkeeper/opentonapi`, `api/openapi.yml` plus generated code: three action types, each
   carrying `implementation: PoolImplementationType`.
   - `LoanRequest` — borrower, pool, loan amount, minimum payment, borrower reward share,
@@ -93,10 +94,14 @@ Nothing in this repository's contracts, wrappers, or tests. Per repository:
   established: a straw that names an account must be pinned to an address only Hipo can send
   from, and "sent by the treasury" is not such a pin — see that spec's notes on
   `reserve_tokens`.
-- This repository, docs only: `contracts/schema.tlb` declares `participate_in_election`,
-  `vset_changed` and `finish_participation` as `InternalMsgBody`, which is **wrong** — they
-  are external-only. Fix the annotation, since the ABI work and any future integrator read
-  that file as the source of truth. Extend the "Explorer Actions" section of
+- This repository, docs only: `contracts/schema.tlb` got these three wrong twice over.
+  `participate_in_election`, `vset_changed` and `finish_participation` were declared
+  `InternalMsgBody` when `route_external_message` is the only handler that takes them, and
+  `finish_participation` was given a `uint32` query id when `treasury.fc` reads
+  `load_uint(64)`. Both are fixed. The second one matters more than a wrong annotation
+  looks: it is a plausible-looking lie that was copied straight into the ABI, where it
+  reported the low half of the query id as the round. Anything generated from this file
+  should be checked against the FunC, not against the file. Extend the "Explorer Actions" section of
   `docs/integration.md` with the loan/round taxonomy.
 
 ## Invariants
@@ -132,8 +137,10 @@ The schema change is the risk. Mitigations, in the order they should be tried:
 
 ## Test plan
 
-- tongo: decode one real mainnet message per declared op and check every field against
-  `contracts/schema.tlb`. Trace hashes for all eleven are in the local replay corpus.
+- tongo: decode one real mainnet message per declared op, check every field against the
+  **FunC source** rather than `contracts/schema.tlb`, and assert each decode consumes the
+  whole body — a field declared too narrow decodes fine and reports a plausible number, so
+  leftover bits are the only signal. Trace hashes for all eleven are in the local replay corpus.
   Implemented as `abi/hipo_finance_test.go` in `tongo#504`, which also pins the two field
   widths that decode "successfully" while reporting the wrong number.
 - opentonapi: replay the round-end traces offline through the harness that reproduces the

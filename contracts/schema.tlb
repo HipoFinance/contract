@@ -257,7 +257,7 @@ request_loan#36335da9
 participate_in_election#574a297b
     query_id:uint64
     round_since:uint32
-        = InternalMsgBody;
+        = ExternalMsgBody;
 
 decide_loan_requests#6a31d344
     query_id:uint64
@@ -272,12 +272,12 @@ process_loan_requests#071d07cc
 vset_changed#2f0b5b3b
     query_id:uint64
     round_since:uint32
-        = InternalMsgBody;
+        = ExternalMsgBody;
 
 finish_participation#23274435
-    query_id:uint32
+    query_id:uint64
     round_since:uint32
-        = InternalMsgBody;
+        = ExternalMsgBody;
 
 recover_stakes#4f173d3e
     query_id:uint64
