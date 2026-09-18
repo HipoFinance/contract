@@ -11,7 +11,7 @@ half does not. Measured over 603 recent mainnet traces around the treasury and p
   `MinPayment`, `BorrowerRewardShare` and the whole `NewStakeMsg`.
 - A round-end trace is **up to 106 transactions rendering as 86 actions, ~57 of them bare
   "Execution of smart contract"**.
-- Ten loan/round op-codes are **not declared in tongo's ABI at all**, so they render as raw
+- Eleven loan/round op-codes are **not declared in tongo's ABI at all**, so they render as raw
   hex with no name and no fields: `0x574a297b`, `0x6a31d344`, `0x071d07cc`, `0x2f0b5b3b`,
   `0x23274435`, `0x4f173d3e`, `0x089cd4d0`, `0x407cb243`, `0xcd0f2116`, `0x8b556813`,
   `0x5e2d81f4`.
@@ -31,7 +31,7 @@ traces.
 
 Three deliverables, in dependency order.
 
-1. **Complete the tongo ABI** for the ten loan/round ops above, so every row gains a name
+1. **Complete the tongo ABI** for the eleven loan/round ops above, so every row gains a name
    and its `round_since` — the field that lets one round be followed through a trace. Same
    shape of contribution as `tongo#499`, which was merged.
 2. **New action types in opentonapi's OpenAPI schema** for the loan lifecycle.
@@ -71,7 +71,7 @@ Decided by interview (2026-09-18):
 
 Nothing in this repository's contracts, wrappers, or tests. Per repository:
 
-- `tonkeeper/tongo`, `abi/schemas/hipo_finance.xml`: declare the ten ops. Three of them —
+- `tonkeeper/tongo`, `abi/schemas/hipo_finance.xml`: declare the eleven ops. Three of them —
   `participate_in_election`, `vset_changed`, `finish_participation` — must be declared as
   **ext_in**, not internal: `route_external_message` is the only handler that accepts them,
   and it accepts nothing else. Note `finish_participation` carries `query_id:uint32`, not the
@@ -109,7 +109,7 @@ Nothing in this repository's contracts, wrappers, or tests. Per repository:
   is the check, not an assumption.
 - Reported amounts come from message bodies, never from attached values: `loan_result` and
   `recover_stake_result` carry the figures, and the attached GRAM includes gas.
-- The constraint from `2026-08-04-explorer-actions.md` applies and widens: these ten
+- The constraint from `2026-08-04-explorer-actions.md` applies and widens: these eleven
   op-codes become external ABI once declared, so changing their layout later needs a
   coordinated upstream PR.
 
@@ -134,6 +134,8 @@ The schema change is the risk. Mitigations, in the order they should be tried:
 
 - tongo: decode one real mainnet message per declared op and check every field against
   `contracts/schema.tlb`. Trace hashes for all eleven are in the local replay corpus.
+  Implemented as `abi/hipo_finance_test.go` in `tongo#504`, which also pins the two field
+  widths that decode "successfully" while reporting the wrong number.
 - opentonapi: replay the round-end traces offline through the harness that reproduces the
   committed goldens byte for byte; assert the loan legs collapse and that `JettonMint`,
   `WithdrawStake` and `DepositStake` counts are unchanged.
