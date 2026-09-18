@@ -106,6 +106,15 @@ one that replaces this contract rather than to migrate it. If that plan ever cha
 `parent.fc` the treasury's `run_migrator` and the same null-and-empty guard first — at the same time
 as the deploy that frees its code hash to move — and only then proxy anything to it.
 
+**Replacing the parent breaks explorer display until upstream ships a matching release.** Since the
+2026-08 explorer work, TON's trace classifiers recognize Hipo by address, and the parent's is
+hardcoded in them — in `tonkeeper/opentonapi`'s `pkg/references` above all. It is not only a label:
+the hGRAM ops are public and name the holder they credit, so the classifiers check that a message
+came from the parent before they will report hGRAM moving. A `set_parent` therefore stops stakes and
+unstakes being recognized on tonviewer and in Tonkeeper, silently, until a PR lands upstream *and*
+is released. Sequence it as part of the change rather than as a follow-up, and see
+`docs/specs/2026-08-04-explorer-actions.md` for the affected repos.
+
 ### Writing one
 
 Put it in `wrappers/upgrade-code-test/`, entered at `method_id(0x6d67)`, plain FunC with no `asm`,

@@ -290,9 +290,36 @@ Here is an [example implementation](https://github.com/HipoFinance/sdk-example/b
 Explorers and indexers that classify transaction traces into high-level actions can use
 the trace patterns below to display Hipo operations as single actions instead of raw
 message chains. Op-codes are defined in `contracts/schema.tlb`; the contribution plan for
-specific explorers is in `docs/specs/2026-08-04-explorer-actions.md`. Classifiers should
-key on the treasury address where possible: the parent address can change in a future
-upgrade, the treasury cannot.
+specific explorers is in `docs/specs/2026-08-04-explorer-actions.md`.
+
+Three rules that a classifier gets wrong easily, each learned from a real defect:
+
+1. **Show both sides.** Every stake and unstake exchanges GRAM for hGRAM or back. An
+   action shape that carries only one currency hides the other, so the second amount needs
+   somewhere to live — a companion mint/burn action is the shape that works today. The
+   figures are in the proxied messages, never in the attached value: `proxy_tokens_minted`
+   and `tokens_minted` carry both `coins` (GRAM) and `tokens` (hGRAM),
+   `proxy_reserve_tokens` carries the hGRAM being unstaked, and `withdrawal_notification`
+   carries both. In particular `deposit_coins.coins` is **zero** when the depositor means
+   "stake everything after fees"; only the treasury resolves it.
+2. **Read the owner out of the message, not off the envelope.** `unstake_all` makes the
+   wallet send `unstake_tokens` to *itself*, so the burn's sender is the jetton wallet, not
+   the holder. Every proxied message names the real owner; use that.
+3. **Anchor on an address only Hipo can send from.** These op-codes are public and they
+   name the holder they credit, so a classifier that acts on one without checking the
+   sender can be made to report hGRAM moving in or out of a stranger's wallet. Anchor on
+   the treasury where possible — its address never changes — and on the parent for the
+   messages only the jetton master may send. Note that `reserve_tokens` really is sent
+   straight to the treasury by ordinary wallets on mainnet, and is answered with a
+   rollback, so a chain ending at the treasury is not by itself proof of a genuine unstake.
+
+- **Comment flows**: the treasury also accepts a plain GRAM transfer whose body is a text
+  comment — `d` deposits (equivalent to `deposit_coins` with `coins` = 0) and `w` unstakes
+  the sender's whole balance (`send_unstake_all#45baeda9`). Case is ignored. This is the
+  method recommended to wallets that cannot attach a custom payload, multisigs above all,
+  so it carries real deposits; a classifier keyed only on the `deposit_coins` op-code
+  misses them and shows a bare GRAM transfer. Everything below the treasury is identical
+  to the corresponding flow.
 
 - **Stake (instant)**: `deposit_coins#3d3761a6` → treasury → `proxy_tokens_minted#5be57626`
   → parent → `tokens_minted#5445efee` → wallet → `transfer_notification#7362d09c` → owner.
@@ -318,6 +345,14 @@ upgrade, the treasury cannot.
   the round is finalized: `burn_bill` → `bill_burned` → `burn_tokens#7cffe1ee` → treasury
   → `proxy_tokens_burned` → `tokens_burned` → `withdrawal_notification` with the GRAM
   attached.
+
+- **Unstake postponed**: at round end `burn_tokens#7cffe1ee` may find the treasury short of
+  liquid GRAM while a later round is still open. It then mints a fresh bill against that
+  round — `mint_bill#4b2d7871` → `assign_bill#3275dfc2` → `ownership_assigned` — instead of
+  paying out. The unstake is still pending, now against a different bill, so a classifier
+  that pairs a request with its completion through the bill address has to follow the
+  hand-over or the two halves stop matching. Displaying nothing here makes the unstake
+  disappear between the round that could not pay and the one that finally does.
 
 - **Unstake rollback**: `proxy_rollback_unstake#32b67194` → `rollback_unstake#1b77fd1a`
   appears when an unstake cannot be served; it restores the tokens and must not be

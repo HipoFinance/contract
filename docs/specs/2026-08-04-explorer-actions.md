@@ -146,6 +146,16 @@ Nothing in this repository's contracts, wrappers, or tests. Per external repo:
   message layout in a future upgrade silently breaks explorer display and requires
   coordinated upstream PRs. Any future spec that touches schemas must list the explorer
   repos as affected integrators.
+- Stronger constraint added 2026-09-18, after the first round of classifiers shipped: the
+  **treasury and parent addresses are external ABI too, and the parent's is load-bearing
+  for safety.** These op-codes may be sent by anyone and they name the holder they credit,
+  so classifiers have to check that a message came from the treasury or the parent before
+  they act on it; two forgery holes in `tonkeeper/opentonapi` came from not doing so, one
+  of which could have shown hGRAM arriving in a stranger's wallet. The treasury address
+  never changes, so it is the safe anchor. The parent's can change via `set_parent`, and
+  it is hardcoded upstream — running `set_parent` therefore breaks explorer display and
+  must be sequenced with a PR to every classifier, not treated as an internal upgrade.
+  `scripts/upgrade_treasury.md` and any future `set_parent` runbook must say so.
 
 ## Compatibility
 
