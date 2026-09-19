@@ -3,6 +3,7 @@ import { burnerAddress } from '../wrappers/burner'
 import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import { Address, Cell, Dictionary, toNano } from '@ton/core'
 import {
+    between,
     bodyOp,
     createNewStakeMsg,
     createVset,
@@ -171,7 +172,6 @@ describe('Borrower Fee', () => {
         electorAddress = getElector(blockchain)
     })
 
-
     // These tests identify the fee purely by which address received it, so the address has to come
     // from the contract source rather than a copy. See wrappers/burner.ts.
     const burner = burnerAddress()
@@ -223,12 +223,13 @@ describe('Borrower Fee', () => {
         )
 
         const borrower = await blockchain.treasury('borrower1')
-        const loan = blockchain.openContract(Loan.createFromAddress(await treasury.getLoanAddress(borrower.address, until1)))
+        const loan = blockchain.openContract(
+            Loan.createFromAddress(await treasury.getLoanAddress(borrower.address, until1)),
+        )
         const newStakeMsg = await createNewStakeMsg(loan.address, until1)
 
         // 101 max punishment + min_payment + the burn floor once the fee is on
-        const collateral =
-            toNano('101') + toNano(opts.minPayment) + (opts.borrowerFee === 0n ? 0n : minBurn)
+        const collateral = toNano('101') + toNano(opts.minPayment) + (opts.borrowerFee === 0n ? 0n : minBurn)
         await treasury.sendRequestLoan(borrower.getSender(), {
             value: collateral + fees.requestLoanFee,
             roundSince: until1,
@@ -294,11 +295,8 @@ describe('Borrower Fee', () => {
         const result = await treasury.sendFinishParticipation({ roundSince: until1 })
         accumulateFees(result.transactions)
 
-        const burn = result.transactions.find(
-            (t) => t.inMessage?.info.dest?.toString() === burner.toString(),
-        )
-        const burned =
-            burn?.inMessage?.info.type === 'internal' ? burn.inMessage.info.value.coins : 0n
+        const burn = result.transactions.find((t) => t.inMessage?.info.dest?.toString() === burner.toString())
+        const burned = burn?.inMessage?.info.type === 'internal' ? burn.inMessage.info.value.coins : 0n
 
         return { result, burned, request, borrower, until1 }
     }
@@ -357,6 +355,35 @@ describe('Borrower Fee', () => {
             reward: '100', // the whole reward is below min_payment, so the clamp binds
         })
         expect(burned).toBeGreaterThanOrEqual(minBurn)
+    })
+
+    // The floor the protocol-set share exists to create: with min_payment at zero the pool is still
+    // paid its contractual share of the reward, because the borrower has no way to contract for more
+    // than reward_share. Before this release the same bidder could have set share 65535 and handed
+    // the pool nothing while keeping half the reward themselves.
+    //
+    // The split is pinned from the borrower's side, which is where it is observable: reward 400 at
+    // share 1799 and fee 32767 leaves the borrower 400 * 1799/65535 * (1 - 32767/65535) = 5.489 and
+    // burns the same again, so the pool takes the rest -- exactly reward * (65535 - 1799)/65535. The
+    // reward lands a little over the 400 asked for, which is why the bands rather than exact figures;
+    // what is pinned is that the burn and the borrower's keep are each 1.37% of it and the pool has
+    // the other 97.26%. The borrower's collateral here is 101 max punishment + 0 min payment + 1 burn
+    // floor.
+    it('should pay the pool its contractual share even at min_payment zero', async () => {
+        const { result, burned } = await runRound({
+            borrowerFee: 32767n,
+            rewardShare: 1799n,
+            minPayment: '0',
+            reward: '400',
+        })
+
+        expect(burned).toBeBetween('5.50', '5.51')
+        expect(result.transactions).toHaveTransaction({
+            body: bodyOp(op.loanResult),
+            success: true,
+            // 102 collateral + 5.489 kept, less the gas the message pays on the way out
+            value: between('107', '108'),
+        })
     })
 
     it('should charge exactly the floor when the borrower contracted for no reward', async () => {

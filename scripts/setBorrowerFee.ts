@@ -8,10 +8,11 @@ import { burnerAddress } from '../wrappers/burner'
 // at loan recovery, out of 65535.
 //
 // This does more than send the message, because the number on its own says very little. The fee is
-// charged as a fraction of `reward * borrower_reward_share / 65535`, so what it actually costs a
-// borrower depends on the share THEY bid — the same rate is a different deal for each of them. The
-// script therefore reads the live bids and shows what the new rate would take from each, before
-// asking for confirmation.
+// charged as a fraction of `reward * borrower_reward_share / 65535`, and that share is now the
+// PROTOCOL's rather than each borrower's, so the rate is the same deal for everyone bidding under the
+// same share — see docs/specs/2026-09-19-protocol-set-reward-share.md and `setRewardShare.ts`. The
+// impact listing below survives because the share is snapshotted per request: a round that straddles
+// a set_reward_share holds two of them, and loans still in flight keep whatever they were bid at.
 //
 // Two properties worth remembering while using it:
 //
@@ -109,8 +110,9 @@ function percent(fee: bigint): string {
 }
 
 // Reads every request the treasury is currently holding and reports what the rate would take from
-// each borrower's own share. A borrower who bid a small share pays a larger slice of their own
-// income for the same rate, which is the thing a single number hides.
+// each one's snapshotted share. Usually every row shows the same share, since it is the protocol's;
+// rows that differ are loans committed under an earlier value, which is exactly what is worth seeing
+// before repricing anything.
 function showImpact(
     state: Awaited<ReturnType<Treasury['getTreasuryState']>>,
     next: bigint,

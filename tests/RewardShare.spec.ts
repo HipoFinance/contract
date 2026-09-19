@@ -275,6 +275,50 @@ describe('Reward Share', () => {
         expect((await treasury.getTreasuryState()).rewardShare).toEqual(65534n)
     })
 
+    // A state this release makes reachable for the first time: a borrower replaces their own request
+    // and the two copies carry DIFFERENT shares, without the borrower having changed anything. The
+    // replacement path recomputes the old sort key from the OLD request's stored share -- if it used
+    // the current one instead, the stale key would be left behind and `sorted` would grow a phantom
+    // entry pointing at a borrower who is no longer there.
+    it('should delete the old sort key when the share changed under a replaced request', async () => {
+        const times = await treasury.getTimes()
+        const electedFor = times.nextRoundSince - times.currentRoundSince
+        const since = BigInt(Math.floor(Date.now() / 1000)) - electedFor / 2n
+        const until = since + electedFor
+        setConfig(blockchain, config.currentValidators, createVset(since, until))
+
+        const borrower = await blockchain.treasury('borrower')
+        await treasury.sendRequestLoan(borrower.getSender(), {
+            value: toNano('151') + fees.requestLoanFee,
+            roundSince: until,
+            loanAmount: '300000',
+            minPayment: '50',
+            newStakeMsg: emptyNewStakeMsg,
+        })
+        const first = await treasury.getParticipation(until)
+        expect(first.sorted?.size).toEqual(1)
+
+        await treasury.sendSetRewardShare(governor.getSender(), { value: '0.1', newRewardShare: 26214n })
+
+        // The replacement carries the collateral forward, so it only needs the fee plus the difference.
+        await treasury.sendRequestLoan(borrower.getSender(), {
+            value: fees.requestLoanFee,
+            roundSince: until,
+            loanAmount: '300000',
+            minPayment: '50',
+            newStakeMsg: emptyNewStakeMsg,
+        })
+
+        const after = await treasury.getParticipation(until)
+        expect(after.size).toEqual(1n)
+        expect(after.sorted?.size).toEqual(1)
+        const bid = await treasury.getLoanRequest(until, borrower.address)
+        expect(bid.borrowerRewardShare).toEqual(26214n)
+        // And the one key left is the one the new share produces, not the old one.
+        const key = (after.sorted?.keys() ?? [])[0]
+        expect((key >> 80n) & 0xffffn).toEqual(65535n - 26214n)
+    })
+
     // Monotonicity. With the share common to the round, the sort key orders purely by
     // min_payment/loan, so the request served first is never the one that pays the pool less: both
     // carry the same contractual fraction, and the one ahead promises more per GRAM lent.
