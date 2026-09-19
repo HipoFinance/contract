@@ -161,9 +161,13 @@ Two details decide whether aiming at a second actually works.
 
 **The clock that matters is the chain's, not the host's.** The guards compare against `now()`, which
 is the `gen_utime` of the block that includes the external, and a host clock that is a few seconds
-fast will fire early every single time and lose a whole retry interval to it. The service already
-reads masterchain info each cycle, so it tracks `offset = block gen_utime − local time` and schedules
-against the corrected clock. That costs nothing and removes the only systematic error.
+fast will fire early every single time and lose a whole retry interval to it. So the service asks a
+liteserver for the time (`GetTime`, one cheap round trip per cycle), tracks
+`offset = liteserver time − local time`, and schedules against the corrected clock. The liteserver's
+clock is not literally the block's `gen_utime`, but it is the clock of a node that produces or
+follows those blocks, which removes the systematic error that matters. `hipo_poker_clock_synced`
+exists because an unobserved clock reports an offset of zero, which is indistinguishable from
+perfect sync while every deadline is being computed on raw host time.
 
 **A rejection is free, so it leans early rather than late.** Being one second early means the block
 that would have carried the external is produced before the deadline, the guard throws, no
@@ -215,11 +219,11 @@ for the same reason the burst is.
   `monitor` network only, no secrets, `TREASURY_ADDRESS` and liteserver settings as environment.
 - `monitor/config-collector-1/prometheus.yaml` and `.../config-collector-2/prometheus.yaml` — a
   `poker` job with targets `poker1:10000` and `poker2:10000`. Mirrored change, as always.
-- `monitor/rules/poker-alerting-rule.yaml` — the four alerts below.
+- `monitor/rules/poker-alerting-rule.yaml` — the six alerts below.
 - `monitor/rules/tests/rules_test.yaml` — firing and clearing cases for each.
 - `monitor/alerts-runbook.md` — a `### PokerReadFailing`, `### PokerBlindMode`,
-  `### PokerBlindModeExpired` and `### PokerPokeUnconfirmed` section each; `check-runbook.sh` fails
-  without them.
+  `### PokerBlindModeExpired`, `### PokerBlindModeFlapping`, `### PokerClockUnreliable` and
+  `### PokerPokeUnconfirmed` section each; `check-runbook.sh` fails without them.
 - `uid.md` — 717 poker (714 is free but 715 and 716 are taken; the list is append-only in practice).
 
 Metrics: `hipo_poker_last_read_success_seconds` (unix time, initialised at process start and only
@@ -234,9 +238,13 @@ Deliberately absent: per-round participation state. `gauge` already publishes
 publisher of the same fact would only create a way for the two to disagree.
 
 Alerts, all warnings: `PokerReadFailing` (cannot reach the chain at all, so not even poking blind —
-`for: 5m` over a threshold that clears the loop's 10-minute sleep cap three times over),
-`PokerBlindMode` (`for: 5m`), `PokerBlindModeExpired` (blind past two hours, participate withdrawn)
-and `PokerPokeUnconfirmed` (oldest unconfirmed poke over 10 minutes, `for: 2m`).
+`for: 5m` over a threshold that clears the loop's 5-minute sleep cap three times over),
+`PokerBlindMode` (`for: 5m`), `PokerBlindModeExpired` (blind past two hours, no longer lending),
+`PokerBlindModeFlapping` (a read that keeps breaking, which `PokerBlindMode`'s `for` can never
+see), `PokerClockUnreliable` (never synced, or more than 30s from the chain) and
+`PokerPokeUnconfirmed` (**oldest unconfirmed poke over 60 seconds, no `for:`** — about two minutes
+to Telegram once the 15s scrape, the 1-minute evaluation interval and Alertmanager's 30s
+`group_wait` are counted, and those three are the floor rather than the threshold).
 
 `PokerReadFailing` was not in the first draft of this spec and is not redundant with blind mode.
 They are different failures wanting different people: "cannot reach the chain" and "cannot trust the
@@ -325,7 +333,7 @@ In `HipoFinance/poker`, unit tests over table-driven fixtures — no chain acces
   the schedule falls back to 60-second retries once the burst window closes.
 
 In `HipoFinance/operation`: `monitor/script/test-rules.sh`, with a firing-and-clearing case in
-`monitor/rules/tests/rules_test.yaml` for each of the three alerts, and `check-runbook.sh` passing.
+`monitor/rules/tests/rules_test.yaml` for each alert, and `check-runbook.sh` passing.
 
 In this repository: `npm test`, with the added `tests/Loan.spec.ts` case above. Gas bounds are
 unaffected — no contract path changes.
@@ -341,6 +349,41 @@ send nothing) for one full round and diff what they would have sent against what
 actually sent. A round in which the poker would have sent something the borrowers did not is the
 result that justifies the service; a round in which it would have sent something neither the contract
 nor the borrowers wanted is the one that blocks the deploy.
+
+## What an adversarial review changed
+
+The service was reviewed hostilely before deployment, against the FunC rather than against these
+notes. Two claims held up unchanged — that a rejected external costs nobody anything, and that
+deferring the poke to `distribute`'s refund branch can never cause a stake instead of a refund
+(every reachable `round_since` and both sides of a rotation were walked). Six things did not, and
+they are recorded here because each was a plausible-looking piece of code that did the wrong thing:
+
+- **The burst measured itself from the oldest outstanding poke**, so one wedged round put every
+  cycle on the plain retry interval and switched off the first-opportunity burst for every other
+  round — during exactly the incident it exists for. The unit test on the scheduling function
+  passed throughout; the regression now sits at the wiring.
+- **Blind mode could not see the rounds it exists to rescue.** Candidates came from the three
+  `round_since` values the validator sets name, but the treasury holds up to eight participations,
+  so a round that missed two rotations fell off the list permanently and blind mode has no exit
+  timer. It now reaches six epochs further back.
+- **An unsent poke started a clock**, so a dry run published ages for messages it never sent and a
+  blocked network path read as "the treasury is refusing us".
+- **A policy change counted as a state transition**: confirmation compared against what the service
+  chose to send, so the governor halting the pool mid-window logged a confirmation for something
+  that never moved. It compares against the contract's own guards now.
+- **A read flapping every few minutes silenced everything.** The blind boundary reset every poke's
+  age, so nothing reached the alert threshold, while `PokerBlindMode`'s `for` never saw five
+  continuous minutes either. `PokerBlindModeFlapping` is the alert that closes it.
+- **A chain outage froze the published ages**, so a poke that happened to be one retry old when the
+  chain went away fired for the whole outage.
+
+Smaller: the halted log line said participate was withheld on exactly the cycles it was being sent;
+config 15 was fetched as a required parameter for a field never read, so an unreadable config 15
+would have stopped all poking; `vsetTimes` accepted a validator-set tag the contract throws on; and
+endpoint sends were serial with a 10-second timeout each.
+
+The lesson worth keeping is the first one. Every one of these passed a test suite that was already
+mutation-checked, because the tests pinned the functions rather than the wiring between them.
 
 ## Out of scope
 
