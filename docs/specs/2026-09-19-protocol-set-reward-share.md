@@ -109,6 +109,13 @@ Rejected alternatives:
   `request_loan`, following `borrower_fee` for the same reason: `set_reward_share` must not change
   the terms of a bid already made. There is no window in which no participation is mid-flight, so
   this has to be structural rather than a matter of timing the governance call.
+- **Monotonicity holds within a round, which is where it matters.** The share is snapshotted at
+  request time, so a `set_reward_share` sent while a participation is open leaves that round holding
+  two different shares, and the key can then order two bids by `min_payment/loan` when the other
+  carried the better share. The gap is bounded by the size of the governance change and lasts one
+  round. Recorded rather than designed away: the alternative is applying the new value at acceptance,
+  which reprices a committed bid — the thing the snapshot exists to prevent. `set_reward_share`
+  belongs between rounds, and the runbook says so.
 - **The ranking is unchanged and now monotone.** `request_sort_key` keeps its 120-bit shape and its
   16 bits of treasury share — constant across a round, so the key degenerates to efficiency then loan
   size, which is the intended order. `sorted` is never rebuilt and cannot mix two orderings.
@@ -152,9 +159,36 @@ Rejected alternatives:
   that pays the pool less.
 - A loan requested before the upgrade and recovered after it settles on its snapshotted share, not the
   extension's.
+- A `set_reward_share` sent after a request does not change that request's share, and the getter shows
+  the new value — the two-shares-in-one-round case, asserted rather than assumed.
 - `reward_share = 1799` reproduces today's allocation and recovery figures loan for loan.
-- `MaxGas` / `MinGas` stay green — `request_loan` loses a `load_uint` and reads a field from an
-  extension it already unpacks.
+- `MaxGas` / `MinGas` stay green.
+
+## Found during implementation
+
+Two things the spec had wrong, both corrected in the code rather than worked around:
+
+**Gas moves, and two constants cannot follow it.** `request_loan` itself does get cheaper, but every
+op that packs the extension pays for 16 more bits — about 99 gas, and 213 for `send_unstake_all`.
+`gas::deposit_coins`, `gas::mint_tokens` and `gas::send_unstake_all` were raised to match. The other
+two, `gas::reserve_tokens` and `gas::burn_tokens`, **could not be**: they feed `unstake_tokens_fee`,
+which is compiled into `wallet.fc`, so raising either moves the Wallet code hash and the repo stops
+reproducing the wallet deployed on mainnet. Verified by building both ways — the hash moves to
+`b0808966…` and back to `b9caa42b…`. They join `gas::migrate_wallet` in `pinnedShortfalls` at 99 each,
+which reaches a user on the unstake path as 297 gas of under-charge (the burn is budgeted twice, for
+the retry) against the forward fees the same function budgets for messages usually never sent. Raise
+them and delete the pins when the next wallet version ships.
+
+**Three test fixtures parse the extension and end with `end_parse()`** — `reset_data.fc`,
+`mint_dead_shares.fc` and the two-round-window migrator chain. That is deliberate: the comment in
+`mint_dead_shares.fc` says a field added to the treasury should make it throw. All three were taught
+the new field, and `tests/TreasuryMigration.spec.ts` now chains the reward-share migration after the
+two-round-window one, which required capturing
+`tests/fixtures/treasury-two-round-window-era-code.boc` so each migrator keeps being exercised against
+the layout it was written for.
+
+Also moved, and pinned: the largest gift a 0.1 GRAM `gift_coins` message can carry, from 0.09911 to
+0.09910, because a bigger code cell costs more to store. The test already anticipated this.
 
 ## Out of scope
 

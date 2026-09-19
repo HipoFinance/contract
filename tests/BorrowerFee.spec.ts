@@ -97,6 +97,7 @@ describe('Borrower Fee', () => {
                     proposedGovernor: null,
                     governanceFee: 4096n,
                     borrowerFee: 0n,
+                    rewardShare: 1799n,
                     collectionCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         collectionCode,
@@ -182,7 +183,8 @@ describe('Borrower Fee', () => {
     async function runRound(opts: {
         borrowerFee: bigint
         minPayment: string
-        borrowerRewardShare: bigint
+        /** The protocol's reward share for this round. Borrowers do not bid it; the governor sets it. */
+        rewardShare: bigint
         /** Round reward, in GRAM, on top of whatever the loan actually staked. */
         reward: string
         /** Applied after the request is made, to prove the request-time snapshot holds. */
@@ -200,6 +202,11 @@ describe('Borrower Fee', () => {
                 newBorrowerFee: opts.borrowerFee,
             })
         }
+
+        await treasury.sendSetRewardShare(governor.getSender(), {
+            value: '0.1',
+            newRewardShare: opts.rewardShare,
+        })
 
         const staker = await blockchain.treasury('staker')
         await treasury.sendDepositCoins(staker.getSender(), { value: toNano('700000') + fees.depositCoinsFee })
@@ -227,7 +234,6 @@ describe('Borrower Fee', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: opts.minPayment,
-            borrowerRewardShare: opts.borrowerRewardShare,
             newStakeMsg,
         })
 
@@ -303,8 +309,8 @@ describe('Borrower Fee', () => {
         // shipping the upgrade disabled would silently change economics.
         const { result, burned } = await runRound({
             borrowerFee: 0n,
+            rewardShare: 26214n,
             minPayment: '50',
-            borrowerRewardShare: 26214n,
             reward: '400',
         })
 
@@ -322,7 +328,7 @@ describe('Borrower Fee', () => {
         const { result, burned } = await runRound({
             borrowerFee: 32767n,
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
+            rewardShare: 26214n, // 40%
             reward: '400',
         })
 
@@ -347,7 +353,7 @@ describe('Borrower Fee', () => {
         const { burned } = await runRound({
             borrowerFee: 32767n,
             minPayment: '400',
-            borrowerRewardShare: 26214n,
+            rewardShare: 26214n,
             reward: '100', // the whole reward is below min_payment, so the clamp binds
         })
         expect(burned).toBeGreaterThanOrEqual(minBurn)
@@ -360,7 +366,7 @@ describe('Borrower Fee', () => {
         const { burned } = await runRound({
             borrowerFee: 32767n,
             minPayment: '50',
-            borrowerRewardShare: 0n,
+            rewardShare: 0n,
             reward: '400',
         })
         expect(burned).toEqual(minBurn)
@@ -373,7 +379,7 @@ describe('Borrower Fee', () => {
         const { burned, request } = await runRound({
             borrowerFee: 655n, // ~1% at request time
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
+            rewardShare: 26214n, // 40%
             reward: '400',
             changeFeeTo: 65535n, // raised to the maximum AFTER the request, before recovery
         })
@@ -412,20 +418,24 @@ describe('Borrower Fee', () => {
         const better = await blockchain.treasury('better')
         const worse = await blockchain.treasury('worse')
 
+        // Two requests in one round can only carry different shares if the governor moves the
+        // protocol's value between them, which is the one case where a round is not uniform. The
+        // request-time snapshot is what makes each keep the value it was made under.
+        await treasury.sendSetRewardShare(governor.getSender(), { value: '0.1', newRewardShare: 26214n })
         await treasury.sendRequestLoan(better.getSender(), {
             value: toNano('151') + fees.requestLoanFee,
             roundSince: until,
             loanAmount: '302400',
             minPayment: '50',
-            borrowerRewardShare: 26214n,
             newStakeMsg: emptyNewStakeMsg,
         })
+        // One unit worse for the pool, invisible to an 8-bit slot.
+        await treasury.sendSetRewardShare(governor.getSender(), { value: '0.1', newRewardShare: 26214n + 1n })
         await treasury.sendRequestLoan(worse.getSender(), {
             value: toNano('151') + fees.requestLoanFee,
             roundSince: until,
             loanAmount: '301300', // same efficiency bucket, smaller loan: the tiebreaker it would win on
             minPayment: '50',
-            borrowerRewardShare: 26214n + 1n, // one unit worse for the pool, invisible to an 8-bit slot
             newStakeMsg: emptyNewStakeMsg,
         })
 
@@ -472,12 +482,12 @@ describe('Borrower Fee', () => {
         const unknownRound = await treasury.getLoanRequest(until, bidder.address)
         expect(unknownRound.found).toBe(false)
 
+        await treasury.sendSetRewardShare(governor.getSender(), { value: '0.1', newRewardShare: 26214n })
         await treasury.sendRequestLoan(bidder.getSender(), {
             value: toNano('151') + fees.requestLoanFee,
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n,
             newStakeMsg: emptyNewStakeMsg,
         })
 
@@ -500,7 +510,7 @@ describe('Borrower Fee', () => {
         const { borrower, until1, request } = await runRound({
             borrowerFee: 655n,
             minPayment: '50',
-            borrowerRewardShare: 26214n,
+            rewardShare: 26214n,
             reward: '400',
         })
 

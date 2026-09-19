@@ -83,6 +83,7 @@ describe('Min Gas', () => {
                     proposedGovernor: null,
                     governanceFee: 4096n,
                     borrowerFee: 0n,
+                    rewardShare: 1799n,
                     collectionCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         collectionCode,
@@ -217,7 +218,6 @@ describe('Min Gas', () => {
             value: maxPunishment + fees.requestLoanFee - 1n,
             loanAmount: minStake - maxPunishment + newStakeConfirmation,
             minPayment: 0n,
-            borrowerRewardShare: 0n,
             newStakeMsg: emptyNewStakeMsg,
             roundSince: until,
         })
@@ -235,7 +235,6 @@ describe('Min Gas', () => {
             value: maxPunishment + fees.requestLoanFee,
             loanAmount: minStake - maxPunishment + newStakeConfirmation,
             minPayment: 0n,
-            borrowerRewardShare: 0n,
             newStakeMsg: emptyNewStakeMsg,
             roundSince: until,
         })

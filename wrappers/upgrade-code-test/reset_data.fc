@@ -29,6 +29,7 @@ global slice governor;
 global cell proposed_governor;
 global int governance_fee;
 global int borrower_fee;
+global int reward_share;
 global cell collection_codes;
 global cell bill_codes;
 global cell old_parents;
@@ -66,6 +67,7 @@ global cell old_parents;
     ;; Tracks the extension layout for the same reason load_data tracks the root one: the parse below
     ;; ends with end_parse(), so a field added to contracts/treasury.fc makes this fixture throw.
     borrower_fee = s~load_uint(16);
+    reward_share = s~load_uint(16);
     collection_codes = s~load_ref();
     bill_codes = s~load_ref();
     old_parents = s~load_dict();

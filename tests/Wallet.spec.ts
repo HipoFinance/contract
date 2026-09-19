@@ -85,6 +85,7 @@ describe('Wallet', () => {
                     proposedGovernor: null,
                     governanceFee: 4096n,
                     borrowerFee: 0n,
+                    rewardShare: 1799n,
                     collectionCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         collectionCode,

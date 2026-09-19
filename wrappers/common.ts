@@ -65,6 +65,7 @@ export const op = {
     mintTokens: 0x42684479,
     burnTokens: 0x7cffe1ee,
     requestLoan: 0x36335da9,
+    setRewardShare: 0x5e2c7a08,
     participateInElection: 0x574a297b,
     decideLoanRequests: 0x6a31d344,
     processLoanRequests: 0x071d07cc,

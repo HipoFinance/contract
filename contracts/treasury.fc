@@ -44,6 +44,10 @@ global slice governor;
 global cell proposed_governor;
 global int governance_fee;
 global int borrower_fee;
+;; The borrower's contractual share of a loan's reward, out of 65535. Set by the protocol and
+;; snapshotted into every request -- borrowers do not bid it. See
+;; docs/specs/2026-09-19-protocol-set-reward-share.md.
+global int reward_share;
 global cell collection_codes;
 global cell bill_codes;
 global cell old_parents;
@@ -88,10 +92,10 @@ global cell old_parents;
 ;; The three rates stay store_coins. A fixed uint64 was tried and reverted: it is not smaller in any
 ;; state this contract can reach, and it can throw where varuint16 cannot.
 ;;
-;; The bit budget, against the 1023-bit cell ceiling, with 664 bits of non-rate fields here:
-;;   - realistic (rate ~1.16e9, 4 bytes each):            664 + 3 x 36 = 772
-;;   - every coin in existence pooled (rate ~5.9e17):     664 + 3 x 68 = 868
-;;   - varuint16's own maximum (rate >= 2^112):           664 + 3 x 124 = 1036
+;; The bit budget, against the 1023-bit cell ceiling, with 680 bits of non-rate fields here:
+;;   - realistic (rate ~1.16e9, 4 bytes each):            680 + 3 x 36 = 788
+;;   - every coin in existence pooled (rate ~5.9e17):     680 + 3 x 68 = 884
+;;   - varuint16's own maximum (rate >= 2^112):           680 + 3 x 124 = 1052
 ;; Only the third overflows, and it is unreachable: dead shares pin total_tokens at ~8.6e9 nano and
 ;; the coin supply caps total_coins at ~5.1e18 nano, so muldiv(total_coins, 1e9, total_tokens) cannot
 ;; exceed ~5.9e17. That bound is the binding one, not the encoding, which is what makes uint64 pure
@@ -111,6 +115,7 @@ global cell old_parents;
         .store_maybe_ref(proposed_governor)
         .store_uint(governance_fee, 16)
         .store_uint(borrower_fee, 16)
+        .store_uint(reward_share, 16)
         .store_ref(collection_codes)
         .store_ref(bill_codes)
         .store_dict(old_parents)
@@ -130,6 +135,7 @@ global cell old_parents;
     proposed_governor = s~load_maybe_ref();
     governance_fee = s~load_uint(16);
     borrower_fee = s~load_uint(16);
+    reward_share = s~load_uint(16);
     collection_codes = s~load_ref();
     bill_codes = s~load_ref();
     old_parents = s~load_dict();
@@ -670,12 +676,19 @@ cell find_code(cell dict, int round_since) inline {
     int round_since = s~load_uint(32);
     int loan_amount = s~load_coins();
     int min_payment = s~load_coins();
-    ;; 16 bits, not the 8 this used to be. An old-format request carries exactly 8 bits here before
-    ;; its ref, so this throws on cell underflow; request_loan is bounceable, so the borrower's
-    ;; collateral comes straight back and they find out on their next attempt. A loud failure was
-    ;; chosen over a compatibility tail precisely because the silent alternative would misread a
-    ;; bid. An existing uint8 bid ports exactly as share * 257, since 255 * 257 = 65535.
-    int borrower_reward_share = s~load_uint(16);
+    ;; The reward share is NOT read from the message any more -- it is the protocol's, snapshotted
+    ;; below from the extension. A bid could set it to 65535 and pay stakers nothing, and the auction
+    ;; could not rank against it: the pool is paid max(min_payment, reward * treasury_share), two
+    ;; quantities the bidder chooses between, and they cannot be ordered against another bid's pair
+    ;; without knowing the round's reward. Fixing the share leaves one dimension, which the existing
+    ;; sort key already orders correctly. See docs/specs/2026-09-19-protocol-set-reward-share.md.
+    ;;
+    ;; A request in the old format carries 16 bits of share before its ref. Refs are counted apart
+    ;; from bits, so load_ref still succeeds and end_parse throws on the leftover; request_loan is
+    ;; bounceable, so the collateral comes straight back and the sender finds out at once. That is the
+    ;; same choice made when the field widened from uint8 to uint16: a loud failure over a silent
+    ;; compatibility tail, because the silent alternative would misread a bid.
+    int borrower_reward_share = reward_share;
     cell new_stake_msg = s~load_ref();
     s.end_parse();
     check_new_stake_msg(new_stake_msg.begin_parse());
@@ -1804,6 +1817,33 @@ cell find_code(cell dict, int round_since) inline {
     pack_extension();
 }
 
+;; The reward share every loan is written with. Borrowers do not bid it -- see request_loan -- so this
+;; is the one place it is decided, and like borrower_fee it is snapshotted into each request rather
+;; than read at recovery, so a change here cannot reprice a loan already committed.
+;;
+;; 65535 is refused: it would leave the pool max(min_payment, 0) on every loan, which is the exposure
+;; this design exists to remove and not something to leave one governance call away. Nothing narrower
+;; is enforced, for the same reason governance_fee is not bounded -- a governor able to set this
+;; badly can already do worse -- but the value sets what every borrower earns, and a value too small
+;; to cover a validator's costs is a pool that goes unlent.
+() set_reward_share(slice src, slice s) impure inline {
+    unpack_extension();
+
+    int query_id = s~load_uint(64);
+    reward_share = s~load_uint(16);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
+    throw_unless(err::invalid_parameters, reward_share < 65535);
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+
+    pack_extension();
+}
+
 () set_governance_fee(slice src, slice s) impure inline {
     unpack_extension();
 
@@ -2503,6 +2543,10 @@ int calculate_min_coins() inline_ref {
         return set_borrower_fee(src, s);
     }
 
+    if op == op::set_reward_share {
+        return set_reward_share(src, s);
+    }
+
     if op == op::set_governance_fee {
         return set_governance_fee(src, s);
     }
@@ -2699,6 +2743,7 @@ var get_treasury_state() method_id {
         , old_parents
         , mid_rate
         , mid_round
+        , reward_share
         );
 }
 

@@ -34,6 +34,8 @@ describe('Treasury Migration', () => {
     let roundDurationMigratorCode: Cell
     let roundDurationEraCode: Cell
     let twoRoundWindowMigratorCode: Cell
+    let twoRoundWindowEraCode: Cell
+    let rewardShareMigratorCode: Cell
     let mainnetCode: Cell
     let mainnetData: Cell
 
@@ -65,6 +67,14 @@ describe('Treasury Migration', () => {
             readFileSync(__dirname + '/fixtures/treasury-round-duration-era-code.boc'),
         )[0]
         twoRoundWindowMigratorCode = await compile('upgrade-code-test/AddTwoRoundWindow')
+        // And the two-round-window migration targeted the code of ITS time, which is what is on chain
+        // today. Same reason as the captures above: each migrator keeps being exercised against the
+        // layout it was written for, so the chain grows a step per release instead of quietly
+        // retargeting old migrators at new code.
+        twoRoundWindowEraCode = Cell.fromBoc(
+            readFileSync(__dirname + '/fixtures/treasury-two-round-window-era-code.boc'),
+        )[0]
+        rewardShareMigratorCode = await compile('upgrade-code-test/AddRewardShare')
         mainnetCode = Cell.fromBoc(readFileSync(__dirname + '/fixtures/treasury-mainnet-code.boc'))[0]
         mainnetData = Cell.fromBoc(readFileSync(__dirname + '/fixtures/treasury-mainnet-state.boc'))[0]
     })
@@ -156,10 +166,15 @@ describe('Treasury Migration', () => {
         })
         const twoRoundWindow = await treasury.sendUpgradeCode(blockchain.sender(governor), {
             value: toNano('1'),
-            newCode: treasuryCode,
+            newCode: twoRoundWindowEraCode,
             migrateCode: twoRoundWindowMigratorCode,
         })
-        return { deficit, borrowerFee, roundDuration, twoRoundWindow }
+        const rewardShare = await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: treasuryCode,
+            migrateCode: rewardShareMigratorCode,
+        })
+        return { deficit, borrowerFee, roundDuration, twoRoundWindow, rewardShare }
     }
 
     // Reads the era extension straight out of the fixture. The pre-upgrade account cannot be read
@@ -401,10 +416,16 @@ describe('Treasury Migration', () => {
         expectTreasurySucceeded(result.transactions)
         const window = await treasury.sendUpgradeCode(blockchain.sender(governor), {
             value: toNano('1'),
-            newCode: treasuryCode,
+            newCode: twoRoundWindowEraCode,
             migrateCode: twoRoundWindowMigratorCode,
         })
         expectTreasurySucceeded(window.transactions)
+        const share = await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: treasuryCode,
+            migrateCode: rewardShareMigratorCode,
+        })
+        expectTreasurySucceeded(share.transactions)
 
         const after = await treasury.getTreasuryState()
         expect(after.borrowerFee).toEqual(liveFee)
@@ -673,10 +694,23 @@ describe('Treasury Migration', () => {
         const dataAfterRoundDurationRerun = await readStorage(blockchain, treasuryAddress)
         const windowAgain = await treasury.sendUpgradeCode(blockchain.sender(governor), {
             value: toNano('1'),
-            newCode: treasuryCode,
+            newCode: twoRoundWindowEraCode,
             migrateCode: twoRoundWindowMigratorCode,
         })
         expect(windowAgain.transactions).toHaveTransaction({ to: treasuryAddress, success: false })
         expect((await readStorage(blockchain, treasuryAddress)).equals(dataAfterRoundDurationRerun)).toBe(true)
+
+        // And for the reward-share migrator. Its field is appended before the two refs, so a second
+        // pass reads the refs back correctly -- refs are counted apart from bits -- and trips when
+        // load_dict() takes the first bit of reward_share as the dictionary's maybe-flag and
+        // end_parse() finds the other fifteen left over.
+        const dataAfterWindowRerun = await readStorage(blockchain, treasuryAddress)
+        const shareAgain = await treasury.sendUpgradeCode(blockchain.sender(governor), {
+            value: toNano('1'),
+            newCode: treasuryCode,
+            migrateCode: rewardShareMigratorCode,
+        })
+        expect(shareAgain.transactions).toHaveTransaction({ to: treasuryAddress, success: false })
+        expect((await readStorage(blockchain, treasuryAddress)).equals(dataAfterWindowRerun)).toBe(true)
     })
 })

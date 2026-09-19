@@ -781,6 +781,47 @@ round still owes its reward. In the elector-rejection case that is about a round
 there used to be a spurious 0%. A stale `last_settled_round` with a healthy `participations` list is
 the expected shape there, not a wedge.
 
+## Protocol-Set Reward Share
+
+> **Not yet performed.** Spec: `docs/specs/2026-09-19-protocol-set-reward-share.md`.
+
+Removes `borrower_reward_share` from the `request_loan` message and makes it a protocol value the
+governor sets. One stored layout changes: the extension gains `reward_share` (`uint16`) after
+`borrower_fee`. The migrator is `wrappers/upgrade-code-test/add_reward_share.fc`, exercised in
+`tests/TreasuryMigration.spec.ts` chained after the two-round-window migration, which now targets
+`tests/fixtures/treasury-two-round-window-era-code.boc` rather than the working tree — each migrator
+keeps being tested against the layout it was written for.
+
+Requests and participations are **not** touched, so the migration needs no quiet window and its cost
+does not scale with anything stored. Requests already standing keep the share they were bid at.
+
+### Before sending
+
+1. **Decide the value before you send, not after.** The migrator seeds `1799`, which is the share
+   every request on chain was bid at, so the upgrade is economically neutral on landing. If the
+   intended policy is different, change the constant in the migrator *or* send `set_reward_share`
+   afterwards — not both.
+2. **Upgrade the treasury BEFORE the borrowers, not after.** This is a breaking change to
+   `op::request_loan`: the 16-bit share is gone, and an old-format message throws at `end_parse`.
+   The message is bounceable, so collateral comes back and nothing is lost, but the request does not
+   land and the borrower misses the round. Borrowers-first means their new messages hit a treasury
+   that still expects the field and are rejected the same way — so either ordering has a window; the
+   question is which one you control. Every known borrower must ship the change:
+   `HipoFinance/borrower` and the private sealed-borrower.
+3. **Tell the borrowers what the value is.** They cannot bid it any more, so they have to read
+   `reward_share` from `get_treasury_state` to price a bid at all.
+4. **The getter grows from 26 to 27 values.** Third time. Re-read *Changing the shape of a getter*
+   above and walk the census: consumers index positionally and assert length, so appending breaks
+   them. `wrappers/Treasury.ts` carries a temporary fallback in `getTreasuryState` so `showState.ts`
+   and the dry run still read the pre-upgrade contract — delete it once mainnet is upgraded.
+
+### Changing it later
+
+`set_reward_share` takes the new value out of 65535 and refuses `65535` itself, which would leave the
+pool `max(min_payment, 0)` on every loan. Send it **between rounds**: the value is snapshotted into
+each request, so a change mid-round leaves a round holding two different shares, which is the one
+case where the sort key is not exactly monotone.
+
 ## Repoint the Burner
 
 Spec: `docs/specs/2026-08-31-borrower-fee-hpo-burn.md`, which anticipated this exact upgrade under

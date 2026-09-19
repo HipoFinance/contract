@@ -47,7 +47,20 @@ const constantsFile = join('contracts', 'imports', 'constants.fc')
 
 // Constants deliberately left below what their op costs, with the exact gap pinned so it cannot widen unnoticed.
 // See the note above the last test for why gas::migrate_wallet is here and when to remove it.
-const pinnedShortfalls = new Map<string, bigint>([['migrate_wallet', 1335n]])
+//
+// reserve_tokens and burn_tokens joined it on 2026-09-19, for the same reason and with the same remedy: both feed
+// unstake_tokens_fee, which IS compiled into wallet.fc, so raising either moves the Wallet code hash and the repo
+// stops compiling to the wallet deployed on mainnet. The protocol-set reward share added 16 bits to the extension,
+// which costs every op that packs it about 99 gas; deposit_coins, mint_tokens and send_unstake_all were raised
+// because their fee functions are treasury-only. Raise these two and delete the pins when the next wallet version
+// ships. The under-charge reaches a user on the unstake path as 99 + 2 x 99 = 297 gas, the burn being budgeted
+// twice for the second try -- about 0.0001 GRAM at current prices, against the forward fees the same function
+// budgets for messages that are usually never sent.
+const pinnedShortfalls = new Map<string, bigint>([
+    ['migrate_wallet', 1647n],
+    ['reserve_tokens', 99n],
+    ['burn_tokens', 99n],
+])
 
 const loanKeys = [
     'request_loan',
@@ -221,6 +234,7 @@ describe('Max Gas', () => {
                     proposedGovernor: null,
                     governanceFee: 4096n,
                     borrowerFee: 0n,
+                    rewardShare: 1799n,
                     collectionCodes,
                     billCodes,
                     oldParents,
@@ -863,7 +877,6 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg,
         })
 
@@ -1020,7 +1033,6 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
 
@@ -1029,7 +1041,6 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         expect(result1.transactions).toHaveLength(2)
@@ -1088,7 +1099,6 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         expect(result2.transactions).toHaveLength(2)
@@ -1099,7 +1109,6 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         expect(result3.transactions).toHaveLength(3)
@@ -1233,7 +1242,6 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
 
@@ -1242,7 +1250,6 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         expect(result1.transactions).toHaveLength(2)
@@ -1298,7 +1305,6 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         expect(result2.transactions).toHaveLength(2)
@@ -1309,7 +1315,6 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         expect(result3.transactions).toHaveLength(3)
@@ -1418,7 +1423,6 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
 
@@ -1427,7 +1431,6 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         expect(result1.transactions).toHaveLength(2)
@@ -1483,7 +1486,6 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg1,
         })
         expect(result2.transactions).toHaveLength(2)
@@ -1494,7 +1496,6 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg2,
         })
         expect(result3.transactions).toHaveLength(3)
@@ -1592,7 +1593,6 @@ describe('Max Gas', () => {
                     roundSince: until1,
                     loanAmount: '300000',
                     minPayment: '50',
-                    borrowerRewardShare: 26214n, // 40%
                     newStakeMsg,
                 })
                 expect(result.transactions).toHaveLength(2)

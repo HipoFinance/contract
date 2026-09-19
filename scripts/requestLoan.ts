@@ -13,7 +13,6 @@ export async function run(provider: NetworkProvider) {
     const value = toNano(await ui.input('value'))
     const loanAmount = toNano(await ui.input('loan amount'))
     const minPayment = toNano((await ui.input('min payment (default: 0)')) || '0')
-    const borrowerRewardShare = BigInt((await ui.input('borrower reward share [0-255] (default: 102)')) || '102')
     const maxFactor = BigInt((await ui.input('max factor (default: 65536)')) || '65536')
     const adnlAddress = BigInt('0x' + (await ui.input('adnl address')))
     const validatorPubkey = BigInt('0x' + (await ui.input('validator pubkey')))
@@ -24,7 +23,6 @@ export async function run(provider: NetworkProvider) {
         roundSince,
         loanAmount,
         minPayment,
-        borrowerRewardShare,
         newStakeMsg: beginCell()
             .storeUint(validatorPubkey, 256)
             .storeUint(roundSince, 32)

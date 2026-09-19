@@ -104,6 +104,7 @@ describe('Getters', () => {
                     proposedGovernor: null,
                     governanceFee: 4096n,
                     borrowerFee: 0n,
+                    rewardShare: 1799n,
                     collectionCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         collectionCode,
@@ -253,7 +254,6 @@ describe('Getters', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: newStakeMsg,
         })
 
@@ -375,6 +375,7 @@ describe('Getters', () => {
             // ship without a single reader being updated -- DefiLlama's adapters included.
             'mid_rate',
             'mid_round',
+            'reward_share',
         ]
         expect(stack.remaining).toEqual(positions.length)
 
@@ -406,6 +407,7 @@ describe('Getters', () => {
         stack.readCellOpt() // old_parents
         expect(stack.readBigNumber()).toEqual(1_000_000_000n) // mid_rate
         expect(stack.readBigNumber()).toEqual(0n) // mid_round
+        expect(stack.readBigNumber()).toEqual(1799n) // reward_share
         expect(stack.remaining).toEqual(0)
     })
 

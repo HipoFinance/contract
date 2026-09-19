@@ -115,6 +115,7 @@ describe('Governance', () => {
                     proposedGovernor: null,
                     governanceFee: 4096n,
                     borrowerFee: 0n,
+                    rewardShare: 1799n,
                     collectionCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         collectionCode,
@@ -356,7 +357,6 @@ describe('Governance', () => {
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: emptyNewStakeMsg,
         })
 
@@ -1155,9 +1155,11 @@ describe('Governance', () => {
         // field lived in the extension. Root storage is read and written on every message, whereas the
         // extension is only touched by the handlers that need it, so the counter costs ~282 gas on
         // every treasury transaction instead of only on the extension paths. The borrower fee moved it
-        // again: a larger code cell costs more to store, whatever the message does.
+        // again: a larger code cell costs more to store, whatever the message does. And again at
+        // 0.09910 when the reward share moved into the extension -- 16 more bits of storage and the
+        // handler that sets them.
         const totalCoinsBefore4 = (await treasury.getTreasuryState()).totalCoins
-        const result4 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.09911') })
+        const result4 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.09910') })
         const totalCoinsAfter4 = (await treasury.getTreasuryState()).totalCoins
 
         expect(result4.transactions).toHaveTransaction({
@@ -1169,7 +1171,7 @@ describe('Governance', () => {
             outMessagesCount: 0,
         })
         expect(result4.transactions).toHaveLength(2)
-        expect(totalCoinsAfter4).toEqual(totalCoinsBefore4 + toNano('0.09911'))
+        expect(totalCoinsAfter4).toEqual(totalCoinsBefore4 + toNano('0.09910'))
 
         const totalCoinsBefore5 = (await treasury.getTreasuryState()).totalCoins
         const result5 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.0992') })

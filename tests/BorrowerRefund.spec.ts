@@ -110,6 +110,7 @@ describe('BorrowerRefund', () => {
                     proposedGovernor: null,
                     governanceFee,
                     borrowerFee: 0n,
+                    rewardShare: 1799n,
                     collectionCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(
                         0n,
                         collectionCode,
@@ -216,7 +217,6 @@ describe('BorrowerRefund', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: await createNewStakeMsg(loan1.address, until1),
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -224,7 +224,6 @@ describe('BorrowerRefund', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: await createNewStakeMsg(loan2.address, until1),
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -232,7 +231,6 @@ describe('BorrowerRefund', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
-            borrowerRewardShare: 26214n, // 40%
             newStakeMsg: await createNewStakeMsg(loan3.address, until1),
         })
 

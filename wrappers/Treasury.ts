@@ -1,4 +1,5 @@
 import {
+    TupleReader,
     Address,
     beginCell,
     Builder,
@@ -122,6 +123,13 @@ export interface TreasuryConfig {
     proposedGovernor: Cell | null
     governanceFee: bigint
     borrowerFee: bigint
+    /**
+     * The borrower's contractual share of a loan's reward, out of 65535, set by the protocol rather
+     * than bid. `request_loan` snapshots it into every request, so changing it cannot reprice a loan
+     * already committed. Returned LAST by `get_treasury_state`; see
+     * `docs/specs/2026-09-19-protocol-set-reward-share.md`.
+     */
+    rewardShare: bigint
     collectionCodes: Dictionary<bigint, Cell>
     billCodes: Dictionary<bigint, Cell>
     oldParents: Dictionary<bigint, unknown>
@@ -137,6 +145,19 @@ export interface TreasuryConfig {
     midRound: bigint
 }
 
+/**
+ * Reads one more value from a getter's stack, or returns `fallback` when the contract is an older
+ * build that does not return it. Only for a field being appended in the release being prepared: the
+ * dry run and `showState` have to read the deployed contract, which is still the old one.
+ */
+function readOrDefault(stack: TupleReader, fallback: bigint): bigint {
+    try {
+        return stack.readBigNumber()
+    } catch {
+        return fallback
+    }
+}
+
 export function treasuryConfigToCell(config: TreasuryConfig): Cell {
     const treasuryExtension = beginCell()
         .storeCoins(config.previousRate)
@@ -150,6 +171,7 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeMaybeRef(config.proposedGovernor)
         .storeUint(config.governanceFee, 16)
         .storeUint(config.borrowerFee, 16)
+        .storeUint(config.rewardShare, 16)
         .storeRef(beginCell().storeDictDirect(config.collectionCodes))
         .storeRef(beginCell().storeDictDirect(config.billCodes))
         .storeDict(config.oldParents)
@@ -376,7 +398,6 @@ export class Treasury implements Contract {
             roundSince: bigint
             loanAmount: bigint | string
             minPayment: bigint | string
-            borrowerRewardShare: bigint
             newStakeMsg: Cell
         },
     ) {
@@ -390,7 +411,6 @@ export class Treasury implements Contract {
                 .storeUint(opts.roundSince, 32)
                 .storeCoins(tonValue(opts.loanAmount))
                 .storeCoins(tonValue(opts.minPayment))
-                .storeUint(opts.borrowerRewardShare, 16)
                 .storeRef(opts.newStakeMsg)
                 .endCell(),
         })
@@ -574,6 +594,29 @@ export class Treasury implements Contract {
                 .storeUint(op.setBorrowerFee, 32)
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeUint(opts.newBorrowerFee, 16)
+                .endCell(),
+        })
+    }
+
+    async sendSetRewardShare(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            newRewardShare: bigint
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.setRewardShare, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .storeUint(opts.newRewardShare, 16)
                 .endCell(),
         })
     }
@@ -1119,9 +1162,17 @@ export class Treasury implements Contract {
             billCodes: Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell(), stack.readCell()),
             oldParents: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), emptyDictionaryValue, stack.readCellOpt()),
             // Returned last by the getter, whatever their place in storage. Property order is the
-            // read order here, so these two stay at the bottom of this object.
+            // read order here, so these stay at the bottom of this object.
             midRate: stack.readBigNumber(),
             midRound: stack.readBigNumber(),
+            // Appended by 2026-09-19-protocol-set-reward-share. A treasury that has not been upgraded
+            // yet returns 26 values and this read throws, so it falls back to the value that release
+            // writes -- which is what such a treasury behaves as, since every request it holds was bid
+            // at it. Delete the branch once mainnet is upgraded; see
+            // docs/specs/2026-09-07-two-round-rate-window.md for why reading a shape you are about to
+            // change has to keep working: showState and the upgrade dry run both run against the OLD
+            // contract.
+            rewardShare: readOrDefault(stack, 1799n),
         }
     }
 

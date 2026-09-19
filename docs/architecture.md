@@ -102,6 +102,20 @@ remainder increases `total_coins` for all hGRAM holders. Losses are deducted fro
 borrower's own stake first — stakers are only exposed after the borrower's stake is
 exhausted.
 
+**The reward share is the protocol's, not the bid's.** `request_loan` does not read it from the
+message; it snapshots `reward_share` from the extension, which the governor sets with
+`set_reward_share`. The pool therefore receives at least
+`reward × (65535 − reward_share) / 65535` from every loan, whatever anybody bids, and the bid is
+one number: `min_payment`.
+
+That floor is the whole point. The pool's take is `max(min_payment, contractual share)` — two
+quantities, and while the borrower chose both, a bid of share 65535 with `min_payment` 0 paid
+stakers nothing, and the auction could not rank against it: `request_sort_key` orders on
+`min_payment / loan_amount`, and the two pairs cannot be compared without knowing the round's
+reward, which nobody knows when the bid is made. With the share common to every request in a
+round, that key is exactly monotone in what the pool receives. See
+`docs/specs/2026-09-19-protocol-set-reward-share.md`.
+
 ### The borrower fee
 
 `borrower_fee` (out of 65535) charges the borrower a share of their **contractual** reward,

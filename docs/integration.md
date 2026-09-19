@@ -368,13 +368,17 @@ Three rules that a classifier gets wrong easily, each learned from a real defect
   plus reward share), `take_borrower_fee#5e2d81f4` (the borrower fee, to the burner) and
   `take_profit` (governance fee).
 
-  > **Breaking change for borrowers.** `borrower_reward_share` in `request_loan` is now a
-  > `uint16` out of 65535, not a `uint8` out of 255. An old-format request carries only 8 bits
-  > there and throws on cell underflow; the message is bounceable, so the collateral comes back
-  > and nothing is lost, but the request does not land and the borrower misses the round. Port an
-  > existing bid exactly by multiplying by 257 — `255 * 257 = 65535`, so a share of 8 becomes 2056
-  > with identical economics. The widening exists because one step of the old scale moved a
-  > borrower's own take by `1/share`, which at the shares actually bid was over 12%.
+  > **Breaking change for borrowers.** `borrower_reward_share` has been **removed from
+  > `request_loan`**. It is set by the protocol for every loan — read it from
+  > `get_treasury_state` — and snapshotted into each request, so a later `set_reward_share`
+  > cannot reprice a loan already committed. A request in the old format carries 16 bits of share
+  > before its ref, which `end_parse` rejects; the message is bounceable, so the collateral comes
+  > back and nothing is lost, but the request does not land and the borrower misses the round.
+  >
+  > The bid is now one number: `min_payment`. The pool receives
+  > `max(min_payment, reward × (65535 − reward_share) / 65535)`, so a bid at `min_payment` 0 still
+  > pays the pool its full contractual share, and anything above the clamp is the borrower
+  > competing for rank. See `docs/specs/2026-09-19-protocol-set-reward-share.md`.
 
 ## Calculating Remaining Time Until Withdrawal
 
