@@ -1,5 +1,12 @@
 # Minimum bid efficiency for loan requests
 
+> **Superseded 2026-09-19 by `2026-09-19-protocol-set-reward-share.md`.** The bid analysed below —
+> `min_payment = 0` with the borrower contracting for the whole reward — is no longer expressible:
+> the reward share is set by the protocol, so such a request hands the pool its full contractual
+> share. The reasoning that closed this spec ("it sorts last and only wins on spare capacity") also
+> turned out to be thin: the pool is fully lent every round, and sorting last costs nothing when
+> there is room, which there always is for the bidders who are the field.
+>
 > **Status: closed 2026-09-10 — no change. The behaviour is by design.**
 > Found while specifying `2026-08-31-borrower-fee-hpo-burn.md`. Recorded separately because it
 > is a pre-existing property of the auction, not something that change introduces. The analysis
