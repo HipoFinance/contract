@@ -93,39 +93,52 @@ absent outside the election window and is simply skipped when null.
 Reading precisely is the normal path because it produces honest logs and honest metrics; blind mode
 exists so that a broken read costs accuracy rather than the protocol.
 
-### The halt guard, and what happens to it when blind
+### The halt policy: wait for the refund branch, do not withhold the message
 
 `stopped?` is read in exactly two places in the treasury, `deposit_coins` and `request_loan`.
 `participate_in_election`, `distribute`, `decide_loan_requests` and `process_loan_requests` have no
 stop check, which the solvency runbook already records: halting "does NOT stop the open round's
 already-placed loan requests from being lent at its next `participate_in_election`, which anyone can
 send." Today that hazard is unreliable — with borrowers down, a halted treasury happens not to lend.
-A service poking every 60 seconds would make it reliable, during exactly the incident in which the
+A service poking every minute would make it dependable, during exactly the incident in which the
 governor halted the pool.
 
-So when the read succeeds and `stopped? == true`, the service **skips `participate_in_election`** and
-keeps sending `vset_changed` and `finish_participation`, so in-flight rounds always settle and no new
-money goes out the door.
+The first version of this spec simply withheld `participate_in_election` while `stopped?` was set.
+That was wrong, and it was wrong for a reason worth writing down: **because `request_loan` checks
+`stopped?`, a halted pool can gain no new requests.** An open round therefore holds only bids placed
+before the halt — a fixed set of third parties whose collateral sits in the treasury for as long as
+the round stays open. Withholding the message strands them indefinitely, for no benefit to anyone.
 
-Blind mode cannot see `stopped?`. Failing safe there (never participate blind) would mean a getter
-change silently stops the pool lending until someone notices; failing open indefinitely would mean
-the halt guard can be removed by an unrelated upgrade and nobody is told. Neither is acceptable, so
-blind mode **fires all three for a bounded two hours, with `PokerBlindMode` warning within five
-minutes**, and then falls back to settle-only and raises `PokerBlindModeExpired`. Two hours is well
-under one round, so at most one lending round is at risk, and an operator who ignores the warning for
-two hours gets the conservative behaviour by default.
+`distribute` already has the right answer:
 
-### Send success proves nothing, so confirmation is a state re-read
+```func
+int elected?  = ~ config_param(config::next_validators).null?();
+int too_late? = now() >= min(participate_until, round_since);
+if elected? | too_late? {
+    ;; reject all requests if already elected or there is not enough time for safe participation
+```
 
-A liteserver accepting the bytes says only that the bytes were accepted. If the contract throws
-before `accept_message()` the transaction is discarded with no trace and no receipt. `borrower`
-currently logs `☑️ Sent participate_in_election` on exactly that signal, which is why a wedged round
-can sit there while the logs look healthy.
+Poked inside the election window it lends. Poked once that branch is guaranteed, it moves every
+request to `rejected`, refunds each borrower through `process_loan_requests`, and retires the round
+**without lending a single GRAM**. So while `stopped?` is set the service does not withhold
+`participate_in_election`; it defers it until `elected? | too_late?` holds. The round closes, the
+collateral comes back, the pool lends nothing, and no third party is left waiting on a halt being
+lifted. Settling is never withheld in any mode.
 
-The service therefore treats a poke as unconfirmed until it sees the participation's state actually
-change, and exports the age of the oldest unconfirmed poke. That series, not the send count, is what
-`PokerPokeUnconfirmed` alerts on, and it is the one number that distinguishes "nothing needed doing"
-from "we have been shouting at the chain for ten minutes and nothing moved."
+That is strictly better than both alternatives, which is why it replaced the original decision
+rather than being offered alongside it.
+
+**When blind, only half of that condition is readable**, and that half is the useful one.
+`too_late?` needs `participate_until` from `get_times`, which blind mode does not trust; `elected?`
+is just "config 36 exists", which is network state. So blind mode participates normally for a
+bounded two hours — with `PokerBlindMode` warning within five minutes — and after that only while
+config 36 exists, where `distribute` can only refund. It therefore stops being able to lend, but
+never stops being able to retire a stranded round.
+
+Failing safe by never participating again would have meant a getter change silently stopping the
+pool earning *and* stranding borrower collateral until someone noticed. Failing open indefinitely
+would have meant an unrelated upgrade removing the halt guard with nobody told. Two hours is well
+under one round, so at most one lending round is exposed.
 
 ### The first poke is sent at the first opportunity
 
@@ -187,7 +200,8 @@ for the same reason the burst is.
 - `poke/state.go` — guarded `get_treasury_state` read: length and per-index type checks, returning
   either a parsed participation set or a read failure. Never a partially trusted tuple.
 - `poke/due.go` — given participations (or blind candidates) and `stopped?`, the set of `(op,
-  round_since)` pokes that are due; the `stopped?` guard and the blind two-hour window live here.
+  round_since)` pokes that are due; the halt policy (`participateDue`, `refundOnlyFor`) and the
+  blind two-hour window live here.
 - `poke/send.go` — builds and sends the three external bodies; identical encoding to
   `wrappers/Treasury.ts`'s `sendParticipateInElection` / `sendVsetChanged` / `sendFinishParticipation`.
 - `poke/clock.go` — the chain-clock offset and the deadline schedule: when the next poke is due, and
@@ -265,10 +279,12 @@ by argument:
 - **Governance-gated state is unreachable.** No key, so `set_stopped`, `set_deficit`, the retries and
   every upgrade path remain exactly as manual as they are today.
 
-The one behaviour that genuinely changes: an already-halted treasury will now reliably lend the open
-round's placed requests rather than doing so only when a borrower happens to be up. That is what the
-`stopped?` guard and the bounded blind window exist to contain, and it is recorded here because it is
-a real widening, not a neutral one.
+The one behaviour that genuinely changes: an already-halted treasury will now reliably have its open
+rounds *retired* rather than lent, where before they would sit open until someone noticed. The
+service never sends `participate_in_election` to a halted treasury at a moment when `distribute`
+would lend, so it does not widen the documented hazard that halting fails to stop lending — but it
+does not close it either, because anyone may still send that message at the lending moment. That
+remains a property of the contract, not of this service.
 
 ## Compatibility
 
@@ -293,7 +309,10 @@ In `HipoFinance/poker`, unit tests over table-driven fixtures — no chain acces
 
 - Due-poke computation for a participation in each of states 0–7, asserting exactly which op is due
   and that states 6 and 7 produce none.
-- The `stopped?` guard: `participate_in_election` withheld, the other two still due.
+- The halt policy, which is the subtlest thing here: with `stopped?` set,
+  `participate_in_election` is withheld inside the election window and due once
+  `elected? | too_late?` holds, by both arms of that condition separately; a stale open round is due
+  immediately; and the two settling ops are unaffected in every case.
 - Blind candidate derivation from real config 32/34/36 cells, including config 36 absent.
 - The blind window: all three fired inside two hours, `participate_in_election` withdrawn after it,
   and `hipo_poker_blind_mode_since_seconds` set once and not re-set on subsequent failures.

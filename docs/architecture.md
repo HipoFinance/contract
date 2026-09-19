@@ -214,9 +214,13 @@ poke; it is redundancy, not a replacement. See `docs/specs/2026-09-18-poke-servi
 Two consequences are worth keeping in mind when changing anything near this. Because these messages
 are unauthenticated, **`set_stopped` does not stop a round being lent**: `participate_in_election`,
 `distribute` and `process_loan_requests` have no `stopped?` check, so a halted treasury still lends
-the open round's already-placed requests when someone pokes it. The poke service withholds that one
-message while `stopped?` is set, which mitigates but does not close it — anyone else may still send
-it. And the retries (`retry_distribute`, `retry_recover_stakes`, `retry_burn_all`,
+the open round's already-placed requests when someone pokes it during the election window. Anyone
+may do that, so halting does not close it. What *is* true is that `request_loan` does check
+`stopped?`, so a halted pool gains no new requests, and that `distribute` refunds every request
+instead of staking it once `elected? | too_late?` holds. The poke service uses that: while
+`stopped?` is set it defers `participate_in_election` to the refund branch, so the round is retired
+and its borrowers' collateral returned without the pool lending. Withholding the message instead
+would strand that collateral for as long as the halt lasted. And the retries (`retry_distribute`, `retry_recover_stakes`, `retry_burn_all`,
 `retry_mint_bill`) are deliberately *not* automated: they are internal, governor-or-halter gated,
 and `retry_burn_all` encodes a judgment that belongs to a person.
 
