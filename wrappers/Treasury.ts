@@ -149,13 +149,16 @@ export interface TreasuryConfig {
  * Reads one more value from a getter's stack, or returns `fallback` when the contract is an older
  * build that does not return it. Only for a field being appended in the release being prepared: the
  * dry run and `showState` have to read the deployed contract, which is still the old one.
+ *
+ * It tests for an exhausted stack rather than catching, so that a value of the WRONG TYPE at that
+ * position still throws. Catching would have turned every future getter change into a silent
+ * fallback, which is the failure this whole pattern exists to make loud.
  */
 function readOrDefault(stack: TupleReader, fallback: bigint): bigint {
-    try {
-        return stack.readBigNumber()
-    } catch {
+    if (stack.remaining === 0) {
         return fallback
     }
+    return stack.readBigNumber()
 }
 
 export function treasuryConfigToCell(config: TreasuryConfig): Cell {

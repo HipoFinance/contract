@@ -808,9 +808,15 @@ does not scale with anything stored. Requests already standing keep the share th
    that still expects the field and are rejected the same way — so either ordering has a window; the
    question is which one you control. Every known borrower must ship the change:
    `HipoFinance/borrower` and the private sealed-borrower.
-3. **Tell the borrowers what the value is.** They cannot bid it any more, so they have to read
+3. **Check what the standing requests were bid at.** A request made before the upgrade keeps the
+   share its sender chose, and settles on it. If any of them carries a share above the value being
+   seeded, that loan still pays the pool less than the new floor and there is nothing the upgrade can
+   do about it — the snapshot is what stops governance repricing a committed bid. `setBorrowerFee.ts`
+   lists every request the treasury is holding with the share each carries; read it before sending,
+   and wait for an offending round to settle if one shows up.
+4. **Tell the borrowers what the value is.** They cannot bid it any more, so they have to read
    `reward_share` from `get_treasury_state` to price a bid at all.
-4. **The getter grows from 26 to 27 values.** Third time. Re-read *Changing the shape of a getter*
+5. **The getter grows from 26 to 27 values.** Third time. Re-read *Changing the shape of a getter*
    above and walk the census: consumers index positionally and assert length, so appending breaks
    them. `wrappers/Treasury.ts` carries a temporary fallback in `getTreasuryState` so `showState.ts`
    and the dry run still read the pre-upgrade contract — delete it once mainnet is upgraded.

@@ -123,9 +123,10 @@ Rejected alternatives:
   a protocol-set fraction, so the reasoning in `2026-08-31-borrower-fee-hpo-burn.md` carries over
   intact — including that the fee is charged on top of the pool's take and never carved out of it.
 - **Loss ordering is unchanged**: punishment, then the pool, then the burner, then the borrower.
-- **What remains possible**, and should be stated rather than implied: a borrower can still decline to
-  bid. A round nobody bids for is unlent and earns nothing. No auction mechanism fixes that, and it is
-  now the only way borrower behaviour can reduce staker returns.
+- **The floor is on the SPLIT of a reward, not on the pool's revenue.** `treasury_reward` is at least
+  `s₀ × reward`, but `reward` is zero for a stake the Elector accepts and does not elect, so a loan
+  that is never elected pays the pool nothing however this parameter is set. Stated here because the
+  Decision above reads as a revenue floor and it is not one; see *What remains possible*.
 
 ## Compatibility
 
@@ -164,6 +165,32 @@ Rejected alternatives:
 - `reward_share = 1799` reproduces today's allocation and recovery figures loan for loan.
 - `MaxGas` / `MinGas` stay green.
 
+## What remains possible
+
+**Idle capital.** A borrower can take a loan, not be elected, and pay the pool nothing — the reward is
+zero, so its contractual share is zero too. Taking the whole pool that way needs slices the Elector
+accepts (≥ `min_stake`, 300,000) but does not elect (under about 700,000): six or more of them on
+today's 3.6M, each with its own address and validator key, costing roughly 102 GRAM of collateral
+locked per slice and the 1 GRAM burn floor — about 6 GRAM a round, 2,900 a year, to earn stakers
+nothing on what they hold.
+
+Two things bound it, and they are why this is not a reason to delay the change:
+
+- `min_payment` 0 **ranks last**, so every honest bid is served first. The damage is confined to
+  capacity nobody honest bid for.
+- Taking capacity *away* from an honest bidder means outranking it, which means promising a real
+  `min_payment` — and an unelected stake pays that promise out of collateral. Buying rank in order to
+  waste the pool costs money; collecting the leftovers does not.
+
+This is the case `docs/specs/2026-09-02-minimum-bid-efficiency.md` was written about, and it is the
+half of that spec this change does **not** supersede. A floor on `min_payment / loan_amount` forces
+every bidder to promise something, which is exactly what makes idle capital expensive. The two
+changes are complementary: this one closes the profitable attack, that one closes the griefing attack.
+Worth reopening on its own terms.
+
+A borrower can also simply decline to bid, and a round nobody bids for is unlent. No auction mechanism
+fixes that.
+
 ## Found during implementation
 
 Two things the spec had wrong, both corrected in the code rather than worked around:
@@ -197,6 +224,7 @@ Also moved, and pinned: the largest gift a 0.1 GRAM `gift_coins` message can car
   commercial problem between borrowers rather than a protocol one.
 - **A bounded share band for risk-free competition**, as described under rejected alternatives. Revisit
   if `min_payment` competition does not appear over a month of rounds.
-- **`2026-09-02-minimum-bid-efficiency.md`** is superseded: the bid it worried about — `min_payment` 0
-  with the borrower taking the whole reward — now hands the pool its full contractual share, so there
-  is nothing left to defend against.
+- **`2026-09-02-minimum-bid-efficiency.md`** is superseded only in part. The *profitable* version of
+  the bid it analysed — `min_payment` 0 with the borrower contracting for the whole reward — is gone.
+  The *griefing* version is not: see *What remains possible*. A minimum bid efficiency remains the
+  right answer to that, and should be reopened rather than treated as closed by this change.
