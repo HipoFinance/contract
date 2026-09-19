@@ -132,11 +132,26 @@ Smaller ones: a borrower who cannot project `available` must over-ask to reach t
 rank penalty for it; and `get_treasury_state` would grow from 26 to 27 values, breaking positional
 readers for the third time.
 
+### `min_stake` is not the floor any more
+
+Worth recording because it runs through the analysis above and through
+`decide_loan_requests`' neighbours: **config 17's `min_stake` (300,000) is stale, and there is no
+plan to raise it on chain.** The binding minimum is what the Elector actually elects — around
+700,000 in September 2026 and rising — so any rule anchored on `min_stake` is anchored on a number
+that stopped describing the network.
+
+It also explains why nobody bids near it. A 300,000 loan is not merely unattractive; it is
+self-defeating, because if several bidders each ask for a small loan the pool splits into several
+small stakes and *none* of them is elected. Every contestant ends up holding a loan that earns
+nothing. So the field converges on loans near the elected floor whatever the contract permits, and a
+cap or a floor that talks about `min_stake` is talking about a constraint that does not bind.
+
 ## What would change the answer
 
-- An **elected floor that stops moving**, or a cap expressed against it rather than against a fixed
-  fraction — `cap = k × the smallest recently elected stake`, read from the Elector, would track the
-  binding constraint by itself and need no oversight. That is the shape to try if this comes back.
+- A cap expressed **against the elected floor** rather than as a fraction of the pool —
+  `cap = k × the smallest recently elected stake`, read from the Elector — would track the binding
+  constraint by itself and need no oversight. Given that `min_stake` is stale and the real floor
+  moves every election, this is the only shape worth trying if the idea comes back.
 - **Identity beyond the address**, which would separate *k* entities from *k* addresses and make the
   Sybil threshold irrelevant. Nothing in TON offers it cheaply.
 
