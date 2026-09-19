@@ -121,7 +121,25 @@ if elected? | too_late? {
 Poked inside the election window it lends. Poked once that branch is guaranteed, it moves every
 request to `rejected`, refunds each borrower through `process_loan_requests`, and retires the round
 **without lending a single GRAM**. So while `stopped?` is set the service does not withhold
-`participate_in_election`; it defers it until `elected? | too_late?` holds. The round closes, the
+`participate_in_election`; it defers it until `elected? | too_late?` holds — **plus a margin**.
+
+The margin is not caution, it is the difference between a guard and a branch, and the first
+version of this shipped without it. Everywhere else in this service an early send is free, because
+the treasury's guards run before `accept_message()` and a rejected external commits nothing. That
+is what pays for a burst which deliberately starts two seconds early. **`participate_until` is not
+one of those guards.** `participate_in_election`'s guards are `state == open` and
+`now() >= min(participate_since, round_since)` (treasury.fc:883-886); `participate_until` is read
+afterwards, inside `distribute` (treasury.fc:828), with the message already accepted and the state
+already committed. Being early there does not throw — it takes the other branch and lends. And
+`now()` is the `gen_utime` of whichever block collated the message, which can precede the send;
+with several copies going to several endpoints the deciding value is the *minimum* `gen_utime`
+among them, and one early copy is irreversible.
+
+So the `too_late?` arm waits `refundMargin` (300s) past its threshold. 300 because that is when
+config 36 appears anyway, so for the upcoming round this arm now fires no earlier than the
+`elected?` arm, which has no race in either direction. What the arm still buys is the stale open
+round, whose threshold is `round_since` and hours in the past, where the margin is satisfied the
+moment it is tested. The round closes, the
 collateral comes back, the pool lends nothing, and no third party is left waiting on a halt being
 lifted. Settling is never withheld in any mode.
 
@@ -142,11 +160,22 @@ under one round, so at most one lending round is exposed.
 
 ### The first poke is sent at the first opportunity
 
-The borrowers poke on a 60-second timer with up to 60 seconds of jitter on top, so on average a
-transition waits about a minute after it became legal, and can wait two. Everyone whose unstake is
-billed against that round waits with it. This service has no reason to be coarse: it is not competing
-for an election slot, it has no wallet to serialise, and a mistimed external costs nothing, so it
-aims at the exact second and takes the first opportunity.
+This service aims at the exact second because it can: it is not competing for an election slot, it
+has no wallet to serialise, and a mistimed external costs nothing.
+
+How much that is worth was measured on chain afterwards, and it is worth less than this spec
+originally claimed. An earlier draft said the borrowers poke on a 60-second timer with up to 60
+seconds of jitter, so a transition waits about a minute. That was read off `borrower/main.go`
+rather than measured, and it is **wrong for `participate_in_election`**: every one of the five
+rounds before this service was deployed landed that message at exactly `participate_since + 3s`,
+with consecutive rounds exactly 65536s apart — zero variance. Where the variance actually lives is
+`vset_changed` (+4s to +38s across the same window) and, inherited from it, `finish_participation`:
+`stake_held_until` is set to `now() + stake_held_for + 60` at the transition into `held`, so every
+second of `vset_changed` lateness is paid again by the settlement a round later.
+
+So the timing case for this service is `vset_changed` and what follows from it. The case for
+`participate_in_election` is redundancy alone, and that is still the case that matters — the
+borrowers being precise is no use at all on the days they are not running.
 
 All three deadlines are computable in advance, so the loop sleeps until one rather than polling
 towards it:
@@ -353,10 +382,17 @@ nor the borrowers wanted is the one that blocks the deploy.
 ## What an adversarial review changed
 
 The service was reviewed hostilely before deployment, against the FunC rather than against these
-notes. Two claims held up unchanged — that a rejected external costs nobody anything, and that
-deferring the poke to `distribute`'s refund branch can never cause a stake instead of a refund
-(every reachable `round_since` and both sides of a rotation were walked). Six things did not, and
-they are recorded here because each was a plausible-looking piece of code that did the wrong thing:
+notes. One claim held up unchanged: a rejected external costs nobody anything. **A second one did
+not survive the next review and is corrected above** — "deferring the poke to `distribute`'s refund
+branch can never cause a stake instead of a refund" was written here after a reviewer walked every
+reachable `round_since` and both sides of a rotation. Nobody walked the `gen_utime` lag, which is
+the only axis that matters at that boundary and the one this service has a whole abstraction for.
+`participate_until` is a branch selector inside `distribute`, not a guard in front of it, so an
+early send there stakes rather than throwing. It is fixed with a margin; the lesson is that "we
+checked it" is worth exactly as much as the axis nobody thought to check.
+
+Six other things did not hold up, and they are recorded because each was a plausible-looking piece
+of code that did the wrong thing:
 
 - **The burst measured itself from the oldest outstanding poke**, so one wedged round put every
   cycle on the plain retry interval and switched off the first-opportunity burst for every other
@@ -384,6 +420,39 @@ endpoint sends were serial with a 10-second timeout each.
 
 The lesson worth keeping is the first one. Every one of these passed a test suite that was already
 mutation-checked, because the tests pinned the functions rather than the wiring between them.
+
+## What the second adversarial review changed
+
+The code written in response to the first review was itself reviewed, because fixes written under
+a review's pressure are exactly where new bugs live. That was worth doing: the worst finding of
+either pass came from it — the halt policy above, which could have let a halted treasury lend.
+
+The other findings, each a fix that did not do what its own commit message claimed:
+
+- **The loop could spin at 1Hz forever.** An empty tracker reports an age of zero, which the
+  scheduler read as "sent a moment ago". Nothing is in the tracker when every send is failing, or
+  under `DRY_RUN` — the two states where a hot loop is least affordable, and the second of which
+  this spec asked to be run against mainnet for a full round.
+- **Concurrent sends still waited for the slowest endpoint**, because the results were read after
+  the wait group. One black-holed endpoint still added its whole timeout to every poke in a cycle.
+- **Nothing measured whether the read data was current.** The session takes the first endpoint that
+  *answers*, so a liteserver that is far behind in sync wins whenever it replies; sends go to every
+  endpoint, so the poke lands and the round advances while the poker never sees it. Every existing
+  check passed. `hipo_poker_read_block_seqno` closes it.
+- **Every send failing raised nothing at all**, which was a direct consequence of getting the
+  previous review right: a poke only starts a clock once it has actually left, so with every send
+  failing there is nothing to go unconfirmed, while reads keep succeeding so nothing else fires.
+- Smaller: a validator set with inverted times underflowed the epoch length blind mode derives;
+  `Send` with no endpoints reported success; `increase()`'s edge extrapolation made a threshold
+  mean three or four depending on history; a read outage sent a spurious RESOLVED for a wedged
+  round; and the runbook had every `PokerReadFailing` number wrong, copied from gauge's equivalent
+  and never updated when the rule changed.
+
+Two conclusions worth keeping. First, the failure mode of both reviews was the same: tests that
+pin functions while the bug lives in the wiring between them, and prose that was reasoned from
+code rather than measured against it. Second, a review's own "checked and sound" list is a claim
+like any other — the first review's most reassuring paragraph is the one the second review
+overturned.
 
 ## Out of scope
 

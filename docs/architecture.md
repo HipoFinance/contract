@@ -219,7 +219,15 @@ may do that, so halting does not close it. What *is* true is that `request_loan`
 `stopped?`, so a halted pool gains no new requests, and that `distribute` refunds every request
 instead of staking it once `elected? | too_late?` holds. The poke service uses that: while
 `stopped?` is set it defers `participate_in_election` to the refund branch, so the round is retired
-and its borrowers' collateral returned without the pool lending. Withholding the message instead
+and its borrowers' collateral returned without the pool lending.
+
+Note carefully what `participate_until` is, because it reads like a guard and is not one.
+`participate_in_election`'s guards are `state == open` and
+`now() >= min(participate_since, round_since)`, and both run before `accept_message()`.
+`participate_until` is read afterwards, inside `distribute`, with the message already accepted and
+the state already committed — so sending early against it does not throw, it takes the staking
+branch. Anything timing itself against that boundary needs a margin, because `now()` there is the
+`gen_utime` of whichever block collated the message and can precede the send. Withholding the message instead
 would strand that collateral for as long as the halt lasted. And the retries (`retry_distribute`, `retry_recover_stakes`, `retry_burn_all`,
 `retry_mint_bill`) are deliberately *not* automated: they are internal, governor-or-halter gated,
 and `retry_burn_all` encodes a judgment that belongs to a person.
