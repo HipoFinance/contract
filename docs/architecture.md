@@ -220,10 +220,11 @@ costs the treasury a transaction. That is what makes an unauthenticated driver s
 For a long time the only senders were borrower-operated machines, which meant the protocol advanced
 only while somebody else's validator tooling was running. The comment above `get_treasury_state`
 records what that cost once. A dedicated driver of last resort now runs alongside them —
-`HipoFinance/poker`, two instances, holding no key because these three messages need none. It pokes
-at the first second each transition becomes legal and retries every minute until the state moves,
-and it treats a successful send as meaning nothing until the state itself changes. Borrowers still
-poke; it is redundancy, not a replacement. See `docs/specs/2026-09-18-poke-service.md`.
+[`HipoFinance/poker`](https://github.com/HipoFinance/poker), two instances, holding no key because
+these three messages need none. It pokes at the first second each transition becomes legal and
+retries every minute until the state moves, and it treats a successful send as meaning nothing
+until the state itself changes. Borrowers still poke; it is redundancy, not a replacement. See
+`docs/specs/2026-09-18-poke-service.md`.
 
 Two consequences are worth keeping in mind when changing anything near this. Because these messages
 are unauthenticated, **`set_stopped` does not stop a round being lent**: `participate_in_election`,
