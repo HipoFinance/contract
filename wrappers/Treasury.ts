@@ -1156,7 +1156,11 @@ export class Treasury implements Contract {
             // are about to change has to keep working -- showState and the dry run both run against the
             // OLD contract.
             rewardShare: readOrDefault(stack, 0n),
-            totalRequestFees: readOrDefault(stack, 0n),
+            // -1, not 0. The fallback has to be a value no upgraded treasury can hold, or the dry
+            // run diffs the field against itself and reports a layout change as "nothing moved".
+            // reward_share can use 0 because the migrator seeds 1799; total_request_fees is SEEDED at
+            // zero, so zero here would hide the root layout change from the operator approving it.
+            totalRequestFees: readOrDefault(stack, -1n),
         }
     }
 

@@ -397,9 +397,15 @@ describe('Treasury Migration', () => {
         const before = new Map(result.before.fields)
         const after = new Map(result.after?.fields ?? [])
         const moved = [...after.keys()].filter((k) => before.get(k) !== after.get(k))
-        expect(moved).toEqual(['reward_share'])
+        expect(moved).toEqual(['total_request_fees', 'reward_share'])
         expect(before.get('reward_share')).toEqual('0')
         expect(after.get('reward_share')).toEqual('1799')
+
+        // This release changes TWO layouts, and the operator has to see both. total_request_fees is
+        // seeded at zero, so a zero fallback would diff it against itself and report nothing -- the
+        // same way an 1799 fallback once hid reward_share. -1 is a value no upgraded treasury holds.
+        expect(before.get('total_request_fees')).toEqual('-1')
+        expect(after.get('total_request_fees')).toEqual('0')
 
         const rendered = formatDryRun(result, makePalette(false))
         expect(rendered).toContain('reward_share')

@@ -1,5 +1,5 @@
 import { compile } from '@ton/blueprint'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
 import { Cell, Dictionary, beginCell, toNano } from '@ton/core'
 import { bodyOp, createVset, emptyNewStakeMsg, logTotalFees, setConfig, updateFeeConfig } from './helper'
 import { config, op } from '../wrappers/common'
@@ -8,6 +8,7 @@ import {
     TreasuryFees,
     emptyDictionaryValue,
     participationDictionaryValue,
+    treasuryConfigToCell,
 } from '../wrappers/Treasury'
 import { Parent } from '../wrappers/Parent'
 import { UnstakeMode, Wallet } from '../wrappers/Wallet'
@@ -290,5 +291,74 @@ describe('Request fees', () => {
         })
         expect(failed).toHaveLength(0)
         expect((await treasury.getTreasuryState()).totalRequestFees).toBeGramValue('0')
+    })
+
+    it('should leave a residue when the fee price falls, never an under-reserve', async () => {
+        // The counter is a number of GRAM, added at the price of the day and released at the price of
+        // the day it is released. The two directions are not symmetric and both are acceptable, but
+        // only because of which way each one errs:
+        //
+        //   price ROSE  -> releases exceed adds, the counter empties early, and the requests still
+        //                  standing are unreserved -- which is exactly today's behaviour, no worse.
+        //   price FELL  -> releases fall short, and a residue survives with no requests behind it.
+        //                  That over-reserves, shrinking instant-unstake headroom by a few GRAM.
+        //
+        // Pinned here so that a future change which makes the counter exact is a decision rather than
+        // a surprise. Fixing it properly needs a per-request fee, and the request cell has no room.
+        const staker = await blockchain.treasury('staker')
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('700000') + fees.depositCoinsFee })
+
+        const { times, electedFor, until } = await openRound()
+        const borrower = await blockchain.treasury('borrower')
+        await bid(borrower, until, '50')
+        expect((await treasury.getTreasuryState()).totalRequestFees).toEqual(fees.requestLoanFee)
+
+        const cheaper = beginCell()
+            .storeUint(0xd1, 8)
+            .storeUint(100, 64)
+            .storeUint(667, 64)
+            .storeUint(0xde, 8)
+            .storeUint(436907, 64)
+            .storeUint(1000000, 64)
+            .storeUint(1000000, 64)
+            .storeUint(10000, 64)
+            .storeUint(10000000, 64)
+            .storeUint(100000000, 64)
+            .storeUint(1000000000, 64)
+            .endCell()
+        setConfig(blockchain, config.gasPrices, cheaper)
+        const cheapFee = (await treasury.getTreasuryFees(0n)).requestLoanFee
+        expect(cheapFee).toBeLessThan(fees.requestLoanFee)
+
+        openElection(times, electedFor, true)
+        await treasury.sendParticipateInElection({ roundSince: until })
+
+        // The request is gone and the counter is not zero: it kept the difference between the two
+        // prices. Over-reserved, which costs a little instant-unstake headroom and nothing else.
+        const after = await treasury.getTreasuryState()
+        expect(after.participations.size).toEqual(0)
+        expect(after.totalRequestFees).toEqual(fees.requestLoanFee - cheapFee)
+        expect(after.totalRequestFees).toBeGreaterThan(0n)
+    })
+
+    it('should never offer a negative maximum when a round has spent part of its fees', async () => {
+        // total_request_fees counts a request's whole fee until recover_stake_result, but
+        // process_loan_requests has already sent proxy_new_stake_fee out of it. So mid-round the
+        // counter legitimately exceeds what is left on the balance, and the subtraction goes below
+        // zero -- which it could not before this counter existed, because every other term was money
+        // guaranteed to still be there. Unclamped, the dApp is handed a negative maximum.
+        const state = await treasury.getTreasuryState()
+        state.totalRequestFees = toNano('5')
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(state),
+                balance: toNano('11'), // 10 storage floor + 1, against 5 of counted fees
+            }),
+        )
+        expect(await treasury.getMaxBurnableTokens()).toEqual(0n)
     })
 })

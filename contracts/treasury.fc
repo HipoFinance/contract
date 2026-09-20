@@ -413,6 +413,14 @@ cell find_code(cell dict, int round_since) inline {
     ;; subtracts total_coins by the same amount it pays out: the obligation leaves with the cash.
     ;; a bill that does wait is not out of pocket either, since it burns at whatever rate is current
     ;; when it burns.
+    ;;
+    ;; total_request_fees IS subtracted, and it is the one term here that is not simply money sitting
+    ;; on the balance: it counts a request's whole fee until recover_stake_result, while
+    ;; process_loan_requests has already spent part of it. So this can go negative mid-round, which is
+    ;; harmless -- the comparisons below then defer or roll the unstake back, which is the right answer
+    ;; -- but get_max_burnable_tokens clamps it, because a dApp must not be handed a negative maximum.
+    ;; It has none of the feedback the reserved_amount argument above turns on: nothing an unstaker
+    ;; does moves it, so refusing an unstake cannot shrink it further.
     int available_ton = ton_balance_before_msg - fee::treasury_storage - total_borrowers_stake
         - total_request_fees;
 
@@ -2896,7 +2904,14 @@ int get_max_burnable_tokens() method_id {
     int ton_balance = get_balance().pair_first();
     ;; mirrors reserve_tokens above, including the deliberate absence of total_staking: the dApp must
     ;; not offer an instant unstake the contract would then postpone, nor hide one it would pay.
-    int available_ton = ton_balance - fee::treasury_storage - total_borrowers_stake - total_request_fees;
+    ;; clamped, which the two handlers above do not need to be. total_request_fees keeps counting a
+    ;; request's whole fee until recover_stake_result, while process_loan_requests has already spent
+    ;; part of it on proxy_new_stake -- so mid-round this can legitimately exceed what is left on the
+    ;; balance. In reserve_tokens and burn_tokens a negative simply fails `available_ton >= coins` and
+    ;; the unstake defers or rolls back, which is correct; here it would be handed to a dApp as a
+    ;; negative maximum. distribute's available_now clamps for the same reason.
+    int available_ton = max(0, ton_balance - fee::treasury_storage - total_borrowers_stake
+        - total_request_fees);
 
     return muldiv(available_ton, total_tokens, total_coins);
 }

@@ -138,3 +138,35 @@ Rejected alternatives:
 - `2026-09-02-minimum-bid-efficiency.md` and the rank-versus-capital question; separate specs.
 - Any change to what `distribute` reserves or to `calculate_min_coins`; both already hold this money
   back and are correct.
+
+## Found during the adversarial pass
+
+Three things the implementation got wrong or left unsaid, all corrected in the code.
+
+**The dry run would have hidden the root layout change.** `get_treasury_state` grew by two fields, and
+the wrapper reads both through a temporary absent-field fallback. `reward_share` can fall back to 0
+because the migrator seeds 1799, so the diff shows it. `total_request_fees` is *seeded at zero*, so a
+zero fallback diffed the field against itself and the operator approving the upgrade would have seen
+one field change where two did — the same defect this release already shipped once, when the
+`reward_share` fallback returned 1799. The fallback is now **-1**, a value no upgraded treasury can
+hold, and the rehearsal asserts both fields move. Note that the catastrophic case was never at risk:
+a migrator that omitted the root field entirely makes `load_data()` misparse and the dry run reports
+a failed upgrade.
+
+**`get_max_burnable_tokens` could return a negative number.** Every term it subtracted used to be
+money guaranteed to be on the balance. `total_request_fees` is not: it counts a request's whole fee
+until `recover_stake_result`, while `process_loan_requests` has already sent `proxy_new_stake_fee`
+out of it, so mid-round the counter legitimately exceeds what is left. Measured at -4 GRAM on a
+crafted state. The getter now clamps at zero, as `distribute`'s `available_now` already did, and
+`showState.ts` mirrors it. `reserve_tokens` and `burn_tokens` are deliberately left unclamped: a
+negative there simply fails `available_ton >= coins`, and the unstake defers or rolls back, which is
+the correct answer — and clamping would spend gas in the two handlers whose constants are frozen.
+
+**The counter is not exact across a change in network fee prices, and the two directions are not
+symmetric.** It is added at the price of the day and released at the price of the day it is
+released. If prices *rise*, releases outrun adds, the counter empties early, and the requests still
+standing are unreserved — which is exactly today's behaviour and no worse. If prices *fall*, a
+residue survives with no requests behind it, over-reserving by the difference and costing a few GRAM
+of instant-unstake headroom. Both are acceptable, but only because of which way each errs. Making it
+exact needs a per-request fee and the request cell has no room for one. Pinned by a test so that a
+future change here is a decision rather than a surprise.

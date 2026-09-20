@@ -26,8 +26,11 @@ export async function run(provider: NetworkProvider) {
     // the one the contract uses. It deliberately does not subtract total_staking: that would hide
     // instant unstakes the treasury would in fact pay. fee::treasury_storage is 10 GRAM.
     const treasuryStorageFee = 10_000_000_000n
-    const availableTon =
+    // Clamped, exactly as get_max_burnable_tokens is: total_request_fees still counts a fee whose
+    // proxy_new_stake half has already been sent, so mid-round this can go below zero.
+    const rawAvailable =
         balance - treasuryStorageFee - treasuryState.totalBorrowersStake - treasuryState.totalRequestFees
+    const availableTon = rawAvailable > 0n ? rawAvailable : 0n
 
     // Share of all outstanding hGRAM that could leave right now.
     const liquidityRatio =
