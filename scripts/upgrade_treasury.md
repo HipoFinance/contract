@@ -796,8 +796,9 @@ the expected shape there, not a wedge.
 > **Not yet performed.** Spec: `docs/specs/2026-09-19-protocol-set-reward-share.md`.
 
 Removes `borrower_reward_share` from the `request_loan` message and makes it a protocol value the
-governor sets. One stored layout changes: the extension gains `reward_share` (`uint16`) after
-`borrower_fee`. The migrator is `wrappers/upgrade-code-test/add_release_fields.fc`, exercised in
+governor sets. Two stored layouts change: the extension gains `reward_share` (`uint16`) after
+`borrower_fee`, and root gains `total_request_fees` (`coins`) after `total_borrowers_stake` — see
+*Also in this release* below. The migrator is `wrappers/upgrade-code-test/add_release_fields.fc`, exercised in
 `tests/TreasuryMigration.spec.ts` against the live account captured on 2026-09-20 at masterchain
 seqno 93890573 — code hash `22d7118ecc29fdab794f99a4111b503e20d995ceec725eca6d6da5808b05acc8`, which
 is what this repo compiles at the commit before this release. One step, no chain.
@@ -826,12 +827,23 @@ does not scale with anything stored. Requests already standing keep the share th
    and wait for an offending round to settle if one shows up.
 4. **Tell the borrowers what the value is.** They cannot bid it any more, so they have to read
    `reward_share` from `get_treasury_state` to price a bid at all.
-5. **The getter grows from 26 to 27 values.** Third time. Re-read *Changing the shape of a getter*
+5. **The getter grows from 26 to 28 values**, gaining `reward_share` and then
+   `total_request_fees`. Third and fourth time. Re-read *Changing the shape of a getter*
    above and walk the census: consumers index positionally and assert length, so appending breaks
    them. `wrappers/Treasury.ts` carries a temporary fallback in `getTreasuryState` so `showState.ts`
    and the dry run still read the pre-upgrade contract — delete it once mainnet is upgraded.
 
 ### Also in this release
+
+Root gains `total_request_fees` (`coins`), inserted after `total_borrowers_stake`: the GRAM
+standing loan requests have prepaid for their rounds' message chains, which `reserve_tokens` and
+`burn_tokens` now hold back from an instant unstake exactly as `distribute` and
+`calculate_min_coins` already did. The migrator **seeds it at zero** rather than reconstructing it
+from `participations` — zero leaves the treasury reserving exactly what it reserves today, and the
+counter becomes exact on its own as the rounds in flight settle and new requests arrive. Watch it in
+`showState.ts`: it should read one `request_loan` fee per standing request, and return to zero when
+a round settles with no requests behind it. See `docs/specs/2026-09-20-prepaid-request-fees.md`.
+
 
 `retry_distribute` is **removed**, op code `0x6ec00c48` retired and not reused. It re-ran
 `distribute` on a round that had already run `decide_loan_requests`, which erased that round's

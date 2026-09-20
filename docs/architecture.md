@@ -192,6 +192,16 @@ Deferred unstakes reserve the tokens (`total_unstaking`), mint a bill on the **e
 non-open participation (so payout happens at the first opportunity), and pay out GRAM at the
 rate current when the bill burns.
 
+"Enough liquid GRAM" is the balance less three things the treasury cannot spend: the 10 GRAM
+storage floor (`fee::treasury_storage`), the borrowers' collateral (`total_borrowers_stake`),
+and the fees standing loan requests have prepaid for their rounds' message chains
+(`total_request_fees`). That last one is money already paid to the treasury and already
+committed: `process_loan_requests` and `recover_stakes` send it to the masterchain with no
+`ignore_errors`, so spending it elsewhere would revert the transaction that needed it and leave
+the round stalled. `distribute` and `calculate_min_coins` hold back the same amount, so lending
+and `withdraw_surplus` cannot reach it either. See
+`docs/specs/2026-09-20-prepaid-request-fees.md`.
+
 ## Governance and operations
 
 Two privileged roles live in the treasury extension: the **governor** (parameter changes,
