@@ -212,12 +212,13 @@ for the same reason the burst is.
 
 ### Everything else
 
-- **Two instances**, `poker1` on `hf-main` and `poker2` on `hf-back`, matching the deliberately
-  duplicated collector sets. Duplicate pokes are free (above), so this needs no leader election.
-- **Chain access**: own liteservers first (`51.222.42.108:30555`, the node `gauge` already uses),
-  falling back to the public pool from ton.org's global config when they are unreachable. Own nodes
-  alone would put the poke service in the same failure domain as the validators, and validators going
-  down is one of the cases this is meant to survive.
+- **Two instances**, one per node, matching the deliberately duplicated collector sets. Duplicate
+  pokes are free (above), so this needs no leader election.
+- **Chain access**: our own liteservers first (a node `gauge` already reads from), falling back to
+  the public pool from ton.org's global config when they are unreachable. Own nodes alone would put
+  the poke service in the same failure domain as the validators, and validators going down is one of
+  the cases this is meant to survive. Endpoints are configuration, not design: they live in the
+  private stack file, and this document names none.
 - **Cadence**: the first poke goes at the first opportunity, then every 60 seconds while anything is
   unconfirmed; see *The first poke is sent at the first opportunity* above.
 - **No Redis.** Unconfirmed-poke ages are in memory, so a restart resets them; that costs the alert's
