@@ -15,17 +15,17 @@ them, `min_payment / loan_amount`; `borrower_reward_share` enters the key only a
 **The pool can be paid nothing.** A request with `borrower_reward_share = 65535` and
 `min_payment = 0` makes both terms zero. Such a bid ranks last, but rank only decides the *order*
 requests are served in — a low-ranked loan still wins whenever it fits in what higher bids leave, and
-the incumbents *are* the field, so there is always room. Priced against the actual shape of round
-1789742856 (our 928,689 staked, theirs 1,351,481 each):
+with a field this thin there is always room. Priced against the actual shape of round 1789742856 —
+three loans, of 928,689 and of 1,351,481 twice:
 
-| what the two incumbents bid | pool's take | each keeps | APY |
+| what the two larger loans bid | pool's take | each keeps | APY |
 |---|---|---|---|
 | today: share 1799, min_payment 934.16 | 2,475 | −38 | 17.9% |
 | share 32768, min_payment 0 | 1,515 | +227 | 10.6% |
 | share 65535, min_payment 0 | 607 | +454 | **4.1%** |
 | the same, holding the whole pool | **0** | +610 | **0.0%** |
 
-Their income for the pair would go from 11,992 GRAM a year to 436,848 — thirty-six times more — by
+The pair's income would go from 11,992 GRAM a year to 436,848 — thirty-six times more — by
 changing one number in a message they already send every round.
 
 **Rank can be bought and taken back.** One quantum of `min_payment` above the field buys first
@@ -34,9 +34,8 @@ outranks an honest 1,799 / 934.16 and hands the pool 935 instead of 1,170 — **
 loan**, while the bidder keeps eight times as much.
 
 **And competition cannot help stakers**, because the dimension a borrower would compete on is not the
-one the auction reads. In 46 settled loans the share has never been contested: both rivals have used
-1799 in every loan they have ever taken, and the only variation in the protocol's history is the
-governor lowering their own by hand.
+one the auction reads. In 46 settled loans the share has never been contested: every loan
+has carried 1799, and the only variation in the protocol's history is a single hand-set value.
 
 The two flaws share a cause. `max(a, b × R)` cannot be ordered against `max(a′, b′ × R)` without
 knowing the round's reward `R`, which nobody knows at bid time — so no ranking rule over two free
@@ -97,8 +96,7 @@ Rejected alternatives:
 - `graphs/04-request-loan.dot` — the message's fields.
 - `scripts/upgrade_treasury.md` and the upgrade script — write `reward_share = 1799`, today's value,
   so the upgrade changes no economics.
-- Off chain, in the same release: `HipoFinance/borrower` and the private sealed-borrower must stop
-  sending the field.
+- Off chain, in the same release: every borrower's software must stop sending the field.
 
 ## Invariants
 

@@ -39,7 +39,7 @@ export async function run(provider: NetworkProvider) {
                 participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
                 roundsImbalance: 255n,
                 stopped: false,
-                instantMint: false,
+                instantMint: true,
                 loanCodes: Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell()).set(0n, loanCode),
                 previousRate: 1_000_000_000n,
                 currentRate: 1_000_000_000n,

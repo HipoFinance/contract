@@ -23,13 +23,13 @@ borrower no room. The auction has no defence against it.
 
 Two borrowers found this on mainnet in September 2026 and now hold the auction:
 
-| round | their loans | third loan | pool's take |
+| round | the two large loans | third loan | pool's take |
 |---|---|---|---|
 | 1789611784 | 2 × 1,350,000 of 3,581,625 | none fitted | 2,276 |
 | 1789677320 | 2 × 1,350,000 of 3,538,635 | none fitted | 2,314 |
 | 1789742856 | 2 × 1,350,000 of 3,628,809 | 927,808 fitted | 2,462–2,491 |
 
-They ask 1,350,000 each, which leaves 838,635–881,625 — bracketing the smallest stake the Elector
+The two ask 1,350,000 each, which leaves 838,635–881,625 — bracketing the smallest stake the Elector
 has recently elected, so a third loan usually cannot both fit and be worth winning. Raising their
 ask by ~9,000 each would close it permanently, at no cost to them.
 

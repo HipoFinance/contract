@@ -152,23 +152,22 @@ the current exchange rate (dust below one token nano-unit) is rejected with
 `err::deposit_too_small` before any state change, so it cannot become a silent donation to
 the pool.
 
-- **`instant_mint = true`**: tokens are minted immediately through the parent at the current
-  rate.
-- **`instant_mint = false`** (production): the deposit is recorded as a bill on a round's
-  collection, `total_staking` increases, and tokens are minted only when that round finishes
-  (its `burn_all`). The round is chosen as the **latest non-open participation** (state
-  strictly between `open` and `burning`); if none exists, the mint is instant.
+- **`instant_mint = true`** (production): tokens are minted immediately through the parent at
+  the current rate.
+- **`instant_mint = false`**: the deposit is recorded as a bill on a round's collection,
+  `total_staking` increases, and tokens are minted only when that round finishes (its
+  `burn_all`). The round is chosen as the **latest non-open participation** (state strictly
+  between `open` and `burning`); if none exists, the mint is instant.
 
-The invariant behind that choice: **a deposit's tokens must not exist until the rewards of
-every round whose loans were committed before the deposit are reflected in the exchange
-rate.** The latest non-open participation is exactly the latest round with already-committed
-loans, so minting after it is both correct and the minimal delay — as long as rounds burn in
-`round_since` order. That ordering is **enforced, not assumed**: a round which settles while an
-older round can still book rewards waits in `ready_to_burn`, and `burn_ready_participations`
-releases settled rounds in ascending `round_since`, stopping at the first round that has not
-settled yet. Without that barrier an Elector rejection can finish a later round within seconds,
-ahead of an older round that is still validating, and that later round's deferred deposits
-would mint at a stale rate and capture rewards earned before the deposit was even made.
+Deferred minting ties a deposit's tokens to a round: they come into existence only once that
+round has finished and its reward is in the exchange rate. The latest non-open participation is
+the latest round with already-committed loans, so minting after it is the minimal delay
+consistent with that — as long as rounds burn in `round_since` order. That ordering is
+**enforced, not assumed**: a round which settles while an older round can still book rewards
+waits in `ready_to_burn`, and `burn_ready_participations` releases settled rounds in ascending
+`round_since`, stopping at the first round that has not settled yet. Without that barrier an
+Elector rejection can finish a later round within seconds, ahead of an older round that is still
+validating, and that later round's deferred deposits would mint at a stale rate.
 Choosing the "currently validating" round instead would be wrong: in
 the window where the next round is already `staked` but not yet begun, it would let a
 depositor capture a full round of rewards their coins never took part in. The conservative
@@ -290,8 +289,7 @@ for several blocks. That alert is what turns this from a silent loss into a repa
 `burn_ready_participations` releases settled rounds in ascending `round_since` order and
 stops at the first round that still owes a reward (`owes_reward?`, states 1–5). That barrier
 is what deferred minting (`instant_mint = false`) depends on: it stops a later round's
-deferred deposits from minting at a rate that has not yet booked an older round's reward and
-so would capture part of it. `retry_burn_all` deliberately steps over that barrier when it is
+deferred deposits from minting at a rate that has not yet booked an older round's reward. `retry_burn_all` deliberately steps over that barrier when it is
 run on a round in `ready_to_burn`, because its job is to unstick a round that is permanently
 stuck and would otherwise hold every later round's bills forever. Overriding the barrier is
 safe exactly when the older round can no longer book anything; it is unsafe when the older

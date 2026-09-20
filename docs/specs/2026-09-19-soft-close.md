@@ -11,11 +11,11 @@ A borrower can replace their own loan request for the price of gas until the mom
 `request_loan` only refuses once `now() >= participate_since`. So the bidder who sends last sees
 every other bid and can answer it, while everyone else's terms are already public and frozen.
 
-Observed on mainnet: on 2026-09-14 our request landed 18 seconds before the close and the two
-incumbents re-sized theirs to leave 2,257 GRAM too little for it. Since then they have revised at
-T−1 in every round, changing only price. The defence available to a bidder is to broadcast as late
-as possible, which is why two of our own requests have landed late — one at T+2 and one at T+29,
-both refused.
+Observed on mainnet: on 2026-09-14 a request landed 18 seconds before the close and the two standing
+requests were re-sized to leave 2,257 GRAM too little for it. Since then those two have been revised
+at T−1 in every round, changing only price. The defence available to a bidder is to broadcast as late
+as possible, and two requests have since been refused for arriving after the close — one at T+2 and
+one at T+29.
 
 ## The mechanism considered
 
@@ -40,8 +40,8 @@ it has added a stalling tool that favours whoever already runs the machinery to 
 improves its sender's rank extends the window — is blind to the attack it exists for. Efficiency is
 `min_payment / loan_amount`, so the squeeze of 2026-09-14, a *larger* loan, lowers the sniper's own
 rank and would never extend. Restricting extensions to borrowers with no standing request fails too:
-both incumbents already park a seed request hours ahead, so they would never qualify and every
-revision would snipe exactly as it does now.
+a bidder can park a seed request hours ahead and the two holding the auction already do, so they
+would never qualify and every revision would snipe exactly as it does now.
 
 **What would work is disproportionate.** Commit–reveal removes the last move outright: commit a hash
 before the close, reveal after, and nobody can react because nothing is visible. It fits inside the
@@ -50,8 +50,8 @@ revealed, and a rewrite of the request lifecycle on a contract holding user fund
 channel worth roughly 16 GRAM a round to each borrower and, in steady state, close to nothing to
 stakers, since the pool's take is set by `borrower_reward_share` rather than by who bids last.
 
-**And most of the harm is ours to fix, not the protocol's.** The last-mover advantage has changed an
-outcome once. What it has actually cost is two requests hugging the deadline and arriving late. That
+**And most of the harm is the bidder's to fix, not the protocol's.** The last-mover advantage has
+changed an outcome once. What it has actually cost is two requests hugging the deadline and arriving late. That
 is a broadcast problem, answered off chain by sending to every liteserver at once and by parking a
 request early and revising it, neither of which needs a contract change.
 

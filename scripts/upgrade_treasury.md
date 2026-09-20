@@ -816,8 +816,8 @@ does not scale with anything stored. Requests already standing keep the share th
    The message is bounceable, so collateral comes back and nothing is lost, but the request does not
    land and the borrower misses the round. Borrowers-first means their new messages hit a treasury
    that still expects the field and are rejected the same way — so either ordering has a window; the
-   question is which one you control. Every known borrower must ship the change:
-   `HipoFinance/borrower` and the private sealed-borrower.
+   question is which one you control. Every known borrower must ship the change,
+   starting with `HipoFinance/borrower`.
 3. **Check what the standing requests were bid at.** A request made before the upgrade keeps the
    share its sender chose, and settles on it. If any of them carries a share above the value being
    seeded, that loan still pays the pool less than the new floor and there is nothing the upgrade can
