@@ -1,5 +1,5 @@
 import { compile } from '@ton/blueprint'
-import { Blockchain, createShardAccount, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, BlockchainTransaction, createShardAccount, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
 import { Cell, Dictionary, fromNano, toNano } from '@ton/core'
 import { bodyOp, createVset, emptyNewStakeMsg, setConfig, updateFeeConfig } from './helper'
@@ -15,6 +15,20 @@ import {
 import { Parent } from '../wrappers/Parent'
 import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
 import { Wallet } from '../wrappers/Wallet'
+
+// Every transaction in a trace whose compute or action phase did not end cleanly. The unstake tests
+// below assert this is empty: a chain that runs out of gas halfway does not fail the first hop, it
+// fails somewhere in the middle and leaves the staker's tokens in limbo.
+function failedTransactions(result: { transactions: BlockchainTransaction[] }): BlockchainTransaction[] {
+    return result.transactions.filter((t) => {
+        const desc = t.description
+        if (desc.type !== 'generic') return false
+        const compute = desc.computePhase
+        const computeFailed = compute.type === 'vm' && (!compute.success || compute.exitCode !== 0)
+        const actionFailed = desc.actionPhase != null && desc.actionPhase.resultCode !== 0
+        return computeFailed || actionFailed
+    })
+}
 
 describe('Min Gas', () => {
     let treasuryCode: Cell
@@ -154,6 +168,22 @@ describe('Min Gas', () => {
         const treasuryBalance = await treasury.getBalance()
         expect(treasuryBalance).toBeGramValue('10')
     })
+
+    // Overwrites the treasury account wholesale: the unstake tests need a specific participation state
+    // and a specific balance, and reaching either by sending messages would cost gas the fee tests are
+    // trying to measure.
+    async function setTreasuryState(state: Parameters<typeof treasuryConfigToCell>[0], balance: bigint) {
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(state),
+                balance,
+            }),
+        )
+    }
 
     it('should require min gas fee in treasury', async () => {
         const staker = await blockchain.treasury('staker')
@@ -337,8 +367,8 @@ describe('Min Gas', () => {
 
     // The fee the wallet demands is computed from gas constants, and two of them -- reserve_tokens and
     // burn_tokens -- are deliberately BELOW what their ops now consume, because raising them would move
-    // the Wallet code hash and the repo would stop compiling to the wallet deployed on mainnet. See
-    // pinnedShortfalls in MaxGas.spec.ts.
+    // the Wallet code hash and the repo would stop compiling to the wallet deployed on mainnet. Each
+    // carries a gas::<op>_cost twin holding what it really burns; see MaxGas.spec.ts.
     //
     // So this asks the question that pin raises and nothing else answered: with exactly the fee the
     // wallet demands, does the WHOLE unstake chain complete? Not just the first hop, which is what the
@@ -356,15 +386,7 @@ describe('Min Gas', () => {
             tokens: '5',
         })
 
-        const failed = result.transactions.filter((t) => {
-            const desc = t.description
-            if (desc.type !== 'generic') return false
-            const compute = desc.computePhase
-            const computeFailed = compute.type === 'vm' && (!compute.success || compute.exitCode !== 0)
-            const actionFailed = desc.actionPhase != null && desc.actionPhase.resultCode !== 0
-            return computeFailed || actionFailed
-        })
-        expect(failed).toHaveLength(0)
+        expect(failedTransactions(result)).toHaveLength(0)
 
         // The chain ends by paying the staker back, which is what says it ran to the end rather than
         // stopping quietly somewhere in the middle.
@@ -375,7 +397,7 @@ describe('Min Gas', () => {
         })
 
         // And the headroom, printed rather than asserted at an exact figure: what the last message hands
-        // back is what the 297 gas of pinned shortfall is being paid out of.
+        // back is what the 297 gas of frozen shortfall is being paid out of.
         const returned = result.transactions
             .filter(
                 (t) =>
@@ -405,35 +427,111 @@ describe('Min Gas', () => {
         const roundSince = 1n
         const state = await treasury.getTreasuryState()
         state.participations.set(roundSince, { state: ParticipationState.Staked })
-        await blockchain.setShardAccount(
-            treasury.address,
-            createShardAccount({
-                workchain: 0,
-                address: treasury.address,
-                code: treasuryCode,
-                data: treasuryConfigToCell(state),
-                balance: toNano('13'),
-            }),
-        )
+        await setTreasuryState(state, toNano('13'))
 
         const result = await wallet.sendUnstakeTokens(staker.getSender(), {
             value: walletFees.unstakeTokensFee,
             tokens: '5',
         })
 
-        const failed = result.transactions.filter((t) => {
-            const desc = t.description
-            if (desc.type !== 'generic') return false
-            const compute = desc.computePhase
-            const computeFailed = compute.type === 'vm' && (!compute.success || compute.exitCode !== 0)
-            const actionFailed = desc.actionPhase != null && desc.actionPhase.resultCode !== 0
-            return computeFailed || actionFailed
-        })
-        expect(failed).toHaveLength(0)
+        expect(failedTransactions(result)).toHaveLength(0)
 
         // The bill is what makes this the expensive path, so its whole life has to appear.
         expect(result.transactions).toHaveTransaction({ body: bodyOp(op.mintBill), success: true })
         expect(result.transactions).toHaveTransaction({ body: bodyOp(op.assignBill), success: true })
+    })
+
+    // Both tests above stop after one round. But an unstake bill that burns while the treasury is
+    // still illiquid is neither paid nor rolled back: burn_tokens mints a NEW bill on the next round
+    // that holds bills, and the staker's purse travels with it, because mint_bill forwards the
+    // remaining value and a bill hands its whole balance back when it burns. unstake_tokens_fee
+    // budgets exactly one such retry -- the lines marked "second try" -- so the question is what
+    // happens on the third round, and the fourth.
+    //
+    // The answer is that a postponement does not draw on the staker's fee at all. Each round the
+    // treasury fronts burn_all_fee to the collection, the collection spends burn_bill_fee to burn the
+    // bill, and the bill returns everything it holds -- so the purse comes out of every round LARGER
+    // than it went in. The "second try" budget is a reserve that is never touched. This test walks
+    // four postponements and asserts the purse never shrinks, which is the property that makes the
+    // number of rounds irrelevant.
+    it('should keep funding a postponed unstake round after round on exactly the fee', async () => {
+        const staker = await blockchain.treasury('staker')
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+        const walletFees = await wallet.getWalletFees()
+
+        // 3 GRAM above the 10 GRAM storage reserve, so `available` is 3 against the 5 owed: enough to
+        // defer the unstake, and still not enough on each round that comes to burn it.
+        const illiquid = toNano('13')
+        const rounds = [1n, 2n, 3n, 4n, 5n]
+
+        const staked = await treasury.getTreasuryState()
+        for (const roundSince of rounds) {
+            staked.participations.set(roundSince, { state: ParticipationState.Staked })
+        }
+        await setTreasuryState(staked, illiquid)
+
+        const unstake = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: walletFees.unstakeTokensFee,
+            tokens: '5',
+        })
+        expect(failedTransactions(unstake)).toHaveLength(0)
+        expect(unstake.transactions).toHaveTransaction({
+            to: await treasury.getCollectionAddress(rounds[0]),
+            body: bodyOp(op.mintBill),
+            success: true,
+        })
+
+        const carried: bigint[] = []
+        for (const roundSince of rounds.slice(0, -1)) {
+            const burning = await treasury.getTreasuryState()
+            burning.participations.set(roundSince, { state: ParticipationState.Burning })
+            await setTreasuryState(burning, illiquid)
+
+            const burn = await treasury.sendRetryBurnAll(halter.getSender(), {
+                value: toNano('0.02'),
+                roundSince,
+            })
+            expect(failedTransactions(burn)).toHaveLength(0)
+
+            const remint = burn.transactions
+                .flatMap((t) => t.outMessages.values())
+                .find((m) => m.body.beginParse().preloadUint(32) === op.mintBill)
+            expect(remint?.info.type).toBe('internal')
+            carried.push(remint?.info.type === 'internal' ? remint.info.value.coins : 0n)
+        }
+
+        // Four postponements, and the purse the bill carries is bigger every time.
+        expect(carried).toHaveLength(4)
+        for (let i = 1; i < carried.length; i++) {
+            expect(carried[i]).toBeGreaterThan(carried[i - 1])
+        }
+
+        // The last round can pay, so the staker finally gets the 5 GRAM and the purse back.
+        const last = rounds[rounds.length - 1]
+        const burning = await treasury.getTreasuryState()
+        burning.participations.set(last, { state: ParticipationState.Burning })
+        await setTreasuryState(burning, toNano('20'))
+        const payout = await treasury.sendRetryBurnAll(halter.getSender(), { value: toNano('0.02'), roundSince: last })
+        expect(failedTransactions(payout)).toHaveLength(0)
+        expect(payout.transactions).toHaveTransaction({
+            to: staker.address,
+            body: bodyOp(op.withdrawalNotification),
+            success: true,
+        })
+
+        const paidOut = payout.transactions
+            .filter((t) => t.address === BigInt('0x' + staker.address.hash.toString('hex')))
+            .reduce((sum, t) => sum + (t.inMessage?.info.type === 'internal' ? t.inMessage.info.value.coins : 0n), 0n)
+        console.info(
+            '    unstake postponed 4 times on a fee of %s: purse %s -> %s, %s over the 5 GRAM at the end',
+            walletFees.unstakeTokensFee.toString(),
+            carried[0].toString(),
+            carried[carried.length - 1].toString(),
+            (paidOut - toNano('5')).toString(),
+        )
+        expect(paidOut).toBeGreaterThan(toNano('5'))
     })
 
     it('should print average gas usage for stake and unstake', async () => {
