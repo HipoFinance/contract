@@ -145,6 +145,7 @@ sending, because the list is a floor. Where a field lands matters even then: an 
 | repo                 | reads                                                                               | notes                                                    |
 | -------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | `borrower`           | `process.go`, tonutils-go, indices for `participations`, `stopped?`, `borrower_fee` | **roll this one with the treasury** — see below           |
+| `poker`              | `poke/state.go`, indices for `participations` and `stopped?`                        | guards `len < 26`, the right way round, so an append is safe |
 | `website`            | through the sdk wrapper                                                             |                                                          |
 | `mcp`                | through the sdk wrapper                                                             |                                                          |
 | `sdk`, `sdk-example` | `Treasury.ts`, sequential `stack.read*`                                             | the wrapper everything else inherits                     |
