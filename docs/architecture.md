@@ -87,8 +87,8 @@ Each participation moves through these states (`participation::*` in
    `burn_tokens`), and `last_bill_burned` deletes the participation.
 
 `vset_changed` is driven by config parameter changes (elector validator-set updates), and
-each stage has a governance-triggerable retry (`retry_distribute`, `retry_recover_stakes`,
-`retry_burn_all`, `retry_mint_bill`) in case a message is lost. `retry_burn_all` also accepts a
+most stages have a governance-triggerable retry (`retry_recover_stakes`, `retry_burn_all`,
+`retry_mint_bill`, `retry_burn_ready`) in case a message is lost. `retry_burn_all` also accepts a
 round in `ready_to_burn`, which is the escape hatch when an older round is stuck and would
 otherwise hold that round's bills forever.
 
@@ -242,7 +242,7 @@ Note carefully what `participate_until` is, because it reads like a guard and is
 the state already committed — so sending early against it does not throw, it takes the staking
 branch. Anything timing itself against that boundary needs a margin, because `now()` there is the
 `gen_utime` of whichever block collated the message and can precede the send. Withholding the message instead
-would strand that collateral for as long as the halt lasted. And the retries (`retry_distribute`, `retry_recover_stakes`, `retry_burn_all`,
+would strand that collateral for as long as the halt lasted. And the retries (`retry_recover_stakes`, `retry_burn_all`,
 `retry_mint_bill`) are deliberately *not* automated: they are internal, governor-or-halter gated,
 and `retry_burn_all` encodes a judgment that belongs to a person.
 

@@ -720,29 +720,6 @@ export class Treasury implements Contract {
         })
     }
 
-    async sendRetryDistribute(
-        provider: ContractProvider,
-        via: Sender,
-        opts: {
-            value: bigint | string
-            bounce?: boolean
-            sendMode?: SendMode
-            queryId?: bigint
-            roundSince: bigint
-        },
-    ) {
-        await this.sendMessage(provider, via, {
-            value: opts.value,
-            bounce: opts.bounce,
-            sendMode: opts.sendMode,
-            body: beginCell()
-                .storeUint(op.retryDistribute, 32)
-                .storeUint(opts.queryId ?? 0, 64)
-                .storeUint(opts.roundSince, 32)
-                .endCell(),
-        })
-    }
-
     async sendRetryRecoverStakes(
         provider: ContractProvider,
         via: Sender,

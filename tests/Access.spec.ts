@@ -502,20 +502,6 @@ describe('Access', () => {
         })
         expect(result19.transactions).toHaveLength(3)
 
-        const result20 = await treasury.sendRetryDistribute(someone.getSender(), {
-            value: '0.1',
-            roundSince: until1,
-        })
-        expect(result20.transactions).toHaveTransaction({
-            from: someone.address,
-            to: treasury.address,
-            value: toNano('0.1'),
-            body: bodyOp(op.retryDistribute),
-            success: false,
-            exitCode: err.accessDenied,
-        })
-        expect(result20.transactions).toHaveLength(3)
-
         const result21 = await treasury.sendRetryRecoverStakes(someone.getSender(), {
             value: '0.1',
             roundSince: until1,

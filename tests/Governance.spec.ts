@@ -617,54 +617,42 @@ describe('Governance', () => {
         expect(result.transactions).toHaveLength(3) // governor -> treasury, plus the bounce back
     })
 
-    it('should send process loan requests', async () => {
+    it('should refuse retry_distribute, which no longer exists', async () => {
+        // It re-ran distribute on a round already past decide_loan_requests, and distribute rebuilds
+        // the participation with new_dict() in the accepted, accrued, staked and recovering slots --
+        // so a retry erased those requests with no refund and left total_borrowers_stake counting
+        // collateral nothing could release. Removed rather than guarded: see
+        // docs/specs/2026-09-20-remove-retry-distribute.md.
         const state = await treasury.getTreasuryState()
-        const participation = {
-            state: ParticipationState.Distributing,
-        }
-        state.participations.set(0n, participation)
-        const fakeData = treasuryConfigToCell(state)
+        state.participations.set(0n, { state: ParticipationState.Distributing })
         await blockchain.setShardAccount(
             treasury.address,
             createShardAccount({
                 workchain: 0,
                 address: treasury.address,
                 code: treasuryCode,
-                data: fakeData,
+                data: treasuryConfigToCell(state),
                 balance: toNano('10'),
             }),
         )
 
-        const collectionAddress = await treasury.getCollectionAddress(0n)
-        const result = await treasury.sendRetryDistribute(halter.getSender(), {
+        const result = await treasury.sendMessage(halter.getSender(), {
             value: '1',
-            roundSince: 0n,
+            body: beginCell().storeUint(0x6ec00c48, 32).storeUint(0, 64).storeUint(0, 32).endCell(),
         })
 
         expect(result.transactions).toHaveTransaction({
             from: halter.address,
             to: treasury.address,
             value: toNano('1'),
-            body: bodyOp(op.retryDistribute),
-            success: true,
-            outMessagesCount: 1,
+            success: false,
+            exitCode: err.invalidOp,
         })
-        expect(result.transactions).toHaveTransaction({
-            from: treasury.address,
-            to: collectionAddress,
-            body: bodyOp(op.burnAll),
-            success: true,
-        })
-        expect(result.transactions).toHaveTransaction({
-            from: collectionAddress,
-            to: treasury.address,
-            body: bodyOp(op.lastBillBurned),
-            success: true,
-        })
-        expect(result.transactions).toHaveLength(5)
+        expect(result.transactions).toHaveLength(3) // the refusal bounces back
 
-        const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryState.participations.size).toEqual(0)
+        // And the round it would have destroyed is untouched.
+        const after = await treasury.getTreasuryState()
+        expect(after.participations.size).toEqual(1)
 
         accumulateFees(result.transactions)
     })

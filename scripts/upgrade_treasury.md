@@ -831,6 +831,15 @@ does not scale with anything stored. Requests already standing keep the share th
    them. `wrappers/Treasury.ts` carries a temporary fallback in `getTreasuryState` so `showState.ts`
    and the dry run still read the pre-upgrade contract — delete it once mainnet is upgraded.
 
+### Also in this release
+
+`retry_distribute` is **removed**, op code `0x6ec00c48` retired and not reused. It re-ran
+`distribute` on a round that had already run `decide_loan_requests`, which erased that round's
+accepted and accrued requests without refunding them and left `total_borrowers_stake` counting
+collateral nothing could release. It had never been run on mainnet. `scripts/retryDistribute.ts` is
+deleted with it; the other four retries are unchanged. See
+`docs/specs/2026-09-20-remove-retry-distribute.md`.
+
 ### Changing it later
 
 `set_reward_share` takes the new value out of 65535 and refuses `65535` itself, which would leave the

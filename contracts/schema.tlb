@@ -357,11 +357,6 @@ send_message_to_loan#0e93f65b
     message:^Cell
         = InternalMsgBody;
 
-retry_distribute#6ec00c48
-    query_id:uint64
-    round_since:uint32
-        = InternalMsgBody;
-
 retry_recover_stakes#2b7ad9e8
     query_id:uint64
     round_since:uint32

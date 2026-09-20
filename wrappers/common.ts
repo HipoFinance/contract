@@ -84,7 +84,6 @@ export const op = {
     setRoundsImbalance: 0x1b4463b6,
     setDeficit: 0x75be0d1a,
     sendMessageToLoan: 0x0e93f65b,
-    retryDistribute: 0x6ec00c48,
     retryRecoverStakes: 0x2b7ad9e8,
     retryMintBill: 0x654de488,
     retryBurnAll: 0x106b8001,
