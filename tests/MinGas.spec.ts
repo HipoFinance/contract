@@ -335,6 +335,107 @@ describe('Min Gas', () => {
         })
     })
 
+    // The fee the wallet demands is computed from gas constants, and two of them -- reserve_tokens and
+    // burn_tokens -- are deliberately BELOW what their ops now consume, because raising them would move
+    // the Wallet code hash and the repo would stop compiling to the wallet deployed on mainnet. See
+    // pinnedShortfalls in MaxGas.spec.ts.
+    //
+    // So this asks the question that pin raises and nothing else answered: with exactly the fee the
+    // wallet demands, does the WHOLE unstake chain complete? Not just the first hop, which is what the
+    // test above checks. Every transaction in the trace has to succeed, and the surplus that comes back
+    // is the headroom the pin is spending.
+    it('should complete the whole unstake chain on exactly the fee the wallet demands', async () => {
+        const staker = await blockchain.treasury('staker')
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+        const walletFees = await wallet.getWalletFees()
+
+        const result = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: walletFees.unstakeTokensFee,
+            tokens: '5',
+        })
+
+        const failed = result.transactions.filter((t) => {
+            const desc = t.description
+            if (desc.type !== 'generic') return false
+            const compute = desc.computePhase
+            const computeFailed = compute.type === 'vm' && (!compute.success || compute.exitCode !== 0)
+            const actionFailed = desc.actionPhase != null && desc.actionPhase.resultCode !== 0
+            return computeFailed || actionFailed
+        })
+        expect(failed).toHaveLength(0)
+
+        // The chain ends by paying the staker back, which is what says it ran to the end rather than
+        // stopping quietly somewhere in the middle.
+        expect(result.transactions).toHaveTransaction({
+            to: staker.address,
+            body: bodyOp(op.withdrawalNotification),
+            success: true,
+        })
+
+        // And the headroom, printed rather than asserted at an exact figure: what the last message hands
+        // back is what the 297 gas of pinned shortfall is being paid out of.
+        const returned = result.transactions
+            .filter(
+                (t) =>
+                    t.inMessage?.info.type === 'internal' &&
+                    t.address === BigInt('0x' + staker.address.hash.toString('hex')),
+            )
+            .reduce((sum, t) => sum + (t.inMessage?.info.type === 'internal' ? t.inMessage.info.value.coins : 0n), 0n)
+        console.info(
+            '    unstake on the exact fee: %s returned to the staker of %s attached',
+            returned.toString(),
+            walletFees.unstakeTokensFee.toString(),
+        )
+        expect(returned).toBeGreaterThan(0n)
+    })
+
+    // And the same question on the EXPENSIVE path. The run above unstakes while nothing is staked, so
+    // it is paid instantly and most of the budgeted forward fees are never spent -- which is exactly
+    // the slack the pinned shortfall is drawing on. This one unstakes while a round is staked, so the
+    // bill is minted, assigned and burned and the whole budget is actually used.
+    it('should complete a deferred unstake on exactly the fee the wallet demands', async () => {
+        const staker = await blockchain.treasury('staker')
+        const walletAddress = await parent.getWalletAddress(staker.address)
+        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
+        await treasury.sendDepositCoins(staker.getSender(), { value: toNano('10') + fees.depositCoinsFee })
+        const walletFees = await wallet.getWalletFees()
+
+        const roundSince = 1n
+        const state = await treasury.getTreasuryState()
+        state.participations.set(roundSince, { state: ParticipationState.Staked })
+        await blockchain.setShardAccount(
+            treasury.address,
+            createShardAccount({
+                workchain: 0,
+                address: treasury.address,
+                code: treasuryCode,
+                data: treasuryConfigToCell(state),
+                balance: toNano('13'),
+            }),
+        )
+
+        const result = await wallet.sendUnstakeTokens(staker.getSender(), {
+            value: walletFees.unstakeTokensFee,
+            tokens: '5',
+        })
+
+        const failed = result.transactions.filter((t) => {
+            const desc = t.description
+            if (desc.type !== 'generic') return false
+            const compute = desc.computePhase
+            const computeFailed = compute.type === 'vm' && (!compute.success || compute.exitCode !== 0)
+            const actionFailed = desc.actionPhase != null && desc.actionPhase.resultCode !== 0
+            return computeFailed || actionFailed
+        })
+        expect(failed).toHaveLength(0)
+
+        // The bill is what makes this the expensive path, so its whole life has to appear.
+        expect(result.transactions).toHaveTransaction({ body: bodyOp(op.mintBill), success: true })
+        expect(result.transactions).toHaveTransaction({ body: bodyOp(op.assignBill), success: true })
+    })
+
     it('should print average gas usage for stake and unstake', async () => {
         let roundSince = 1n
         const stakerA = await blockchain.treasury('stakerA')

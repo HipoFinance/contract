@@ -45,22 +45,13 @@ const muteLogComputeGas = false
 
 const constantsFile = join('contracts', 'imports', 'constants.fc')
 
-// Constants deliberately left below what their op costs, with the exact gap pinned so it cannot widen unnoticed.
-// See the note above the last test for why gas::migrate_wallet is here and when to remove it.
-//
-// reserve_tokens and burn_tokens joined it on 2026-09-19, for the same reason and with the same remedy: both feed
-// unstake_tokens_fee, which IS compiled into wallet.fc, so raising either moves the Wallet code hash and the repo
-// stops compiling to the wallet deployed on mainnet. The protocol-set reward share added 16 bits to the extension,
-// which costs every op that packs it about 99 gas; deposit_coins, mint_tokens and send_unstake_all were raised
-// because their fee functions are treasury-only. Raise these two and delete the pins when the next wallet version
-// ships. The under-charge reaches a user on the unstake path as 99 + 2 x 99 = 297 gas, the burn being budgeted
-// twice for the second try -- about 0.0001 GRAM at current prices, against the forward fees the same function
-// budgets for messages that are usually never sent.
-const pinnedShortfalls = new Map<string, bigint>([
-    ['migrate_wallet', 1647n],
-    ['reserve_tokens', 99n],
-    ['burn_tokens', 99n],
-])
+// A constant whose fee function is compiled into wallet.fc cannot be raised without moving the Wallet code cell, and
+// then this repo stops compiling to the wallet deployed on mainnet. Those constants stay frozen at the value that
+// wallet was built with, and carry a `gas::<op>_cost` twin in constants.fc holding what the op actually burns. This
+// test measures against the twin where one exists, so the measurement is checked against the truth rather than
+// against a number nobody is allowed to change. See the note above the gas block in constants.fc, and the two tests
+// in MinGas.spec.ts that prove the frozen fee still covers the whole unstake chain.
+const costSuffix = '_cost'
 
 const loanKeys = [
     'request_loan',
@@ -1854,40 +1845,50 @@ describe('Max Gas', () => {
     it('should declare gas constants that cover the measured gas', () => {
         const declared = readDeclaredGas()
         const problems: string[] = []
-        const unusedPins = new Set(pinnedShortfalls.keys())
 
         for (const label of Object.keys(rawGasUsed).sort()) {
             const used = rawGasUsed[label]
-            const value = declared.get(label)
-            if (value == null) {
+            const frozen = declared.get(label)
+            const cost = declared.get(label + costSuffix)
+            // Where a twin exists it is the number that must cover the measurement; the frozen one is a fee
+            // basis, not a claim about cost. The twin must never sit BELOW the basis, or the fee would be
+            // over-charging and the twin would be the stale one.
+            const value = cost ?? frozen
+            if (frozen == null) {
                 problems.push(`gas::${label} is measured at ${used.toString()} but is not declared in ${constantsFile}`)
-            } else if (value < used) {
-                const shortfall = used - value
-                const pinned = pinnedShortfalls.get(label)
-                unusedPins.delete(label)
-                if (pinned == null) {
-                    problems.push(
-                        `gas::${label} is declared as ${value.toString()} but the op uses ${used.toString()} gas ` +
-                            `(short by ${shortfall.toString()}) — raise it in ${constantsFile}`,
-                    )
-                } else if (pinned !== shortfall) {
-                    problems.push(
-                        `gas::${label} is pinned at a known shortfall of ${pinned.toString()} but now falls short ` +
-                            `by ${shortfall.toString()} — something changed its cost. Re-read the note on ` +
-                            'pinnedShortfalls before touching the pin, and re-check the Wallet code hash.',
-                    )
-                }
+            } else if (cost != null && cost < frozen) {
+                problems.push(
+                    `gas::${label}${costSuffix} is ${cost.toString()}, below the frozen gas::${label} of ` +
+                        `${frozen.toString()} — the twin records what the op costs, so it can only be higher`,
+                )
+            } else if (value != null && value < used) {
+                const which = cost != null ? label + costSuffix : label
+                problems.push(
+                    `gas::${which} is declared as ${value.toString()} but the op uses ${used.toString()} gas ` +
+                        `(short by ${(used - value).toString()}) — raise it in ${constantsFile}`,
+                )
             }
         }
 
-        for (const label of [...unusedPins].sort()) {
-            problems.push(
-                `gas::${label} is pinned in pinnedShortfalls but now covers its op — drop the pin, ` +
-                    'the reason for it is gone',
-            )
-        }
-
         for (const label of [...declared.keys()].sort()) {
+            if (label.endsWith(costSuffix)) {
+                // A twin describes an op measured under its base name, and is only there while the base is
+                // frozen. One whose base now covers the measurement has outlived its reason.
+                const base = label.slice(0, -costSuffix.length)
+                const frozen = declared.get(base)
+                if (rawGasUsed[base] == null) {
+                    problems.push(
+                        `gas::${label} has no gas::${base} being measured — a cost twin without an op ` +
+                            'describes nothing',
+                    )
+                } else if (frozen != null && frozen >= rawGasUsed[base]) {
+                    problems.push(
+                        `gas::${base} now covers its op on its own — drop gas::${label}, the reason for ` +
+                            'it is gone',
+                    )
+                }
+                continue
+            }
             if (rawGasUsed[label] == null) {
                 problems.push(
                     `gas::${label} is declared in ${constantsFile} but no test measures it — ` +

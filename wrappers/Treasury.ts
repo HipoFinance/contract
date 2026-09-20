@@ -1125,11 +1125,7 @@ export class Treasury implements Contract {
         const roundsImbalance = stack.readBigNumber()
         const stopped = stack.readBoolean()
         const instantMint = stack.readBoolean()
-        const loanCodes = Dictionary.loadDirect(
-            Dictionary.Keys.BigUint(32),
-            Dictionary.Values.Cell(),
-            stack.readCell(),
-        )
+        const loanCodes = Dictionary.loadDirect(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell(), stack.readCell())
         const previousRate = stack.readBigNumber()
         const currentRate = stack.readBigNumber()
         const windowDuration = stack.readBigNumber()
@@ -1169,13 +1165,18 @@ export class Treasury implements Contract {
             midRate: stack.readBigNumber(),
             midRound: stack.readBigNumber(),
             // Appended by 2026-09-19-protocol-set-reward-share. A treasury that has not been upgraded
-            // yet returns 26 values and this read throws, so it falls back to the value that release
-            // writes -- which is what such a treasury behaves as, since every request it holds was bid
-            // at it. Delete the branch once mainnet is upgraded; see
-            // docs/specs/2026-09-07-two-round-rate-window.md for why reading a shape you are about to
-            // change has to keep working: showState and the upgrade dry run both run against the OLD
-            // contract.
-            rewardShare: readOrDefault(stack, 1799n),
+            // yet returns 26 values, and this reads 0 for it -- meaning ABSENT, because such a treasury
+            // has no protocol share at all; every request it holds carries whatever its sender bid.
+            //
+            // 0 rather than the 1799 the migrator seeds, which was the first choice and was wrong: the
+            // migration dry run diffs the before and after states field by field, so a fallback equal to
+            // the seeded value made the one field this release adds read the same on both sides, and the
+            // rehearsal reported that nothing changed. A sentinel that cannot be a real pre-upgrade
+            // value is what lets the diff show the migration. Delete the branch once mainnet is
+            // upgraded; see docs/specs/2026-09-07-two-round-rate-window.md for why reading a shape you
+            // are about to change has to keep working -- showState and the dry run both run against the
+            // OLD contract.
+            rewardShare: readOrDefault(stack, 0n),
         }
     }
 
@@ -1186,11 +1187,7 @@ export class Treasury implements Contract {
      * here", so a request still in the requests dict would otherwise look identical to a borrower who
      * never bid.
      */
-    async getLoanRequest(
-        provider: ContractProvider,
-        roundSince: bigint,
-        borrower: Address,
-    ): Promise<LoanRequest> {
+    async getLoanRequest(provider: ContractProvider, roundSince: bigint, borrower: Address): Promise<LoanRequest> {
         const args = new TupleBuilder()
         args.writeNumber(roundSince)
         args.writeAddress(borrower)

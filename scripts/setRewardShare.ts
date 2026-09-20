@@ -1,4 +1,4 @@
-import { Address } from '@ton/core'
+import { Address, OpenedContract } from '@ton/core'
 import { NetworkProvider } from '@ton/blueprint'
 import { ParticipationState, Treasury } from '../wrappers/Treasury'
 import { makePalette } from '../wrappers/colors'
@@ -17,9 +17,18 @@ import { makePalette } from '../wrappers/colors'
 //
 // Send it BETWEEN rounds. The value is snapshotted per request, so changing it while a participation
 // is open leaves that round holding two different shares, which is the one case where the auction's
-// sort key is not exactly monotone in what the pool receives. The script warns when a round is open.
+// sort key is not exactly monotone in what the pool receives.
+//
+// With a multisig governor the message lands when the LAST signature is collected, not when the first
+// one is proposed, so the script works out the window that final signature has to land inside and
+// prints it as an absolute time. The window is [participate_since, next_round_since]: after
+// participate_since no request can be accepted for the round being bid (request_loan refuses once the
+// election opens), and none can be made for the round after it either, because next_round_since does
+// not advance until the validator set changes. It is about two and a half hours out of every round.
 //
 // See docs/specs/2026-09-19-protocol-set-reward-share.md.
+
+type OpenedTreasury = OpenedContract<Treasury>
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui()
@@ -87,6 +96,7 @@ export async function run(provider: NetworkProvider) {
     }
 
     warnIfRoundOpen(state, c)
+    await showSigningWindow(treasury, c)
 
     console.info()
     const confirm = await ui.input(`Type the new share again to confirm, or anything else to abort [${String(next)}]`)
@@ -105,6 +115,63 @@ export async function run(provider: NetworkProvider) {
 
 function percent(share: bigint): string {
     return (Number(share) / 65535).toLocaleString(undefined, { style: 'percent', maximumFractionDigits: 3 })
+}
+
+// The window the final signature has to land inside, as an absolute time, because a multisig collects
+// signatures over hours and what matters is when the last one executes.
+//
+// [participate_since, next_round_since] is safe by construction: request_loan refuses once
+// `now() >= participate_since`, and the round AFTER the one being bid cannot be requested either,
+// because `round_since == next_round_since` fails until the validator set changes at next_round_since.
+// So no participation can enter `open` inside it. The one caveat is at the start: a participation that
+// is already open stays open until someone sends participate_in_election, which is an external message
+// nobody on chain is obliged to send, so the window really begins when that lands.
+async function showSigningWindow(treasury: OpenedTreasury, c: ReturnType<typeof makePalette>) {
+    const times = await treasury.getTimes()
+    const now = BigInt(Math.floor(Date.now() / 1000))
+    const roundLength = times.nextRoundSince - times.currentRoundSince
+
+    // The first window that has not closed yet.
+    let opens = times.participateSince
+    let closes = times.nextRoundSince
+    while (closes <= now) {
+        opens += roundLength
+        closes += roundLength
+    }
+
+    console.info()
+    console.info('  %s', c.bold('Signing window'))
+    console.info('  %s', c.grey('--------------'))
+    console.info('  %s %s %s %s', c.grey('from'), stamp(opens), c.grey('to'), stamp(closes))
+    console.info('  %s %s', c.grey('length'), duration(closes - opens))
+    if (now < opens) {
+        console.info('  %s %s', c.grey('opens in'), duration(opens - now))
+    } else {
+        console.info('  %s %s', c.yellowBold('open now, closes in'), duration(closes - now))
+    }
+    console.info()
+    console.info('  %s', c.yellowBold('The LAST signature must land inside that window, not the first.'))
+    console.info(
+        '  %s',
+        c.grey('Before it opens, the round being bid is still collecting requests. After it closes, the'),
+    )
+    console.info('  %s', c.grey('next one starts collecting within seconds of the validator set changing.'))
+    console.info(
+        '  %s',
+        c.grey('It only truly opens once participate_in_election has landed for the round being bid --'),
+    )
+    console.info('  %s', c.grey('that is an external message, so check the round has left `open` before executing.'))
+}
+
+function stamp(unix: bigint): string {
+    return new Date(Number(unix) * 1000).toISOString().replace('T', ' ').replace('.000Z', ' UTC')
+}
+
+function duration(seconds: bigint): string {
+    const s = Number(seconds)
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    return h > 0 ? String(h) + 'h ' + String(m) + 'm' : String(m) + 'm'
 }
 
 // A round still collecting requests is the one case where this call splits a round in two: bids made

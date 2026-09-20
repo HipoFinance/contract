@@ -93,6 +93,7 @@ async function snapshot(treasury: SandboxContract<Treasury>, code: Cell, data: C
         ['proposed_governor', s.proposedGovernor == null ? 'null' : s.proposedGovernor.hash().toString('hex')],
         ['governance_fee', String(s.governanceFee)],
         ['borrower_fee', String(s.borrowerFee)],
+        ['reward_share', String(s.rewardShare)],
         ['collection_codes', dictSize(s.collectionCodes)],
         ['bill_codes', dictSize(s.billCodes)],
         ['old_parents', dictSize(s.oldParents)],

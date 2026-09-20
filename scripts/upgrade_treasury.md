@@ -781,6 +781,15 @@ round still owes its reward. In the elector-rejection case that is about a round
 there used to be a spurious 0%. A stale `last_settled_round` with a healthy `participations` list is
 the expected shape there, not a wedge.
 
+> **Migrators for releases already on mainnet are not kept.** Each section below is the record of a
+> procedure that was run; the migrator code and the era fixtures for it are deleted once the release
+> lands. They used to be chained in `tests/TreasuryMigration.spec.ts` so each stayed tested against the
+> layout it was written for, but that chain walked from a stale capture through code nobody will run
+> again, and every change to a stored layout forced each dead fixture to be updated to keep parsing.
+> Re-capturing the live account is stronger evidence anyway: the migration under test is rehearsed
+> against the bytes that will actually be migrated. Re-capture `tests/fixtures/treasury-mainnet-*.boc`
+> when starting a release.
+
 ## Protocol-Set Reward Share
 
 > **Not yet performed.** Spec: `docs/specs/2026-09-19-protocol-set-reward-share.md`.
@@ -788,9 +797,9 @@ the expected shape there, not a wedge.
 Removes `borrower_reward_share` from the `request_loan` message and makes it a protocol value the
 governor sets. One stored layout changes: the extension gains `reward_share` (`uint16`) after
 `borrower_fee`. The migrator is `wrappers/upgrade-code-test/add_reward_share.fc`, exercised in
-`tests/TreasuryMigration.spec.ts` chained after the two-round-window migration, which now targets
-`tests/fixtures/treasury-two-round-window-era-code.boc` rather than the working tree — each migrator
-keeps being tested against the layout it was written for.
+`tests/TreasuryMigration.spec.ts` against the live account captured on 2026-09-20 at masterchain
+seqno 93890573 — code hash `22d7118ecc29fdab794f99a4111b503e20d995ceec725eca6d6da5808b05acc8`, which
+is what this repo compiles at the commit before this release. One step, no chain.
 
 Requests and participations are **not** touched, so the migration needs no quiet window and its cost
 does not scale with anything stored. Requests already standing keep the share they were bid at.

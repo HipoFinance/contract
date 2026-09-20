@@ -1,16 +1,10 @@
 import { compile } from '@ton/blueprint'
-import { Blockchain, SandboxContract, TreasuryContract, createShardAccount } from '@ton/sandbox'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
 import { Cell, Dictionary, toNano } from '@ton/core'
 import { bodyOp, updateFeeConfig } from './helper'
 import { err, op } from '../wrappers/common'
-import {
-    Treasury,
-    TreasuryFees,
-    emptyDictionaryValue,
-    participationDictionaryValue,
-    treasuryConfigToCell,
-} from '../wrappers/Treasury'
+import { Treasury, TreasuryFees, emptyDictionaryValue, participationDictionaryValue } from '../wrappers/Treasury'
 import { Wallet } from '../wrappers/Wallet'
 import { Parent } from '../wrappers/Parent'
 import { buildBlockchainLibraries, exportLibCode } from '../wrappers/Librarian'
@@ -23,7 +17,6 @@ describe('Dead Shares', () => {
     let billCode: Cell
     let loanCode: Cell
     let blockchainLibs: Cell
-    let mintDeadSharesCode: Cell
 
     beforeAll(async () => {
         treasuryCode = await compile('Treasury')
@@ -37,7 +30,6 @@ describe('Dead Shares', () => {
         billCode = exportLibCode(mainBillCode)
         loanCode = exportLibCode(mainLoanCode)
         blockchainLibs = buildBlockchainLibraries([mainWalletCode, mainCollectionCode, mainBillCode, mainLoanCode])
-        mintDeadSharesCode = await compile('upgrade-code-test/MintDeadShares')
     })
 
     let blockchain: Blockchain
@@ -276,63 +268,5 @@ describe('Dead Shares', () => {
         })
         const treasuryBalance = await treasury.getBalance()
         expect(treasuryBalance).toBeGramValue(treasuryStorage)
-    })
-
-    it('should migrate an old-style state by minting dead shares at the current rate', async () => {
-        // mainnet-like pre-migration state: no dead shares, rate 1200 / 1000 = 1.2
-        const oldCoins = toNano('1200')
-        const oldTokens = toNano('1000')
-        const state = await treasury.getTreasuryState()
-        state.totalCoins = oldCoins
-        state.totalTokens = oldTokens
-        await blockchain.setShardAccount(
-            treasury.address,
-            createShardAccount({
-                workchain: 0,
-                address: treasury.address,
-                code: treasuryCode,
-                data: treasuryConfigToCell(state),
-                balance: treasuryStorage + oldCoins,
-            }),
-        )
-
-        // the documented two-step procedure: upgrade to the one-off migration code, then back
-        const result1 = await treasury.sendUpgradeCode(governor.getSender(), {
-            value: '0.1',
-            newCode: mintDeadSharesCode,
-        })
-        expect(result1.transactions).toHaveTransaction({
-            from: treasury.address,
-            to: governor.address,
-            body: bodyOp(op.gasExcess),
-            success: true,
-        })
-        const result2 = await treasury.sendUpgradeCode(governor.getSender(), {
-            value: '0.1',
-            newCode: treasuryCode,
-        })
-        expect(result2.transactions).toHaveTransaction({
-            from: treasury.address,
-            to: governor.address,
-            body: bodyOp(op.gasExcess),
-            success: true,
-        })
-
-        const migrated = await treasury.getTreasuryState()
-        const deadTokens = (treasuryStorage * oldTokens) / oldCoins
-        expect(migrated.totalCoins).toEqual(oldCoins + treasuryStorage)
-        expect(migrated.totalTokens).toEqual(oldTokens + deadTokens)
-
-        // existing holders are not diluted: the rate did not decrease (muldiv rounds down)
-        expect(migrated.totalCoins * oldTokens).toBeGreaterThanOrEqual(oldCoins * migrated.totalTokens)
-
-        // deposits work at the preserved rate
-        const amount = toNano('6')
-        const staker = await blockchain.treasury('staker')
-        const walletAddress = await parent.getWalletAddress(staker.address)
-        const wallet = blockchain.openContract(Wallet.createFromAddress(walletAddress))
-        await treasury.sendDepositCoins(staker.getSender(), { value: amount + fees.depositCoinsFee })
-        const [tokens] = await wallet.getWalletState()
-        expect(tokens).toEqual((amount * migrated.totalTokens) / migrated.totalCoins)
     })
 })

@@ -149,7 +149,7 @@ function printMigratorSource(name: string) {
     console.info()
 }
 
-// 'upgrade-code-test/AddDeficit' -> wrappers/upgrade-code-test/add_deficit.fc
+// 'upgrade-code-test/AddRewardShare' -> wrappers/upgrade-code-test/add_reward_share.fc
 function migratorSourcePath(name: string): string {
     const cut = name.lastIndexOf('/')
     const dir = cut === -1 ? '' : name.slice(0, cut)
