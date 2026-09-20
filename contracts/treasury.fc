@@ -5,6 +5,14 @@ global int total_tokens;
 global int total_staking;
 global int total_unstaking;
 global int total_borrowers_stake;
+;; The GRAM standing loan requests have prepaid for their rounds' message chains. It is on the
+;; balance but already spoken for: process_loan_requests spends proxy_new_stake_fee per accepted
+;; loan and recover_stakes spends recover_stake_fee per staked one, both with send::regular and no
+;; ignore_errors, so a shortfall reverts the transaction and strands the round. distribute and
+;; calculate_min_coins have always held this back; reserve_tokens and burn_tokens did not, which let
+;; an instant unstake spend it. Moves with `size`, never with messages -- see
+;; docs/specs/2026-09-20-prepaid-request-fees.md.
+global int total_request_fees;
 ;; Pool money a defaulting borrower's collateral could not cover, accumulated across rounds. It is a
 ;; magnitude, never negative, and it is deliberately NOT subtracted from total_coins: the exchange
 ;; rate only ever goes up. The counter is the record that the balance is short by this much, and the
@@ -52,6 +60,16 @@ global cell collection_codes;
 global cell bill_codes;
 global cell old_parents;
 
+;; The root cell's bit budget, against the 1023-bit cell ceiling. Seven varuint16 counters, a
+;; parent address, the participations maybe-flag and three small fields; the three refs are counted
+;; separately.
+;;
+;;   - every counter at a value the coin supply allows (< 2^63 nano, so 8 bytes): 7 x 68 + 278 = 754
+;;   - varuint16's own maximum (>= 2^112):                                       7 x 124 + 278 = 1146
+;;
+;; Only the second overflows, and it is unreachable for the same reason the extension's rate budget
+;; is: no counter here can exceed the coin supply, which caps them at about 5.1e18 nano. Adding an
+;; eighth counter costs another 68 bits of the 269 that are left.
 () save_data() impure inline_ref {
     begin_cell()
         .store_coins(total_coins)
@@ -59,6 +77,7 @@ global cell old_parents;
         .store_coins(total_staking)
         .store_coins(total_unstaking)
         .store_coins(total_borrowers_stake)
+        .store_coins(total_request_fees)
         .store_coins(deficit)
         .store_slice(parent)
         .store_dict(participations)
@@ -78,6 +97,7 @@ global cell old_parents;
     total_staking = ds~load_coins();
     total_unstaking = ds~load_coins();
     total_borrowers_stake = ds~load_coins();
+    total_request_fees = ds~load_coins();
     deficit = ds~load_coins();
     parent = ds~load_msg_addr();
     participations = ds~load_dict();
@@ -393,7 +413,8 @@ cell find_code(cell dict, int round_since) inline {
     ;; subtracts total_coins by the same amount it pays out: the obligation leaves with the cash.
     ;; a bill that does wait is not out of pocket either, since it burns at whatever rate is current
     ;; when it burns.
-    int available_ton = ton_balance_before_msg - fee::treasury_storage - total_borrowers_stake;
+    int available_ton = ton_balance_before_msg - fee::treasury_storage - total_borrowers_stake
+        - total_request_fees;
 
     int round_since = 0;
     int k = -1;
@@ -526,7 +547,8 @@ cell find_code(cell dict, int round_since) inline {
     ;; burn in mint order, so an unstake bill minted before this round's deposit bills is checked while
     ;; total_staking is still at its peak - and this round is already burning, so the scan below cannot
     ;; postpone it to itself.
-    int available_ton = ton_balance_before_msg - fee::treasury_storage - total_borrowers_stake;
+    int available_ton = ton_balance_before_msg - fee::treasury_storage - total_borrowers_stake
+        - total_request_fees;
 
     if available_ton < coins {
         ;; Insufficient funds to burn tokens now, try to create another bill for next round.
@@ -701,12 +723,14 @@ cell find_code(cell dict, int round_since) inline {
     cell sorted = new_dict();
     cell requests = new_dict();
     int old_stake_amount = 0;
+    int new_request? = true;
     ( slice ps, int f? ) = participations.udict_get?(32, next_round_since);
     if f? {
         ( state, size, sorted, requests, _, _, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
         ( slice old_request, int e? ) = requests~udict_delete_get?(256, borrower_addr);
         if e? {
             size -= 1;
+            new_request? = false;
             ;; clean up old request
             ( int old_min_payment
             , int old_borrower_reward_share
@@ -742,6 +766,12 @@ cell find_code(cell dict, int round_since) inline {
     int incoming_ton = get_incoming_value().pair_first();
     int stake_amount = incoming_ton - total_fee + old_stake_amount;
     total_borrowers_stake += stake_amount - old_stake_amount;
+    ;; only when `size` grows. A replacement pays another total_fee and keeps the same slot, so the
+    ;; extra sits on the balance unreserved -- an over-reserve in the safe direction, and the price
+    ;; of a counter that cannot drift upward forever.
+    if new_request? {
+        total_request_fees += total_fee;
+    }
     int max_punishment = max_recommended_punishment_for_validator_misbehaviour(loan_amount + stake_amount);
 
     throw_unless(err::access_denied, borrower_wc == chain::base);
@@ -783,6 +813,7 @@ cell find_code(cell dict, int round_since) inline {
         builder last_borrower = create_address(chain::base, last_borrower_addr);
         ( _, _, _, _, int last_stake_amount, _, _ ) = unpack_request(last_request);
         total_borrowers_stake -= last_stake_amount;
+        total_request_fees -= min(total_request_fees, total_fee);
 
         builder rejected = begin_cell()
             .store_uint(op::request_rejected, 32)
@@ -1218,6 +1249,7 @@ cell find_code(cell dict, int round_since) inline {
         ;; size is packed as an unsigned field, and a participation stored by an older version of
         ;; this code may already carry a size that does not count its rejected requests
         size = max(0, size - 1);
+        total_request_fees -= min(total_request_fees, total_fee);
         ( int borrower_addr, slice request, _ ) = rejected~udict_delete_get_min?(256);
         ( _, _, _, _, int stake_amount, _, _ ) = unpack_request(request);
         builder borrower = create_address(chain::base, borrower_addr);
@@ -1508,7 +1540,9 @@ cell find_code(cell dict, int round_since) inline {
             int new_coins = 0;
             int shortfall = 0;
             int incoming_ton = get_incoming_value().pair_first();
-            ( _, _, int recover_stake_fee ) = request_loan_fee();
+            ( int total_fee, _, int recover_stake_fee ) = request_loan_fee();
+            ;; this request's chain ends here: the last draw on its prepaid fee has been made
+            total_request_fees -= min(total_request_fees, total_fee);
             int reward = incoming_ton - loan_amount - accrue_amount - stake_amount - recover_stake_fee;
             if reward >= 0 {
                 int treasury_reward_share = 65535 - borrower_reward_share;
@@ -2727,6 +2761,7 @@ var get_treasury_state() method_id {
         , mid_rate
         , mid_round
         , reward_share
+        , total_request_fees
         );
 }
 
@@ -2861,7 +2896,7 @@ int get_max_burnable_tokens() method_id {
     int ton_balance = get_balance().pair_first();
     ;; mirrors reserve_tokens above, including the deliberate absence of total_staking: the dApp must
     ;; not offer an instant unstake the contract would then postpone, nor hide one it would pay.
-    int available_ton = ton_balance - fee::treasury_storage - total_borrowers_stake;
+    int available_ton = ton_balance - fee::treasury_storage - total_borrowers_stake - total_request_fees;
 
     return muldiv(available_ton, total_tokens, total_coins);
 }

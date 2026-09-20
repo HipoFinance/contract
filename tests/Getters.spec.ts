@@ -85,6 +85,7 @@ describe('Getters', () => {
                     totalStaking: 0n,
                     totalUnstaking: 0n,
                     totalBorrowersStake: 0n,
+                    totalRequestFees: 0n,
                     deficit: 0n,
                     parent: null,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
@@ -376,6 +377,7 @@ describe('Getters', () => {
             'mid_rate',
             'mid_round',
             'reward_share',
+            'total_request_fees',
         ]
         expect(stack.remaining).toEqual(positions.length)
 
@@ -408,6 +410,7 @@ describe('Getters', () => {
         expect(stack.readBigNumber()).toEqual(1_000_000_000n) // mid_rate
         expect(stack.readBigNumber()).toEqual(0n) // mid_round
         expect(stack.readBigNumber()).toEqual(1799n) // reward_share
+        expect(stack.readBigNumber()).toEqual(0n) // total_request_fees
         expect(stack.remaining).toEqual(0)
     })
 

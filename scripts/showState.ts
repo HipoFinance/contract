@@ -26,7 +26,8 @@ export async function run(provider: NetworkProvider) {
     // the one the contract uses. It deliberately does not subtract total_staking: that would hide
     // instant unstakes the treasury would in fact pay. fee::treasury_storage is 10 GRAM.
     const treasuryStorageFee = 10_000_000_000n
-    const availableTon = balance - treasuryStorageFee - treasuryState.totalBorrowersStake
+    const availableTon =
+        balance - treasuryStorageFee - treasuryState.totalBorrowersStake - treasuryState.totalRequestFees
 
     // Share of all outstanding hGRAM that could leave right now.
     const liquidityRatio =
@@ -81,6 +82,7 @@ export async function run(provider: NetworkProvider) {
     console.info('            %s %s GRAM', c.grey('total_staking:'), formatNano(treasuryState.totalStaking))
     console.info('          %s %s hGRAM', c.grey('total_unstaking:'), formatNano(treasuryState.totalUnstaking))
     console.info('    %s %s GRAM', c.grey('total_borrowers_stake:'), formatNano(treasuryState.totalBorrowersStake))
+    console.info('      %s %s GRAM', c.grey('total_request_fees:'), formatNano(treasuryState.totalRequestFees))
     console.info('                  %s %s', c.grey('deficit:'), formatDeficit(treasuryState.deficit, c))
     console.info(
         '         %s %s (%s)',
@@ -150,7 +152,7 @@ export async function run(provider: NetworkProvider) {
         '            %s %s GRAM   %s',
         c.grey('available_ton:'),
         formatNano(availableTon),
-        c.grey('(balance - 10 storage - borrowers stake)'),
+        c.grey('(balance - 10 storage - borrowers stake - request fees)'),
     )
     console.info(
         '      %s %s hGRAM  %s%s%s',

@@ -797,7 +797,7 @@ the expected shape there, not a wedge.
 
 Removes `borrower_reward_share` from the `request_loan` message and makes it a protocol value the
 governor sets. One stored layout changes: the extension gains `reward_share` (`uint16`) after
-`borrower_fee`. The migrator is `wrappers/upgrade-code-test/add_reward_share.fc`, exercised in
+`borrower_fee`. The migrator is `wrappers/upgrade-code-test/add_release_fields.fc`, exercised in
 `tests/TreasuryMigration.spec.ts` against the live account captured on 2026-09-20 at masterchain
 seqno 93890573 — code hash `22d7118ecc29fdab794f99a4111b503e20d995ceec725eca6d6da5808b05acc8`, which
 is what this repo compiles at the commit before this release. One step, no chain.

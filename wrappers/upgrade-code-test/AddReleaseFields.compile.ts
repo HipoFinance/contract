@@ -2,5 +2,5 @@ import { CompilerConfig } from '@ton/blueprint'
 
 export const compile: CompilerConfig = {
     lang: 'func',
-    targets: ['wrappers/upgrade-code-test/add_reward_share.fc'],
+    targets: ['wrappers/upgrade-code-test/add_release_fields.fc'],
 }

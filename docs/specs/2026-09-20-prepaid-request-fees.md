@@ -83,8 +83,8 @@ Rejected alternatives:
 - `wrappers/Treasury.ts` — `totalRequestFees` in `TreasuryConfig` and `getTreasuryState`, with the
   temporary absent-field fallback the getter already uses for `rewardShare`.
 - `wrappers/migrationDryRun.ts`, `scripts/showState.ts` — the new field.
-- `wrappers/upgrade-code-test/add_reward_share.fc` — extended to seed `total_request_fees`, or a
-  second migrator; decided during implementation on whichever keeps the migrator simpler to read.
+- `wrappers/upgrade-code-test/add_release_fields.fc` — the release's single migrator, renamed from
+  `add_reward_share.fc` now that it writes both fields; seeds `total_request_fees` to zero.
 - `scripts/upgrade_treasury.md` — the field and its seed value in this release's section.
 - `docs/architecture.md` — the instant-unstake liquidity rule now names the fees as reserved.
 
@@ -101,9 +101,11 @@ Rejected alternatives:
   decrements it.
 - **It cannot go negative.** Every decrement clamps, so a fee price that fell between request and
   settlement cannot underflow `store_coins`.
-- **The seeded value is conservative.** The migrator seeds the counter for the requests standing at
-  upgrade time; if it seeds zero instead, the contract is exactly as safe as it is today and
-  self-corrects within one round.
+- **The seed is safe.** The migrator seeds zero rather than reconstructing the counter from
+  `participations`. Zero leaves the treasury reserving exactly what it reserves today, so the
+  upgrade cannot make anything worse, and the counter becomes exact on its own as the rounds in
+  flight settle and new requests arrive. The clamped decrements are what make that work: the
+  in-flight requests whose fees were never counted in cannot drive it negative.
 
 ## Compatibility
 

@@ -93,6 +93,7 @@ export interface TreasuryConfig {
     totalStaking: bigint
     totalUnstaking: bigint
     totalBorrowersStake: bigint
+    totalRequestFees: bigint
     /**
      * How much pool money defaulting borrowers walked away with, since the governor last cleared the
      * counter. Returned by `get_treasury_state` in its storage position.
@@ -184,6 +185,7 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeCoins(config.totalStaking)
         .storeCoins(config.totalUnstaking)
         .storeCoins(config.totalBorrowersStake)
+        .storeCoins(config.totalRequestFees)
         .storeCoins(config.deficit)
         .storeAddress(config.parent)
         .storeDict(config.participations)
@@ -1154,6 +1156,7 @@ export class Treasury implements Contract {
             // are about to change has to keep working -- showState and the dry run both run against the
             // OLD contract.
             rewardShare: readOrDefault(stack, 0n),
+            totalRequestFees: readOrDefault(stack, 0n),
         }
     }
 

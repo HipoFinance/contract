@@ -146,6 +146,7 @@ export const config = {
     validators: 16n,
     currentValidators: 34n,
     nextValidators: 36n,
+    gasPrices: 21n, // basechain; tests/helper.ts seeds it, RequestFees.spec.ts raises it mid-test
 }
 
 export function tonValue(value: bigint | string): bigint {

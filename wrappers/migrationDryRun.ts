@@ -74,6 +74,7 @@ async function snapshot(treasury: SandboxContract<Treasury>, code: Cell, data: C
         ['total_staking', String(s.totalStaking)],
         ['total_unstaking', String(s.totalUnstaking)],
         ['total_borrowers_stake', String(s.totalBorrowersStake)],
+        ['total_request_fees', String(s.totalRequestFees)],
         ['deficit', String(s.deficit)],
         ['parent', s.parent?.toString() ?? 'null'],
         ['participations', dictSize(s.participations)],

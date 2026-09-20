@@ -66,6 +66,7 @@ describe('Wallet', () => {
                     totalStaking: 0n,
                     totalUnstaking: 0n,
                     totalBorrowersStake: 0n,
+                    totalRequestFees: 0n,
                     deficit: 0n,
                     parent: null,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),

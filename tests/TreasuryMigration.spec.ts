@@ -39,14 +39,15 @@ describe('Treasury Migration', () => {
 
     beforeAll(async () => {
         treasuryCode = await compile('Treasury')
-        rewardShareMigratorCode = await compile('upgrade-code-test/AddRewardShare')
+        rewardShareMigratorCode = await compile('upgrade-code-test/AddReleaseFields')
         mainnetCode = Cell.fromBoc(readFileSync(__dirname + '/fixtures/treasury-mainnet-code.boc'))[0]
         mainnetData = Cell.fromBoc(readFileSync(__dirname + '/fixtures/treasury-mainnet-state.boc'))[0]
     })
 
-    // The root layout as deployed. This migration does not touch it, so every field must come through
-    // byte for byte -- which is what makes reading it here worth doing.
-    function parseRoot(data: Cell) {
+    // The root layout, read by hand on both sides of the upgrade. This release inserts
+    // total_request_fees after total_borrowers_stake, so `withFees` says which layout to expect --
+    // and reading the rest byte for byte is what proves nothing else moved.
+    function parseRoot(data: Cell, withFees: boolean) {
         const s = data.beginParse()
         const parsed = {
             totalCoins: s.loadCoins(),
@@ -54,6 +55,7 @@ describe('Treasury Migration', () => {
             totalStaking: s.loadCoins(),
             totalUnstaking: s.loadCoins(),
             totalBorrowersStake: s.loadCoins(),
+            totalRequestFees: withFees ? s.loadCoins() : undefined,
             deficit: s.loadCoins(),
             parent: s.loadAddress(),
             participations: s.loadMaybeRef(),
@@ -221,7 +223,7 @@ describe('Treasury Migration', () => {
         //
         // SETCODE is appended after the set_code upgrade_code queued, and the last action wins, so a
         // migrator could redirect the treasury to code the upgrade message never named.
-        const source = readFileSync(__dirname + '/../wrappers/upgrade-code-test/add_reward_share.fc', 'utf8')
+        const source = readFileSync(__dirname + '/../wrappers/upgrade-code-test/add_release_fields.fc', 'utf8')
         // Comments are stripped first, or the explanation of this very rule would trip it.
         const code = source.replace(/;;.*$/gm, '')
         expect(code).not.toMatch(/\bcommit\s*\(/)
@@ -237,7 +239,7 @@ describe('Treasury Migration', () => {
     // ---------------------------------------------------------------------------------------------
 
     it('should migrate to the released layout and land on the plain released code hash', async () => {
-        const before = parseRoot(mainnetData)
+        const before = parseRoot(mainnetData, false)
         const stateBefore = parseExtension(mainnetData)
         const { blockchain, treasury, governor } = await stand()
 
@@ -253,8 +255,9 @@ describe('Treasury Migration', () => {
         // The code left behind is the plain contract, with no one-off logic stored on chain.
         expect(await readCodeHash(blockchain, treasuryAddress)).toEqual(treasuryCode.hash().toString('hex'))
 
-        // Every field the migration does not touch comes through byte for byte. The root cell is not
-        // rewritten at all, and the extension is rewritten field by field, so both are worth reading.
+        // Every field the migration does not touch comes through byte for byte. Root and extension are
+        // both rewritten field by field -- root gains total_request_fees, the extension gains
+        // reward_share -- so both are worth reading.
         const stateAfter = await treasury.getTreasuryState()
         expect(stateAfter.totalCoins).toEqual(before.totalCoins)
         expect(stateAfter.totalTokens).toEqual(before.totalTokens)
@@ -277,9 +280,17 @@ describe('Treasury Migration', () => {
         expect(stateAfter.windowDuration).toEqual(BigInt(stateBefore.windowDuration))
         expect(stateAfter.lastSettledRound).toEqual(BigInt(stateBefore.lastSettledRound))
 
-        // And the one field it adds arrives at the share every request on chain was bid at, so the
-        // upgrade changes no economics on its own.
+        // And the two fields it adds. reward_share arrives at the share every request on chain was bid
+        // at, so the upgrade changes no economics on its own; total_request_fees is seeded at zero,
+        // which leaves the treasury reserving exactly what it reserves today and becomes exact as the
+        // rounds in flight settle.
         expect(stateAfter.rewardShare).toEqual(1799n)
+        expect(stateAfter.totalRequestFees).toEqual(0n)
+
+        // Read from the cell too, so the field's position in root is pinned and not just its value.
+        const rootAfter = parseRoot(await readStorage(blockchain, treasuryAddress), true)
+        expect(rootAfter.totalRequestFees).toEqual(0n)
+        expect(rootAfter.deficit).toEqual(before.deficit)
     })
 
     it('should leave data alone when no migrator is supplied', async () => {
@@ -333,9 +344,9 @@ describe('Treasury Migration', () => {
         expect(result.transactions).toHaveTransaction({ to: treasuryAddress, success: false })
 
         // Storage still has to parse as the OLD layout, which it would not if the migrator had run.
-        const after = parseRoot(await readStorage(blockchain, treasuryAddress))
-        expect(after.totalCoins).toEqual(parseRoot(mainnetData).totalCoins)
-        expect(after.parent.toString()).toEqual(parseRoot(mainnetData).parent.toString())
+        const after = parseRoot(await readStorage(blockchain, treasuryAddress), false)
+        expect(after.totalCoins).toEqual(parseRoot(mainnetData, false).totalCoins)
+        expect(after.parent.toString()).toEqual(parseRoot(mainnetData, false).parent.toString())
     })
 
     it('should revert the whole upgrade when the migrator is not runnable code', async () => {

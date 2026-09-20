@@ -82,6 +82,7 @@ describe('Loan', () => {
                     totalStaking: 0n,
                     totalUnstaking: 0n,
                     totalBorrowersStake: 0n,
+                    totalRequestFees: 0n,
                     deficit: 0n,
                     parent: null,
                     participations: Dictionary.empty(Dictionary.Keys.BigUint(32), participationDictionaryValue),
@@ -372,6 +373,7 @@ describe('Loan', () => {
         expect(treasuryState.totalStaking).toBeGramValue('0')
         expect(treasuryState.totalUnstaking).toBeGramValue('0')
         expect(treasuryState.totalBorrowersStake).toBeGramValue('0')
+        expect(treasuryState.totalRequestFees).toEqual(2n * fees.requestLoanFee) // two loans still in flight
         expect(treasuryState.participations.size).toEqual(1)
 
         accumulateFees(result.transactions)
@@ -661,6 +663,7 @@ describe('Loan', () => {
         expect(treasuryState.totalStaking).toBeGramValue('0')
         expect(treasuryState.totalUnstaking).toBeGramValue('0')
         expect(treasuryState.totalBorrowersStake).toBeGramValue('0')
+        expect(treasuryState.totalRequestFees).toEqual(2n * fees.requestLoanFee) // two loans still in flight
 
         accumulateFees(result1.transactions)
         accumulateFees(result2.transactions)
@@ -908,6 +911,7 @@ describe('Loan', () => {
         expect(treasuryState.totalStaking).toBeGramValue('0')
         expect(treasuryState.totalUnstaking).toBeGramValue('0')
         expect(treasuryState.totalBorrowersStake).toBeGramValue('0')
+        expect(treasuryState.totalRequestFees).toBeGramValue('0') // released with the requests
         expect(treasuryState.previousRate).toBe(1_000_000_000n)
         expect(treasuryState.currentRate).toBe(1_000_174_104n)
 
@@ -1150,6 +1154,7 @@ describe('Loan', () => {
         expect(treasuryState.totalStaking).toBeGramValue('0')
         expect(treasuryState.totalUnstaking).toBeGramValue('0')
         expect(treasuryState.totalBorrowersStake).toBeGramValue('0')
+        expect(treasuryState.totalRequestFees).toEqual(2n * fees.requestLoanFee) // two loans still in flight
         expect(treasuryState.previousRate).toBe(1_000_000_000n)
         expect(treasuryState.currentRate).toBe(1_000_000_000n)
 
@@ -1380,6 +1385,7 @@ describe('Loan', () => {
         expect(treasuryState.totalStaking).toBeGramValue('0')
         expect(treasuryState.totalUnstaking).toBeGramValue('0')
         expect(treasuryState.totalBorrowersStake).toBeGramValue('0')
+        expect(treasuryState.totalRequestFees).toBeGramValue('0') // released with the requests
         expect(treasuryState.previousRate).toBe(1_000_000_000n)
         expect(treasuryState.currentRate).toBe(1_000_174_104n)
         expect(treasuryState.participations.size).toEqual(0)
@@ -1517,6 +1523,7 @@ describe('Loan', () => {
         expect(treasuryState.totalStaking).toBeGramValue('0')
         expect(treasuryState.totalUnstaking).toBeGramValue('0')
         expect(treasuryState.totalBorrowersStake).toBeGramValue('0')
+        expect(treasuryState.totalRequestFees).toBeGramValue('0') // released with the requests
         expect(treasuryState.previousRate).toBe(1_000_000_000n)
         expect(treasuryState.currentRate).toBe(1_000_000_000n)
         expect(treasuryState.participations.size).toEqual(0)
@@ -1664,6 +1671,7 @@ describe('Loan', () => {
         expect(treasuryState.totalStaking).toBeGramValue('0')
         expect(treasuryState.totalUnstaking).toBeGramValue('0')
         expect(treasuryState.totalBorrowersStake).toBeGramValue('0')
+        expect(treasuryState.totalRequestFees).toEqual(fees.requestLoanFee) // one loan still in flight
         expect(treasuryState.participations.size).toEqual(1)
 
         accumulateFees(result.transactions)
