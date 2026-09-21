@@ -28,8 +28,8 @@ export async function run(provider: NetworkProvider) {
     const treasuryStorageFee = 10_000_000_000n
     // Clamped, exactly as get_max_burnable_tokens is: total_request_fees still counts a fee whose
     // proxy_new_stake half has already been sent, so mid-round this can go below zero.
-    const rawAvailable =
-        balance - treasuryStorageFee - treasuryState.totalBorrowersStake - treasuryState.totalRequestFees
+    const requestFees = treasuryState.totalRequestFees > 0n ? treasuryState.totalRequestFees : 0n
+    const rawAvailable = balance - treasuryStorageFee - treasuryState.totalBorrowersStake - requestFees
     const availableTon = rawAvailable > 0n ? rawAvailable : 0n
 
     // Share of all outstanding hGRAM that could leave right now.
@@ -85,7 +85,13 @@ export async function run(provider: NetworkProvider) {
     console.info('            %s %s GRAM', c.grey('total_staking:'), formatNano(treasuryState.totalStaking))
     console.info('          %s %s hGRAM', c.grey('total_unstaking:'), formatNano(treasuryState.totalUnstaking))
     console.info('    %s %s GRAM', c.grey('total_borrowers_stake:'), formatNano(treasuryState.totalBorrowersStake))
-    console.info('      %s %s GRAM', c.grey('total_request_fees:'), formatNano(treasuryState.totalRequestFees))
+    console.info(
+        '      %s %s',
+        c.grey('total_request_fees:'),
+        treasuryState.totalRequestFees < 0n
+            ? c.grey('absent (treasury predates the field)')
+            : formatNano(treasuryState.totalRequestFees) + ' GRAM',
+    )
     console.info('                  %s %s', c.grey('deficit:'), formatDeficit(treasuryState.deficit, c))
     console.info(
         '         %s %s (%s)',
@@ -145,6 +151,25 @@ export async function run(provider: NetworkProvider) {
         treasuryState.borrowerFee === 0n ? Number(treasuryState.borrowerFee) : c.yellow(String(treasuryState.borrowerFee)),
         borrowerFeePercent,
         treasuryState.borrowerFee === 0n ? c.grey('  disabled') : '',
+    )
+    // The borrower's contractual share of every loan's reward, and therefore the pool's floor.
+    // Borrowers cannot bid it, so this is the number they have to read to price a bid at all --
+    // setRewardShare.ts tells the operator to verify it here after changing it.
+    console.info(
+        '            %s %s %s',
+        c.grey('reward_share:'),
+        treasuryState.rewardShare < 0n
+            ? c.grey('absent (treasury predates the field)')
+            : c.yellow(String(treasuryState.rewardShare)),
+        treasuryState.rewardShare < 0n
+            ? ''
+            : c.grey(
+                  '(borrower ' +
+                      formatPercent(Number(treasuryState.rewardShare) / 65535) +
+                      ', pool ' +
+                      formatPercent(Number(65535n - treasuryState.rewardShare) / 65535) +
+                      ')',
+              ),
     )
     console.info()
 

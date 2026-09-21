@@ -146,14 +146,30 @@ sending, because the list is a floor. Where a field lands matters even then: an 
 | -------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | `borrower`           | `process.go`, tonutils-go, indices for `participations`, `stopped?`, `borrower_fee` | **roll this one with the treasury** — see below           |
 | `poker`              | `poke/state.go`, indices for `participations` and `stopped?`                        | guards `len < 26`, the right way round, so an append is safe |
+| `club-server`        | `game/tonclient/hipo.go`, layout keyed on the **exact** tuple length                 | **breaks on every append** — add the new length and deploy BEFORE the treasury |
+| `sealed-borrower`    | `borrower/process.go`, same indices as `borrower`                                   | private; safe on appends, but sends `request_loan` and must roll with the treasury |
 | `website`            | through the sdk wrapper                                                             |                                                          |
 | `mcp`                | through the sdk wrapper                                                             |                                                          |
 | `sdk`, `sdk-example` | `Treasury.ts`, sequential `stack.read*`                                             | the wrapper everything else inherits                     |
 | `gauge`              | `actor/treasury.go`, checks the field count                                         | the check was an equality; **broke on an append** — see below |
-| `vesting`            | `index.html`, `HIPO_JETTON_MINTER_ADDRESS_INDEX`, then `.loadAddress()`             | live at `vesting.hipo.finance`; fixed 2026-09-07          |
+| `vesting`            | `index.html`, `HIPO_JETTON_MINTER_ADDRESS_INDEX`, then `.loadAddress()`             | live at `vesting.hipo.finance`; **still broken on index 5** — see below |
 | `club-web`           | built bundle in `HipoFinance/club-web-build`; source is `HipoFinance/club-web`, via the `sdk` | live at `club.hipo.finance`; fixed 2026-09-07 by an SDK bump |
 | `dune`               | `exporter/export-rates.mjs`, indexed with a comment naming each position             | its cron failed silently for a day; fixed 2026-09-07      |
 | `burner`             | `scripts/deployBurner.ts`; `imports/constants.fc` cites an index in a comment        | deploy-time only; was broken, fixed 2026-09-07           |
+
+`vesting` was recorded here as "fixed 2026-09-07" until 2026-09-21, when re-running this census
+found the live page still serving `HIPO_JETTON_MINTER_ADDRESS_INDEX = 5` — `deficit` since the
+deficit release, where the code expects `parent`. So a vesting holder cannot resolve their hGRAM
+wallet address today. The fix exists only on the unmerged branch `upstream-hipo-parent-index`;
+`origin/main`, which carries the CNAME, still has index 5. Unrelated to this release, and a reminder
+that a census line saying "fixed" is a claim to re-verify rather than to trust.
+
+`club-server` was missing from this table entirely until the same census. It is the sharpest case of
+the `gauge` lesson: its layout map is keyed on the exact tuple length, so **every** append takes it
+off the air, and its recovery has a deadline — settling rounds park as unreadable and
+`replay-rewards` must run one round per cycle, oldest first, on the old build, before the block
+state is pruned. Adding the new length is safe to deploy before the upgrade, because the old length
+keeps working.
 
 `club-web` deserves its own line in a rollout, because fixing it is not a code edit. The source is
 `HipoFinance/club-web` (private; `HipoFinance/club` until 2026-09-10, and `HipoGang/webapp` until
@@ -840,9 +856,12 @@ standing loan requests have prepaid for their rounds' message chains, which `res
 `burn_tokens` now hold back from an instant unstake exactly as `distribute` and
 `calculate_min_coins` already did. The migrator **seeds it at zero** rather than reconstructing it
 from `participations` — zero leaves the treasury reserving exactly what it reserves today, and the
-counter becomes exact on its own as the rounds in flight settle and new requests arrive. Watch it in
-`showState.ts`: it should read one `request_loan` fee per standing request, and return to zero when
-a round settles with no requests behind it. See `docs/specs/2026-09-20-prepaid-request-fees.md`.
+counter becomes exact on its own as the rounds in flight settle and new requests arrive. The migrator **reconstructs** it by walking `participations` and
+summing each one's `size`, so it lands correct rather than at zero: seeding zero would have left a
+release firing for each pre-upgrade request with no matching add, permanently consuming that many
+later requests' reservations. Watch it in `showState.ts`: it should read one `request_loan` fee per
+standing request from the moment the upgrade lands, and return to zero when a round settles with no
+requests behind it. See `docs/specs/2026-09-20-prepaid-request-fees.md`.
 
 
 `retry_distribute` is **removed**, op code `0x6ec00c48` retired and not reused. It re-ran
@@ -851,6 +870,39 @@ accepted and accrued requests without refunding them and left `total_borrowers_s
 collateral nothing could release. It had never been run on mainnet. `scripts/retryDistribute.ts` is
 deleted with it; the other four retries are unchanged. See
 `docs/specs/2026-09-20-remove-retry-distribute.md`.
+
+### Sending
+
+1. In `scripts/upgradeCode.ts`, set:
+
+    ```ts
+    const migratorName: string | null = 'upgrade-code-test/AddReleaseFields'
+    ```
+
+2. `npx blueprint run upgradeCode`. Read the migrator source it prints in full — it writes two
+   fields and walks `participations` to compute one of them — and type its hash back when asked.
+3. Approve the dry run only if it reports **exactly two** fields moving: `total_request_fees`
+   (`-1 -> N x 724347680`, where N is the number of requests standing on chain) and `reward_share`
+   (`-1 -> 1799`). `-1` is the wrapper's "this treasury predates the field" sentinel, not a value
+   any treasury holds. Anything else moving means something in this release changed that should not
+   have.
+4. Verify the code hash that went out is the plain build:
+   `6cd64455cf733d84a56da540b1ad757e966bdbe8146fe32d52c01efc038a8c6c`.
+5. **Set `migratorName` back to `null`.** Left set, the next upgrade re-carries this migrator, whose
+   `end_parse()` re-run guard throws and reverts it — a wasted multisig round.
+
+### After it lands
+
+1. `showState`: `reward_share` reads 1799, `total_request_fees` reads one request fee per standing
+   request, and `total_coins`, `total_tokens`, `parent`, `governor`, `halter`, the rate window,
+   `deficit` and `borrower_fee` are all unchanged.
+2. Delete the temporary `readOrDefault` fallbacks in `wrappers/Treasury.ts` — both of them — now
+   that no treasury returning 26 values is left to read.
+3. Open the upstream adapter PRs, which need the new shape live before they can be written against
+   it.
+4. Watch the first `request_loan` from each borrower. This is the breaking half of the release: a
+   borrower still sending the 16-bit share bounces, and its loop retries every minute for the whole
+   open window.
 
 ### Changing it later
 

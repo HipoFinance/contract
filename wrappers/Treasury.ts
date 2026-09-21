@@ -93,6 +93,7 @@ export interface TreasuryConfig {
     totalStaking: bigint
     totalUnstaking: bigint
     totalBorrowersStake: bigint
+    /** -1 when read from a treasury older than this field; see readOrDefault. */
     totalRequestFees: bigint
     /**
      * How much pool money defaulting borrowers walked away with, since the governor last cleared the
@@ -1155,7 +1156,10 @@ export class Treasury implements Contract {
             // upgraded; see docs/specs/2026-09-07-two-round-rate-window.md for why reading a shape you
             // are about to change has to keep working -- showState and the dry run both run against the
             // OLD contract.
-            rewardShare: readOrDefault(stack, 0n),
+            // -1 for both, so neither can collide with a value the contract might really hold.
+            // 0 was wrong here: the runbook invites changing the migrator's seed, and 0 is a
+            // contemplated policy for this field, which would hide the change from the dry run.
+            rewardShare: readOrDefault(stack, -1n),
             // -1, not 0. The fallback has to be a value no upgraded treasury can hold, or the dry
             // run diffs the field against itself and reports a layout change as "nothing moved".
             // reward_share can use 0 because the migrator seeds 1799; total_request_fees is SEEDED at

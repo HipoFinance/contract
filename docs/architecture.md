@@ -211,7 +211,9 @@ operations, each with a graph and a script in `scripts/`:
 - Governor handover is two-step with a 24-hour delay (`propose_governor` →
   `accept_governance`).
 - `set_stopped` halts new deposits; `set_instant_mint` toggles deferred minting;
-  `set_governance_fee`, `set_borrower_fee` and `set_rounds_imbalance` tune economics.
+  `set_governance_fee`, `set_borrower_fee`, `set_reward_share` and `set_rounds_imbalance` tune
+  economics. `set_reward_share` sets the borrower's contractual share of every loan's reward, and
+  therefore the pool's floor; borrowers do not bid it.
 - Upgrades: `upgrade_code` for the treasury itself (see `scripts/upgrade_treasury.md` for
   the procedure), `proxy_upgrade_code` for the parent, and per-user wallet upgrades
   (`send_upgrade_wallet` / `migrate_wallet`) with `old_parents` allowing balances to merge

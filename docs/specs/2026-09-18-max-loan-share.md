@@ -117,8 +117,9 @@ Two things any future attempt must handle, both found while checking this one ad
 - **A division by zero that wedges the round.** If `muldiv(available, share, 65535)` truncates to
   zero, every request is accepted at loan 0, `allocated` stays 0, and the accrue loop's
   `muldiv(available, loan_amount, allocated)` divides by zero. The continuation throws, the
-  participation sticks in `distributing`, and `retry_distribute` fails identically every time —
-  recoverable only by changing the parameter. Today this is impossible because `request_loan`
+  participation sticks in `distributing`, and every retry throws identically -- recoverable only by
+  changing the parameter, and since `retry_distribute` was removed on 2026-09-20 that means an
+  `upgrade_code` carrying the repair. Today this is impossible because `request_loan`
   guarantees every accepted loan is positive; truncation breaks that invariant, so it needs an
   explicit guard.
 - **The parameter must be snapshotted into the request, not read live.** Reading it live follows

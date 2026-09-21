@@ -101,11 +101,12 @@ Rejected alternatives:
   decrements it.
 - **It cannot go negative.** Every decrement clamps, so a fee price that fell between request and
   settlement cannot underflow `store_coins`.
-- **The seed is safe.** The migrator seeds zero rather than reconstructing the counter from
-  `participations`. Zero leaves the treasury reserving exactly what it reserves today, so the
-  upgrade cannot make anything worse, and the counter becomes exact on its own as the rounds in
-  flight settle and new requests arrive. The clamped decrements are what make that work: the
-  in-flight requests whose fees were never counted in cannot drive it negative.
+- **The seed is reconstructed, not zero.** The migrator walks `participations` and sums each one's
+  `size`, so the counter lands correct. Zero was tried first and is wrong: a release fires for every
+  request that ends, including those standing at upgrade time, which never had a matching add, so
+  those releases consume later requests' reservations instead. With the pool bidding continuously
+  the counter is never empty at release time, the clamp never forgives the debt, and the shortfall
+  is permanent. See *Found during the adversarial pass*.
 
 ## Compatibility
 
@@ -136,8 +137,12 @@ Rejected alternatives:
 ## Out of scope
 
 - `2026-09-02-minimum-bid-efficiency.md` and the rank-versus-capital question; separate specs.
-- Any change to what `distribute` reserves or to `calculate_min_coins`; both already hold this money
-  back and are correct.
+- `calculate_min_coins`, which reserves the same money for `withdraw_surplus` by a live
+  computation rather than the counter. The two can disagree by the residue described above; the
+  disagreement is in the safe direction for both, so unifying them is not urgent.
+
+`distribute` WAS in this list, on the grounds that it already held the money back. That was wrong
+across rounds and is now fixed — see *Found during the adversarial pass*.
 
 ## Found during the adversarial pass
 

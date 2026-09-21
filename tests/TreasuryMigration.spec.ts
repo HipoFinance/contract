@@ -410,7 +410,7 @@ describe('Treasury Migration', () => {
         const after = new Map(result.after?.fields ?? [])
         const moved = [...after.keys()].filter((k) => before.get(k) !== after.get(k))
         expect(moved).toEqual(['total_request_fees', 'reward_share'])
-        expect(before.get('reward_share')).toEqual('0')
+        expect(before.get('reward_share')).toEqual('-1')
         expect(after.get('reward_share')).toEqual('1799')
 
         // This release changes TWO layouts, and the operator has to see both. total_request_fees is
