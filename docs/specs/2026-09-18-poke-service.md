@@ -202,9 +202,17 @@ perfect sync while every deadline is being computed on raw host time.
 that would have carried the external is produced before the deadline, the guard throws, no
 transaction is committed and nobody pays. Being one second late means the transition waits for the
 next attempt. The costs are not symmetric, so the service opens a short burst around the deadline —
-one send per second from two seconds before until three seconds after — and then drops to the
-60-second retry. Worst case that is six discarded externals, which is six compute phases that never
-commit; typical case the transition lands in the first masterchain block at or after the deadline.
+it sleeps one second at a time from two seconds before until three seconds after the last send —
+and then drops to the 60-second retry.
+
+Measured on mainnet rather than reasoned from those constants: the cadence is about **two seconds
+per attempt, giving two attempts per burst**, because a cycle re-reads the chain before it decides
+and that read costs roughly a second. The three transitions on 2026-09-20 all show the same shape —
+`finish_participation` at 12:19:20 then 12:19:22, `participate_in_election` refused at 18:52:52 and
+accepted at 18:52:54, both `vset_changed` at 21:24:28 then 21:24:30. So the worst case is two
+discarded externals rather than six, and a poke that is early by a second is accepted about two
+seconds later rather than one. Typical case the transition lands in the first masterchain block at
+or after the deadline.
 
 The 60-second retries afterwards are deliberately plain: no jitter, no backoff. Jitter exists to
 spread load across many independent senders, and there are two of these; the duplicate sends are free
