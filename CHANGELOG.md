@@ -16,6 +16,56 @@ This file starts at **2026-07-16**. Earlier history is in the git log.
 
 ---
 
+## 2026-09-21 — Reward share set by the protocol
+
+**Treasury code** `6cd64455cf733d84a56da540b1ad757e966bdbe8146fe32d52c01efc038a8c6c`
+· Specs [`2026-09-19-protocol-set-reward-share.md`](docs/specs/2026-09-19-protocol-set-reward-share.md),
+[`2026-09-20-prepaid-request-fees.md`](docs/specs/2026-09-20-prepaid-request-fees.md),
+[`2026-09-20-remove-retry-distribute.md`](docs/specs/2026-09-20-remove-retry-distribute.md)
+
+**`borrower_reward_share` is no longer bid.** It is a protocol parameter the governor sets with the
+new `op::set_reward_share`, held in the extension as a `uint16` after `borrower_fee` and snapshotted
+into each request at `request_loan` — exactly as `borrower_fee` already was, so a bid already made
+cannot be repriced. It was seeded at `1799`, the value every request on chain had been bid at, so
+the release changed no economics on landing.
+
+The pool's take on a loan is `max(min_payment, reward × (65535 − share) / 65535)`, and while the
+borrower chose the share, the borrower chose which of those two terms binds. A bid of share 65535
+with `min_payment` 0 makes both zero, and a last-ranked bid still wins whatever the bids above it
+leave — so the pool could be paid nothing for lending its coins, and rank could be bought with one
+quantum of `min_payment` and taken back in the share. With one share for every bidder,
+`request_sort_key` is unchanged and now orders bids exactly by what the pool receives, and the pool
+has a floor of `(65535 − share) / 65535` of every reward where it previously had none.
+
+That floor is on the **split** of a reward, not on revenue: a stake the Elector accepts but does not
+elect earns nothing, and a share of nothing is nothing. Unchanged by this release.
+
+**Prepaid request fees are held back from instant unstakes.** A `request_loan` prepays the gas its
+round spends on `proxy_new_stake` and `proxy_recover_stake`. `distribute` and `calculate_min_coins`
+already reserved that money, but `reserve_tokens` and `burn_tokens` did not, so an instant unstake
+could take it and leave a round unable to pay for its own message chain — a fixed 10 GRAM storage
+floor against a need that grows with the number of bidders. Root gained `total_request_fees`
+(`coins`, after `total_borrowers_stake`), maintained where a request's lifecycle begins and ends and
+subtracted in those two handlers and in `get_max_burnable_tokens`. The migrator reconstructs it by
+walking `participations`. No unstake is lost to it: an instant unstake it blocks takes the deferred
+path, as one already does whenever the pool is short.
+
+**`retry_distribute` is removed**, op `0x6ec00c48` retired and not reused. Re-running `distribute` on
+a round that had already run `decide_loan_requests` erased that round's accepted and accrued requests
+without refunding them, and left `total_borrowers_stake` counting collateral nothing could release.
+It had never been run on mainnet.
+
+`get_treasury_state` **appended** `reward_share` and then `total_request_fees`, taking it from 26
+values to 28.
+
+**Integrators:** `op::request_loan` is a **breaking change** — the 16-bit `borrower_reward_share` is
+gone from the body, and a message still carrying it throws at `end_parse` and bounces, with the
+collateral intact but the round missed. Borrowers must roll with the treasury, and must now read
+`reward_share` from `get_treasury_state` (index 26) to price a bid at all, since they can no longer
+state it. Getter positions 0–25 are unchanged and keep their meaning. Anything that parses
+`request_loan` bodies out of blocks must accept both shapes and go on accepting both: every request
+made before the upgrade carries the share, and those bodies stay on chain.
+
 ## 2026-09-09 — Burner repointed
 
 **Treasury code** `22d7118ecc29fdab794f99a4111b503e20d995ceec725eca6d6da5808b05acc8`

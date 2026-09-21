@@ -871,15 +871,12 @@ does not scale with anything stored. Requests already standing keep the share th
 Root gains `total_request_fees` (`coins`), inserted after `total_borrowers_stake`: the GRAM
 standing loan requests have prepaid for their rounds' message chains, which `reserve_tokens` and
 `burn_tokens` now hold back from an instant unstake exactly as `distribute` and
-`calculate_min_coins` already did. The migrator **seeds it at zero** rather than reconstructing it
-from `participations` — zero leaves the treasury reserving exactly what it reserves today, and the
-counter becomes exact on its own as the rounds in flight settle and new requests arrive. The migrator **reconstructs** it by walking `participations` and
-summing each one's `size`, so it lands correct rather than at zero: seeding zero would have left a
-release firing for each pre-upgrade request with no matching add, permanently consuming that many
-later requests' reservations. Watch it in `showState.ts`: it should read one `request_loan` fee per
-standing request from the moment the upgrade lands, and return to zero when a round settles with no
-requests behind it. See `docs/specs/2026-09-20-prepaid-request-fees.md`.
-
+`calculate_min_coins` already did. The migrator **reconstructs** it by walking `participations`
+and summing each one's `size`, so it lands correct rather than at zero: seeding zero would have
+left a release firing for each pre-upgrade request with no matching add, permanently consuming that
+many later requests' reservations. Watch it in `showState.ts`: it should read one `request_loan`
+fee per standing request from the moment the upgrade lands, and return to zero when a round settles
+with no requests behind it. See `docs/specs/2026-09-20-prepaid-request-fees.md`.
 
 `retry_distribute` is **removed**, op code `0x6ec00c48` retired and not reused. It re-ran
 `distribute` on a round that had already run `decide_loan_requests`, which erased that round's
