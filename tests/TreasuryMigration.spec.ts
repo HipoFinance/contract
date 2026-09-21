@@ -399,28 +399,29 @@ describe('Treasury Migration', () => {
         // The storage cell itself must change even though no accounting value does.
         expect(result.after?.dataHash).not.toEqual(result.before.dataHash)
 
-        // The diff IS field-level here, unlike the eras before it: the wrapper carries a temporary
-        // fallback so that a treasury still returning 26 values can be read at all, which is what keeps
-        // showState and this rehearsal working before the upgrade lands.
+        // The BEFORE side is no longer field-level, and that is the point of this assertion. While the
+        // release was unsent, the wrapper carried a temporary fallback so a treasury still returning 26
+        // values could be read; that fallback was deleted once mainnet upgraded, because a fallback
+        // that outlives its release is a value silently substituted for a real one.
         //
-        // The fallback reads 0 for a treasury that does not have the field, which is a value no upgraded
-        // treasury can hold -- so the diff shows this migration rather than hiding it behind a
-        // coincidence. Exactly one field moves, and it is the one the release adds.
+        // So a pre-upgrade account now degrades to a single row instead of throwing, and the run still
+        // reaches a verdict. This is what the next operator sees when a release changes the getter's
+        // shape again, and it is the cue to add a fresh fallback for that release and delete it after.
         const before = new Map(result.before.fields)
-        const after = new Map(result.after?.fields ?? [])
-        const moved = [...after.keys()].filter((k) => before.get(k) !== after.get(k))
-        expect(moved).toEqual(['total_request_fees', 'reward_share'])
-        expect(before.get('reward_share')).toEqual('-1')
-        expect(after.get('reward_share')).toEqual('1799')
+        expect(before.get('state')).toEqual('not readable by this wrapper (get_treasury_state shape differs)')
 
-        // This release changes TWO layouts, and the operator has to see both. total_request_fees is
-        // seeded at zero, so a zero fallback would diff it against itself and report nothing -- the
-        // same way an 1799 fallback once hid reward_share. -1 is a value no upgraded treasury holds.
-        expect(before.get('total_request_fees')).toEqual('-1')
+        // The AFTER side is read by the wrapper this repo ships, so it stays field-level and still
+        // proves the migration wrote what it promised.
+        const after = new Map(result.after?.fields ?? [])
+        expect(after.get('reward_share')).toEqual('1799')
         expect(after.get('total_request_fees')).toEqual(String(5n * 724347680n))
 
+        // And what the operator actually reads: the run says plainly that the fields cannot be compared
+        // across this upgrade, and points them at the migrator instead of at a diff that is not there.
         const rendered = formatDryRun(result, makePalette(false))
-        expect(rendered).toContain('reward_share')
+        expect(rendered).toContain('not readable across this upgrade')
+        expect(rendered).toContain('Verify this one by reading the migrator')
+        expect(rendered).toContain('6cd64455cf733d84')
     })
 
     it('should itemise every field when the getter shape is stable', async () => {

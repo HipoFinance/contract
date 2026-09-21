@@ -809,7 +809,20 @@ the expected shape there, not a wedge.
 
 ## Protocol-Set Reward Share
 
-> **Not yet performed.** Spec: `docs/specs/2026-09-19-protocol-set-reward-share.md`.
+> **Already performed on mainnet, 2026-09-21. Kept as the record of what was run.**
+> Code hash `6cd64455cf733d84a56da540b1ad757e966bdbe8146fe32d52c01efc038a8c6c` — the plain
+> `Treasury` build — and migrator `0eaf44f5eb2ce666…`, which is
+> `upgrade-code-test/AddReleaseFields`. It landed in the window between `participate_since` and
+> the validator-set change, with no participation in `open`, so no round held two shares.
+> Verified on chain afterwards: `get_treasury_state` returns 28 values, `reward_share` 1799, and
+> `total_request_fees` 2,897,390,720 nano — exactly four standing requests at the 724,347,680
+> request fee, which is what the two participations held. `deficit`, `borrower_fee`, the rate pair
+> and `total_coins`/`total_tokens` were unchanged. `migratorName` is back to `null`, and the
+> temporary `readOrDefault` fallbacks in `wrappers/Treasury.ts` are deleted. Do not re-run it: the
+> migrator ends its parse with `end_parse()`, so a second run throws and reverts the whole upgrade.
+
+Spec: `docs/specs/2026-09-19-protocol-set-reward-share.md` and
+`docs/specs/2026-09-20-prepaid-request-fees.md`.
 
 Removes `borrower_reward_share` from the `request_loan` message and makes it a protocol value the
 governor sets. Two stored layouts change: the extension gains `reward_share` (`uint16`) after
@@ -844,7 +857,11 @@ does not scale with anything stored. Requests already standing keep the share th
 4. **Tell the borrowers what the value is.** They cannot bid it any more, so they have to read
    `reward_share` from `get_treasury_state` to price a bid at all.
 5. **The getter grows from 26 to 28 values**, gaining `reward_share` and then
-   `total_request_fees`. Third and fourth time. Re-read *Changing the shape of a getter*
+   `total_request_fees`. Third and fourth time. `club-server` and `gauge` were rolled first; the
+   `-1` sentinel and its fallbacks are gone now that no 26-value treasury is left to read, so a
+   dry run against a pre-upgrade account degrades to *"not readable across this upgrade"* rather
+   than a field diff. That is the cue for the next release to add its own temporary fallback and
+   delete it once it lands. Re-read *Changing the shape of a getter*
    above and walk the census: consumers index positionally and assert length, so appending breaks
    them. `wrappers/Treasury.ts` carries a temporary fallback in `getTreasuryState` so `showState.ts`
    and the dry run still read the pre-upgrade contract — delete it once mainnet is upgraded.
