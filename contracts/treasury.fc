@@ -871,8 +871,26 @@ cell find_code(cell dict, int round_since) inline {
     ;; reserved_amount stays home rather than being lent, so that a queued unstake bill worth more than
     ;; a single round's return still clears once a second round settles. it is not earmarked to the
     ;; staker who queued it - see the comment in reserve_tokens on why nothing subtracts it there.
-    int available_now =
-        max(0, ton_balance - fee::treasury_storage - total_borrowers_stake - size * total_fee - reserved_amount);
+    ;; total_request_fees, not `size * total_fee`: the latter is only THIS round's requests, and the
+    ;; rounds already staked have prepaid for a recover_stakes that has not run yet. Their collateral
+    ;; has already left total_borrowers_stake, so without this the round being distributed can lend
+    ;; away the GRAM an older round's recovery is about to spend -- the same hole reserve_tokens and
+    ;; burn_tokens had, at the third site that spends it. The counter spans every participation,
+    ;; including this one, so it is the larger of the two whenever the counter is accurate.
+    ;;
+    ;; The max() is not belt and braces. This term does double duty: it reserves the round's gas AND
+    ;; it bounds `amount` below, which is what distribute hands to the chain that then pays for the
+    ;; loans. Drop `size * total_fee` and a counter that under-counts THIS round -- because a fee
+    ;; price rose since the requests were made, or because the round was crafted or repaired -- both
+    ;; under-reserves and lets `amount` take more of the balance, leaving process_loan_requests'
+    ;; continuation unable to fund its second batch. MaxGas' 100-request round reproduces exactly
+    ;; that: 56 loans ship, the continuation's action phase fails, and the rest never leave.
+    ;; See docs/specs/2026-09-20-prepaid-request-fees.md.
+    int available_now = max(
+        0,
+        ton_balance - fee::treasury_storage - total_borrowers_stake
+            - max(size * total_fee, total_request_fees) - reserved_amount
+    );
 
     int last_total_staked = 0;
     ( _, ps, int f? ) = participations.udict_get_prev?(32, round_since);

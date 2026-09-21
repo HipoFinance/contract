@@ -281,16 +281,28 @@ describe('Treasury Migration', () => {
         expect(stateAfter.lastSettledRound).toEqual(BigInt(stateBefore.lastSettledRound))
 
         // And the two fields it adds. reward_share arrives at the share every request on chain was bid
-        // at, so the upgrade changes no economics on its own; total_request_fees is seeded at zero,
-        // which leaves the treasury reserving exactly what it reserves today and becomes exact as the
-        // rounds in flight settle.
+        // at, so the upgrade changes no economics on its own.
         expect(stateAfter.rewardShare).toEqual(1799n)
-        expect(stateAfter.totalRequestFees).toEqual(0n)
+
+        // total_request_fees is RECONSTRUCTED from the account's own participations, not seeded at
+        // zero. Zero would have left a release firing for each of these five pre-upgrade requests
+        // with no matching add, permanently consuming five later requests' reservations. This is the
+        // assertion that proves the walk reads the real dict: five requests across the two rounds
+        // this capture holds, at the mainnet request_loan fee.
+        expect(stateAfter.totalRequestFees).toEqual(5n * 724347680n)
 
         // Read from the cell too, so the field's position in root is pinned and not just its value.
         const rootAfter = parseRoot(await readStorage(blockchain, treasuryAddress), true)
-        expect(rootAfter.totalRequestFees).toEqual(0n)
+        expect(rootAfter.totalRequestFees).toEqual(5n * 724347680n)
         expect(rootAfter.deficit).toEqual(before.deficit)
+
+        // The compatibility claim this whole release rests on -- that requests and participations
+        // need no migration because their layout is untouched -- was asserted in the spec and never
+        // tested. The migrator reads 20 bits of each participation now, so it is worth proving it
+        // writes the dict back byte for byte.
+        expect(rootAfter.participations?.hash().toString('hex')).toEqual(
+            before.participations?.hash().toString('hex'),
+        )
     })
 
     it('should leave data alone when no migrator is supplied', async () => {
@@ -405,7 +417,7 @@ describe('Treasury Migration', () => {
         // seeded at zero, so a zero fallback would diff it against itself and report nothing -- the
         // same way an 1799 fallback once hid reward_share. -1 is a value no upgraded treasury holds.
         expect(before.get('total_request_fees')).toEqual('-1')
-        expect(after.get('total_request_fees')).toEqual('0')
+        expect(after.get('total_request_fees')).toEqual(String(5n * 724347680n))
 
         const rendered = formatDryRun(result, makePalette(false))
         expect(rendered).toContain('reward_share')

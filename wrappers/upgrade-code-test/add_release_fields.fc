@@ -18,12 +18,28 @@
 ;; case where the sort key is not exactly monotone.
 ;;
 ;; Root gains `total_request_fees`, the GRAM standing loan requests have prepaid for their rounds'
-;; message chains, inserted after `total_borrowers_stake`. It is seeded at **zero** rather than
-;; reconstructed from `participations`. Reconstructing it would mean walking the dict and parsing
-;; each participation's size here, and zero is already safe: it leaves the treasury reserving exactly
-;; what it reserves today, and the counter becomes exact on its own as this round's requests settle
-;; and the next round's arrive. Every decrement is clamped at zero, so the rounds already in flight
-;; at upgrade time -- whose fees were never counted in -- cannot drive it negative.
+;; message chains, inserted after `total_borrowers_stake`. It is RECONSTRUCTED here, not seeded at
+;; zero, and the difference is not cosmetic.
+;;
+;; The counter is maintained as (adds - releases). A release fires for every request that ends,
+;; including the ones already standing when this upgrade lands, which never had a matching add. Seed
+;; zero and those releases consume the reservations of later requests instead: with the pool bidding
+;; continuously the counter never empties at release time, so the clamp never forgives the debt and
+;; the shortfall sits at one fee per pre-upgrade request forever. It heals only if the pool ever
+;; reaches a moment with no requests standing at all. The earlier claim that it "becomes exact on its
+;; own" was wrong.
+;;
+;; So walk the dict and count. A participation packs `state` as 4 bits then `size` as 16, and `size`
+;; is exactly the number of requests that participation still holds across all six of its dicts --
+;; which is exactly the set that will fire releases. Summing it over every participation gives the
+;; number of fees owed. Only the first 20 bits of each value are read; everything after is left
+;; untouched and the dict itself is moved as an opaque ref.
+;;
+;; The fee is the literal below rather than a call to request_loan_fee(): that function is not
+;; inlined, and EXECUTE leaves c3 pointing at the treasury, so calling it here would dispatch into
+;; the treasury's own method dictionary. 724347680 is `get_treasury_fees().request_loan_fee` read
+;; from mainnet on 2026-09-21. It is the price of the day, which is all the counter ever holds --
+;; every entry in it is priced when it is added -- so a later fee change does not make this stale.
 ;; See docs/specs/2026-09-20-prepaid-request-fees.md.
 ;;
 ;; `participations` is not touched. Requests keep their own snapshotted `borrower_reward_share`, so
@@ -84,6 +100,18 @@
     cell old_parents = ext~load_dict();
     ext.end_parse();
 
+    ;; count the requests every participation still holds -- see the note above
+    int standing_requests = 0;
+    int k = -1;
+    do {
+        ( k, slice ps, int f? ) = participations.udict_get_next?(32, k);
+        if f? {
+            ps~load_uint(4); ;; state
+            standing_requests += ps~load_uint(16); ;; size
+        }
+    } until ~ f?;
+    int total_request_fees = standing_requests * 724347680;
+
     cell new_extension = begin_cell()
         .store_coins(previous_rate)
         .store_coins(current_rate)
@@ -108,7 +136,7 @@
         .store_coins(total_staking)
         .store_coins(total_unstaking)
         .store_coins(total_borrowers_stake)
-        .store_coins(0)  ;; total_request_fees
+        .store_coins(total_request_fees)
         .store_coins(deficit)
         .store_slice(parent)
         .store_dict(participations)
