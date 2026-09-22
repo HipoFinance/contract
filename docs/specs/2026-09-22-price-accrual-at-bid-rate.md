@@ -63,27 +63,20 @@ part that was requested. The sort key is untouched; what changes is that the num
 becomes true. A borrower who wants the leftover pays for it at the rate they bid; a borrower who
 out-ranks another pays that rate on every GRAM they take, squeeze included.
 
-**Accrual is capped by collateral.** The accepted loan's collateral must still cover the scaled
-payment, the burn floor and the punishment on the grown stake. The loan takes the largest accrual
-that satisfies this, up to its proportional share:
+**Accrual is unchanged; collection is bounded at recovery.** Every accepted loan takes its full
+proportional share of the leftover, exactly as today, so no capital is left idle. The promise can now
+exceed the collateral that was checked at `request_loan`: collateral covered `min_payment`, and
+`min_payment'` is larger. So `recover_stake_result` bounds what it collects instead:
 
 ```
-accrue      = muldiv(available, loan_amount, allocated)                   ;; proportional share, as today
-punishment  = max_recommended_punishment(loan_amount + accrue + stake_amount)  ;; at the full share
-spare       = stake_amount - min_burn - punishment
-if min_payment > 0:
-    accrue  = min(accrue, max(0, muldiv(spare, loan_amount, min_payment) - loan_amount))
-elif spare < 0:
-    accrue  = 0                                                           ;; today's rule
-min_payment' = muldiv(min_payment, loan_amount + accrue, loan_amount)
+treasury_reward = min(max(min_payment', contractual share), reward + stake_amount)
 ```
 
-This is exact with one evaluation. Punishment is `flat + proportional × stake` (config 40), so it
-never grows as the accrual shrinks. The bound `accrue ≤ spare × loan / min_payment − loan` gives
-`min_payment' ≤ spare` after both floors round down. A zero accrual is always admissible:
-`request_loan` already required `stake_amount ≥ min_payment + min_burn + punishment(loan + stake)`.
-What a capped loan does not take stays on the treasury balance and is lent in the next round, as
-today.
+The borrower owes their bid rate on the whole stake. If the reward covers it, they pay it and keep
+the rest. If it does not, the shortfall comes out of their collateral. Collateral bounds only what
+the pool can *collect*, never what the borrower *owes*: a borrower who over-promises on thin
+collateral loses the whole reward and all of their collateral. The accrual loop's existing check
+(`stake_amount ≥ min_payment + min_burn + punishment(total)`, all-or-nothing) stays exactly as it is.
 
 Rejected alternatives:
 
@@ -93,11 +86,18 @@ Rejected alternatives:
   lendable amount they cannot know in advance, which is the lendable-amount-lock problem made worse.
 - **Freeze the lendable amount and stop accruing** (the third option). Unrequested capital would sit
   idle in thin rounds. The freeze has its own reason to exist and is kept as its own TODO.
-- **No accrual when the scaled check fails**, as the current all-or-nothing rule does. The stricter
-  check would idle a whole share where most of it could be lent.
-- **Redistribute a capped loan's remainder to the others.** No capital idles, but it needs a second
-  pass with its own continuation and re-checks, in the chain `retry_distribute`'s removal just
-  hardened. The remainder is small whenever collateral is sized for the bid, and borrowers control it.
+- **Cap the accrual at what collateral covers.** This was this spec's first draft, and a replay
+  rejected it. Borrowers size collateral to the unscaled `min_payment`, so the cap cut the two large
+  loans' accrual from about 343,000 each to about 1,700, and about 690,000 GRAM sat unlent in every
+  recent round. Over the eight rounds since 17 September the pool would have collected **1,673 GRAM
+  less**, while the borrowers it was meant to charge lost only 884. It also creates a griefing path
+  that does not exist today: with punishment a flat 101 GRAM, today's accrual check effectively
+  always passes, whereas under a cap any winner could idle the leftover just by posting thin
+  collateral. The bound belongs where the money is collected, not where it is lent.
+- **Refuse accrual when the scaled check fails**, or **redistribute a refused share to the others.**
+  The first idles capital for the same reason. The second needs a second pass with its own
+  continuation, in the chain `retry_distribute`'s removal just hardened, and still idles capital when
+  nobody else was accepted.
 - **Hide or randomise the close** (`2026-09-22-commit-reveal-bids.md`, `2026-09-19-soft-close.md`).
   Once rank is honest, reacting last only lets a bidder win by paying more per GRAM than the bid
   they answered, and a bid placed early at break-even cannot be profitably answered. The timing
@@ -106,12 +106,16 @@ Rejected alternatives:
 
 ## Changes
 
-- `contracts/treasury.fc`, `decide_loan_requests`: the accrual loop computes the capped
-  `accrue_amount` and packs the scaled `min_payment`, replacing today's all-or-nothing collateral
-  check. Nothing else in the file changes: `process_loan_requests`, `log_loan` and
-  `recover_stake_result` already read `min_payment` and `accrue_amount` from the request.
-- `docs/architecture.md`, *Loan economics*: `min_payment` is a rate on the whole stake, and accrual is
-  capped by collateral.
+- `contracts/treasury.fc`, `decide_loan_requests`: the accrual loop packs
+  `muldiv(min_payment, loan_amount + accrue_amount, loan_amount)` in place of `min_payment`. The
+  accrual and its check are untouched.
+- `contracts/treasury.fc`, `recover_stake_result`, rewarded branch: `treasury_reward` is clamped to
+  `reward + stake_amount`, so a promise larger than reward plus collateral empties the collateral
+  instead of driving `stake_amount` negative (which would throw in `store_coins` and wedge the round).
+  The unrewarded branch already collects `min(stake_amount, min_payment)`. `process_loan_requests`
+  and `log_loan` read the request as they do now.
+- `docs/architecture.md`, *Loan economics*: `min_payment` is a rate on the whole stake, and collateral
+  bounds what the pool collects, not what the borrower owes.
 - `docs/integration.md`: the same, for borrowers. The loan log's `min_payment` is now the scaled
   amount owed.
 - `CHANGELOG.md`: the release and its date, published with the notice (below).
@@ -121,19 +125,18 @@ Rejected alternatives:
 
 - **The exchange-rate identity is untouched.** Recovery computes `treasury_reward`, `new_coins` and
   the burn exactly as before, from the request it is handed; only the stored `min_payment` is larger.
-- **The pool never receives less for the same bids and the same accrual.** `min_payment' ≥ min_payment`
-  and the contractual share is unchanged. The one way the pool can end up with less is through capital
-  a capped loan leaves idle. That depends on the borrower's collateral, and it is the price of never
-  sending a loan whose collateral cannot cover its promise.
-- **Collateral always covers the promise**, now on the grown stake: `stake_amount ≥ min_payment' +
-  min_burn + punishment(total)` for every accrued loan, which is the property the old check existed for.
-- **The unelected path stays bounded.** A loan that is not elected pays `min(stake_amount,
-  min_payment')`, which the cap keeps inside collateral.
+- **The pool never receives less for the same bids.** Accrual is unchanged and `min_payment' ≥
+  min_payment`. The clamp only binds where today's code could not have collected anyway: before this
+  change, collateral covered `min_payment`, so `reward + stake_amount ≥ min_payment` always held.
+- **No capital is idled by this change.** Every accepted loan accrues exactly what it accrues today.
+- **The borrower's balance never goes negative.** On the rewarded path `treasury_reward ≤ reward +
+  stake_amount`; on the unrewarded path `min(stake_amount, min_payment')` as before.
+- **The burner may now receive less than `fee::min_burn`.** When a promise exhausts the collateral,
+  the pool is paid first and the burner takes what remains, possibly nothing. That is the existing
+  loss ordering applied to a case that could not occur before, not a new ordering.
 - **Ranking is unchanged.** `request_sort_key` and the `sorted` dict are not touched; the scaling
   happens after acceptance.
 - **Loss ordering is unchanged**: punishment, then the pool, then the burner, then the borrower.
-- **The round is never under-lent by more than capped remainders**, and nothing is lent that the
-  treasury does not hold: the accrual is only ever lowered from today's value.
 - **No committed bid is repriced.** The upgrade lands only while no request is standing (see
   *Compatibility*), so every request that meets the new rule was made after the rule was published.
 
@@ -141,6 +144,8 @@ Rejected alternatives:
 
 - **No storage, getter or message-schema change.** Requests and participations keep their layout;
   `get_treasury_state` keeps 28 values. No migrator.
+- **The clamp is inert for loans decided before the upgrade:** their collateral was checked against
+  the `min_payment` they carry, so their promise never exceeds reward plus collateral.
 - **A meaning changes, twice.** `min_payment` in an accrued request, and therefore in the loan log, is
   now the scaled amount owed. Any integrator that reads the loan log and divides `min_payment` by
   `loan_amount` sees the same rate as before. One that compares it with a request's `min_payment`
@@ -150,28 +155,26 @@ Rejected alternatives:
 - **Upgrade window.** Once a round's participation has left `open`, `request_loan` refuses until the
   validator set changes, a gap of `elections_end_before + 900` s (9,092 s today). Upgrading inside
   that gap means no request made under the old rule is ever decided under the new one.
-- **Gas:** one `muldiv` and a comparison per accepted loan in `decide_loan_requests`, plus the scaled
-  `muldiv`. The punishment call already runs there. `MaxGas`' 100-request round must stay inside the
+- **Gas:** one `muldiv` per accepted loan in `decide_loan_requests`, and one `min` per settled loan
+  in `recover_stake_result`. `MaxGas`' 100-request round must stay inside the
   soft limit.
 
 ## Test plan
 
 - A loan that accrues `A` on `L` is packed, logged and recovered with `muldiv(m, L + A, L)`, and a loan
   that accrues nothing keeps `m` exactly.
-- **The cap:** with collateral sized so the full share does not fit, the accrual is the largest value
-  the formula allows. One GRAM more would break `stake ≥ min_payment' + min_burn + punishment`. The
-  remainder stays on the balance and appears in the next round's `available`.
-- A loan with collateral below even the zero-accrual requirement is impossible (refused at
-  `request_loan`); assert the cap never produces a negative accrual.
-- `min_payment = 0`: unchanged behaviour, full accrual when collateral covers punishment, none otherwise.
+- **Accrual is unchanged:** for the same requests and pool, every `accrue_amount` equals the old
+  code's, including a thin-collateral loan whose scaled promise exceeds its collateral.
+- **The clamp:** a rewarded loan whose `min_payment'` exceeds `reward + stake_amount` pays exactly
+  that, returns zero to the borrower, burns zero, and settles without throwing. The next loan in the
+  same round still settles.
+- `min_payment = 0`: unchanged behaviour end to end.
 - **Recovery:** elected with the scaled payment binding, elected with the contractual share binding,
   and unelected paying `min(stake, min_payment')`. The pool's take is compared against the same round
   on the old code.
 - **The motivating case:** replay round 1790070536's shape (two requests of 1,514,176 at 1,109.18 in a
-  3,715,275 pool). Each owes `muldiv(1,109.18, 1,857,638, 1,514,176)`, which exceeds its contractual
-  share at the round's yield.
-- A multi-loan round where one loan is capped and the others are not: the others' accruals are
-  exactly today's.
+  3,715,275 pool). Each accrues 343,462 as today and owes `muldiv(1,109.18, 1,857,638, 1,514,176)`,
+  which exceeds its contractual share at the round's yield and is collected in full.
 - `MaxGas` / `MinGas` green; the decide loop's measured gas per accepted loan recorded.
 
 ## Out of scope
