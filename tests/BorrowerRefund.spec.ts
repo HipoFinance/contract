@@ -300,13 +300,14 @@ describe('BorrowerRefund', () => {
 
         // Both stakes come straight back, so the round settles at a small loss: the treasury advanced
         // recover_stake_fee and only the unspent part of proxy_new_stake_fee came back with the
-        // stake. The collateral covers the ~0.02 difference, then min_payment is taken, so borrower2
-        // keeps 161 - 0.02 - 60 and borrower3 keeps 171 - 0.02 - 70 -- the same 100.978 each. Before
-        // the fix neither refund was sent at all.
+        // stake. The collateral covers the ~0.02 difference, then min_payment is taken. Each loan
+        // accrued ~50000 on its 300000, so min_payment is scaled to the whole stake: 60 -> ~70 and
+        // 70 -> ~81.67. borrower2 keeps 161 - 0.02 - 70 = 90.978 and borrower3 171 - 0.02 - 81.67 =
+        // 89.312. Before the fix neither refund was sent at all.
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: round.borrower2.address,
-            value: between('100.9', '101'),
+            value: between('90.97', '90.98'),
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
@@ -314,7 +315,7 @@ describe('BorrowerRefund', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: round.borrower3.address,
-            value: between('100.9', '101'),
+            value: between('89.31', '89.32'),
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
@@ -351,10 +352,11 @@ describe('BorrowerRefund', () => {
 
         // The refunds are the same as at governance_fee = 0: the governance fee is carved out of the
         // treasury's min_payment, never out of the borrower's collateral.
+        // (Both are the scaled min_payment: see the test above.)
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: round.borrower2.address,
-            value: between('100.9', '101'),
+            value: between('90.97', '90.98'),
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
@@ -362,20 +364,21 @@ describe('BorrowerRefund', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: round.borrower3.address,
-            value: between('100.9', '101'),
+            value: between('89.31', '89.32'),
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
         })
 
-        // 60 * 4096 / 65535 = 3.7499 and 70 * 4096 / 65535 = 4.3749 of governance fee, each now
+        // ~70 * 4096 / 65535 = 4.3749 and ~81.67 * 4096 / 65535 = 5.1041 of governance fee on the
+        // scaled min_payments (60 and 70 as bid, each loan having accrued a sixth more), each now
         // joined by the 0.2878 of recover_stake_fee that the branch used to keep reserved. That
         // 0.2878 is the only thing the fix changes here: it used to leave through withdraw_surplus
         // once the round was gone instead of through take_profit.
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: governor.address,
-            value: between('4.03', '4.04'),
+            value: between('4.66', '4.67'),
             body: bodyOp(op.takeProfit),
             success: true,
             outMessagesCount: 0,
@@ -383,7 +386,7 @@ describe('BorrowerRefund', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: governor.address,
-            value: between('4.65', '4.66'),
+            value: between('5.38', '5.39'),
             body: bodyOp(op.takeProfit),
             success: true,
             outMessagesCount: 0,

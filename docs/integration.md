@@ -380,6 +380,15 @@ Three rules that a classifier gets wrong easily, each learned from a real defect
   > pays the pool its full contractual share, and anything above the clamp is the borrower
   > competing for rank. See `docs/specs/2026-09-19-protocol-set-reward-share.md`.
 
+  > **Announced 2026-09-22, deployed no earlier than 2026-09-25: `min_payment` is priced per GRAM
+  > staked.** When a round's leftover accrues to a loan, its `min_payment` is scaled to
+  > `min_payment × (loan_amount + accrue_amount) / loan_amount` — the rate you bid, applied to
+  > everything your loan stakes. Price `min_payment / loan_amount` as the rate you are willing to pay
+  > on your whole stake, not on the loan you request. The loan log's `min_payment` is the scaled
+  > amount. If what you owe exceeds the round's reward, the difference comes out of your collateral;
+  > the pool collects at most the reward plus your collateral. No message, field or getter changes.
+  > See `docs/specs/2026-09-22-price-accrual-at-bid-rate.md`.
+
 ## Calculating Remaining Time Until Withdrawal
 
 You have to first find the `current_round_since` by calling the `get_times` method. Then you have to send it to the `get_participation` method. It will return `stake_held_until` which is the time after which the validation round will be finalized. Here is the [full implementation in Hipo's webapp](https://github.com/HipoFinance/webapp/blob/a11a575fe231def9015ff480e1b7959c893121e2/src/Model.ts#L420).

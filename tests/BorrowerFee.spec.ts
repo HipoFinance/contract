@@ -349,11 +349,17 @@ describe('Borrower Fee', () => {
         // borrower's REALISED take to zero or below, so a fee on that would collect nothing from a
         // borrower who wants the validator slot for reasons outside the loan. The contractual share
         // does not move with min_payment, so the fee lands anyway -- out of collateral.
+        //
+        // The single loan takes the whole 700000 pool, so its 400 is scaled to ~933 for the 400000 it
+        // accrues. The reward has to leave room for the burn after that: at 500 the pool collects
+        // ~933 of the 1002 that reward and collateral hold, and the burner takes the rest. Below
+        // ~432 the promise exceeds reward plus collateral and the pool collects everything, burner
+        // included -- that bound is tested in AccrualPrice.spec.ts.
         const { burned } = await runRound({
             borrowerFee: 32767n,
             minPayment: '400',
             rewardShare: 26214n,
-            reward: '100', // the whole reward is below min_payment, so the clamp binds
+            reward: '500', // below the scaled min_payment, so the max() clamp binds
         })
         expect(burned).toBeGreaterThanOrEqual(minBurn)
     })

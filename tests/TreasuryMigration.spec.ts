@@ -300,9 +300,7 @@ describe('Treasury Migration', () => {
         // need no migration because their layout is untouched -- was asserted in the spec and never
         // tested. The migrator reads 20 bits of each participation now, so it is worth proving it
         // writes the dict back byte for byte.
-        expect(rootAfter.participations?.hash().toString('hex')).toEqual(
-            before.participations?.hash().toString('hex'),
-        )
+        expect(rootAfter.participations?.hash().toString('hex')).toEqual(before.participations?.hash().toString('hex'))
     })
 
     it('should leave data alone when no migrator is supplied', async () => {
@@ -421,7 +419,9 @@ describe('Treasury Migration', () => {
         const rendered = formatDryRun(result, makePalette(false))
         expect(rendered).toContain('not readable across this upgrade')
         expect(rendered).toContain('Verify this one by reading the migrator')
-        expect(rendered).toContain('6cd64455cf733d84')
+        // the target is whatever this repo builds: pinned to the build rather than a literal, which
+        // would fail on every treasury change that is not this migration's business
+        expect(rendered).toContain(treasuryCode.hash().toString('hex').slice(0, 16))
     })
 
     it('should itemise every field when the getter shape is stable', async () => {

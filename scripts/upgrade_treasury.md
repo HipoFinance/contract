@@ -925,6 +925,48 @@ pool `max(min_payment, 0)` on every loan. Send it **between rounds**: the value 
 each request, so a change mid-round leaves a round holding two different shares, which is the one
 case where the sort key is not exactly monotone.
 
+## Accrued Capital Priced at the Bid's Rate
+
+Spec: `docs/specs/2026-09-22-price-accrual-at-bid-rate.md`. Announced 2026-09-22 in `CHANGELOG.md`
+and `docs/integration.md`; **do not send before 2026-09-25**. The notice is part of the release:
+every borrower's pricing changes on the day, and they should all have had the same chance to adapt.
+
+Code only. `decide_loan_requests` scales an accrued loan's `min_payment` by
+`(loan_amount + accrue_amount) / loan_amount`, and `recover_stake_result` bounds what it collects at
+`reward + stake_amount`. **No migrator, no storage change, no getter change**: leave `migratorName`
+at `null`, and the census in *Changing the shape of a getter* does not apply.
+
+| build | code hash |
+|---|---|
+| deployed (reward-share release) | `6cd64455cf733d84a56da540b1ad757e966bdbe8146fe32d52c01efc038a8c6c` |
+| this release | `f003de4b9ab34a61dd7d70a0a68a5faaf6ac0a8821ff2d720f9fecf8dd71475d` |
+
+### Before sending
+
+1. **Send it in the gap after a round is decided.** Once the round being bid has run
+   `participate_in_election`, `request_loan` refuses until the validator set changes —
+   `elections_end_before + 900` s, 9,092 s today. Upgrading inside that gap means no request made
+   under the old rule is decided under the new one. Outside it, a standing request would be decided
+   at a price its sender did not bid; `showState.ts` must show no participation in `open`.
+2. **Rounds already staked are safe either way.** Their requests carry the `min_payment` their
+   collateral was checked against, so the new recovery bound never binds on them.
+
+### Sending
+
+1. Leave `const migratorName: string | null = null` in `scripts/upgradeCode.ts`.
+2. `npx blueprint run upgradeCode`. The dry run should show the code-hash change and **an empty state
+   diff**; any field under `STATE DIFF` means something else went out with this build.
+3. Verify the code hash on chain is `f003de4b...`.
+
+### After it lands
+
+1. **Watch the first decided round.** In `participations`, every accrued request's `min_payment`
+   should equal `muldiv(bid, loan_amount + accrue_amount, loan_amount)`, and the loan log shows the
+   same value.
+2. **Watch its recovery.** Where the scaled promise exceeds the contractual share, the pool books it
+   exactly; a borrower whose promise exceeded reward plus collateral gets no `loan_result` and the
+   round still settles.
+
 ## Repoint the Burner
 
 Spec: `docs/specs/2026-08-31-borrower-fee-hpo-burn.md`, which anticipated this exact upgrade under

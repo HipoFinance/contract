@@ -116,6 +116,17 @@ reward, which nobody knows when the bid is made. With the share common to every 
 round, that key is exactly monotone in what the pool receives. See
 `docs/specs/2026-09-19-protocol-set-reward-share.md`.
 
+**`min_payment` is a rate on the whole stake.** What a round has left after the accepted loans is
+spread across them in proportion to `loan_amount` (`accrue_amount`), and `decide_loan_requests`
+scales each accrued loan's `min_payment` by `(loan_amount + accrue_amount) / loan_amount`. The sort
+key ranks on `min_payment / loan_amount`, so that number has to be the price of every GRAM the loan
+actually stakes. Left unscaled, a bidder could price the promise on the leftover they expected and
+divide it by a smaller request, and outrank honest bids for free for as long as the leftover
+arrived. The scaled promise can exceed the collateral checked at `request_loan`, so
+`recover_stake_result` bounds what it collects at `reward + stake_amount`: collateral limits what
+the pool can collect, never what the borrower owes. The accrual itself is unchanged, so no capital
+is left idle. See `docs/specs/2026-09-22-price-accrual-at-bid-rate.md`.
+
 ### The borrower fee
 
 `borrower_fee` (out of 65535) charges the borrower a share of their **contractual** reward,

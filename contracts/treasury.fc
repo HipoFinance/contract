@@ -1055,8 +1055,17 @@ cell find_code(cell dict, int round_since) inline {
         int max_punishment = max_recommended_punishment_for_validator_misbehaviour(total_loan_amount);
         int min_burn = request_fee > 0 ? fee::min_burn : 0;
         if stake_amount >= min_payment + min_burn + max_punishment {
+            ;; The accrued amount is staked with the loan and earns with it, so it is priced at the rate
+            ;; the borrower bid: min_payment / loan_amount per GRAM of everything staked. Leaving
+            ;; min_payment as bid would let a borrower rank on a promise priced for their whole
+            ;; expected stake divided by a smaller request -- rank bought per GRAM requested, capital
+            ;; received per GRAM lent. The scaled promise can exceed the collateral checked in
+            ;; request_loan; recover_stake_result bounds what it collects, and the check above stays
+            ;; on the unscaled amount so that no capital is left idle by this.
+            ;; See docs/specs/2026-09-22-price-accrual-at-bid-rate.md.
+            int accrued_min_payment = muldiv(min_payment, loan_amount + accrue_amount, loan_amount);
             builder accrued_request = pack_request(
-                min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount,
+                accrued_min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount,
                 request_fee, new_stake_msg
             );
             accrued~udict_set_builder(256, borrower_addr, accrued_request);
@@ -1572,7 +1581,15 @@ cell find_code(cell dict, int round_since) inline {
             int reward = incoming_ton - loan_amount - accrue_amount - stake_amount - recover_stake_fee;
             if reward >= 0 {
                 int treasury_reward_share = 65535 - borrower_reward_share;
-                int treasury_reward = max(min_payment, muldiv(reward, treasury_reward_share, 65535));
+                ;; Bounded by reward + stake_amount: an accrued loan's min_payment is scaled to its whole
+                ;; stake in decide_loan_requests and can exceed the collateral request_loan checked. The
+                ;; borrower owes it all, but the pool can collect at most the reward and the collateral;
+                ;; past that stake_amount would go negative, store_coins would throw, and the round
+                ;; would never settle. The burner is paid from what is left, possibly nothing.
+                int treasury_reward = min(
+                    max(min_payment, muldiv(reward, treasury_reward_share, 65535)),
+                    reward + stake_amount
+                );
                 int borrower_reward = reward - treasury_reward;
                 stake_amount += borrower_reward;
                 ;; The burner is paid out of what is left to the borrower, never out of

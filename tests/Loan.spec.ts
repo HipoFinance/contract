@@ -855,7 +855,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: borrower2.address,
-            value: between('200', '201'),
+            value: between('190.8', '190.9'), // min_payment binds, scaled for the accrual: 60 -> ~70
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
@@ -863,7 +863,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: borrower3.address,
-            value: between('200', '201'),
+            value: between('189.1', '189.2'), // 70 -> ~81.67
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
@@ -905,15 +905,17 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('700131', '700132')
-        expect(treasuryState.totalCoins).toBeBetween('700131', '700132')
+        // 20.31 more than before the accrual was priced: the two min_payments scaled from 60 and 70
+        // to ~70 and ~81.67, less the 6.25% governance fee
+        expect(treasuryBalance).toBeBetween('700151', '700152')
+        expect(treasuryState.totalCoins).toBeBetween('700152', '700153')
         expect(treasuryState.totalTokens).toBeGramValue(deadShares + toNano('700000'))
         expect(treasuryState.totalStaking).toBeGramValue('0')
         expect(treasuryState.totalUnstaking).toBeGramValue('0')
         expect(treasuryState.totalBorrowersStake).toBeGramValue('0')
         expect(treasuryState.totalRequestFees).toBeGramValue('0') // released with the requests
         expect(treasuryState.previousRate).toBe(1_000_000_000n)
-        expect(treasuryState.currentRate).toBe(1_000_174_104n)
+        expect(treasuryState.currentRate).toBe(1_000_203_121n)
 
         accumulateFees(result.transactions)
     })
@@ -1326,7 +1328,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: borrower2.address,
-            value: between('100', '101'),
+            value: between('90.9', '91'), // 161 - 0.02 - ~70, min_payment scaled for the accrual
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
@@ -1334,18 +1336,19 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: borrower3.address,
-            value: between('100', '101'),
+            value: between('89.3', '89.4'), // 171 - 0.02 - ~81.67
             body: bodyOp(op.loanResult),
             success: true,
             outMessagesCount: 0,
         })
-        // 3.75 and 4.37 of governance fee, each plus the 0.2878 of recover_stake_fee that this round
-        // did not spend. recover_stake_result used to reserve that remainder instead of paying it out,
+        // 4.37 and 5.10 of governance fee on the scaled min_payments, each plus the 0.2878 of
+        // recover_stake_fee that this round did not spend. recover_stake_result used to reserve that
+        // remainder instead of paying it out,
         // and it only reached the governor later, through withdraw_surplus once the round was gone.
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: governor.address,
-            value: between('4', '4.1'),
+            value: between('4.66', '4.67'),
             body: bodyOp(op.takeProfit),
             success: true,
             outMessagesCount: 0,
@@ -1353,7 +1356,7 @@ describe('Loan', () => {
         expect(result.transactions).toHaveTransaction({
             from: treasury.address,
             to: governor.address,
-            value: between('4.6', '4.7'),
+            value: between('5.38', '5.39'),
             body: bodyOp(op.takeProfit),
             success: true,
             outMessagesCount: 0,
@@ -1379,15 +1382,15 @@ describe('Loan', () => {
 
         const treasuryBalance = await treasury.getBalance()
         const treasuryState = await treasury.getTreasuryState()
-        expect(treasuryBalance).toBeBetween('700133.1', '700133.5') // 2 x 0.2878 lower, see above
-        expect(treasuryState.totalCoins).toBeBetween('700131', '700132')
+        expect(treasuryBalance).toBeBetween('700153.2', '700153.6') // 2 x 0.2878 lower, see above
+        expect(treasuryState.totalCoins).toBeBetween('700152', '700153') // scaled min_payments
         expect(treasuryState.totalTokens).toBeGramValue(deadShares + toNano('700000'))
         expect(treasuryState.totalStaking).toBeGramValue('0')
         expect(treasuryState.totalUnstaking).toBeGramValue('0')
         expect(treasuryState.totalBorrowersStake).toBeGramValue('0')
         expect(treasuryState.totalRequestFees).toBeGramValue('0') // released with the requests
         expect(treasuryState.previousRate).toBe(1_000_000_000n)
-        expect(treasuryState.currentRate).toBe(1_000_174_104n)
+        expect(treasuryState.currentRate).toBe(1_000_203_121n)
         expect(treasuryState.participations.size).toEqual(0)
 
         accumulateFees(result.transactions)

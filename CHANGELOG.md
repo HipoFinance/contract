@@ -16,6 +16,20 @@ This file starts at **2026-07-16**. Earlier history is in the git log.
 
 ---
 
+## Announced 2026-09-22 — Accrued capital priced at the bid's own rate (not yet deployed)
+
+**Deploys no earlier than 2026-09-25**, inside the gap after a round is decided and before the next
+round opens, so no bid made under the current rule is decided under the new one.
+· Spec [`2026-09-22-price-accrual-at-bid-rate.md`](docs/specs/2026-09-22-price-accrual-at-bid-rate.md)
+
+When a round's leftover accrues to a loan, the loan's `min_payment` is scaled by
+`(loan_amount + accrue_amount) / loan_amount`. Borrowers are ranked on `min_payment / loan_amount`;
+from this release that number is what they pay per GRAM of everything they stake, rather than per
+GRAM requested. The pool collects at most the reward plus the borrower's collateral. No storage,
+message or getter changes; no migration.
+
+---
+
 ## 2026-09-21 — Reward share set by the protocol
 
 **Treasury code** `6cd64455cf733d84a56da540b1ad757e966bdbe8146fe32d52c01efc038a8c6c`
