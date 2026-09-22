@@ -10,7 +10,8 @@
 A loan request can be replaced for the price of gas until `participate_since`, and every request is
 public the moment it lands. So the last sender sees every other bid and can answer it. The rational
 response is to broadcast as late as possible, and every bidder does: requests cluster in the final
-seconds, two have been refused for arriving after the close (T+2 and T+29), and a short network
+seconds, three have been refused for arriving after the close (T+2 on 11 September, T+2 and T+29
+on 17 September), and a short network
 disruption at the close would take out every bidder of the round together.
 
 The proposal: bidders send a hash of their bid before the deadline, then reveal it in a window after
