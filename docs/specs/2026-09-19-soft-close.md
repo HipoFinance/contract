@@ -49,6 +49,8 @@ before the close, reveal after, and nobody can react because nothing is visible.
 revealed, and a rewrite of the request lifecycle on a contract holding user funds — against a side
 channel worth roughly 16 GRAM a round to each borrower and, in steady state, close to nothing to
 stakers, since the pool's take is set by `borrower_reward_share` rather than by who bids last.
+*(Corrected 2026-09-22: 16 GRAM is the price channel only; the size channel is worth hundreds of GRAM
+a round. The conclusion stands on other grounds — see `2026-09-22-commit-reveal-bids.md`.)*
 
 **And most of the harm is the bidder's to fix, not the protocol's.** The last-mover advantage has
 changed an outcome once. What it has actually cost is two requests hugging the deadline and arriving late. That
