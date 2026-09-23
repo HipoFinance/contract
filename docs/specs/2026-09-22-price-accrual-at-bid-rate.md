@@ -24,7 +24,7 @@ That is how the auction has been held since 17 September 2026. From the treasury
 | round | two large requests | accrued to each | `min_payment` | displayed eff | per GRAM staked |
 |---|---|---|---|---|---|
 | 1789939464 | 1,509,060 | 346,376 | 1,001.80 | 680 | 553 |
-| 1790005000 | 1,473,519 | 373,750 | 979.25 | 681 | 543 |
+| 1790005000 | 1,473,519 | 373,750 | 979.25 | 680 | 543 |
 | 1790070536 | 1,514,176 | 343,462 | 1,109.18 | 750 | 611 |
 
 Break-even for a borrower over those rounds is about 650–680 in the same units. The displayed number
