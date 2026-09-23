@@ -927,8 +927,8 @@ case where the sort key is not exactly monotone.
 
 ## Accrued Capital Priced at the Bid's Rate
 
-Spec: `docs/specs/2026-09-22-price-accrual-at-bid-rate.md`. Announced 2026-09-22 in `CHANGELOG.md`
-and `docs/integration.md`; **do not send before 2026-09-25**. The notice is part of the release:
+Spec: `docs/specs/2026-09-22-price-accrual-at-bid-rate.md`. Announced 2026-09-23 in `CHANGELOG.md`
+and `docs/integration.md`; **do not send before 2026-09-26**. The notice is part of the release:
 every borrower's pricing changes on the day, and they should all have had the same chance to adapt.
 
 Code only. `decide_loan_requests` scales an accrued loan's `min_payment` by

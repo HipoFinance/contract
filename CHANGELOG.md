@@ -16,9 +16,9 @@ This file starts at **2026-07-16**. Earlier history is in the git log.
 
 ---
 
-## Announced 2026-09-22 — Accrued capital priced at the bid's own rate (not yet deployed)
+## Announced 2026-09-23 — Accrued capital priced at the bid's own rate (not yet deployed)
 
-**Deploys no earlier than 2026-09-25**, inside the gap after a round is decided and before the next
+**Deploys no earlier than 2026-09-26**, inside the gap after a round is decided and before the next
 round opens, so no bid made under the current rule is decided under the new one.
 · Spec [`2026-09-22-price-accrual-at-bid-rate.md`](docs/specs/2026-09-22-price-accrual-at-bid-rate.md)
 
