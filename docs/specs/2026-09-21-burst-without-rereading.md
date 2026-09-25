@@ -183,6 +183,22 @@ failure here has been tests that pin a function while the bug lives in the wirin
 Verification on mainnet is the log at the next three transitions: attempts one second apart rather
 than two, and the accepted send arriving one second after a `too_soon` refusal rather than two.
 
+### Measured, 2026-09-21 to 2026-09-25
+
+Confirmed: an accepted send now arrives about one second after a `too_soon` refusal (13:05:08 →
+13:05:09 on 2026-09-21, and the same shape at every participate and finish since). Across seven
+transitions watched on both instances, every one confirmed within six seconds of its deadline,
+and none needed the 60-second retry to land.
+
+Partly wrong: "one second apart" describes the *sleep* between rounds, not the cadence. A round's
+sends take as long as the endpoints take, and `Send` returns early only on success — on a refusal it
+waits for every endpoint, because a lagging node refusing does not mean an up-to-date one would.
+So a burst of accepted sends runs at about one second a round, while a burst that has gone past
+its transition, where every endpoint refuses, runs at the pace of the slowest endpoint. The two
+rotations measured show it varying rather than settling: ~1.5 s per round on 2026-09-23, ~1.0 s on
+2026-09-24. That is intended — the delay only exists when no node can accept yet — and is recorded
+so the constant is not read as a promise again.
+
 ## Out of scope
 
 - **Making the cycle's read cheaper** (fewer round trips, caching the config within a burst). It
