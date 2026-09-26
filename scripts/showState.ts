@@ -308,7 +308,7 @@ export async function run(provider: NetworkProvider) {
         if (participation.requests != null && participation.requests.size > 0) {
             console.info('    %s', c.bold('Requests'))
             console.info('    %s', c.grey('--------'))
-            showRequests(participation.requests, testOnly, c)
+            showRequests(participation.requests, testOnly, c, rankOrder(participation.sorted))
             console.info()
         }
 
@@ -349,9 +349,23 @@ export async function run(provider: NetworkProvider) {
     }
 }
 
-function showRequests(dict: Dictionary<bigint, Request>, testOnly: boolean, c: Palette) {
+// The order decide_loan_requests serves the round's requests in: the highest sort key first, and inside a
+// bucket of tied keys the smaller address first, as its udict_get_max / udict_delete_get_min do.
+function rankOrder(sorted: Dictionary<bigint, Dictionary<bigint, unknown>> | undefined): bigint[] {
+    const order: bigint[] = []
+    for (const key of [...(sorted?.keys() ?? [])].sort((a, b) => (a > b ? -1 : a < b ? 1 : 0))) {
+        const bucket = sorted?.get(key)
+        order.push(...[...(bucket?.keys() ?? [])].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)))
+    }
+    return order
+}
+
+// order lists the keys to show first, in that order; any key it misses follows in the dict's own order.
+function showRequests(dict: Dictionary<bigint, Request>, testOnly: boolean, c: Palette, order: bigint[] = []) {
     if (dict.size > 0) {
-        for (const req of dict.keys()) {
+        const first = order.filter((k) => dict.has(k))
+        const rest = dict.keys().filter((k) => !first.includes(k))
+        for (const req of [...first, ...rest]) {
             const request = dict.get(req)
             // No share or fee here: both are the protocol's, snapshotted from reward_share and borrower_fee
             // above, so every request in a round carries the same two.
