@@ -370,11 +370,13 @@ function showRequests(dict: Dictionary<bigint, Request>, testOnly: boolean, c: P
             // No share or fee here: both are the protocol's, snapshotted from reward_share and borrower_fee
             // above, so every request in a round carries the same two.
             // Whole GRAM, right-aligned, so the columns line up down the list: the fractions are noise at
-            // these sizes.
+            // these sizes. A max of 0 is no cap, and a request stored before the stake-cap release has none.
+            const maxStake = request?.maxStake ?? 0n
             console.info(
-                '        min: %s   loan: %s   stake: %s   borrower: %s',
+                '        min: %s   loan: %s   max: %s   stake: %s   borrower: %s',
                 formatWhole(request?.minPayment ?? 0n).padStart(6),
                 formatWhole(request?.loanAmount ?? 0n).padStart(9),
+                (maxStake > 0n ? formatWhole(maxStake) : 'none').padStart(9),
                 formatWhole(request?.stakeAmount ?? 0n).padStart(6),
                 c.cyan(Address.parseRaw('0:' + req.toString(16).padStart(64, '0')).toString({ testOnly })),
             )
