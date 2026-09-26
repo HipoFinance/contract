@@ -13,6 +13,8 @@ export async function run(provider: NetworkProvider) {
     const value = toNano(await ui.input('value'))
     const loanAmount = toNano(await ui.input('loan amount'))
     const minPayment = toNano((await ui.input('min payment (default: 0)')) || '0')
+    // Required since the stake-cap release; the treasury code before it refuses a body that carries it.
+    const maxStake = toNano((await ui.input('max stake: loan + accrue + collateral (default: 0, no cap)')) || '0')
     const maxFactor = BigInt((await ui.input('max factor (default: 65536)')) || '65536')
     const adnlAddress = BigInt('0x' + (await ui.input('adnl address')))
     const validatorPubkey = BigInt('0x' + (await ui.input('validator pubkey')))
@@ -23,6 +25,7 @@ export async function run(provider: NetworkProvider) {
         roundSince,
         loanAmount,
         minPayment,
+        maxStake,
         newStakeMsg: beginCell()
             .storeUint(validatorPubkey, 256)
             .storeUint(roundSince, 32)

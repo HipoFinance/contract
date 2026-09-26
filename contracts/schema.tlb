@@ -247,17 +247,18 @@ new_stake_msg#_
 // ref, which end_parse rejects. request_loan is bounceable, so the collateral returns and nothing is
 // lost, but the request does not land. See docs/specs/2026-09-19-protocol-set-reward-share.md.
 //
-// max_stake is OPTIONAL and trailing: the treasury reads it only when bits remain after min_payment,
-// and a request without it -- or with max_stake = 0 -- is uncapped. It caps loan + accrue + collateral:
-// accrual stops there, and the excess stays in the treasury. A cap below loan_amount + collateral is
-// refused. Decoders must accept the body with and without it. See
+// max_stake is REQUIRED since the stake-cap release, 0 for no cap. It caps loan + accrue + collateral,
+// where collateral is everything sent less the request fee, own stake included: accrual stops there,
+// and the excess stays in the treasury. A cap below loan_amount + collateral is refused. BREAKING: a
+// body without it has no bits left for it and is refused and bounced. The treasury code before this
+// release refuses a body WITH it, so senders switch on the treasury's code hash. See
 // docs/specs/2026-09-26-request-stake-cap.md.
 request_loan#36335da9
     query_id:uint64
     round_since:uint32
     loan_amount:Coins
     min_payment:Coins
-    max_stake:Coins // optional, see above
+    max_stake:Coins
     new_stake_msg:^NewStakeMsg
         = InternalMsgBody;
 

@@ -402,8 +402,8 @@ export class Treasury implements Contract {
             loanAmount: bigint | string
             minPayment: bigint | string
             /**
-             * The most this loan will stake in total -- loan + accrue + collateral -- or 0 for no cap.
-             * Omitted, the field is not sent at all, which the treasury also reads as no cap.
+             * The most this loan will stake in total -- loan + accrue + collateral, own stake included --
+             * or 0 for no cap. The field is required on the wire; this sends 0 when it is not given.
              */
             maxStake?: bigint | string
             newStakeMsg: Cell
@@ -415,10 +415,8 @@ export class Treasury implements Contract {
             .storeUint(opts.roundSince, 32)
             .storeCoins(tonValue(opts.loanAmount))
             .storeCoins(tonValue(opts.minPayment))
-        if (opts.maxStake !== undefined) {
-            body.storeCoins(tonValue(opts.maxStake))
-        }
-        body.storeRef(opts.newStakeMsg)
+            .storeCoins(tonValue(opts.maxStake ?? 0n))
+            .storeRef(opts.newStakeMsg)
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,

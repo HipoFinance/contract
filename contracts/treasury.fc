@@ -728,11 +728,12 @@ cell find_code(cell dict, int round_since) inline {
     ;; same choice made when the field widened from uint8 to uint16: a loud failure over a silent
     ;; compatibility tail, because the silent alternative would misread a bid.
     int borrower_reward_share = reward_share;
-    ;; max_stake is optional and trailing, so borrowers that never send it keep working and are
-    ;; uncapped. The old share format still fails: its 16 bits cannot be a whole coins field followed by
+    ;; max_stake is required, 0 for no cap: one shape of this message for every decoder. Both older
+    ;; formats fail loudly and bounce the collateral: the one before this field has no bits left, so
+    ;; load_coins throws, and the one with 16 bits of share cannot be a whole coins field followed by
     ;; nothing (a 4-bit length of 0 leaves 12 bits, of 1 leaves 4, of more underflows), so end_parse
-    ;; throws exactly as it did. See docs/specs/2026-09-26-request-stake-cap.md.
-    int max_stake = s.slice_bits() ? s~load_coins() : 0;
+    ;; throws. See docs/specs/2026-09-26-request-stake-cap.md.
+    int max_stake = s~load_coins();
     cell new_stake_msg = s~load_ref();
     s.end_parse();
     check_new_stake_msg(new_stake_msg.begin_parse());

@@ -977,10 +977,11 @@ at `null`, and the census in *Changing the shape of a getter* does not apply.
 ## Borrower-Set Stake Cap
 
 Spec: `docs/specs/2026-09-26-request-stake-cap.md`. Recorded in `CHANGELOG.md` and
-`docs/integration.md`. **No notice period**: a request without the new field is decided exactly as
-before, and a capped loan's excess goes to no one else, so nobody's terms change unless they opt in.
+`docs/integration.md`. **Breaking for borrowers, deployed when ready**: `request_loan` requires
+`max_stake`, so a borrower still on the old format is bounced (collateral returned) and misses rounds
+until it updates. The governor chose a changelog entry over a notice period.
 
-Code only. `request_loan` reads an optional trailing `max_stake`, the request cell stores it after
+Code only. `request_loan` reads a required `max_stake` (0 for no cap), the request cell stores it after
 `request_fee`, and `decide_loan_requests` stops a capped loan's accrual at `max_stake - loan_amount -
 stake_amount`. **No migrator**: requests packed by the previous code end at `request_fee` and
 `unpack_request` reads them as uncapped, whether standing, staked or recovering across the upgrade.
@@ -988,23 +989,29 @@ Leave `migratorName` at `null`.
 
 `get_loan_request` grows from eight values to nine, appended. The census in *Changing the shape of a
 getter* covers it: the contract's wrapper reads the ninth only when present, so it works against
-both codes, and the sdk reads positionally and ignores what follows. `borrower` and `sealed-borrower`
-read request cells from `get_participation` front to back without an end check, so the trailing field
-is harmless to them. The explorer decoders of `request_loan` (the open opentonapi and tongo PRs)
-must accept the body with and without the field.
+both codes, and the sdk (fixed in 6.2.0 to read the leading `found` flag it had missed) reads the
+ninth only when present too. `borrower` and `sealed-borrower` read request cells from
+`get_participation` front to back without an end check, so the trailing field is harmless to them;
+`gauge` parses them for its loan metrics and reads it only when present. `poker` skips the request
+dicts. The explorer decoders of `request_loan` (the open opentonapi and tongo PRs) gain a variant
+with the field, since every body carries it from this release.
 
 | build | code hash |
 |---|---|
 | deployed (accrual-pricing release) | `f003de4b9ab34a61dd7d70a0a68a5faaf6ac0a8821ff2d720f9fecf8dd71475d` |
-| this release | `d72a15f5d6670e597c4ab9b9ff0fab17086adf0b41cadde16ad8bbc315d00b16` |
+| this release | `54d84afcf4201d5db915cf4cbc16a74f7d50df1ea71aa7e259e2b0fb9e134e59` |
 
 ### Before sending
 
-1. **Send it in the gap after a round is decided**, as for every release that touches the decide
-   loop: `showState.ts` must show no participation in `open`. Nothing would break outside it -- a
-   standing request reads as uncapped and is decided as it was bid -- but the gap keeps each round's
-   decision under one code.
-2. `request_loan_fee` moves with `gas::request_loan` and `gas::decide_loan_requests`. Both borrower
+1. **Our borrowers first.** `sealed-borrower` on both hosts and the public `borrower` release must
+   already switch on the treasury's code hash: send `max_stake` once it is not `f003de4b…`, and not
+   before, because the code being replaced refuses a body that carries it. Check both hosts' binaries
+   are the switching build.
+2. **Send it in the gap after a round is decided**, as for every release that touches the decide
+   loop: `showState.ts` must show no participation in `open`. A standing request reads as uncapped and
+   is decided as it was bid, but the gap keeps each round's decision under one code, and our daemons
+   re-send on their next pass in the new format.
+3. `request_loan_fee` moves with `gas::request_loan` and `gas::decide_loan_requests`. Both borrower
    daemons read it live, so nothing needs a config change.
 
 ### Sending
@@ -1016,8 +1023,10 @@ must accept the body with and without the field.
 
 ### After it lands
 
-1. **The first request that carries `max_stake`**: `get_loan_request` returns it as the ninth value.
-2. **The first capped loan decided**: its `loan_amount + accrue_amount + stake_amount` is at most
+1. **Our first request after the upgrade lands** (not bounced) from each host, carrying the host's
+   cap. A bounced `request_loan` from either means that host is not the switching build.
+2. **The first request that carries `max_stake`**: `get_loan_request` returns it as the ninth value.
+3. **The first capped loan decided**: its `loan_amount + accrue_amount + stake_amount` is at most
    `max_stake`, its `min_payment` is scaled on the capped accrual, and the treasury's balance after
    `process_loan_requests` still holds the excess.
 

@@ -366,26 +366,24 @@ describe('Stake Cap', () => {
         ])
     }
 
-    it('should decide a request without the field exactly as before', async () => {
-        const runs = await fromSameState([undefined, '0', '10000000'], async (round, maxStake) => {
+    it('should decide a request with no cap exactly as one whose cap does not bind', async () => {
+        const runs = await fromSameState(['0', '10000000'], async (round, maxStake) => {
             const { staked } = await stake(round, [
                 { name: 'borrower', loan: '300000', minPayment: '400', collateral: '501', maxStake },
             ])
             return must(staked.get('borrower'))
         })
-        const [absent, zero, loose] = runs
+        const [zero, loose] = runs
         // a lone loan takes the whole pool
-        expect(absent.accrueAmount).toBeGreaterThan(toNano('399000'))
-        expect(absent.maxStake).toEqual(0n)
+        expect(zero.accrueAmount).toBeGreaterThan(toNano('399000'))
         expect(zero.maxStake).toEqual(0n)
-        expectSameDecision(zero, absent)
         // a cap that does not bind changes nothing but the cap itself
         expect(loose.maxStake).toEqual(toNano('10000000'))
-        expectSameDecision(loose, absent)
+        expectSameDecision(loose, zero)
     })
 
     it('should stop the accrual at the cap and keep the excess in the treasury', async () => {
-        const runs = await fromSameState([undefined, '400000'], async (round, maxStake) => {
+        const runs = await fromSameState(['0', '400000'], async (round, maxStake) => {
             const { staked } = await stake(round, [
                 { name: 'borrower', loan: '300000', minPayment: '400', collateral: '501', maxStake },
             ])
@@ -415,7 +413,7 @@ describe('Stake Cap', () => {
     })
 
     it('should leave an uncapped loan beside a capped one accruing exactly as without the cap', async () => {
-        const runs = await fromSameState([undefined, '310000'], async (round, maxStake) => {
+        const runs = await fromSameState(['0', '310000'], async (round, maxStake) => {
             const { staked } = await stake(round, [
                 { name: 'capped', loan: '300000', minPayment: '60', collateral: '161', maxStake },
                 { name: 'free', loan: '350000', minPayment: '0', collateral: '101' },
@@ -471,6 +469,32 @@ describe('Stake Cap', () => {
         expect(staked.minPayment).toEqual(toNano('400'))
     })
 
+    it('should refuse a request in the format before the cap, and bounce its collateral', async () => {
+        const round = await openRound()
+        const borrower = await blockchain.treasury('borrower')
+        const loan = await treasury.getLoanAddress(borrower.address, round.until1)
+        const result = await treasury.sendMessage(borrower.getSender(), {
+            value: toNano('501') + fees.requestLoanFee,
+            body: beginCell()
+                .storeUint(op.requestLoan, 32)
+                .storeUint(0, 64)
+                .storeUint(round.until1, 32)
+                .storeCoins(toNano('300000'))
+                .storeCoins(toNano('400'))
+                .storeRef(await createNewStakeMsg(loan, round.until1))
+                .endCell(),
+        })
+        expect(result.transactions).toHaveTransaction({
+            from: borrower.address,
+            to: treasury.address,
+            body: bodyOp(op.requestLoan),
+            success: false,
+        })
+        expect(result.transactions).toHaveTransaction({ to: borrower.address, inMessageBounced: true })
+        expect(await treasury.getLoanRequest(round.until1, borrower.address)).toMatchObject({ found: false })
+        expect((await treasury.getTreasuryState()).totalBorrowersStake).toEqual(0n)
+    })
+
     it('should still refuse the old share format, whatever the share', async () => {
         const round = await openRound()
         const borrower = await blockchain.treasury('borrower')
@@ -521,7 +545,7 @@ describe('Stake Cap', () => {
         const refused = await request(fees.requestLoanFee, '300000')
         expect(refused.transactions).toHaveTransaction({ body: bodyOp(op.requestLoan), success: false })
         expect(await cap()).toEqual(toNano('350000'))
-        await request(fees.requestLoanFee)
+        await request(fees.requestLoanFee, '0')
         expect(await cap()).toEqual(0n)
 
         // the getter and the raw dict agree, and the collateral carried through every replacement

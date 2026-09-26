@@ -394,13 +394,19 @@ Three rules that a classifier gets wrong easily, each learned from a real defect
   > pool's contractual share then binds on stake that earns nothing. Keep the rate below
   > `cap / pool` of break-even while that holds.
   >
-  > **From the stake-cap release (not yet deployed; see `CHANGELOG.md`): cap your stake instead.**
-  > `request_loan` takes an optional trailing `max_stake:Coins` after `min_payment`: the most your
-  > loan will stake in total, loan + accrue + collateral. Your accrual stops there, so you are never
-  > lent stake the elector will not pay on, and you can price on the loan you request again. Set it to
-  > the cap you expect the elector to apply to your validator. Omit it, or send 0, for no cap; a cap
-  > below `loan_amount` + collateral is refused and bounced. What a capped loan does not take stays in
-  > the treasury, not with the other borrowers. `get_loan_request` returns it as a ninth value. See
+  > **Breaking, from the stake-cap release (not yet deployed; see `CHANGELOG.md`): `request_loan`
+  > requires `max_stake:Coins` right after `min_payment`.** It is the most your loan will stake in
+  > total: loan + accrue + collateral, where collateral is everything you send less the request fee,
+  > so any stake of your own is included. Your accrual stops there, so you are never lent stake the
+  > elector will not pay on, and you can price on the loan you request again. Set it to the cap you
+  > expect the elector to apply to your validator, or 0 for no cap. A cap below `loan_amount` +
+  > collateral is refused and bounced. What a capped loan does not take stays in the treasury, not
+  > with the other borrowers. `get_loan_request` returns it as a ninth value.
+  >
+  > **Switch on the treasury's code hash.** After the upgrade a body without the field is refused and
+  > the collateral bounced; before it, the current code refuses a body with it. Send the field once
+  > the treasury's code hash is no longer
+  > `f003de4b9ab34a61dd7d70a0a68a5faaf6ac0a8821ff2d720f9fecf8dd71475d`. See
   > `docs/specs/2026-09-26-request-stake-cap.md`.
 
 ## Calculating Remaining Time Until Withdrawal

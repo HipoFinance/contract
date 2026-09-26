@@ -129,13 +129,13 @@ is left idle. See `docs/specs/2026-09-22-price-accrual-at-bid-rate.md`.
 
 **A borrower may cap its stake.** The elector pays nothing on a validator's stake above `max_factor`
 times the smallest elected stake, and the scaling above would charge the bid rate on that stake too.
-A request can therefore carry `max_stake`, the most it will stake in total (loan + accrue +
-collateral). `decide_loan_requests` stops that loan's accrual at `max_stake - loan_amount -
+Every request therefore carries `max_stake`, the most it will stake in total (loan + accrue +
+collateral, own stake included), or 0 for no cap. `decide_loan_requests` stops that loan's accrual at `max_stake - loan_amount -
 stake_amount` before the collateral check and the scaling, and what the loan does not take is not
 lent that round: it stays on the balance, liquid for instant unstakes and counted in the next
 round's `available`. It is not handed to the other loans, which keeps the decide loop a single pass
-and leaves uncapped loans' accrual exactly as it would be without the cap. The field is optional and
-trailing, and requests packed before it read as uncapped. See
+and leaves uncapped loans' accrual exactly as it would be without the cap. The field is required in
+`request_loan`; request cells packed before it existed end without it and read as uncapped. See
 `docs/specs/2026-09-26-request-stake-cap.md`.
 
 ### The borrower fee
