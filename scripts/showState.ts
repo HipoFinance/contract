@@ -273,7 +273,18 @@ export async function run(provider: NetworkProvider) {
         console.info('            %s %s', c.grey('round_since:'), formatDate(key))
         console.info('                  %s %s', c.grey('state:'), formatState(participation.state, c))
         console.info('                   %s %s', c.grey('size:'), participation.size?.toString())
-        console.info('                 %s %s', c.grey('sorted:'), participation.sorted?.size ?? '')
+        // sorted is keyed by rank, and each key holds a bucket of every request tied at it, so its own
+        // size counts ranks. Both are shown, so a tie reads as one rather than as a missing request.
+        const ranks = participation.sorted?.size ?? 0
+        let ranked = 0
+        for (const bucket of participation.sorted?.values() ?? []) {
+            ranked += bucket.size
+        }
+        console.info(
+            '                 %s %s',
+            c.grey('sorted:'),
+            participation.sorted == null ? '' : `${String(ranked)} in ${String(ranks)} rank${ranks === 1 ? '' : 's'}`,
+        )
         console.info('               %s %s', c.grey('requests:'), participation.requests?.size ?? '')
         console.info('               %s %s', c.grey('rejected:'), participation.rejected?.size ?? '')
         console.info('               %s %s', c.grey('accepted:'), participation.accepted?.size ?? '')
