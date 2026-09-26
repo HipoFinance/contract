@@ -391,11 +391,12 @@ Three rules that a classifier gets wrong easily, each learned from a real defect
   > Price for the elector's cap: it pays nothing on stake above `max_factor` times the smallest
   > elected stake, but the scaling charges your rate on everything the treasury lends you. A loan
   > accepted alone takes the whole pool; if the pool is larger than the cap, a `min_payment` at the
-  > pool's contractual share then binds on stake that earns nothing. Keep the rate below
-  > `cap / pool` of break-even while that holds.
+  > pool's contractual share then binds on stake that earns nothing. Since 2026-09-26, set
+  > `max_stake` (below) to the cap instead; without it, keep the rate below `cap / pool` of
+  > break-even while the pool is larger than the cap.
   >
-  > **Breaking, from the stake-cap release (not yet deployed; see `CHANGELOG.md`): `request_loan`
-  > requires `max_stake:Coins` right after `min_payment`.** It is the most your loan will stake in
+  > **Breaking, since 2026-09-26 (treasury code `54d84afc…`): `request_loan` requires
+  > `max_stake:Coins` right after `min_payment`.** It is the most your loan will stake in
   > total: loan + accrue + collateral, where collateral is everything you send less the request fee,
   > so any stake of your own is included. Your accrual stops there, so you are never lent stake the
   > elector will not pay on, and you can price on the loan you request again. Set it to the cap you
@@ -403,11 +404,8 @@ Three rules that a classifier gets wrong easily, each learned from a real defect
   > collateral is refused and bounced. What a capped loan does not take stays in the treasury, not
   > with the other borrowers. `get_loan_request` returns it as a ninth value.
   >
-  > **Switch on the treasury's code hash.** After the upgrade a body without the field is refused and
-  > the collateral bounced; before it, the current code refuses a body with it. Send the field once
-  > the treasury's code hash is no longer
-  > `f003de4b9ab34a61dd7d70a0a68a5faaf6ac0a8821ff2d720f9fecf8dd71475d`. The reference borrower,
-  > `HipoFinance/borrower` v2.1.1 and later, does this and takes the cap as `borrow.max_stake`. See
+  > A body without the field is refused and the collateral bounced. The reference borrower,
+  > `HipoFinance/borrower` v2.1.1 and later, sends it and takes the cap as `borrow.max_stake`. See
   > `docs/specs/2026-09-26-request-stake-cap.md`.
 
 ## Calculating Remaining Time Until Withdrawal

@@ -16,9 +16,13 @@ This file starts at **2026-07-16**. Earlier history is in the git log.
 
 ---
 
-## Not yet deployed — A borrower-set cap on the stake a loan request will accept
+## 2026-09-26 — A borrower-set cap on the stake a loan request will accept
 
+**Treasury code** `54d84afcf4201d5db915cf4cbc16a74f7d50df1ea71aa7e259e2b0fb9e134e59`
 · Spec [`2026-09-26-request-stake-cap.md`](docs/specs/2026-09-26-request-stake-cap.md)
+
+Deployed 2026-09-26 at 08:49:57 UTC, while the round opened at 04:50:20 was accepting requests but
+before any had been sent to it, so no standing request was affected.
 
 Closes the known gap below. **Breaking for borrowers:** `request_loan` requires `max_stake` right
 after `min_payment`: the most the loan will stake in total, loan + accrue + collateral (own stake
@@ -53,7 +57,7 @@ message or getter changes; no migration.
 scaling charges the bid rate on everything lent. A loan that ends up with most of the pool -- the only
 one accepted, say -- can pass that cap, and then even a `min_payment` at the pool's contractual share
 binds. With the pool (~3.7M) above the cap (~3.06M) today, careful borrowers price below the bare loan
-to stay safe. A borrower-set cap on the stake a request will accept is being specified to close it.
+to stay safe. Closed the same day by the stake-cap release above.
 
 ---
 

@@ -976,6 +976,11 @@ at `null`, and the census in *Changing the shape of a getter* does not apply.
 
 ## Borrower-Set Stake Cap
 
+> **Already performed on mainnet, 2026-09-26 08:49:57 UTC.** Code hash
+> `54d84afcf4201d5db915cf4cbc16a74f7d50df1ea71aa7e259e2b0fb9e134e59`, read back by both
+> sealed-borrower hosts, which switched to sending `max_stake` on their next pass. The round opened at
+> 04:50:20 had no request yet, so none was affected. Kept as the record of what was run.
+
 Spec: `docs/specs/2026-09-26-request-stake-cap.md`. Recorded in `CHANGELOG.md` and
 `docs/integration.md`. **Breaking for borrowers, deployed when ready**: `request_loan` requires
 `max_stake`, so a borrower still on the old format is bounced (collateral returned) and misses rounds

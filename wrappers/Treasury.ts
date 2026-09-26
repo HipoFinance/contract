@@ -1186,9 +1186,7 @@ export class Treasury implements Contract {
             accrueAmount: stack.readBigNumber(),
             stakeAmount: stack.readBigNumber(),
             requestFee: stack.readBigNumber(),
-            // The treasury deployed before the stake cap returns eight values; read it as uncapped so the
-            // wrapper keeps working against it until the upgrade.
-            maxStake: stack.remaining > 0 ? stack.readBigNumber() : 0n,
+            maxStake: stack.readBigNumber(),
         }
     }
 
