@@ -255,6 +255,7 @@ describe('Getters', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: newStakeMsg,
         })
 

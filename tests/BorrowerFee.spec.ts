@@ -236,6 +236,7 @@ describe('Borrower Fee', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: opts.minPayment,
+            maxStake: '0',
             newStakeMsg,
         })
 
@@ -461,6 +462,7 @@ describe('Borrower Fee', () => {
             roundSince: until,
             loanAmount: '302400',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
         // One unit worse for the pool, invisible to an 8-bit slot.
@@ -470,6 +472,7 @@ describe('Borrower Fee', () => {
             roundSince: until,
             loanAmount: '301300', // same efficiency bucket, smaller loan: the tiebreaker it would win on
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
 
@@ -522,6 +525,7 @@ describe('Borrower Fee', () => {
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
 

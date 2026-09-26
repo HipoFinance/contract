@@ -255,6 +255,7 @@ describe('Access', () => {
             value: '1000',
             loanAmount: '350000',
             minPayment: '100',
+            maxStake: '0',
             roundSince: 1n,
             newStakeMsg: await createNewStakeMsg(mainchainWallet.address, 1n),
         })
@@ -284,6 +285,7 @@ describe('Access', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: newStakeMsg1,
         })
 
@@ -1360,6 +1362,7 @@ describe('Access', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -1367,6 +1370,7 @@ describe('Access', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
+            maxStake: '0',
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -1374,6 +1378,7 @@ describe('Access', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
+            maxStake: '0',
             newStakeMsg: newStakeMsg3,
         })
 

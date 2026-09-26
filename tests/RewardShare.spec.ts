@@ -204,6 +204,7 @@ describe('Reward Share', () => {
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
 
@@ -227,6 +228,7 @@ describe('Reward Share', () => {
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
 
@@ -294,6 +296,7 @@ describe('Reward Share', () => {
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
         const first = await treasury.getParticipation(until)
@@ -307,6 +310,7 @@ describe('Reward Share', () => {
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
 
@@ -340,6 +344,7 @@ describe('Reward Share', () => {
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
         await treasury.sendRequestLoan(generous.getSender(), {
@@ -347,6 +352,7 @@ describe('Reward Share', () => {
             roundSince: until,
             loanAmount: '400000',
             minPayment: '150',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
 

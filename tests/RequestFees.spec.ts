@@ -188,6 +188,7 @@ describe('Request fees', () => {
             roundSince: until,
             loanAmount: '300000',
             minPayment,
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
     }

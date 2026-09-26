@@ -358,6 +358,7 @@ describe('Governance', () => {
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
 

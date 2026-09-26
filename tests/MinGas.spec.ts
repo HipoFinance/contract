@@ -249,6 +249,7 @@ describe('Min Gas', () => {
             value: maxPunishment + fees.requestLoanFee - 1n,
             loanAmount: minStake - maxPunishment + newStakeConfirmation,
             minPayment: 0n,
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
             roundSince: until,
         })
@@ -266,6 +267,7 @@ describe('Min Gas', () => {
             value: maxPunishment + fees.requestLoanFee,
             loanAmount: minStake - maxPunishment + newStakeConfirmation,
             minPayment: 0n,
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
             roundSince: until,
         })

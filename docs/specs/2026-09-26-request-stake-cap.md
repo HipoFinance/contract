@@ -73,7 +73,7 @@ Rejected alternatives:
   - `get_loan_request` appends `max_stake` as a ninth value.
 - `contracts/schema.tlb`: `request_loan` gains `max_stake:Coins` after `min_payment`; the stored
   request gains it after `borrower_fee`, absent on older cells.
-- `wrappers/Treasury.ts`: `sendRequestLoan` always sends `maxStake`, 0 when not given;
+- `wrappers/Treasury.ts`: `sendRequestLoan` requires `maxStake`, as the message does;
   `requestDictionaryValue` reads and writes the trailing field; `getLoanRequest` reads it.
 - `docs/integration.md`, `docs/architecture.md`: the field, what it bounds, and why to set it.
 - `graphs/04-request-loan.dot`: the message's fields.

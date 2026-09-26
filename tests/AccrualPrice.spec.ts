@@ -223,6 +223,7 @@ describe('Accrual Price', () => {
                 roundSince: round.until1,
                 loanAmount: bid.loan,
                 minPayment: bid.minPayment,
+                maxStake: '0',
                 newStakeMsg: await createNewStakeMsg(loan, round.until1),
             })
         }

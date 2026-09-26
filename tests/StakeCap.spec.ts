@@ -222,7 +222,7 @@ describe('Stake Cap', () => {
                 roundSince: round.until1,
                 loanAmount: bid.loan,
                 minPayment: bid.minPayment,
-                maxStake: bid.maxStake,
+                maxStake: bid.maxStake ?? '0',
                 newStakeMsg: await createNewStakeMsg(loan, round.until1),
             })
         }
@@ -530,7 +530,7 @@ describe('Stake Cap', () => {
                 roundSince: round.until1,
                 loanAmount: '300000',
                 minPayment: '400',
-                maxStake,
+                maxStake: maxStake ?? '0',
                 newStakeMsg,
             })
         const cap = async () => (await treasury.getLoanRequest(round.until1, borrower.address)).maxStake

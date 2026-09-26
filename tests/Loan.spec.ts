@@ -193,6 +193,7 @@ describe('Loan', () => {
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
 
@@ -257,6 +258,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -264,6 +266,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
+            maxStake: '0',
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -271,6 +274,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
+            maxStake: '0',
             newStakeMsg: newStakeMsg3,
         })
 
@@ -491,6 +495,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -498,6 +503,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
+            maxStake: '0',
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -505,6 +511,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
+            maxStake: '0',
             newStakeMsg: newStakeMsg3,
         })
 
@@ -596,6 +603,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -603,6 +611,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
+            maxStake: '0',
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -610,6 +619,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
+            maxStake: '0',
             newStakeMsg: newStakeMsg3,
         })
 
@@ -708,6 +718,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -715,6 +726,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
+            maxStake: '0',
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -722,6 +734,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
+            maxStake: '0',
             newStakeMsg: newStakeMsg3,
         })
 
@@ -1069,6 +1082,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -1076,6 +1090,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
+            maxStake: '0',
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -1083,6 +1098,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
+            maxStake: '0',
             newStakeMsg: newStakeMsg3,
         })
 
@@ -1202,6 +1218,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -1209,6 +1226,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
+            maxStake: '0',
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -1216,6 +1234,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
+            maxStake: '0',
             newStakeMsg: newStakeMsg3,
         })
 
@@ -1432,6 +1451,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -1439,6 +1459,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
+            maxStake: '0',
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -1446,6 +1467,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
+            maxStake: '0',
             newStakeMsg: newStakeMsg3,
         })
 
@@ -1575,6 +1597,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: newStakeMsg1,
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -1582,6 +1605,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
+            maxStake: '0',
             newStakeMsg: newStakeMsg2,
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -1589,6 +1613,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
+            maxStake: '0',
             newStakeMsg: newStakeMsg3,
         })
 
@@ -1738,6 +1763,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
 
@@ -1757,6 +1783,7 @@ describe('Loan', () => {
             roundSince: until1,
             loanAmount: '400000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
 
@@ -1814,6 +1841,7 @@ describe('Loan', () => {
             roundSince: until,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
         // 65534, not 65535: a share that leaves the pool nothing is refused outright now, so the
@@ -1824,6 +1852,7 @@ describe('Loan', () => {
             roundSince: until,
             loanAmount: '5000000000',
             minPayment: '1',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
         await treasury.sendSetRewardShare(governor.getSender(), { value: '0.1', newRewardShare: 0n })
@@ -1832,6 +1861,7 @@ describe('Loan', () => {
             roundSince: until,
             loanAmount: '1000',
             minPayment: '20000',
+            maxStake: '0',
             newStakeMsg: emptyNewStakeMsg,
         })
 

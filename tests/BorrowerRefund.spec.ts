@@ -218,6 +218,7 @@ describe('BorrowerRefund', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '0',
             newStakeMsg: await createNewStakeMsg(loan1.address, until1),
         })
         await treasury.sendRequestLoan(borrower2.getSender(), {
@@ -225,6 +226,7 @@ describe('BorrowerRefund', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
+            maxStake: '0',
             newStakeMsg: await createNewStakeMsg(loan2.address, until1),
         })
         await treasury.sendRequestLoan(borrower3.getSender(), {
@@ -232,6 +234,7 @@ describe('BorrowerRefund', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '70',
+            maxStake: '0',
             newStakeMsg: await createNewStakeMsg(loan3.address, until1),
         })
 
