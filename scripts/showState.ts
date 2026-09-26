@@ -344,15 +344,21 @@ function showRequests(dict: Dictionary<bigint, Request>, testOnly: boolean, c: P
             const request = dict.get(req)
             // No share or fee here: both are the protocol's, snapshotted from reward_share and borrower_fee
             // above, so every request in a round carries the same two.
+            // Whole GRAM, right-aligned, so the columns line up down the list: the fractions are noise at
+            // these sizes.
             console.info(
                 '        min: %s   loan: %s   stake: %s   borrower: %s',
-                formatNano(request?.minPayment ?? 0n).padEnd(10),
-                formatNano(request?.loanAmount ?? 0n).padEnd(9),
-                formatNano(request?.stakeAmount ?? 0n).padEnd(9),
+                formatWhole(request?.minPayment ?? 0n).padStart(6),
+                formatWhole(request?.loanAmount ?? 0n).padStart(9),
+                formatWhole(request?.stakeAmount ?? 0n).padStart(6),
                 c.cyan(Address.parseRaw('0:' + req.toString(16).padStart(64, '0')).toString({ testOnly })),
             )
         }
     }
+}
+
+function formatWhole(value: bigint): string {
+    return (Number(value) / 1000000000).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
 function formatNano(value: bigint): string {
