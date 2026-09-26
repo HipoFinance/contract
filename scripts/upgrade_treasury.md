@@ -927,6 +927,13 @@ case where the sort key is not exactly monotone.
 
 ## Accrued Capital Priced at the Bid's Rate
 
+> **Already performed on mainnet, 2026-09-26 03:29:35 UTC.** Code hash
+> `f003de4b9ab34a61dd7d70a0a68a5faaf6ac0a8821ff2d720f9fecf8dd71475d`, read back from the account. It
+> landed in the gap: round 1790398216 was decided at 02:18:47 and the next round opened at 04:50:20,
+> with no `request_loan` for it in between, so no standing bid was repriced. Both sealed-borrower hosts
+> logged the switch on their next pass. Still to watch: the first round decided under the new code and
+> its recovery (below). Kept as the record of what was run.
+
 Spec: `docs/specs/2026-09-22-price-accrual-at-bid-rate.md`. Announced 2026-09-23 in `CHANGELOG.md`
 and `docs/integration.md`; **do not send before 2026-09-26**. The notice is part of the release:
 every borrower's pricing changes on the day, and they should all have had the same chance to adapt.

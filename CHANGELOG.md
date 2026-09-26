@@ -16,17 +16,26 @@ This file starts at **2026-07-16**. Earlier history is in the git log.
 
 ---
 
-## Announced 2026-09-23 — Accrued capital priced at the bid's own rate (not yet deployed)
+## 2026-09-26 — Accrued capital priced at the bid's own rate
 
-**Deploys no earlier than 2026-09-26**, inside the gap after a round is decided and before the next
-round opens, so no bid made under the current rule is decided under the new one.
+**Treasury code** `f003de4b9ab34a61dd7d70a0a68a5faaf6ac0a8821ff2d720f9fecf8dd71475d`
 · Spec [`2026-09-22-price-accrual-at-bid-rate.md`](docs/specs/2026-09-22-price-accrual-at-bid-rate.md)
+
+Announced 2026-09-23 and deployed 2026-09-26 at 03:29:35 UTC, inside the gap after round
+1790398216 was decided (02:18:47) and before the next round opened (04:50:20), so no bid made under
+the old rule is decided under the new one.
 
 When a round's leftover accrues to a loan, the loan's `min_payment` is scaled by
 `(loan_amount + accrue_amount) / loan_amount`. Borrowers are ranked on `min_payment / loan_amount`;
 from this release that number is what they pay per GRAM of everything they stake, rather than per
 GRAM requested. The pool collects at most the reward plus the borrower's collateral. No storage,
 message or getter changes; no migration.
+
+**Known gap, found after the announcement:** the elector pays nothing on stake above its cap, but the
+scaling charges the bid rate on everything lent. A loan that ends up with most of the pool -- the only
+one accepted, say -- can pass that cap, and then even a `min_payment` at the pool's contractual share
+binds. With the pool (~3.7M) above the cap (~3.06M) today, careful borrowers price below the bare loan
+to stay safe. A borrower-set cap on the stake a request will accept is being specified to close it.
 
 ---
 

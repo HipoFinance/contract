@@ -380,14 +380,19 @@ Three rules that a classifier gets wrong easily, each learned from a real defect
   > pays the pool its full contractual share, and anything above the clamp is the borrower
   > competing for rank. See `docs/specs/2026-09-19-protocol-set-reward-share.md`.
 
-  > **Announced 2026-09-23, deployed no earlier than 2026-09-26: `min_payment` is priced per GRAM
-  > staked.** When a round's leftover accrues to a loan, its `min_payment` is scaled to
+  > **Since 2026-09-26 (announced 2026-09-23): `min_payment` is priced per GRAM staked.** When a round's leftover accrues to a loan, its `min_payment` is scaled to
   > `min_payment × (loan_amount + accrue_amount) / loan_amount` — the rate you bid, applied to
   > everything your loan stakes. Price `min_payment / loan_amount` as the rate you are willing to pay
   > on your whole stake, not on the loan you request. The loan log's `min_payment` is the scaled
   > amount. If what you owe exceeds the round's reward, the difference comes out of your collateral;
   > the pool collects at most the reward plus your collateral. No message, field or getter changes.
   > See `docs/specs/2026-09-22-price-accrual-at-bid-rate.md`.
+  >
+  > Price for the elector's cap: it pays nothing on stake above `max_factor` times the smallest
+  > elected stake, but the scaling charges your rate on everything the treasury lends you. A loan
+  > accepted alone takes the whole pool; if the pool is larger than the cap, a `min_payment` at the
+  > pool's contractual share then binds on stake that earns nothing. Keep the rate below
+  > `cap / pool` of break-even while that holds.
 
 ## Calculating Remaining Time Until Withdrawal
 

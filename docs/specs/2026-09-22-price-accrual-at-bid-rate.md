@@ -177,6 +177,29 @@ Rejected alternatives:
   which exceeds its contractual share at the round's yield and is collected in full.
 - `MaxGas` / `MinGas` green; the decide loop's measured gas per accepted loan recorded.
 
+## Found after deployment
+
+**The elector's cap was never considered.** The elector pays nothing on a validator's stake above
+`max_factor` times the smallest elected stake, but this change charges the bid rate on everything the
+treasury lends a loan, including accrued stake above that cap. A loan that ends up with most of the pool
+-- because it is the only one accepted, which a missing or refused peer request, unequal loan sizes or a
+room that fits only one make ordinary -- can pass the cap, and then even a `min_payment` at exactly the
+pool's contractual share binds and is paid out of collateral. Found by an adversarial review of a
+borrower daemon on 2026-09-23, after the notice was published; simulated losses ran from about 55 to
+about 1,100 GRAM a loan.
+
+It is the same objection this spec raised against giving the accrued reward to the pool -- capital pushed
+onto a borrower that earns them nothing -- arriving by a different route. At deployment the pool (~3.7M)
+exceeded the cap (~3.06M), so a borrower who cannot rule out winning alone has to price below the bare
+loan: the sealed-bid daemon now prices on `min(loan + A_hi + own stake, cap) × loan / (loan + A_hi)` with
+`A_hi` the whole pool less the loan, which lowered its bids by about 17%. The pool's floor is untouched,
+and stake above the cap sat idle before this change too, so this is a cost to honest competition rather
+than to stakers.
+
+The fix is a borrower-set cap on the stake a request will accept, so the treasury stops accruing to a
+loan where the elector would stop paying. Deployed as announced rather than held, because any fix changes
+the request format and needs its own notice. See the follow-up spec.
+
 ## Out of scope
 
 - `2026-09-02-minimum-bid-efficiency.md` (unelected-slice griefing): still open. This change makes
