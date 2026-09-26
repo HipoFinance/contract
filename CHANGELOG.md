@@ -26,7 +26,9 @@ included), or 0 for no cap. `decide_loan_requests` stops a capped loan's accrual
 the collateral check and the scaling, and what it does not take stays in the treasury for the next
 round. A cap below `loan_amount` + collateral is refused. A body without the field is refused and its
 collateral bounced, and the code before this release refuses a body with it, so borrower software
-switches on the treasury's code hash. A request with 0 is decided exactly as before. The request cell
+switches on the treasury's code hash; [`HipoFinance/borrower`](https://github.com/HipoFinance/borrower)
+v2.1.1 and later do, and v2.0.0 cannot bid after the upgrade. A request with 0 is decided exactly as
+before. The request cell
 gains the field; requests packed by the previous code read as uncapped, so there is no migrator.
 `get_loan_request` gains a ninth value, appended.
 

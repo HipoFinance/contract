@@ -1006,7 +1006,8 @@ with the field, since every body carries it from this release.
 1. **Our borrowers first.** `sealed-borrower` on both hosts and the public `borrower` release must
    already switch on the treasury's code hash: send `max_stake` once it is not `f003de4b…`, and not
    before, because the code being replaced refuses a body that carries it. Check both hosts' binaries
-   are the switching build.
+   are the switching build. *Done 2026-09-26: both hosts run sealed-borrower `6135ef0`, and borrower
+   v2.1.1 is released.*
 2. **Send it in the gap after a round is decided**, as for every release that touches the decide
    loop: `showState.ts` must show no participation in `open`. A standing request reads as uncapped and
    is decided as it was bid, but the gap keeps each round's decision under one code, and our daemons

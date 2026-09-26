@@ -406,7 +406,8 @@ Three rules that a classifier gets wrong easily, each learned from a real defect
   > **Switch on the treasury's code hash.** After the upgrade a body without the field is refused and
   > the collateral bounced; before it, the current code refuses a body with it. Send the field once
   > the treasury's code hash is no longer
-  > `f003de4b9ab34a61dd7d70a0a68a5faaf6ac0a8821ff2d720f9fecf8dd71475d`. See
+  > `f003de4b9ab34a61dd7d70a0a68a5faaf6ac0a8821ff2d720f9fecf8dd71475d`. The reference borrower,
+  > `HipoFinance/borrower` v2.1.1 and later, does this and takes the cap as `borrow.max_stake`. See
   > `docs/specs/2026-09-26-request-stake-cap.md`.
 
 ## Calculating Remaining Time Until Withdrawal
