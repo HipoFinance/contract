@@ -342,16 +342,11 @@ function showRequests(dict: Dictionary<bigint, Request>, testOnly: boolean, c: P
     if (dict.size > 0) {
         for (const req of dict.keys()) {
             const request = dict.get(req)
-            // Out of 65535, not 255 -- dividing by the wrong one reads 2056, a little over 3%, as 806%.
-            const share = Number(request?.borrowerRewardShare ?? 0n) / 65535
-            // The fee snapshotted into the request when it was made, as a share of what the borrower
-            // contracted to earn, which is what it will actually be charged at recovery.
-            const fee = formatPercent(Number(request?.requestFee ?? 0n) / 65535)
+            // No share or fee here: both are the protocol's, snapshotted from reward_share and borrower_fee
+            // above, so every request in a round carries the same two.
             console.info(
-                '        min: %s   take: %s   fee: %s   loan: %s   stake: %s   borrower: %s',
+                '        min: %s   loan: %s   stake: %s   borrower: %s',
                 formatNano(request?.minPayment ?? 0n).padEnd(10),
-                formatPercent(share).padEnd(4),
-                fee.padEnd(7),
                 formatNano(request?.loanAmount ?? 0n).padEnd(9),
                 formatNano(request?.stakeAmount ?? 0n).padEnd(9),
                 c.cyan(Address.parseRaw('0:' + req.toString(16).padStart(64, '0')).toString({ testOnly })),
