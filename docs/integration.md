@@ -393,6 +393,15 @@ Three rules that a classifier gets wrong easily, each learned from a real defect
   > accepted alone takes the whole pool; if the pool is larger than the cap, a `min_payment` at the
   > pool's contractual share then binds on stake that earns nothing. Keep the rate below
   > `cap / pool` of break-even while that holds.
+  >
+  > **From the stake-cap release (not yet deployed; see `CHANGELOG.md`): cap your stake instead.**
+  > `request_loan` takes an optional trailing `max_stake:Coins` after `min_payment`: the most your
+  > loan will stake in total, loan + accrue + collateral. Your accrual stops there, so you are never
+  > lent stake the elector will not pay on, and you can price on the loan you request again. Set it to
+  > the cap you expect the elector to apply to your validator. Omit it, or send 0, for no cap; a cap
+  > below `loan_amount` + collateral is refused and bounced. What a capped loan does not take stays in
+  > the treasury, not with the other borrowers. `get_loan_request` returns it as a ninth value. See
+  > `docs/specs/2026-09-26-request-stake-cap.md`.
 
 ## Calculating Remaining Time Until Withdrawal
 

@@ -1,5 +1,4 @@
 import {
-
     Address,
     beginCell,
     Builder,
@@ -52,6 +51,11 @@ export interface Request {
     stakeAmount: bigint
     /** borrowerFee snapshotted when the request was made, so a later change cannot reprice it. */
     requestFee: bigint
+    /**
+     * The borrower's cap on loan + accrue + collateral, 0n for none. Absent on a request packed before the
+     * field existed, which the treasury reads as uncapped; leave it out here to build such a request.
+     */
+    maxStake?: bigint
     newStakeMsg: Cell
 }
 
@@ -68,6 +72,8 @@ export interface LoanRequest {
     stakeAmount: bigint
     /** The borrower fee snapshotted when the request was made. */
     requestFee: bigint
+    /** The borrower's cap on loan + accrue + collateral, 0n for none. */
+    maxStake: bigint
 }
 
 export interface Participation {
@@ -208,18 +214,26 @@ export const requestDictionaryValue: DictionaryValue<Request> = {
             .storeCoins(src.accrueAmount)
             .storeCoins(src.stakeAmount)
             .storeUint(src.requestFee, 16)
-            .storeRef(src.newStakeMsg)
+        if (src.maxStake !== undefined) {
+            builder.storeCoins(src.maxStake)
+        }
+        builder.storeRef(src.newStakeMsg)
     },
     parse: function (src: Slice): Request {
-        return {
+        const request: Request = {
             minPayment: src.loadCoins(),
             borrowerRewardShare: src.loadUintBig(16),
             loanAmount: src.loadCoins(),
             accrueAmount: src.loadCoins(),
             stakeAmount: src.loadCoins(),
             requestFee: src.loadUintBig(16),
-            newStakeMsg: src.loadRef(),
+            newStakeMsg: Cell.EMPTY,
         }
+        if (src.remainingBits > 0) {
+            request.maxStake = src.loadCoins()
+        }
+        request.newStakeMsg = src.loadRef()
+        return request
     },
 }
 
@@ -387,21 +401,29 @@ export class Treasury implements Contract {
             roundSince: bigint
             loanAmount: bigint | string
             minPayment: bigint | string
+            /**
+             * The most this loan will stake in total -- loan + accrue + collateral -- or 0 for no cap.
+             * Omitted, the field is not sent at all, which the treasury also reads as no cap.
+             */
+            maxStake?: bigint | string
             newStakeMsg: Cell
         },
     ) {
+        const body = beginCell()
+            .storeUint(op.requestLoan, 32)
+            .storeUint(opts.queryId ?? 0, 64)
+            .storeUint(opts.roundSince, 32)
+            .storeCoins(tonValue(opts.loanAmount))
+            .storeCoins(tonValue(opts.minPayment))
+        if (opts.maxStake !== undefined) {
+            body.storeCoins(tonValue(opts.maxStake))
+        }
+        body.storeRef(opts.newStakeMsg)
         await this.sendMessage(provider, via, {
             value: opts.value,
             bounce: opts.bounce,
             sendMode: opts.sendMode,
-            body: beginCell()
-                .storeUint(op.requestLoan, 32)
-                .storeUint(opts.queryId ?? 0, 64)
-                .storeUint(opts.roundSince, 32)
-                .storeCoins(tonValue(opts.loanAmount))
-                .storeCoins(tonValue(opts.minPayment))
-                .storeRef(opts.newStakeMsg)
-                .endCell(),
+            body: body.endCell(),
         })
     }
 
@@ -1166,6 +1188,9 @@ export class Treasury implements Contract {
             accrueAmount: stack.readBigNumber(),
             stakeAmount: stack.readBigNumber(),
             requestFee: stack.readBigNumber(),
+            // The treasury deployed before the stake cap returns eight values; read it as uncapped so the
+            // wrapper keeps working against it until the upgrade.
+            maxStake: stack.remaining > 0 ? stack.readBigNumber() : 0n,
         }
     }
 

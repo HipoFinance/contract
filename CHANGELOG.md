@@ -16,6 +16,20 @@ This file starts at **2026-07-16**. Earlier history is in the git log.
 
 ---
 
+## Not yet deployed — A borrower-set cap on the stake a loan request will accept
+
+· Spec [`2026-09-26-request-stake-cap.md`](docs/specs/2026-09-26-request-stake-cap.md)
+
+Closes the known gap below. `request_loan` takes an optional trailing `max_stake`: the most the loan
+will stake in total, loan + accrue + collateral. `decide_loan_requests` stops that loan's accrual at
+the cap before the collateral check and the scaling, and what it does not take stays in the treasury
+for the next round. A cap below `loan_amount` + collateral is refused. A request without the field,
+or with 0, is uncapped and decided exactly as before, so nobody's terms change unless they opt in and
+no notice period is needed. The request cell gains the field; requests packed by the previous code
+read as uncapped, so there is no migrator. `get_loan_request` gains a ninth value, appended.
+
+---
+
 ## 2026-09-26 — Accrued capital priced at the bid's own rate
 
 **Treasury code** `f003de4b9ab34a61dd7d70a0a68a5faaf6ac0a8821ff2d720f9fecf8dd71475d`

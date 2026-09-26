@@ -246,11 +246,18 @@ new_stake_msg#_
 // 65535 and pay stakers nothing. BREAKING: an old-format request carries 16 bits of share before its
 // ref, which end_parse rejects. request_loan is bounceable, so the collateral returns and nothing is
 // lost, but the request does not land. See docs/specs/2026-09-19-protocol-set-reward-share.md.
+//
+// max_stake is OPTIONAL and trailing: the treasury reads it only when bits remain after min_payment,
+// and a request without it -- or with max_stake = 0 -- is uncapped. It caps loan + accrue + collateral:
+// accrual stops there, and the excess stays in the treasury. A cap below loan_amount + collateral is
+// refused. Decoders must accept the body with and without it. See
+// docs/specs/2026-09-26-request-stake-cap.md.
 request_loan#36335da9
     query_id:uint64
     round_since:uint32
     loan_amount:Coins
     min_payment:Coins
+    max_stake:Coins // optional, see above
     new_stake_msg:^NewStakeMsg
         = InternalMsgBody;
 
@@ -732,6 +739,7 @@ proposed_governor#_
 
 // borrower_fee and borrower_reward_share are both snapshotted from the extension when the request is
 // made, so a later set_borrower_fee or set_reward_share cannot reprice a loan already committed.
+// max_stake is absent on requests packed before the stake-cap release, which read as uncapped (0).
 request#_
     min_payment:Coins
     borrower_reward_share:uint16
@@ -739,6 +747,7 @@ request#_
     accrue_amount:Coins
     stake_amount:Coins
     borrower_fee:uint16
+    max_stake:Coins // absent on older requests, see above
     new_stake_msg:^NewStakeMsg
         = Request;
 

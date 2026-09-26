@@ -203,9 +203,9 @@ const int gas::migrate_wallet_cost = 14449;
 const int gas::proxy_merge_wallet = 7841;
 const int gas::merge_wallet = 7443;
 
-const int gas::request_loan = 47000;
+const int gas::request_loan = 48000;
 const int gas::participate_in_election = 29000;
-const int gas::decide_loan_requests = 21000;
+const int gas::decide_loan_requests = 22000;
 const int gas::process_loan_requests = 31000;
 const int gas::proxy_new_stake = 8000;
 const int gas::vset_changed = 11000;

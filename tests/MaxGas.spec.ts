@@ -869,6 +869,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '60',
+            maxStake: '10000000', // never binds, but takes the capped path
             newStakeMsg: newStakeMsg,
         })
 
@@ -1025,6 +1026,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '10000000', // never binds, but takes the capped path
             newStakeMsg: newStakeMsg1,
         })
 
@@ -1033,6 +1035,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '10000000', // never binds, but takes the capped path
             newStakeMsg: newStakeMsg1,
         })
         expect(result1.transactions).toHaveLength(2)
@@ -1091,6 +1094,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '10000000', // never binds, but takes the capped path
             newStakeMsg: newStakeMsg1,
         })
         expect(result2.transactions).toHaveLength(2)
@@ -1101,6 +1105,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '10000000', // never binds, but takes the capped path
             newStakeMsg: newStakeMsg2,
         })
         expect(result3.transactions).toHaveLength(3)
@@ -1234,6 +1239,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '10000000', // never binds, but takes the capped path
             newStakeMsg: newStakeMsg1,
         })
 
@@ -1242,6 +1248,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '10000000', // never binds, but takes the capped path
             newStakeMsg: newStakeMsg1,
         })
         expect(result1.transactions).toHaveLength(2)
@@ -1297,6 +1304,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '10000000', // never binds, but takes the capped path
             newStakeMsg: newStakeMsg1,
         })
         expect(result2.transactions).toHaveLength(2)
@@ -1307,6 +1315,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '10000000', // never binds, but takes the capped path
             newStakeMsg: newStakeMsg2,
         })
         expect(result3.transactions).toHaveLength(3)
@@ -1415,6 +1424,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '10000000', // never binds, but takes the capped path
             newStakeMsg: newStakeMsg1,
         })
 
@@ -1423,6 +1433,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '10000000', // never binds, but takes the capped path
             newStakeMsg: newStakeMsg1,
         })
         expect(result1.transactions).toHaveLength(2)
@@ -1478,6 +1489,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '10000000', // never binds, but takes the capped path
             newStakeMsg: newStakeMsg1,
         })
         expect(result2.transactions).toHaveLength(2)
@@ -1488,6 +1500,7 @@ describe('Max Gas', () => {
             roundSince: until1,
             loanAmount: '300000',
             minPayment: '50',
+            maxStake: '10000000', // never binds, but takes the capped path
             newStakeMsg: newStakeMsg2,
         })
         expect(result3.transactions).toHaveLength(3)
@@ -1585,6 +1598,7 @@ describe('Max Gas', () => {
                     roundSince: until1,
                     loanAmount: '300000',
                     minPayment: '50',
+                    maxStake: '10000000', // never binds, but takes the capped path
                     newStakeMsg,
                 })
                 expect(result.transactions).toHaveLength(2)

@@ -8,7 +8,7 @@ digraph {
 
     /* Relationships */
     borrower1 -> treasury [ label="1\l op::request_loan\l 100002 GRAM\l loan: 200000\l min payment: 100\l" ]
-    borrower2 -> treasury [ label="1\l op::request_loan\l 202 GRAM\l loan: 300000\l min payment: 100\l" ]
+    borrower2 -> treasury [ label="1\l op::request_loan\l 202 GRAM\l loan: 300000\l min payment: 100\l max stake: 310000 (optional)\l" ]
     borrower3 -> treasury [ label="1\l op::request_loan\l 302 GRAM\l loan: 300000\l min payment: 200\l" ]
 
     /* Ranks */

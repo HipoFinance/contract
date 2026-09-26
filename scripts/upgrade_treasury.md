@@ -974,6 +974,53 @@ at `null`, and the census in *Changing the shape of a getter* does not apply.
    exactly; a borrower whose promise exceeded reward plus collateral gets no `loan_result` and the
    round still settles.
 
+## Borrower-Set Stake Cap
+
+Spec: `docs/specs/2026-09-26-request-stake-cap.md`. Recorded in `CHANGELOG.md` and
+`docs/integration.md`. **No notice period**: a request without the new field is decided exactly as
+before, and a capped loan's excess goes to no one else, so nobody's terms change unless they opt in.
+
+Code only. `request_loan` reads an optional trailing `max_stake`, the request cell stores it after
+`request_fee`, and `decide_loan_requests` stops a capped loan's accrual at `max_stake - loan_amount -
+stake_amount`. **No migrator**: requests packed by the previous code end at `request_fee` and
+`unpack_request` reads them as uncapped, whether standing, staked or recovering across the upgrade.
+Leave `migratorName` at `null`.
+
+`get_loan_request` grows from eight values to nine, appended. The census in *Changing the shape of a
+getter* covers it: the contract's wrapper reads the ninth only when present, so it works against
+both codes, and the sdk reads positionally and ignores what follows. `borrower` and `sealed-borrower`
+read request cells from `get_participation` front to back without an end check, so the trailing field
+is harmless to them. The explorer decoders of `request_loan` (the open opentonapi and tongo PRs)
+must accept the body with and without the field.
+
+| build | code hash |
+|---|---|
+| deployed (accrual-pricing release) | `f003de4b9ab34a61dd7d70a0a68a5faaf6ac0a8821ff2d720f9fecf8dd71475d` |
+| this release | `d72a15f5d6670e597c4ab9b9ff0fab17086adf0b41cadde16ad8bbc315d00b16` |
+
+### Before sending
+
+1. **Send it in the gap after a round is decided**, as for every release that touches the decide
+   loop: `showState.ts` must show no participation in `open`. Nothing would break outside it -- a
+   standing request reads as uncapped and is decided as it was bid -- but the gap keeps each round's
+   decision under one code.
+2. `request_loan_fee` moves with `gas::request_loan` and `gas::decide_loan_requests`. Both borrower
+   daemons read it live, so nothing needs a config change.
+
+### Sending
+
+1. Leave `const migratorName: string | null = null` in `scripts/upgradeCode.ts`.
+2. `npx blueprint run upgradeCode`. The dry run should show the code-hash change and **an empty state
+   diff**.
+3. Verify the code hash on chain is the one above.
+
+### After it lands
+
+1. **The first request that carries `max_stake`**: `get_loan_request` returns it as the ninth value.
+2. **The first capped loan decided**: its `loan_amount + accrue_amount + stake_amount` is at most
+   `max_stake`, its `min_payment` is scaled on the capped accrual, and the treasury's balance after
+   `process_loan_requests` still holds the excess.
+
 ## Repoint the Burner
 
 Spec: `docs/specs/2026-08-31-borrower-fee-hpo-burn.md`, which anticipated this exact upgrade under
