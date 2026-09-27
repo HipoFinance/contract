@@ -289,10 +289,12 @@ Here is an [example implementation](https://github.com/HipoFinance/sdk-example/b
 
 Explorers and indexers that classify transaction traces into high-level actions can use
 the trace patterns below to display Hipo operations as single actions instead of raw
-message chains. Op-codes are defined in `contracts/schema.tlb`; the contribution plan for
-specific explorers is in `docs/specs/2026-08-04-explorer-actions.md`.
+message chains. Op-codes are in `contracts/imports/constants.fc`, and message layouts are
+whatever the FunC sources read and write (`contracts/schema.tlb` mirrors them for readers, and
+has been wrong before). The contribution plan for specific explorers is in
+`docs/specs/2026-08-04-explorer-actions.md`.
 
-Three rules that a classifier gets wrong easily, each learned from a real defect:
+Four rules that a classifier gets wrong easily, each learned from a real defect:
 
 1. **Show both sides.** Every stake and unstake exchanges GRAM for hGRAM or back. An
    action shape that carries only one currency hides the other, so the second amount needs
@@ -309,9 +311,20 @@ Three rules that a classifier gets wrong easily, each learned from a real defect
    name the holder they credit, so a classifier that acts on one without checking the
    sender can be made to report hGRAM moving in or out of a stranger's wallet. Anchor on
    the treasury where possible — its address never changes — and on the parent for the
-   messages only the jetton master may send. Note that `reserve_tokens` really is sent
-   straight to the treasury by ordinary wallets on mainnet, and is answered with a
-   rollback, so a chain ending at the treasury is not by itself proof of a genuine unstake.
+   messages only the jetton master may send. Check what each contract itself checks:
+   `reserve_tokens` and `deposit_coins` accept anyone by design, and `reserve_tokens` really
+   is sent straight to the treasury by ordinary wallets on mainnet. The treasury answers such
+   a stranger with `proxy_rollback_unstake` sent **back to that stranger**, naming whatever
+   owner their message named, so "sent by the treasury" proves nothing there. A
+   `proxy_rollback_unstake` that lands **at the parent** is genuine: the treasury only sends
+   one there for an unstake the parent started. `proxy_reserve_tokens` is accepted by the
+   parent only from the owner's own wallet, and `proxy_tokens_minted` and
+   `proxy_rollback_unstake` only from the treasury.
+4. **List the owner as an account of the action.** Most of an unstake runs on Hipo's own
+   contracts, so the owner often has no transaction in the part of the trace an action is
+   built from. A wallet's signing preview and an account's history keep only the actions
+   that list the account, so without it the owner's own view loses the action: an
+   unstake-all by the comment `w` previewed as a bare 0.05 GRAM transfer.
 
 - **Comment flows**: the treasury also accepts a plain GRAM transfer whose body is a text
   comment — `d` deposits (equivalent to `deposit_coins` with `coins` = 0) and `w` unstakes
