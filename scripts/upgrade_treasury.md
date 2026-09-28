@@ -1066,14 +1066,16 @@ Wallet, parent, collection, bill, loan and librarian hashes are unchanged; the n
 
 ### Before sending
 
-1. **Two readers of `get_participation` must take the new `accepted` key first.** `accepted` is now
-   keyed by 416 bits (room per GRAM, then address). It is non-empty only between the messages of one
-   decide chain, seconds a round, but a 256-bit parse of it fails in that window:
-   - `sdk` (`src/Treasury.ts`, `Dictionary.Keys.BigUint(256)` for `accepted`, twice): switch to 416
-     and release; `mcp` and `website` follow with a dependency bump.
-   - `gauge` (`schema/schema.go`, `TlbAccepted ... tlb:"dict 256"`, iterated by `GetAccepted` for the
-     `total_accepted_*` metrics): switch to 416 and take the address from the low 256 bits.
-   `borrower` and `sealed-borrower` load the dict without parsing it, so they are unaffected.
+1. **`accepted` is keyed by 416 bits now (room per GRAM, then address), and two readers parse it with
+   256.** A 256-bit parse of it throws, so while it is non-empty `sdk`'s `getParticipation` fails as a
+   whole (it parses every dict eagerly; `mcp` shows only the count) and `gauge` errors its
+   `total_accepted_*` metrics. Nothing reads its contents for a purpose. It is **not a blocker**: the
+   decide transaction fills and drains `accepted` in one go and stores it empty, and only a book large
+   enough to cross 80% of the gas limit mid-accrual would store it non-empty, for the seconds until the
+   continuation message lands. Today's 2-5 requests decide in one transaction. Switch both to 416
+   (`sdk` `src/Treasury.ts`, twice; `gauge` `schema/schema.go` `TlbAccepted`, address from the low 256
+   bits) as a follow-up, before the book grows. `borrower` and `sealed-borrower` load the dict without
+   parsing it.
 2. **`get_treasury_state` grows from 28 values to 31, appended.** Run the census above. As of this
    writing `poker` guards `len < 26`, `gauge` `fields < 24`, and `club-server` reads longer tuples with
    its newest layout, so none breaks; the contract's wrapper reads the three only when present.
@@ -1091,15 +1093,27 @@ Wallet, parent, collection, bill, loan and librarian hashes are unchanged; the n
 2. `npx blueprint run upgradeCode`. The dry run should show the code-hash change and a state diff of
    exactly `min_efficiency`, `min_request_stake` and `stake_cap_floor`, from `absent` to `0`.
 3. Verify the code hash on chain is the one above, and set `migratorName` back to `null`.
-4. **In the same gap**, `npx blueprint run setAuctionFloors` with the values the spec chose, re-checked
-   against the election: `min_efficiency` 640, `min_request_stake` 800000, `stake_cap_floor` 2760000
-   (0.9 × the elector's per-validator limit, ~3,067,000 when written).
+4. **In the same gap**, `npx blueprint run setAuctionFloors` with these values, re-checked against the
+   election of the day:
+
+   | floor | value | set against (2026-09-28) |
+   |---|---|---|
+   | `min_efficiency` | 620 | break-even ≈ 656 at current yield, which moves about ±1% a round: ~5% under it |
+   | `min_request_stake` | 680000 | smallest elected stake 754,342, rising ~500 a round, with one +8% step seen: ~10% under it |
+   | `stake_cap_floor` | 2500000 | per-validator limit 3,069,498, which swung 2.86M–3.21M in mid-September: ~12% under the lowest |
+
+   Err low. A floor set too high refuses honest bids and leaves capital unlent; one set too low only
+   narrows a margin that is wide anyway, because the attacks sit far away (caps near 1,000,000, bids
+   at efficiency 0). At 620 a never-elected loan still pays about 96% of what its capacity would have
+   earned. Check the three monthly, or when yield moves by more than ~5%; expect to change them a few
+   times a year. The smallest elected stake and the per-validator limit are in sealed-borrower's
+   per-round log line (`Elected stakes from round(s)`).
 
 ### After it lands
 
 1. `showState.ts` shows the three floors.
 2. **The first request after `set_auction_floors`** from each of our hosts lands: our bids sit above
-   640 and above 800,000 of loan + collateral, and our caps (~3.07M) are above the cap floor.
+   620 and above 680,000 of loan + collateral, and our caps (~3.07M) are above the cap floor.
 3. **The first round decided**: no capital idle unless every accepted loan is at its cap, and a cap
    that was sent below the floor reads back from `get_loan_request` as the floor.
 

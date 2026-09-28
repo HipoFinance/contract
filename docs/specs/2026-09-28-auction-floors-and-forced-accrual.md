@@ -55,10 +55,13 @@ every attack tried in the simulation.
 
 The floors are one governor op, `set_auction_floors`, since they are tuned together against the same
 election. The release ships with all three at 0, which disables them; the governor sets them in the
-same gap, right after the upgrade. Starting values: `stake_cap_floor` 2,760,000 (0.9 × the current
-~3,067,000 limit), `min_request_stake` 800,000 (the election floor is ~867,000), and `min_efficiency`
-640 (the contractual share is ~647 at current yield). They are revised by the same op when the
-election moves.
+same gap, right after the upgrade. Starting values: `stake_cap_floor` 2,500,000, `min_request_stake`
+680,000 and `min_efficiency` 620, each ~5–12% under what it guards against, from two weeks of
+per-round data (see the runbook). They are revised by the same op when the election moves, which the
+data suggests is a monthly check and a change a few times a year. *(Revised 2026-09-28 after sign-off:
+the first values, 2,760,000 / 800,000 / 640, put the stake floor above the smallest elected stake,
+754,342, which is the election floor that matters; ~867,000 was a borrower's own safety margin, not
+the floor.)*
 
 Rejected alternatives:
 
@@ -172,10 +175,12 @@ Rejected alternatives:
     sending.
 - **Getter:** `get_treasury_state` grows by three values, appended (ABI rule). Before the release,
   check every consumer in the census in `scripts/upgrade_treasury.md`, poker included.
-- **`get_participation`'s `accepted` dict** is keyed by 416 bits instead of 256. It holds anything only
-  between the messages of one decide chain, but a reader that parses it with 256-bit keys fails in that
-  window: the `sdk` (and through it `mcp` and `website`) and `gauge` switch to 416 before the upgrade.
-  `borrower` and `sealed-borrower` load it without parsing it.
+- **`get_participation`'s `accepted` dict** is keyed by 416 bits instead of 256, and a 256-bit parse
+  of a non-empty one throws (`sdk`, so `mcp`, and `gauge`'s accepted metrics). It is stored non-empty
+  only when a decide chain continues across messages mid-accrual, which takes a book large enough to
+  cross 80% of the gas limit; today's 2-5 requests decide in one transaction, so it is always stored
+  empty. Updating those two readers is a follow-up, not a precondition. `borrower` and
+  `sealed-borrower` load it without parsing it.
 - **Gas:** `request_loan` gains two comparisons (the extension is already unpacked there). The accrual
   loop now handles a wider dict key and a ratio per loan. `MaxGas`/`MinGas` decide what the constants
   become, and `request_loan_fee` follows them live.
