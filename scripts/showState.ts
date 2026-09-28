@@ -1,6 +1,6 @@
 import { Address, Dictionary } from '@ton/core'
 import { NetworkProvider } from '@ton/blueprint'
-import { acceptedKeyBorrower, ParticipationState, Request, Treasury } from '../wrappers/Treasury'
+import { ParticipationState, Request, Treasury } from '../wrappers/Treasury'
 import { Parent } from '../wrappers/Parent'
 import { makePalette, Palette } from '../wrappers/colors'
 
@@ -301,7 +301,6 @@ export async function run(provider: NetworkProvider) {
         )
         console.info('               %s %s', c.grey('requests:'), participation.requests?.size ?? '')
         console.info('               %s %s', c.grey('rejected:'), participation.rejected?.size ?? '')
-        console.info('               %s %s', c.grey('accepted:'), participation.accepted?.size ?? '')
         console.info('                %s %s', c.grey('accrued:'), participation.accrued?.size ?? '')
         console.info('                 %s %s', c.grey('staked:'), participation.staked?.size ?? '')
         console.info('             %s %s', c.grey('recovering:'), participation.recovering?.size ?? '')
@@ -330,18 +329,6 @@ export async function run(provider: NetworkProvider) {
             console.info('    %s', c.bold('Rejected'))
             console.info('    %s', c.grey('--------'))
             showRequests(participation.rejected, testOnly, c)
-            console.info()
-        }
-
-        if (participation.accepted != null && participation.accepted.size > 0) {
-            console.info('    %s', c.bold('Accepted'))
-            console.info('    %s', c.grey('--------'))
-            // Keyed by room per GRAM, then address, for the water-fill; rekey by address to print.
-            const accepted = Dictionary.empty<bigint, Request>()
-            for (const [k, v] of participation.accepted) {
-                accepted.set(acceptedKeyBorrower(k), v)
-            }
-            showRequests(accepted, testOnly, c)
             console.info()
         }
 

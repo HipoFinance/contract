@@ -54,8 +54,9 @@ every attack tried in the simulation.
    - Nothing is left unlent unless every accepted loan is full.
 
 The floors are one governor op, `set_auction_floors`, since they are tuned together against the same
-election. The release ships with all three at 0, which disables them; the governor sets them in the
-same gap, right after the upgrade. Starting values: `stake_cap_floor` 2,500,000, `min_request_stake`
+election. The upgrade's migrator seeds the starting values, so the floors are in force from the first
+request after it lands *(revised 2026-09-28 after sign-off, the governor's choice: the release first
+shipped them at 0 and set them with a second transaction)*. Starting values: `stake_cap_floor` 2,500,000, `min_request_stake`
 680,000 and `min_efficiency` 620, each ~5–12% under what it guards against, from two weeks of
 per-round data (see the runbook). They are revised by the same op when the election moves, which the
 data suggests is a monthly check and a change a few times a year. *(Revised 2026-09-28 after sign-off:
@@ -94,7 +95,7 @@ Rejected alternatives:
     comment above `pack_extension` is updated. They are **required fields**: `unpack_extension` reads
     them unconditionally, so the storage layout of this version is fixed, with no optional parsing.
     A one-off migrator, `wrappers/upgrade-code-test/add_auction_floors.fc`, rewrites the deployed
-    extension with all three at 0 during the upgrade *(revised 2026-09-28 after sign-off: the first
+    extension with the three starting values during the upgrade *(revised 2026-09-28 after sign-off: the first
     implementation read them tolerantly and had no migrator; the governor chose a fixed layout)*.
     *(Implementation: held in one global, `auction_floors`, with three accessors, because FunC
     addresses at most 31 globals and the treasury was at the limit.)*
@@ -160,8 +161,8 @@ Rejected alternatives:
 ## Compatibility
 
 - **Storage:** the extension grows by 88 bits. Worst case (every coin pooled) is 972 of 1,023
-  bits. The migrator seeds every floor at 0, which is the behaviour the release ships with, and the
-  governor sets them with `set_auction_floors` in the same gap. It is tested against a fresh capture
+  bits. The migrator seeds the starting values, so the floors apply from the first `request_loan` after
+  the upgrade; requests standing across it keep what they were stored with. It is tested against a fresh capture
   of the mainnet treasury, and replaces the reward-share migrator, whose release is on chain. The
   upgrade runs in the usual gap after a round is decided.
 - **Requests standing across the upgrade** keep the caps they were stored with. The floors apply
@@ -179,8 +180,11 @@ Rejected alternatives:
   of a non-empty one throws (`sdk`, so `mcp`, and `gauge`'s accepted metrics). It is stored non-empty
   only when a decide chain continues across messages mid-accrual, which takes a book large enough to
   cross 80% of the gas limit; today's 2-5 requests decide in one transaction, so it is always stored
-  empty. Updating those two readers is a follow-up, not a precondition. `borrower` and
-  `sealed-borrower` load it without parsing it.
+  empty. *(Revised 2026-09-28, the governor's decision: `accepted` is the decide loop's internal
+  working state, not an interface. Readers stop parsing it rather than learning the new key: the
+  contract's wrapper and `showState` keep it as an opaque cell, and `sdk`, `mcp` and `gauge` drop it.
+  That leaves its layout free to change again.)* `borrower` and `sealed-borrower` load it without
+  parsing it.
 - **Gas:** `request_loan` gains two comparisons (the extension is already unpacked there). The accrual
   loop now handles a wider dict key and a ratio per loan. `MaxGas`/`MinGas` decide what the constants
   become, and `request_loan_fee` follows them live.
@@ -211,8 +215,8 @@ Rejected alternatives:
   - the governor only;
   - out-of-range values refused;
   - `get_treasury_state` returns the new values;
-  - the migrator takes the captured mainnet account to the new layout, with every floor 0 and every
-    other field, including the participations dict, unchanged byte for byte; it refuses to run twice;
+  - the migrator takes the captured mainnet account to the new layout, with the three starting values
+    and every other field, including the participations dict, unchanged byte for byte; it refuses to run twice;
     and the upgrade without it fails in the dry run.
 
 ## Out of scope

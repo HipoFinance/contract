@@ -1049,33 +1049,32 @@ other accepted loans with room instead of staying in the treasury.
 The extension grows by 88 bits (`min_efficiency:uint24`, `min_request_stake:uint32`,
 `stake_cap_floor:uint32` after `reward_share`), as **required fields**: the layout of this version is
 fixed and `unpack_extension` reads them unconditionally. So the upgrade carries a **migrator**,
-`wrappers/upgrade-code-test/add_auction_floors.fc`, which rewrites the extension with all three at 0
-(every floor off) and moves everything else through untouched, the participations dict included as an
-opaque ref. `tests/TreasuryMigration.spec.ts` runs it against the mainnet account captured on
+`wrappers/upgrade-code-test/add_auction_floors.fc`, which rewrites the extension with the starting
+values below, so the floors are in force from the first request after the upgrade, and moves
+everything else through untouched, the participations dict included as an opaque ref. `tests/TreasuryMigration.spec.ts` runs it against the mainnet account captured on
 2026-09-28 at masterchain seqno 95592649. It replaces the reward-share migrator, whose release is on
-chain. The dry run's state diff is exactly the three floors, `absent` before and `0` after.
+chain. The dry run's state diff is exactly the three floors, `absent` before and the starting values
+after.
 
 | build | hash |
 |---|---|
 | deployed (stake-cap release) | `54d84afcf4201d5db915cf4cbc16a74f7d50df1ea71aa7e259e2b0fb9e134e59` |
 | this release | `795136319be1e8d62893037503a1da2590728d33dfe294dc4920a2ddff1f2bd8` |
-| migrator `AddAuctionFloors` | `076ebfd3a9bf980a0856670a75fda67e117cd3d7029a074040e157a9c6856018` |
+| migrator `AddAuctionFloors` | `8fa7a6012c45f6837e79c4d0702c1148b055c148d478c79a7b73bb32b56ec081` |
 
 Wallet, parent, collection, bill, loan and librarian hashes are unchanged; the new helpers live in
 `treasury.fc` because anything added to `utils.fc` is compiled into every contract that includes it.
 
 ### Before sending
 
-1. **`accepted` is keyed by 416 bits now (room per GRAM, then address), and two readers parse it with
-   256.** A 256-bit parse of it throws, so while it is non-empty `sdk`'s `getParticipation` fails as a
-   whole (it parses every dict eagerly; `mcp` shows only the count) and `gauge` errors its
-   `total_accepted_*` metrics. Nothing reads its contents for a purpose. It is **not a blocker**: the
-   decide transaction fills and drains `accepted` in one go and stores it empty, and only a book large
-   enough to cross 80% of the gas limit mid-accrual would store it non-empty, for the seconds until the
-   continuation message lands. Today's 2-5 requests decide in one transaction. Switch both to 416
-   (`sdk` `src/Treasury.ts`, twice; `gauge` `schema/schema.go` `TlbAccepted`, address from the low 256
-   bits) as a follow-up, before the book grows. `borrower` and `sealed-borrower` load the dict without
-   parsing it.
+1. **`accepted` is internal and no reader parses it any more.** It is keyed by 416 bits now (room per
+   GRAM, then address), and a 256-bit parse of it throws. The governor decided it is the decide loop's
+   working state rather than an interface, so every reader stopped parsing it ahead of this release:
+   the contract's wrapper and `showState` keep it as an opaque cell, and `sdk`, `mcp` and `gauge`
+   dropped it. Confirm the released `sdk` and the deployed `gauge` are those builds; `borrower` and
+   `sealed-borrower` only ever loaded the cell without parsing it. (It is stored non-empty only when a
+   decide chain continues mid-accrual, which today's 2-5 requests never do, so an old reader would
+   rarely meet one, but "rarely" is not what an interface should promise.)
 2. **`get_treasury_state` grows from 28 values to 31, appended.** Run the census above. As of this
    writing `poker` guards `len < 26`, `gauge` `fields < 24`, and `club-server` reads longer tuples with
    its newest layout, so none breaks; the contract's wrapper reads the three only when present.
@@ -1090,11 +1089,8 @@ Wallet, parent, collection, bill, loan and librarian hashes are unchanged; the n
 1. Set `const migratorName: string | null = 'upgrade-code-test/AddAuctionFloors'` in
    `scripts/upgradeCode.ts`, and have every signer read the migrator source and check its hash
    against the one above.
-2. `npx blueprint run upgradeCode`. The dry run should show the code-hash change and a state diff of
-   exactly `min_efficiency`, `min_request_stake` and `stake_cap_floor`, from `absent` to `0`.
-3. Verify the code hash on chain is the one above, and set `migratorName` back to `null`.
-4. **In the same gap**, `npx blueprint run setAuctionFloors` with these values, re-checked against the
-   election of the day:
+2. **Re-check the starting values** in the migrator against the election of the day, and change them
+   there if it has moved (its hash then changes: publish the new one):
 
    | floor | value | set against (2026-09-28) |
    |---|---|---|
@@ -1105,14 +1101,20 @@ Wallet, parent, collection, bill, loan and librarian hashes are unchanged; the n
    Err low. A floor set too high refuses honest bids and leaves capital unlent; one set too low only
    narrows a margin that is wide anyway, because the attacks sit far away (caps near 1,000,000, bids
    at efficiency 0). At 620 a never-elected loan still pays about 96% of what its capacity would have
-   earned. Check the three monthly, or when yield moves by more than ~5%; expect to change them a few
-   times a year. The smallest elected stake and the per-validator limit are in sealed-borrower's
-   per-round log line (`Elected stakes from round(s)`).
+   earned. The smallest elected stake and the per-validator limit are in sealed-borrower's per-round
+   log line (`Elected stakes from round(s)`).
+3. `npx blueprint run upgradeCode`. The dry run should show the code-hash change and a state diff of
+   exactly `min_efficiency`, `min_request_stake` and `stake_cap_floor`, from `absent` to the values
+   above.
+4. Verify the code hash on chain is the one above, and set `migratorName` back to `null`.
+
+Afterwards the floors are the governor's to keep current with `npx blueprint run setAuctionFloors`:
+check them monthly, or when yield moves by more than ~5%, and expect to change them a few times a year.
 
 ### After it lands
 
 1. `showState.ts` shows the three floors.
-2. **The first request after `set_auction_floors`** from each of our hosts lands: our bids sit above
+2. **The first request after the upgrade** from each of our hosts lands: our bids sit above
    620 and above 680,000 of loan + collateral, and our caps (~3.07M) are above the cap floor.
 3. **The first round decided**: no capital idle unless every accepted loan is at its cap, and a cap
    that was sent below the floor reads back from `get_loan_request` as the floor.

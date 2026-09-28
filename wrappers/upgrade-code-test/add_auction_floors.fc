@@ -8,11 +8,18 @@
 ;; governor chose a fixed storage structure over a tolerant parse. So every existing treasury needs its
 ;; extension rewritten during the upgrade, and this is what rewrites it.
 ;;
-;; All three are seeded at 0, which turns each floor off. That makes the upgrade economically
-;; neutral for requests: the first request after it is checked exactly as the last one before it was.
-;; The governor then sets the floors with set_auction_floors, in the same gap, as a separate and
-;; separately reviewed step -- the values are a policy that has to be re-checked against the election
-;; of the day, and do not belong in a migrator.
+;; They are seeded with the starting values the governor chose, so the floors are in force the moment
+;; the upgrade lands, with no second transaction and no window in which the new code runs without them.
+;; Each sits 5-12% under what it guards against, from the per-round election data of 2026-09-14..28
+;; (see the release's section in scripts/upgrade_treasury.md):
+;;
+;;   min_efficiency     620        break-even ~656 at current yield, which moves ~1% a round
+;;   min_request_stake  680,000    smallest elected stake 754,342, whole GRAM
+;;   stake_cap_floor    2,500,000  per-validator limit 3,069,498, lowest seen 2,858,327, whole GRAM
+;;
+;; Re-check them against the election of the day before sending, and change them here if it has moved.
+;; Afterwards they are the governor's to keep current with set_auction_floors. Standing requests keep
+;; what they were stored with: the floors apply from the first request_loan after the upgrade.
 ;;
 ;; Root is not changed. It is parsed field by field anyway and written back unchanged, so that the
 ;; end_parse below guards it as well, and `participations` moves as an opaque ref: standing requests
@@ -87,9 +94,9 @@
         .store_uint(governance_fee, 16)
         .store_uint(borrower_fee, 16)
         .store_uint(reward_share, 16)
-        .store_uint(0, 24) ;; min_efficiency: off
-        .store_uint(0, 32) ;; min_request_stake: off
-        .store_uint(0, 32) ;; stake_cap_floor: off
+        .store_uint(620, 24) ;; min_efficiency
+        .store_uint(680000, 32) ;; min_request_stake, whole GRAM
+        .store_uint(2500000, 32) ;; stake_cap_floor, whole GRAM
         .store_ref(collection_codes)
         .store_ref(bill_codes)
         .store_dict(old_parents)

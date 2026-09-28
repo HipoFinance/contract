@@ -33,8 +33,8 @@ does not change; what a bid gets does:
 
 `get_treasury_state` gains three values, appended. `get_participation`'s `accepted` dict, non-empty
 only while a round is being decided, is keyed by 416 bits instead of 256. The extension grows by 88
-bits of required fields, written by a migrator with every floor off; the governor sets them with
-`set_auction_floors` afterwards.
+bits of required fields, written by the upgrade's migrator with the starting values (efficiency 620,
+loan + collateral 680,000, cap floor 2,500,000), so the floors apply from the first request after it.
 
 ---
 

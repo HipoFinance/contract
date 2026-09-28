@@ -774,8 +774,9 @@ participation#_
     sorted:(HashmapE 120 (Hashmap 256 True))
     requests:(HashmapE 256 Request)
     rejected:(HashmapE 256 Request)
-    // keyed by room per GRAM of loan (uint160) then the borrower's address (uint256): the order the
-    // leftover is water-filled in. Non-empty only between the messages of one decide chain.
+    // INTERNAL working state of decide_loan_requests, not an interface: readers must not parse it.
+    // Today keyed by room per GRAM of loan (uint160) then the borrower's address (uint256), the order
+    // the leftover is water-filled in; non-empty only between the messages of one decide chain.
     accepted:(HashmapE 416 Request)
     accrued:(HashmapE 256 Request) // no refs overflow since there are always some empty dicts
     staked:(HashmapE 256 Request)

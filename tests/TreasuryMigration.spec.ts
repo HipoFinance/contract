@@ -288,16 +288,20 @@ describe('Treasury Migration', () => {
         expect(stateAfter.windowDuration).toEqual(BigInt(stateBefore.windowDuration))
         expect(stateAfter.lastSettledRound).toEqual(BigInt(stateBefore.lastSettledRound))
 
-        // The three fields it adds, every floor off: the upgrade changes no bid's treatment on its
-        // own, and the governor sets the values with set_auction_floors as a separate step.
-        expect([stateAfter.minEfficiency, stateAfter.minRequestStake, stateAfter.stakeCapFloor]).toEqual([0n, 0n, 0n])
+        // The three fields it adds, at the starting values the migrator seeds, so the floors are in
+        // force from the first request after the upgrade.
+        expect([stateAfter.minEfficiency, stateAfter.minRequestStake, stateAfter.stakeCapFloor]).toEqual([
+            620n,
+            680000n,
+            2500000n,
+        ])
 
         // Read from the cells too, so the fields' position is pinned and not just their value, and so
         // that everything the migrator moves as an opaque ref is proven untouched byte for byte.
         const dataAfter = await readStorage(blockchain, treasuryAddress)
         const rootAfter = parseRoot(dataAfter)
         const extAfter = parseExtension(dataAfter, true)
-        expect(extAfter.floors).toEqual([0, 0, 0])
+        expect(extAfter.floors).toEqual([620, 680000, 2500000])
         expect(rootAfter.participations?.hash().toString('hex')).toEqual(before.participations?.hash().toString('hex'))
         expect(rootAfter.loanCodes.hash().toString('hex')).toEqual(before.loanCodes.hash().toString('hex'))
         expect(extAfter.collectionCodes.hash().toString('hex')).toEqual(
@@ -416,8 +420,10 @@ describe('Treasury Migration', () => {
         const after = new Map(result.after?.fields ?? [])
         for (const field of ['min_efficiency', 'min_request_stake', 'stake_cap_floor']) {
             expect(before.get(field)).toEqual('absent (getter predates the field)')
-            expect(after.get(field)).toEqual('0')
         }
+        expect(after.get('min_efficiency')).toEqual('620')
+        expect(after.get('min_request_stake')).toEqual('680000')
+        expect(after.get('stake_cap_floor')).toEqual('2500000')
         expect(after.get('reward_share')).toEqual(before.get('reward_share'))
         expect(after.get('total_request_fees')).toEqual(before.get('total_request_fees'))
 
