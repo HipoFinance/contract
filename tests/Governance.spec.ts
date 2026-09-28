@@ -1147,9 +1147,10 @@ describe('Governance', () => {
         // every treasury transaction instead of only on the extension paths. The borrower fee moved it
         // again: a larger code cell costs more to store, whatever the message does. And again at
         // 0.09910 when the reward share moved into the extension -- 16 more bits of storage and the
-        // handler that sets them.
+        // handler that sets them. And to 0.09909 with the auction floors: 88 more bits in the extension,
+        // and a larger code cell for set_auction_floors and the water-fill.
         const totalCoinsBefore4 = (await treasury.getTreasuryState()).totalCoins
-        const result4 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.09910') })
+        const result4 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.09909') })
         const totalCoinsAfter4 = (await treasury.getTreasuryState()).totalCoins
 
         expect(result4.transactions).toHaveTransaction({
@@ -1161,7 +1162,7 @@ describe('Governance', () => {
             outMessagesCount: 0,
         })
         expect(result4.transactions).toHaveLength(2)
-        expect(totalCoinsAfter4).toEqual(totalCoinsBefore4 + toNano('0.09910'))
+        expect(totalCoinsAfter4).toEqual(totalCoinsBefore4 + toNano('0.09909'))
 
         const totalCoinsBefore5 = (await treasury.getTreasuryState()).totalCoins
         const result5 = await treasury.sendGiftCoins(someone.getSender(), { value: '0.1', coins: toNano('0.0992') })

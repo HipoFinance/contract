@@ -348,12 +348,13 @@ describe('Stake Cap', () => {
         )
     }
 
-    // Two runs from the same state differ in fees by a few hundred nano: a request carrying the field is a
-    // longer message and a larger cell, which moves the pool's balance and so `available` by that much.
+    // Two runs from the same state differ in fees by some thousands of nano: a request carrying the field
+    // is a longer message and a larger cell, and request_loan does a little more work on a cap (it is
+    // compared with stake_cap_floor), which moves the pool's balance and so `available` by that much.
     // The decision itself is the same arithmetic on it; this compares everything but that dust and the
     // stake message, which createNewStakeMsg signs afresh each time.
     function expectSameDecision(a: Request, b: Request) {
-        const dust = 10_000n
+        const dust = 20_000n
         expect(a.accrueAmount - b.accrueAmount).toBeLessThan(dust)
         expect(b.accrueAmount - a.accrueAmount).toBeLessThan(dust)
         expect(a.minPayment - b.minPayment).toBeLessThan(dust)
@@ -412,7 +413,9 @@ describe('Stake Cap', () => {
         expect(capped.balance - uncapped.balance).toBeLessThan(kept + toNano('1'))
     })
 
-    it('should leave an uncapped loan beside a capped one accruing exactly as without the cap', async () => {
+    it('should hand what a capped loan cannot take to the uncapped loan beside it', async () => {
+        // Since the forced water-fill (2026-09-28-auction-floors-and-forced-accrual), a cap no longer
+        // leaves anything unlent while another accepted loan has room: the excess moves, it does not stay.
         const runs = await fromSameState(['0', '310000'], async (round, maxStake) => {
             const { staked } = await stake(round, [
                 { name: 'capped', loan: '300000', minPayment: '60', collateral: '161', maxStake },
@@ -424,7 +427,11 @@ describe('Stake Cap', () => {
 
         expect(after.capped.accrueAmount).toEqual(toNano('310000') - toNano('300000') - toNano('161'))
         expect(after.capped.accrueAmount).toBeLessThan(before.capped.accrueAmount)
-        expectSameDecision(after.free, before.free)
+        const moved = before.capped.accrueAmount - after.capped.accrueAmount
+        const gained = after.free.accrueAmount - before.free.accrueAmount
+        const dust = 20_000n
+        expect(gained - moved).toBeLessThan(dust)
+        expect(moved - gained).toBeLessThan(dust)
     })
 
     it('should refuse a cap below the loan and collateral, and accept one equal to them', async () => {

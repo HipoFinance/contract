@@ -1,5 +1,8 @@
 # Minimum bid efficiency for loan requests
 
+> **Reopened and answered 2026-09-28 by `2026-09-28-auction-floors-and-forced-accrual.md`**, which adds the
+> governor-set `min_efficiency` floor (with a minimum stake) this spec considered and rejected.
+
 > **Partly superseded 2026-09-19 by `2026-09-19-protocol-set-reward-share.md`, and worth REOPENING
 > for the rest.** The *profitable* version of the bid analysed below — `min_payment = 0` with the
 > borrower contracting for the whole reward — is no longer expressible: the reward share is set by the

@@ -1,5 +1,9 @@
 # A borrower-set cap on the stake a loan request will accept
 
+> **Partly superseded 2026-09-28 by `2026-09-28-auction-floors-and-forced-accrual.md`:** a capped loan's
+> excess no longer stays in the treasury but goes on to the other accepted loans with room (an exact
+> water-fill in the same single pass), and a cap below the governor's `stake_cap_floor` is raised to it.
+
 ## Problem
 
 Since the accrual-pricing release (deployed 2026-09-26, `2026-09-22-price-accrual-at-bid-rate.md`),

@@ -56,6 +56,47 @@ global int borrower_fee;
 ;; snapshotted into every request -- borrowers do not bid it. See
 ;; docs/specs/2026-09-19-protocol-set-reward-share.md.
 global int reward_share;
+;; The auction floors, all governor-set and 0 for off, packed as they are stored:
+;; min_efficiency:uint24 min_request_stake:uint32 stake_cap_floor:uint32. request_loan refuses a bid
+;; below min_efficiency (request_efficiency units) or with loan + collateral below min_request_stake,
+;; and raises a non-zero max_stake below stake_cap_floor to it. The two stakes are in whole GRAM,
+;; which is what keeps the extension inside one cell. One global rather than three because FunC
+;; addresses at most 31, and this contract was at the limit.
+;; See docs/specs/2026-09-28-auction-floors-and-forced-accrual.md.
+global int auction_floors;
+
+;; A request's efficiency: the top 24 bits of its request_sort_key, so the floor and the sort can never
+;; disagree about a bid's rate. The share passed in does not reach those bits. It lives here and not in
+;; utils.fc because every contract that includes utils.fc compiles all of it, and a change there moves
+;; the Wallet code hash away from the bytecode deployed on mainnet.
+int request_efficiency(int min_payment, int loan_amount) inline {
+    return request_sort_key(min_payment, 0, loan_amount) >> (16 + 80);
+}
+
+;; The key of the accepted dict in decide_loan_requests: room per GRAM of loan in the top 160 bits,
+;; the borrower's address in the low 256. Walking it upwards is what makes the accrual loop an exact
+;; water-fill in a single pass. Room is max_stake - loan - collateral as a 32-bit binary fraction of
+;; the loan; it is at most 2^120 * 2^32 / 1 < 2^160 - 1, so an uncapped loan (max_stake 0), keyed at
+;; 2^160 - 1, always sorts after every capped one. 416 bits is past what an int key can hold, so the
+;; dict is keyed by slice.
+const int accrual_key_bits = 160 + 256;
+
+slice accrual_key(int loan_amount, int stake_amount, int max_stake, int borrower_addr) inline {
+    int ratio = (1 << 160) - 1;
+    if max_stake {
+        ratio = muldiv(max(0, max_stake - loan_amount - stake_amount), 1 << 32, loan_amount);
+    }
+    return begin_cell().store_uint(ratio, 160).store_uint(borrower_addr, 256).end_cell().begin_parse();
+}
+
+int accrual_key_borrower(slice key) inline {
+    key~skip_bits(160);
+    return key.preload_uint(256);
+}
+
+int min_efficiency() inline { return auction_floors >> 64; }
+int min_request_stake() inline { return (auction_floors >> 32) & 0xffffffff; }
+int stake_cap_floor() inline { return auction_floors & 0xffffffff; }
 global cell collection_codes;
 global cell bill_codes;
 global cell old_parents;
@@ -112,10 +153,15 @@ global cell old_parents;
 ;; The three rates stay store_coins. A fixed uint64 was tried and reverted: it is not smaller in any
 ;; state this contract can reach, and it can throw where varuint16 cannot.
 ;;
-;; The bit budget, against the 1023-bit cell ceiling, with 680 bits of non-rate fields here:
-;;   - realistic (rate ~1.16e9, 4 bytes each):            680 + 3 x 36 = 788
-;;   - every coin in existence pooled (rate ~5.9e17):     680 + 3 x 68 = 884
-;;   - varuint16's own maximum (rate >= 2^112):           680 + 3 x 124 = 1052
+;; The bit budget, against the 1023-bit cell ceiling, with 768 bits of non-rate fields here (680
+;; before the 88 bits of auction floors):
+;;   - realistic (rate ~1.16e9, 4 bytes each):            768 + 3 x 36 = 876
+;;   - every coin in existence pooled (rate ~5.9e17):     768 + 3 x 68 = 972
+;;   - varuint16's own maximum (rate >= 2^112):           768 + 3 x 124 = 1140
+;;
+;; The cell's four refs are all taken (proposed_governor when set, the two code dicts, old_parents),
+;; so a new field cannot move to a ref of its own: it has to fit in these bits. That is why the
+;; floors' stakes are uint32 whole GRAM rather than coins -- a coins field would be up to 124 bits.
 ;; Only the third overflows, and it is unreachable: dead shares pin total_tokens at ~8.6e9 nano and
 ;; the coin supply caps total_coins at ~5.1e18 nano, so muldiv(total_coins, 1e9, total_tokens) cannot
 ;; exceed ~5.9e17. That bound is the binding one, not the encoding, which is what makes uint64 pure
@@ -136,6 +182,7 @@ global cell old_parents;
         .store_uint(governance_fee, 16)
         .store_uint(borrower_fee, 16)
         .store_uint(reward_share, 16)
+        .store_uint(auction_floors, 24 + 32 + 32)
         .store_ref(collection_codes)
         .store_ref(bill_codes)
         .store_dict(old_parents)
@@ -156,6 +203,10 @@ global cell old_parents;
     governance_fee = s~load_uint(16);
     borrower_fee = s~load_uint(16);
     reward_share = s~load_uint(16);
+    ;; An extension packed before the floors existed has only old_parents' 1-bit dict flag left here;
+    ;; it reads as every floor off, and the next pack_extension writes the new layout, so the upgrade
+    ;; needs no migrator. Bits and refs are read independently, so the refs below are found either way.
+    auction_floors = s.slice_bits() > 1 ? s~load_uint(24 + 32 + 32) : 0;
     collection_codes = s~load_ref();
     bill_codes = s~load_ref();
     old_parents = s~load_dict();
@@ -810,6 +861,19 @@ cell find_code(cell dict, int round_since) inline {
     ;; collateral.
     int min_burn = borrower_fee > 0 ? fee::min_burn : 0;
     throw_unless(err::insufficient_funds, stake_amount >= min_payment + min_burn + max_punishment);
+    ;; The auction floors. A bid below min_efficiency is refused: a loan the elector returns unelected
+    ;; earns the pool nothing but its min_payment, so the rate floor is what makes holding capacity
+    ;; the loan cannot use cost about what that capacity would have earned. A loan + collateral below
+    ;; min_request_stake could not be elected at all and is refused outright. And a cap below
+    ;; stake_cap_floor is raised to it, not refused: the cap protects a borrower from stake above the
+    ;; elector's limit, which the floor stays under, but it can no longer be set so low that the
+    ;; leftover is left unlent. The raised value is what the request stores. All three are 0 for off.
+    ;; See docs/specs/2026-09-28-auction-floors-and-forced-accrual.md.
+    throw_if(err::invalid_parameters, request_efficiency(min_payment, loan_amount) < min_efficiency());
+    throw_unless(err::insufficient_funds, loan_amount + stake_amount >= min_request_stake() * one_gram);
+    if max_stake {
+        max_stake = max(max_stake, stake_cap_floor() * one_gram);
+    }
     ;; A cap below what the borrower already stakes without any accrual could never be honoured.
     throw_if(err::invalid_parameters, max_stake & (max_stake < loan_amount + stake_amount));
     throw_if(err::stopped, stopped?);
@@ -1046,21 +1110,32 @@ cell find_code(cell dict, int round_since) inline {
                 sorted~udict_set_ref(120, k, bucket);
             }
             ( slice request, _ ) = requests~udict_delete_get?(256, borrower_addr);
-            ( _, _, int loan_amount, _, _, _, _, _ ) = unpack_request(request);
+            ( _, _, int loan_amount, _, int stake_amount, _, int max_stake, _ ) = unpack_request(request);
             if available >= loan_amount {
                 available -= loan_amount;
                 allocated += loan_amount;
-                accepted~udict_set(256, borrower_addr, request);
+                accepted~dict_set(accrual_key_bits, accrual_key(loan_amount, stake_amount, max_stake, borrower_addr), request);
             } else {
                 rejected~udict_set(256, borrower_addr, request);
             }
         }
     }
 
-    ;; distribute remaining coins between accepted requests, when they have enough stake
+    ;; Distribute the remaining coins between the accepted requests: an exact water-fill in one pass.
+    ;; accepted is keyed by room per GRAM of loan (accrual_key), so it is walked from the loan that can
+    ;; take least to the uncapped ones. Each loan is offered its proportional share of what is left,
+    ;; left * loan / remaining_loans, and takes it or its room, whichever is less; left and
+    ;; remaining_loans then shrink by what it took and by its loan. While no cap binds, the ratio stays
+    ;; the same and every loan gets exactly its proportional share. Once one binds, what it could not
+    ;; take stays in left and is shared among the loans after it, which have more room per GRAM by
+    ;; construction, so no capped excess is left unlent while an accepted loan still has room.
+    ;; available and allocated hold left and remaining_loans, in the same fields as before, so a
+    ;; continuation picks up exactly where this message stopped.
+    ;; See docs/specs/2026-09-28-auction-floors-and-forced-accrual.md.
     while remain & (gas_consumed() < soft_gas_limit) & ~ accepted.dict_empty?() {
         remain -= 1;
-        ( int borrower_addr, slice request, _ ) = accepted~udict_delete_get_min?(256);
+        ( slice key, slice request, _ ) = accepted~dict_delete_get_min?(accrual_key_bits);
+        int borrower_addr = accrual_key_borrower(key);
         ( int min_payment
         , int borrower_reward_share
         , int loan_amount
@@ -1071,11 +1146,11 @@ cell find_code(cell dict, int round_since) inline {
         , cell new_stake_msg
         ) = unpack_request(request);
         int accrue_amount = muldiv(available, loan_amount, allocated);
+        allocated -= loan_amount;
         if max_stake {
             ;; The borrower's cap on what it stakes in total, set where it expects the elector to stop
-            ;; paying. What this loan does not take stays on the balance, unlent this round, rather than
-            ;; going to the other loans: that keeps this a single pass and leaves uncapped loans' accrual
-            ;; exactly as it would be without the cap. See docs/specs/2026-09-26-request-stake-cap.md.
+            ;; paying, and never below stake_cap_floor (request_loan raised it). What this loan does not
+            ;; take goes on to the loans after it. See docs/specs/2026-09-26-request-stake-cap.md.
             accrue_amount = min(accrue_amount, max(0, max_stake - loan_amount - stake_amount));
         }
         int total_loan_amount = loan_amount + accrue_amount + stake_amount;
@@ -1090,6 +1165,7 @@ cell find_code(cell dict, int round_since) inline {
             ;; request_loan; recover_stake_result bounds what it collects, and the check above stays
             ;; on the unscaled amount so that no capital is left idle by this.
             ;; See docs/specs/2026-09-22-price-accrual-at-bid-rate.md.
+            available -= accrue_amount;
             int accrued_min_payment = muldiv(min_payment, loan_amount + accrue_amount, loan_amount);
             builder accrued_request = pack_request(
                 accrued_min_payment, borrower_reward_share, loan_amount, accrue_amount, stake_amount,
@@ -1097,6 +1173,8 @@ cell find_code(cell dict, int round_since) inline {
             );
             accrued~udict_set_builder(256, borrower_addr, accrued_request);
         } else {
+            ;; No accrual, and available is left as it was, so this loan's share goes on to the loans
+            ;; after it rather than sitting idle.
             accrued~udict_set(256, borrower_addr, request);
         }
     }
@@ -1956,6 +2034,30 @@ cell find_code(cell dict, int round_since) inline {
     pack_extension();
 }
 
+() set_auction_floors(slice src, slice s) impure inline {
+    unpack_extension();
+
+    int query_id = s~load_uint(64);
+    int new_min_efficiency = s~load_uint(24);
+    int new_min_request_stake = s~load_uint(32);
+    int new_stake_cap_floor = s~load_uint(32);
+    s.end_parse();
+
+    throw_unless(err::access_denied, equal_slice_bits(src, governor));
+    ;; A cap floor under the stake floor would raise a cap to less than the loan and collateral that
+    ;; the stake floor itself admits, and request_loan would then refuse the very bid it just let in.
+    throw_if(err::invalid_parameters, new_stake_cap_floor & (new_stake_cap_floor < new_min_request_stake));
+
+    auction_floors = (new_min_efficiency << 64) + (new_min_request_stake << 32) + new_stake_cap_floor;
+
+    builder excess = begin_cell()
+        .store_uint(op::gas_excess, 32)
+        .store_uint(query_id, 64);
+    send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
+
+    pack_extension();
+}
+
 () set_governance_fee(slice src, slice s) impure inline {
     unpack_extension();
 
@@ -2639,6 +2741,9 @@ int calculate_min_coins() inline_ref {
     if op == op::set_reward_share {
         return set_reward_share(src, s);
     }
+    if op == op::set_auction_floors {
+        return set_auction_floors(src, s);
+    }
 
     if op == op::set_governance_fee {
         return set_governance_fee(src, s);
@@ -2834,6 +2939,9 @@ var get_treasury_state() method_id {
         , mid_round
         , reward_share
         , total_request_fees
+        , min_efficiency()
+        , min_request_stake()
+        , stake_cap_floor()
         );
 }
 
@@ -2875,7 +2983,11 @@ var get_treasury_state() method_id {
         if e? { stage = participation::distributing; }
     }
     ifnot e? {
-        ( request, e? ) = accepted.udict_get?(256, borrower_addr);
+        ;; accepted is keyed by accrual_key, not by address, so it is searched. It holds anything only
+        ;; between the messages of one decide chain, and never more than max_validators entries.
+        do {
+            ( slice key, request, e? ) = accepted~dict_delete_get_min?(accrual_key_bits);
+        } until ( ~ e? ) | (e? ? accrual_key_borrower(key) == borrower_addr : false);
         if e? { stage = participation::distributing; }
     }
     ifnot e? {

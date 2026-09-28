@@ -194,7 +194,17 @@ Use the get method `get_treasury_state` of **treasury** with no parameters, whic
 
 1. `mid_round`: The start time of the validation round that middle observation was taken on.
 
-> **This list is append-only.** A field is never inserted into it and never moved, so an index that means something today means the same thing forever. That rule is newer than the list: `deficit`, `round_duration` and `last_settled_round` were once *inserted* at their positions above so the list would mirror the treasury's storage layout, which shifted every reader indexing by position and broke several. `mid_rate` and `mid_round` were therefore **appended** — the list went from 24 values to 26, positions 0–23 are exactly what they were, and a reader that divides by the interval field keeps working with no change and simply sees a steadier number. The list is also complete: everything the treasury stores is here, which is why the `get_deficit` method was removed when `deficit` joined it.
+1. `reward_share`: The borrower's contractual share of every loan's reward, out of 65535, set by the protocol and snapshotted into each request. The pool receives at least `reward × (65535 − reward_share) / 65535` from every loan.
+
+1. `total_request_fees`: The request fees prepaid by standing loan requests and not yet spent, held on the balance for them.
+
+1. `min_efficiency`: The auction's rate floor. `request_loan` refuses a bid whose efficiency — the first part of its sort key, `(min_payment >> 30) × 1000 / (loan_amount >> 40)` — is below it. 0 is off.
+
+1. `min_request_stake`: The least `loan_amount` + collateral a request may carry, in **whole GRAM** (not nanoGRAM). 0 is off.
+
+1. `stake_cap_floor`: The lowest `max_stake` the treasury honours, in **whole GRAM**. A non-zero `max_stake` below it is raised to it when the request is made. 0 is off.
+
+> **This list is append-only.** A field is never inserted into it and never moved, so an index that means something today means the same thing forever. That rule is newer than the list: `deficit`, `round_duration` and `last_settled_round` were once *inserted* at their positions above so the list would mirror the treasury's storage layout, which shifted every reader indexing by position and broke several. `mid_rate` and `mid_round` were therefore **appended** — the list went from 24 values to 26, positions 0–23 are exactly what they were, and a reader that divides by the interval field keeps working with no change and simply sees a steadier number. `reward_share`, `total_request_fees` and the three auction floors were appended the same way, one release at a time. The list is also complete: everything the treasury stores is here, which is why the `get_deficit` method was removed when `deficit` joined it.
 
 ## Reading Times
 
@@ -242,7 +252,7 @@ To read data related to a specific participation, use get method `get_participat
 
 1. `rejected`: A dictionary of all rejected loans.
 
-1. `accepted`: A dictionary of all accepted loans.
+1. `accepted`: A dictionary of all accepted loans. It holds anything only between the messages of one decide chain, and unlike the others it is **not keyed by address**: its 416-bit key is the loan's room per GRAM (160 bits) followed by the borrower's address (256 bits), which is the order the leftover is shared out in.
 
 1. `accrued`: A dictionary of all accepted loans that are given the accrued amount.
 
@@ -420,6 +430,25 @@ Four rules that a classifier gets wrong easily, each learned from a real defect:
   > A body without the field is refused and the collateral bounced. The reference borrower,
   > `HipoFinance/borrower` v2.1.1 and later, sends it and takes the cap as `borrow.max_stake`. See
   > `docs/specs/2026-09-26-request-stake-cap.md`.
+
+  > **Auction floors and forced accrual (from the release that adds `set_auction_floors`).** The
+  > message does not change, but three things about a bid do:
+  >
+  > - **Floors.** `request_loan` refuses, and bounces with the collateral, a bid whose efficiency is
+  >   below `min_efficiency` (exit code 109) or whose `loan_amount` + collateral is below
+  >   `min_request_stake` (exit code 102). Read both from `get_treasury_state` before sending; 0 means
+  >   off.
+  > - **Cap floor.** A non-zero `max_stake` below `stake_cap_floor` is raised to it, and the raised
+  >   value is what `get_loan_request` returns. The floor sits a little under the elector's
+  >   per-validator limit, so a cap still keeps you clear of stake that earns nothing, but it can no
+  >   longer be set so low that the leftover is left unlent.
+  > - **The leftover goes where there is room.** What a capped loan cannot take no longer stays in the
+  >   treasury: it is shared among the other accepted loans in proportion to their loans, each up to
+  >   its own cap, at each loan's own rate. An uncapped loan (`max_stake` 0) may therefore be lent more
+  >   than its proportional share, up to everything the capped loans left. Set `max_stake` if you do
+  >   not want that. While no cap binds, the shares are exactly proportional, as before.
+  >
+  > See `docs/specs/2026-09-28-auction-floors-and-forced-accrual.md`.
 
 ## Calculating Remaining Time Until Withdrawal
 

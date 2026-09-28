@@ -16,6 +16,27 @@ This file starts at **2026-07-16**. Earlier history is in the git log.
 
 ---
 
+## Unreleased — Auction floors and forced accrual
+
+**Treasury code** `eec65a3f9201482867e1a9031625dbdf1e185f432f902675fb34b3e11ad965a0` (built, not deployed)
+· Spec [`2026-09-28-auction-floors-and-forced-accrual.md`](docs/specs/2026-09-28-auction-floors-and-forced-accrual.md)
+
+Closes two ways to keep capital from being lent to an elected validator. The `request_loan` message
+does not change; what a bid gets does:
+
+- **Floors**, governor-set with the new `set_auction_floors` and all 0 for off: a bid below
+  `min_efficiency`, or with `loan_amount` + collateral below `min_request_stake`, is refused and its
+  collateral bounced; a non-zero `max_stake` below `stake_cap_floor` is raised to it and stored raised.
+- **The leftover goes where there is room.** What a capped loan cannot take is shared among the other
+  accepted loans, each up to its own cap and at its own rate, instead of staying in the treasury. While
+  no cap binds, the shares are exactly proportional, as before.
+
+`get_treasury_state` gains three values, appended. `get_participation`'s `accepted` dict, non-empty
+only while a round is being decided, is keyed by 416 bits instead of 256. The extension grows by 88
+bits and reads as every floor off before the first `set_auction_floors`, so there is no migrator.
+
+---
+
 ## 2026-09-26 — A borrower-set cap on the stake a loan request will accept
 
 **Treasury code** `54d84afcf4201d5db915cf4cbc16a74f7d50df1ea71aa7e259e2b0fb9e134e59`

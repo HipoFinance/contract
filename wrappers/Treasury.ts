@@ -150,6 +150,27 @@ export interface TreasuryConfig {
      */
     midRate: bigint
     midRound: bigint
+    /**
+     * The auction floors, all governor-set by `set_auction_floors` and 0 for off: `request_loan`
+     * refuses a bid whose efficiency (the first part of the sort key) is below `minEfficiency`, or whose
+     * loan + collateral is below `minRequestStake`, and raises a non-zero `max_stake` below
+     * `stakeCapFloor` to it. The two stakes are in WHOLE GRAM, not nanoGRAM. Appended to
+     * `get_treasury_state`; see `docs/specs/2026-09-28-auction-floors-and-forced-accrual.md`.
+     */
+    minEfficiency?: bigint
+    minRequestStake?: bigint
+    stakeCapFloor?: bigint
+}
+
+/**
+ * The key of a participation's `accepted` dict, which exists only between the messages of one decide
+ * chain: room per GRAM of loan in the top 160 bits and the borrower's address in the low 256, so that
+ * the accrual loop walks it as a water-fill. The address is `key & (2^256 - 1)`.
+ */
+export const acceptedKeyBits = 160 + 256
+
+export function acceptedKeyBorrower(key: bigint): bigint {
+    return key & ((1n << 256n) - 1n)
 }
 
 export function treasuryConfigToCell(config: TreasuryConfig): Cell {
@@ -166,6 +187,9 @@ export function treasuryConfigToCell(config: TreasuryConfig): Cell {
         .storeUint(config.governanceFee, 16)
         .storeUint(config.borrowerFee, 16)
         .storeUint(config.rewardShare, 16)
+        .storeUint(config.minEfficiency ?? 0n, 24)
+        .storeUint(config.minRequestStake ?? 0n, 32)
+        .storeUint(config.stakeCapFloor ?? 0n, 32)
         .storeRef(beginCell().storeDictDirect(config.collectionCodes))
         .storeRef(beginCell().storeDictDirect(config.billCodes))
         .storeDict(config.oldParents)
@@ -262,7 +286,7 @@ export const participationDictionaryValue: DictionaryValue<Participation> = {
             sorted: src.loadDict(Dictionary.Keys.BigUint(120), sortedDictionaryValue),
             requests: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
             rejected: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
-            accepted: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
+            accepted: src.loadDict(Dictionary.Keys.BigUint(acceptedKeyBits), requestDictionaryValue),
             accrued: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
             staked: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
             recovering: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
@@ -626,6 +650,37 @@ export class Treasury implements Contract {
                 .storeUint(op.setRewardShare, 32)
                 .storeUint(opts.queryId ?? 0, 64)
                 .storeUint(opts.newRewardShare, 16)
+                .endCell(),
+        })
+    }
+
+    /**
+     * Sets the three auction floors at once. `minRequestStake` and `stakeCapFloor` are in WHOLE GRAM;
+     * a non-zero `stakeCapFloor` below `minRequestStake` is refused. 0 turns a floor off.
+     */
+    async sendSetAuctionFloors(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint | string
+            bounce?: boolean
+            sendMode?: SendMode
+            queryId?: bigint
+            minEfficiency: bigint
+            minRequestStake: bigint
+            stakeCapFloor: bigint
+        },
+    ) {
+        await this.sendMessage(provider, via, {
+            value: opts.value,
+            bounce: opts.bounce,
+            sendMode: opts.sendMode,
+            body: beginCell()
+                .storeUint(op.setAuctionFloors, 32)
+                .storeUint(opts.queryId ?? 0, 64)
+                .storeUint(opts.minEfficiency, 24)
+                .storeUint(opts.minRequestStake, 32)
+                .storeUint(opts.stakeCapFloor, 32)
                 .endCell(),
         })
     }
@@ -1161,6 +1216,13 @@ export class Treasury implements Contract {
             // OLD contract.
             rewardShare: stack.readBigNumber(),
             totalRequestFees: stack.readBigNumber(),
+            // Appended by 2026-09-28-auction-floors-and-forced-accrual. A treasury that has not been
+            // upgraded yet returns 28 values, and these read 0 -- which is exactly its behaviour, every
+            // floor off. Delete the branch once mainnet is upgraded: showState and the dry run both
+            // read the OLD contract before the upgrade.
+            minEfficiency: stack.remaining > 0 ? stack.readBigNumber() : 0n,
+            minRequestStake: stack.remaining > 0 ? stack.readBigNumber() : 0n,
+            stakeCapFloor: stack.remaining > 0 ? stack.readBigNumber() : 0n,
         }
     }
 
@@ -1200,7 +1262,11 @@ export class Treasury implements Contract {
             sorted: Dictionary.loadDirect(Dictionary.Keys.BigUint(120), sortedDictionaryValue, stack.readCellOpt()),
             requests: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
             rejected: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
-            accepted: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
+            accepted: Dictionary.loadDirect(
+                Dictionary.Keys.BigUint(acceptedKeyBits),
+                requestDictionaryValue,
+                stack.readCellOpt(),
+            ),
             accrued: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
             staked: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
             recovering: Dictionary.loadDirect(

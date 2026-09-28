@@ -131,12 +131,35 @@ is left idle. See `docs/specs/2026-09-22-price-accrual-at-bid-rate.md`.
 times the smallest elected stake, and the scaling above would charge the bid rate on that stake too.
 Every request therefore carries `max_stake`, the most it will stake in total (loan + accrue +
 collateral, own stake included), or 0 for no cap. `decide_loan_requests` stops that loan's accrual at `max_stake - loan_amount -
-stake_amount` before the collateral check and the scaling, and what the loan does not take is not
-lent that round: it stays on the balance, liquid for instant unstakes and counted in the next
-round's `available`. It is not handed to the other loans, which keeps the decide loop a single pass
-and leaves uncapped loans' accrual exactly as it would be without the cap. The field is required in
-`request_loan`; request cells packed before it existed end without it and read as uncapped. See
+stake_amount` before the collateral check and the scaling. The field is required in `request_loan`;
+request cells packed before it existed end without it and read as uncapped. See
 `docs/specs/2026-09-26-request-stake-cap.md`.
+
+**The leftover is water-filled.** What a capped loan cannot take goes on to the accepted loans that
+still have room, so nothing is left unlent while one of them could take it. It is done in the same
+single pass: `accepted` is keyed by room per GRAM of loan, then address, and walked upwards; each loan
+is offered `left × loan / remaining_loans` and takes that or its room, whichever is less. While no cap
+binds that ratio never changes, so every loan gets exactly its proportional share; once one binds, its
+excess stays in `left` for the loans after it, which have more room per GRAM by construction. A loan
+that fails the accrual collateral check takes nothing and its share flows on the same way. Only when
+every accepted loan is full does anything stay on the balance for the next round.
+
+**The auction has floors.** Three governor-set values, all 0 for off and set together with
+`set_auction_floors`, are applied in `request_loan`:
+
+- `min_efficiency`: a bid whose efficiency (the top of its sort key) is below it is refused. The pool's
+  contractual share is a share of a *reward*, and a stake the elector returns unelected earns none, so
+  without a floor a bid at `min_payment` 0 could hold capacity that earns nothing for almost nothing.
+  With it, such a loan pays its `min_payment` out of collateral.
+- `min_request_stake` (whole GRAM): a request whose loan + collateral is below it is refused. It is set
+  a little under the election floor, so a stake that could never be elected is not accepted at all.
+- `stake_cap_floor` (whole GRAM): a non-zero `max_stake` below it is raised to it, and the request
+  stores the raised value. It is set a little under the elector's per-validator limit. The cap still
+  protects a borrower from stake that earns nothing, but it cannot be set so low that the leftover sits
+  idle behind a request ranked first.
+
+The contract cannot see the next election's floor or limit when a request arrives, so the values are
+the governor's to keep current. See `docs/specs/2026-09-28-auction-floors-and-forced-accrual.md`.
 
 ### The borrower fee
 

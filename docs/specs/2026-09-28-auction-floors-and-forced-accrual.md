@@ -88,9 +88,11 @@ Rejected alternatives:
 - `contracts/treasury.fc`
   - Extension: `min_efficiency:uint24`, `min_request_stake:uint32` and `stake_cap_floor:uint32`,
     the last two in whole GRAM. They go after `reward_share`, before the refs, and the bit-budget
-    comment above `pack_extension` is updated. `unpack_extension` reads them only when bits remain,
-    so the deployed cell reads as all zeros and no migrator is needed. The next `pack_extension`
-    writes the new layout.
+    comment above `pack_extension` is updated. `unpack_extension` reads them only when more than
+    `old_parents`' 1-bit dict flag remains, so the deployed cell reads as all zeros and no migrator is
+    needed. The next `pack_extension` writes the new layout. *(Implementation: held in one global,
+    `auction_floors`, with three accessors, because FunC addresses at most 31 globals and the treasury
+    was at the limit.)*
   - `request_loan`:
     - refuse with `err::invalid_parameters` when `min_efficiency` is non-zero and the request's
       efficiency is below it;
@@ -101,15 +103,27 @@ Rejected alternatives:
   - `set_auction_floors` (new op, governor only): reads the three values, checks them, returns excess
     gas the way `set_reward_share` does.
   - `decide_loan_requests`:
-    - the accept phase keys `accepted` by `(room ratio, address)` instead of by address;
+    - the accept phase keys `accepted` by `(room ratio, address)` instead of by address. That is 416
+      bits, past what an int key holds, so the dict is keyed by slice; `get_loan_request` finds an
+      address in it by walking it;
     - the accrual loop walks it in ascending order with the water-fill rule above, keeping `left` and
       `remaining_loans` in the existing `available` / `allocated` temporaries across continuations;
     - scaling of `min_payment` and the collateral check are unchanged.
   - `get_treasury_state`: the three values appended at the end.
-- `contracts/imports/utils.fc`: `request_efficiency` factored out of `request_sort_key`, so the
-  floor and the sort use one computation.
-- `contracts/imports/constants.fc`: `op::set_auction_floors`, plus gas constants re-measured
-  (`gas::request_loan`, `gas::decide_loan_requests`).
+- `request_efficiency` is the top 24 bits of `request_sort_key` itself, so the floor and the sort use
+  one computation. It and the accrual key live in `treasury.fc`, not `utils.fc`, as the spec first
+  said: every contract that includes `utils.fc` compiles all of it, and editing it moved the Wallet
+  code hash away from the bytecode deployed on mainnet.
+- `contracts/imports/constants.fc`: `op::set_auction_floors`, plus gas constants re-measured.
+  `gas::request_loan` 48000 → 50000, `gas::decide_loan_requests` 22000 → 24000,
+  `gas::process_loan_requests` 31000 → 32000 and `gas::recover_stake_result` 53000 → 56000, to the
+  suite's 10% margin. The treasury's larger code costs ~230 gas more on the non-loan ops that touch
+  the extension, so `gas::deposit_coins`, `gas::mint_tokens` and the `_cost` twins of the frozen
+  constants rise to their measured values. `gas::send_unstake_all` (now 103 short) and
+  `gas::last_bill_burned` (raw cost still covered) stay put: the first is compiled into the Wallet
+  and the second into the Collection, and raising either would move a deployed code hash. The first
+  gets a `_cost` twin, as the other frozen wallet constants have; MinGas still proves the fee the
+  wallet demands covers the chain.
 - `contracts/schema.tlb`: `set_auction_floors`. The `request_loan` message is unchanged.
 - `wrappers/Treasury.ts`: `sendSetAuctionFloors`; `getTreasuryState` reads the three appended values,
   with the temporary old-shape branch for reads before the upgrade.
@@ -154,6 +168,10 @@ Rejected alternatives:
     sending.
 - **Getter:** `get_treasury_state` grows by three values, appended (ABI rule). Before the release,
   check every consumer in the census in `scripts/upgrade_treasury.md`, poker included.
+- **`get_participation`'s `accepted` dict** is keyed by 416 bits instead of 256. It holds anything only
+  between the messages of one decide chain, but a reader that parses it with 256-bit keys fails in that
+  window: the `sdk` (and through it `mcp` and `website`) and `gauge` switch to 416 before the upgrade.
+  `borrower` and `sealed-borrower` load it without parsing it.
 - **Gas:** `request_loan` gains two comparisons (the extension is already unpacked there). The accrual
   loop now handles a wider dict key and a ratio per loan. `MaxGas`/`MinGas` decide what the constants
   become, and `request_loan_fee` follows them live.

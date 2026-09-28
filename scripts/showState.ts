@@ -1,6 +1,6 @@
 import { Address, Dictionary } from '@ton/core'
 import { NetworkProvider } from '@ton/blueprint'
-import { ParticipationState, Request, Treasury } from '../wrappers/Treasury'
+import { acceptedKeyBorrower, ParticipationState, Request, Treasury } from '../wrappers/Treasury'
 import { Parent } from '../wrappers/Parent'
 import { makePalette, Palette } from '../wrappers/colors'
 
@@ -148,7 +148,9 @@ export async function run(provider: NetworkProvider) {
     console.info(
         '             %s %s (%s of borrower reward)%s',
         c.grey('borrower_fee:'),
-        treasuryState.borrowerFee === 0n ? Number(treasuryState.borrowerFee) : c.yellow(String(treasuryState.borrowerFee)),
+        treasuryState.borrowerFee === 0n
+            ? Number(treasuryState.borrowerFee)
+            : c.yellow(String(treasuryState.borrowerFee)),
         borrowerFeePercent,
         treasuryState.borrowerFee === 0n ? c.grey('  disabled') : '',
     )
@@ -170,6 +172,17 @@ export async function run(provider: NetworkProvider) {
                       formatPercent(Number(65535n - treasuryState.rewardShare) / 65535) +
                       ')',
               ),
+    )
+    // The auction floors (set_auction_floors); the two stakes are stored in whole GRAM.
+    const floor = (v: bigint | undefined, text: string) => (v != null && v > 0n ? c.yellow(text) : c.grey('off'))
+    console.info(
+        '         %s %s   %s %s   %s %s',
+        c.grey('min_efficiency:'),
+        floor(treasuryState.minEfficiency, String(treasuryState.minEfficiency)),
+        c.grey('min_request_stake:'),
+        floor(treasuryState.minRequestStake, (treasuryState.minRequestStake ?? 0n).toLocaleString() + ' GRAM'),
+        c.grey('stake_cap_floor:'),
+        floor(treasuryState.stakeCapFloor, (treasuryState.stakeCapFloor ?? 0n).toLocaleString() + ' GRAM'),
     )
     console.info()
 
@@ -322,7 +335,12 @@ export async function run(provider: NetworkProvider) {
         if (participation.accepted != null && participation.accepted.size > 0) {
             console.info('    %s', c.bold('Accepted'))
             console.info('    %s', c.grey('--------'))
-            showRequests(participation.accepted, testOnly, c)
+            // Keyed by room per GRAM, then address, for the water-fill; rekey by address to print.
+            const accepted = Dictionary.empty<bigint, Request>()
+            for (const [k, v] of participation.accepted) {
+                accepted.set(acceptedKeyBorrower(k), v)
+            }
+            showRequests(accepted, testOnly, c)
             console.info()
         }
 

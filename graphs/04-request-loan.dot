@@ -1,5 +1,5 @@
 digraph {
-    label="borrowers request loans"
+    label="borrowers request loans (refused below min_efficiency or min_request_stake; a cap below stake_cap_floor is raised to it)"
     node [ colorscheme=pastel19 style=filled ]
 
     /* Entities */

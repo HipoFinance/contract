@@ -344,6 +344,13 @@ describe('Getters', () => {
     // coordinated with every reader anyone could name, and still broke vesting, club and dune. This
     // pins the result rather than trusting a reviewer to notice.
     it('should keep every get_treasury_state field at its established position', async () => {
+        // three distinct values, so that the floors cannot pass this test in the wrong order
+        await treasury.sendSetAuctionFloors(governor.getSender(), {
+            value: '1',
+            minEfficiency: 640n,
+            minRequestStake: 800000n,
+            stakeCapFloor: 2760000n,
+        })
         const contract = await blockchain.getContract(treasury.address)
         const stack = new TupleReader((await contract.get('get_treasury_state')).stack)
 
@@ -379,6 +386,9 @@ describe('Getters', () => {
             'mid_round',
             'reward_share',
             'total_request_fees',
+            'min_efficiency',
+            'min_request_stake',
+            'stake_cap_floor',
         ]
         expect(stack.remaining).toEqual(positions.length)
 
@@ -412,6 +422,9 @@ describe('Getters', () => {
         expect(stack.readBigNumber()).toEqual(0n) // mid_round
         expect(stack.readBigNumber()).toEqual(1799n) // reward_share
         expect(stack.readBigNumber()).toEqual(0n) // total_request_fees
+        expect(stack.readBigNumber()).toEqual(640n) // min_efficiency
+        expect(stack.readBigNumber()).toEqual(800000n) // min_request_stake, whole GRAM
+        expect(stack.readBigNumber()).toEqual(2760000n) // stake_cap_floor, whole GRAM
         expect(stack.remaining).toEqual(0)
     })
 

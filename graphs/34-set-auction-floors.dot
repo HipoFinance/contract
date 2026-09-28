@@ -1,0 +1,16 @@
+digraph {
+    label="the current governor sets the auction floors"
+    node [ colorscheme=pastel19 style=filled ]
+
+    /* Entities */
+    governor [ color=2 ]
+    treasury [ color=4 ]
+
+    /* Relationships */
+    governor -> treasury [ label="1\l op::set_auction_floors\l 0.10 GRAM\l min efficiency: 640\l min request stake: 800000\l stake cap floor: 2760000\l" ]
+    treasury -> governor [ label="2\l op::gas_excess\l 0.09 GRAM\l" ]
+
+    /* Ranks */
+    { rank=min governor }
+    { rank=max treasury }
+}

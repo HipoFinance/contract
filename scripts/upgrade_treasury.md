@@ -146,7 +146,7 @@ sending, because the list is a floor. Where a field lands matters even then: an 
 | -------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | `borrower`           | `process.go`, tonutils-go, indices for `participations`, `stopped?`, `borrower_fee` | **roll this one with the treasury** — see below           |
 | `poker`              | `poke/state.go`, indices for `participations` and `stopped?`                        | guards `len < 26`, the right way round, so an append is safe |
-| `club-server`        | `game/tonclient/hipo.go`, layout keyed on the **exact** tuple length                 | **breaks on every append** — add the new length and deploy BEFORE the treasury |
+| `club-server`        | `game/tonclient/hipo.go`, layout per known length, newest layout for longer tuples   | since the 2026-09 fix a longer tuple reads with the newest layout, so an append is safe; a SHORTER unknown length is still refused |
 | `sealed-borrower`    | `borrower/process.go`, same indices as `borrower`                                   | private; safe on appends, but sends `request_loan` and must roll with the treasury |
 | `website`            | through the sdk wrapper                                                             |                                                          |
 | `mcp`                | through the sdk wrapper                                                             |                                                          |
@@ -1035,6 +1035,67 @@ with the field, since every body carries it from this release.
 3. **The first capped loan decided**: its `loan_amount + accrue_amount + stake_amount` is at most
    `max_stake`, its `min_payment` is scaled on the capped accrual, and the treasury's balance after
    `process_loan_requests` still holds the excess.
+
+## Auction Floors and Forced Accrual
+
+> **Not yet performed.** Build hash below is the one this section was written against; rebuild and
+> compare before sending.
+
+Spec: `docs/specs/2026-09-28-auction-floors-and-forced-accrual.md`. Recorded in `CHANGELOG.md`
+(Unreleased) and `docs/integration.md`. Not breaking for the message format, but it changes what a bid
+gets: bids below the floors bounce, tight caps are raised, and a capped loan's excess now goes to the
+other accepted loans with room instead of staying in the treasury.
+
+Code only. The extension grows by 88 bits (`min_efficiency:uint24`, `min_request_stake:uint32`,
+`stake_cap_floor:uint32` after `reward_share`). **No migrator**: `unpack_extension` reads the floors
+only when more than old_parents' 1-bit dict flag remains, so the deployed cell reads as every floor off
+and the next `pack_extension` writes the new layout. Leave `migratorName` at `null`. The dry run's
+state diff is empty; the floors appear in `get_treasury_state` as three zeros.
+
+| build | code hash |
+|---|---|
+| deployed (stake-cap release) | `54d84afcf4201d5db915cf4cbc16a74f7d50df1ea71aa7e259e2b0fb9e134e59` |
+| this release | `eec65a3f9201482867e1a9031625dbdf1e185f432f902675fb34b3e11ad965a0` |
+
+Wallet, parent, collection, bill, loan and librarian hashes are unchanged; the new helpers live in
+`treasury.fc` because anything added to `utils.fc` is compiled into every contract that includes it.
+
+### Before sending
+
+1. **Two readers of `get_participation` must take the new `accepted` key first.** `accepted` is now
+   keyed by 416 bits (room per GRAM, then address). It is non-empty only between the messages of one
+   decide chain, seconds a round, but a 256-bit parse of it fails in that window:
+   - `sdk` (`src/Treasury.ts`, `Dictionary.Keys.BigUint(256)` for `accepted`, twice): switch to 416
+     and release; `mcp` and `website` follow with a dependency bump.
+   - `gauge` (`schema/schema.go`, `TlbAccepted ... tlb:"dict 256"`, iterated by `GetAccepted` for the
+     `total_accepted_*` metrics): switch to 416 and take the address from the low 256 bits.
+   `borrower` and `sealed-borrower` load the dict without parsing it, so they are unaffected.
+2. **`get_treasury_state` grows from 28 values to 31, appended.** Run the census above. As of this
+   writing `poker` guards `len < 26`, `gauge` `fields < 24`, and `club-server` reads longer tuples with
+   its newest layout, so none breaks; the contract's wrapper reads the three only when present.
+3. **Send it in the gap after a round is decided**: `showState.ts` must show no participation in
+   `open` or `distributing`. A decide chain split across the two codes would walk an `accepted` dict
+   keyed one way with code that expects the other.
+4. `request_loan_fee` moves with `gas::request_loan` (48000 → 50000) and `gas::decide_loan_requests`
+   (22000 → 24000). Both borrower daemons read it live.
+
+### Sending
+
+1. Leave `const migratorName: string | null = null` in `scripts/upgradeCode.ts`.
+2. `npx blueprint run upgradeCode`. The dry run should show the code-hash change and an empty state
+   diff.
+3. Verify the code hash on chain is the one above.
+4. **In the same gap**, `npx blueprint run setAuctionFloors` with the values the spec chose, re-checked
+   against the election: `min_efficiency` 640, `min_request_stake` 800000, `stake_cap_floor` 2760000
+   (0.9 × the elector's per-validator limit, ~3,067,000 when written).
+
+### After it lands
+
+1. `showState.ts` shows the three floors.
+2. **The first request after `set_auction_floors`** from each of our hosts lands: our bids sit above
+   640 and above 800,000 of loan + collateral, and our caps (~3.07M) are above the cap floor.
+3. **The first round decided**: no capital idle unless every accepted loan is at its cap, and a cap
+   that was sent below the floor reads back from `get_loan_request` as the floor.
 
 ## Repoint the Burner
 

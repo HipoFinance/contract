@@ -249,7 +249,10 @@ new_stake_msg#_
 //
 // max_stake is REQUIRED since the stake-cap release, 0 for no cap. It caps loan + accrue + collateral,
 // where collateral is everything sent less the request fee, own stake included: accrual stops there,
-// and the excess stays in the treasury. A cap below loan_amount + collateral is refused. BREAKING: a
+// and since the auction-floors release the excess goes on to the other accepted loans that still have
+// room. A non-zero cap below the treasury's stake_cap_floor is raised to it, and the bid is refused
+// below min_efficiency or with loan + collateral below min_request_stake (see set_auction_floors).
+// A cap below loan_amount + collateral (after the raise) is refused. BREAKING: a
 // body without it has no bits left for it and is refused and bounced. The treasury code before this
 // release refuses a body WITH it, so senders switch on the treasury's code hash. See
 // docs/specs/2026-09-26-request-stake-cap.md.
@@ -343,6 +346,18 @@ set_reward_share#5e2c7a08
 
 // Out of 65535 of each borrower's contractual share of a round's reward, charged on top of what the
 // pool receives and paid from the borrower's own funds. 0 disables the mechanism entirely.
+// The auction floors, all 0 for off. min_efficiency is compared with the top 24 bits of a request's
+// sort key, (min_payment >> 30) * 1000 / (loan_amount >> 40); min_request_stake is the least
+// loan_amount + collateral, and stake_cap_floor the lowest max_stake honoured, both in WHOLE GRAM. A
+// non-zero stake_cap_floor below min_request_stake is refused. See
+// docs/specs/2026-09-28-auction-floors-and-forced-accrual.md.
+set_auction_floors#499d2e25
+    query_id:uint64
+    min_efficiency:uint24
+    min_request_stake:uint32
+    stake_cap_floor:uint32
+        = InternalMsgBody;
+
 set_borrower_fee#3b9a4c17
     query_id:uint64
     new_borrower_fee:uint16
@@ -741,6 +756,7 @@ proposed_governor#_
 // borrower_fee and borrower_reward_share are both snapshotted from the extension when the request is
 // made, so a later set_borrower_fee or set_reward_share cannot reprice a loan already committed.
 // max_stake is absent on requests packed before the stake-cap release, which read as uncapped (0).
+// It is stored as raised to stake_cap_floor, not necessarily as sent.
 request#_
     min_payment:Coins
     borrower_reward_share:uint16
@@ -758,7 +774,9 @@ participation#_
     sorted:(HashmapE 120 (Hashmap 256 True))
     requests:(HashmapE 256 Request)
     rejected:(HashmapE 256 Request)
-    accepted:(HashmapE 256 Request)
+    // keyed by room per GRAM of loan (uint160) then the borrower's address (uint256): the order the
+    // leftover is water-filled in. Non-empty only between the messages of one decide chain.
+    accepted:(HashmapE 416 Request)
     accrued:(HashmapE 256 Request) // no refs overflow since there are always some empty dicts
     staked:(HashmapE 256 Request)
     recovering:(HashmapE 256 Request)
@@ -772,11 +790,21 @@ participation#_
 extension#_
     previous_rate:Coins
     current_rate:Coins
+    window_duration:uint32
+    last_settled_round:uint32
+    mid_rate:Coins
+    mid_round:uint32
     halter:MsgAddress
     governor:MsgAddress
     proposed_governor:(Maybe ^ProposedGovernor)
     governance_fee:uint16
     borrower_fee:uint16
+    reward_share:uint16
+    // the auction floors, absent on an extension packed before them (read as all 0); the two stakes
+    // are whole GRAM
+    min_efficiency:uint24
+    min_request_stake:uint32
+    stake_cap_floor:uint32
     collection_codes:(Hashmap 32 ^Cell)
     bill_codes:(Hashmap 32 ^Cell)
     old_parents:(HashmapE 256 True)
