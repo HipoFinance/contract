@@ -37,6 +37,10 @@ export async function run(provider: NetworkProvider) {
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
     const state = await treasury.getTreasuryState()
+    if ((state.minEfficiency ?? -1n) < 0n) {
+        ui.write(c.red('This treasury predates the auction floors: upgrade it first. Nothing was sent.'))
+        return
+    }
     const current = {
         minEfficiency: state.minEfficiency ?? 0n,
         minRequestStake: state.minRequestStake ?? 0n,

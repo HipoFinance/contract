@@ -155,7 +155,8 @@ export interface TreasuryConfig {
      * refuses a bid whose efficiency (the first part of the sort key) is below `minEfficiency`, or whose
      * loan + collateral is below `minRequestStake`, and raises a non-zero `max_stake` below
      * `stakeCapFloor` to it. The two stakes are in WHOLE GRAM, not nanoGRAM. Appended to
-     * `get_treasury_state`; see `docs/specs/2026-09-28-auction-floors-and-forced-accrual.md`.
+     * `get_treasury_state`; see `docs/specs/2026-09-28-auction-floors-and-forced-accrual.md`. -1 when
+     * read from a treasury that predates them.
      */
     minEfficiency?: bigint
     minRequestStake?: bigint
@@ -1217,12 +1218,14 @@ export class Treasury implements Contract {
             rewardShare: stack.readBigNumber(),
             totalRequestFees: stack.readBigNumber(),
             // Appended by 2026-09-28-auction-floors-and-forced-accrual. A treasury that has not been
-            // upgraded yet returns 28 values, and these read 0 -- which is exactly its behaviour, every
-            // floor off. Delete the branch once mainnet is upgraded: showState and the dry run both
-            // read the OLD contract before the upgrade.
-            minEfficiency: stack.remaining > 0 ? stack.readBigNumber() : 0n,
-            minRequestStake: stack.remaining > 0 ? stack.readBigNumber() : 0n,
-            stakeCapFloor: stack.remaining > 0 ? stack.readBigNumber() : 0n,
+            // upgraded yet returns 28 values, and these read -1 -- ABSENT, a value no upgraded treasury
+            // can hold. Not 0, although 0 is what such a treasury does (every floor off): the migrator
+            // seeds 0, and a fallback equal to the seed makes the dry run show the migrated fields
+            // unchanged, which is the mistake the reward-share release made first. Delete the branch
+            // once mainnet is upgraded: showState and the dry run both read the OLD contract before it.
+            minEfficiency: stack.remaining > 0 ? stack.readBigNumber() : -1n,
+            minRequestStake: stack.remaining > 0 ? stack.readBigNumber() : -1n,
+            stakeCapFloor: stack.remaining > 0 ? stack.readBigNumber() : -1n,
         }
     }
 

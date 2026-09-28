@@ -88,11 +88,13 @@ Rejected alternatives:
 - `contracts/treasury.fc`
   - Extension: `min_efficiency:uint24`, `min_request_stake:uint32` and `stake_cap_floor:uint32`,
     the last two in whole GRAM. They go after `reward_share`, before the refs, and the bit-budget
-    comment above `pack_extension` is updated. `unpack_extension` reads them only when more than
-    `old_parents`' 1-bit dict flag remains, so the deployed cell reads as all zeros and no migrator is
-    needed. The next `pack_extension` writes the new layout. *(Implementation: held in one global,
-    `auction_floors`, with three accessors, because FunC addresses at most 31 globals and the treasury
-    was at the limit.)*
+    comment above `pack_extension` is updated. They are **required fields**: `unpack_extension` reads
+    them unconditionally, so the storage layout of this version is fixed, with no optional parsing.
+    A one-off migrator, `wrappers/upgrade-code-test/add_auction_floors.fc`, rewrites the deployed
+    extension with all three at 0 during the upgrade *(revised 2026-09-28 after sign-off: the first
+    implementation read them tolerantly and had no migrator; the governor chose a fixed layout)*.
+    *(Implementation: held in one global, `auction_floors`, with three accessors, because FunC
+    addresses at most 31 globals and the treasury was at the limit.)*
   - `request_loan`:
     - refuse with `err::invalid_parameters` when `min_efficiency` is non-zero and the request's
       efficiency is below it;
@@ -155,8 +157,10 @@ Rejected alternatives:
 ## Compatibility
 
 - **Storage:** the extension grows by 88 bits. Worst case (every coin pooled) is 972 of 1,023
-  bits. The read is tolerant, so no migrator; the upgrade runs in the usual gap after a round is
-  decided.
+  bits. The migrator seeds every floor at 0, which is the behaviour the release ships with, and the
+  governor sets them with `set_auction_floors` in the same gap. It is tested against a fresh capture
+  of the mainnet treasury, and replaces the reward-share migrator, whose release is on chain. The
+  upgrade runs in the usual gap after a round is decided.
 - **Requests standing across the upgrade** keep the caps they were stored with. The floors apply
   from the first `request_loan` after `set_auction_floors`, and a re-sent request picks them up.
 - **Borrowers:** the message format is unchanged, but three things are new:
@@ -202,7 +206,9 @@ Rejected alternatives:
   - the governor only;
   - out-of-range values refused;
   - `get_treasury_state` returns the new values;
-  - the pre-upgrade extension reads as zeros, and survives a round trip through `pack_extension`.
+  - the migrator takes the captured mainnet account to the new layout, with every floor 0 and every
+    other field, including the participations dict, unchanged byte for byte; it refuses to run twice;
+    and the upgrade without it fails in the dry run.
 
 ## Out of scope
 

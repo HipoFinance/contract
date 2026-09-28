@@ -174,7 +174,8 @@ export async function run(provider: NetworkProvider) {
               ),
     )
     // The auction floors (set_auction_floors); the two stakes are stored in whole GRAM.
-    const floor = (v: bigint | undefined, text: string) => (v != null && v > 0n ? c.yellow(text) : c.grey('off'))
+    const floor = (v: bigint | undefined, text: string) =>
+        v == null || v < 0n ? c.grey('absent (treasury predates the floors)') : v > 0n ? c.yellow(text) : c.grey('off')
     console.info(
         '         %s %s   %s %s   %s %s',
         c.grey('min_efficiency:'),

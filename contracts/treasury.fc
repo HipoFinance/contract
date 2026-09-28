@@ -203,10 +203,7 @@ global cell old_parents;
     governance_fee = s~load_uint(16);
     borrower_fee = s~load_uint(16);
     reward_share = s~load_uint(16);
-    ;; An extension packed before the floors existed has only old_parents' 1-bit dict flag left here;
-    ;; it reads as every floor off, and the next pack_extension writes the new layout, so the upgrade
-    ;; needs no migrator. Bits and refs are read independently, so the refs below are found either way.
-    auction_floors = s.slice_bits() > 1 ? s~load_uint(24 + 32 + 32) : 0;
+    auction_floors = s~load_uint(24 + 32 + 32);
     collection_codes = s~load_ref();
     bill_codes = s~load_ref();
     old_parents = s~load_dict();

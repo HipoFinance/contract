@@ -1,6 +1,6 @@
 import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, SendMessageResult, TreasuryContract, createShardAccount } from '@ton/sandbox'
-import { Address, Cell, Dictionary, beginCell, toNano } from '@ton/core'
+import { Address, Cell, Dictionary, toNano } from '@ton/core'
 import { bodyOp, createNewStakeMsg, createVset, getElector, logTotalFees, setConfig, updateFeeConfig } from './helper'
 import { config, op } from '../wrappers/common'
 import {
@@ -9,7 +9,6 @@ import {
     TreasuryFees,
     emptyDictionaryValue,
     participationDictionaryValue,
-    treasuryConfigToCell,
 } from '../wrappers/Treasury'
 import { createElectionConfig, electorConfigToCell } from '../wrappers/elector-test/Elector'
 import { Parent } from '../wrappers/Parent'
@@ -367,61 +366,6 @@ describe('Auction Floors', () => {
         })
         await setFloors(0n, 800000n, 0n)
         await setFloors(0n, 800000n, 800000n)
-    })
-
-    it('should read an extension packed before the floors as every floor off', async () => {
-        // the extension exactly as the previous code packed it: nothing between reward_share and the refs
-        const state = await treasury.getTreasuryState()
-        const data = treasuryConfigToCell(state).beginParse()
-        const root = beginCell()
-        for (let i = 0; i < 7; i++) root.storeCoins(data.loadCoins())
-        root.storeAddress(data.loadMaybeAddress())
-        root.storeMaybeRef(data.loadMaybeRef())
-        root.storeUint(data.loadUint(8), 8).storeBit(data.loadBit()).storeBit(data.loadBit())
-        root.storeRef(data.loadRef())
-        const ext = data.loadRef().beginParse()
-        const old = beginCell()
-            .storeCoins(ext.loadCoins())
-            .storeCoins(ext.loadCoins())
-            .storeUint(ext.loadUint(32), 32)
-            .storeUint(ext.loadUint(32), 32)
-            .storeCoins(ext.loadCoins())
-            .storeUint(ext.loadUint(32), 32)
-            .storeAddress(ext.loadAddress())
-            .storeAddress(ext.loadAddress())
-            .storeMaybeRef(ext.loadMaybeRef())
-            .storeUint(ext.loadUint(16), 16)
-            .storeUint(ext.loadUint(16), 16)
-            .storeUint(ext.loadUint(16), 16)
-        ext.skip(24 + 32 + 32)
-        old.storeRef(ext.loadRef()).storeRef(ext.loadRef()).storeMaybeRef(ext.loadMaybeRef())
-        root.storeRef(old.endCell())
-        await blockchain.setShardAccount(
-            treasury.address,
-            createShardAccount({
-                workchain: 0,
-                address: treasury.address,
-                code: treasuryCode,
-                data: root.endCell(),
-                balance: await treasury.getBalance(),
-            }),
-        )
-
-        const read = await treasury.getTreasuryState()
-        expect([read.minEfficiency, read.minRequestStake, read.stakeCapFloor]).toEqual([0n, 0n, 0n])
-        expect(read.rewardShare).toEqual(state.rewardShare)
-        expect(read.collectionCodes.size).toEqual(state.collectionCodes.size)
-
-        // an op that repacks the extension writes the new layout, and the floors can then be set
-        await treasury.sendSetRewardShare(governor.getSender(), { value: '1', newRewardShare: 2000n })
-        await setFloors(640n, 800000n, 2760000n)
-        const after = await treasury.getTreasuryState()
-        expect([after.rewardShare, after.minEfficiency, after.minRequestStake, after.stakeCapFloor]).toEqual([
-            2000n,
-            640n,
-            800000n,
-            2760000n,
-        ])
     })
 
     it('should refuse a bid below the efficiency floor, and accept one at it', async () => {

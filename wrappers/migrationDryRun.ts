@@ -35,6 +35,11 @@ export interface DryRunResult {
     changes: FieldChange[]
 }
 
+// An auction floor, or `absent` when the getter predates them (the wrapper reads those as -1).
+function floor(value: bigint | undefined): string {
+    return value == null || value < 0n ? 'absent (getter predates the field)' : String(value)
+}
+
 function dictSize(dict: Dictionary<bigint, unknown> | undefined): string {
     return dict == null ? 'absent' : `${String(dict.size)} entries`
 }
@@ -95,6 +100,9 @@ async function snapshot(treasury: SandboxContract<Treasury>, code: Cell, data: C
         ['governance_fee', String(s.governanceFee)],
         ['borrower_fee', String(s.borrowerFee)],
         ['reward_share', String(s.rewardShare)],
+        ['min_efficiency', floor(s.minEfficiency)],
+        ['min_request_stake', floor(s.minRequestStake)],
+        ['stake_cap_floor', floor(s.stakeCapFloor)],
         ['collection_codes', dictSize(s.collectionCodes)],
         ['bill_codes', dictSize(s.billCodes)],
         ['old_parents', dictSize(s.oldParents)],

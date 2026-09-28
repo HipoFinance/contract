@@ -1046,16 +1046,20 @@ Spec: `docs/specs/2026-09-28-auction-floors-and-forced-accrual.md`. Recorded in 
 gets: bids below the floors bounce, tight caps are raised, and a capped loan's excess now goes to the
 other accepted loans with room instead of staying in the treasury.
 
-Code only. The extension grows by 88 bits (`min_efficiency:uint24`, `min_request_stake:uint32`,
-`stake_cap_floor:uint32` after `reward_share`). **No migrator**: `unpack_extension` reads the floors
-only when more than old_parents' 1-bit dict flag remains, so the deployed cell reads as every floor off
-and the next `pack_extension` writes the new layout. Leave `migratorName` at `null`. The dry run's
-state diff is empty; the floors appear in `get_treasury_state` as three zeros.
+The extension grows by 88 bits (`min_efficiency:uint24`, `min_request_stake:uint32`,
+`stake_cap_floor:uint32` after `reward_share`), as **required fields**: the layout of this version is
+fixed and `unpack_extension` reads them unconditionally. So the upgrade carries a **migrator**,
+`wrappers/upgrade-code-test/add_auction_floors.fc`, which rewrites the extension with all three at 0
+(every floor off) and moves everything else through untouched, the participations dict included as an
+opaque ref. `tests/TreasuryMigration.spec.ts` runs it against the mainnet account captured on
+2026-09-28 at masterchain seqno 95592649. It replaces the reward-share migrator, whose release is on
+chain. The dry run's state diff is exactly the three floors, `absent` before and `0` after.
 
-| build | code hash |
+| build | hash |
 |---|---|
 | deployed (stake-cap release) | `54d84afcf4201d5db915cf4cbc16a74f7d50df1ea71aa7e259e2b0fb9e134e59` |
-| this release | `eec65a3f9201482867e1a9031625dbdf1e185f432f902675fb34b3e11ad965a0` |
+| this release | `795136319be1e8d62893037503a1da2590728d33dfe294dc4920a2ddff1f2bd8` |
+| migrator `AddAuctionFloors` | `076ebfd3a9bf980a0856670a75fda67e117cd3d7029a074040e157a9c6856018` |
 
 Wallet, parent, collection, bill, loan and librarian hashes are unchanged; the new helpers live in
 `treasury.fc` because anything added to `utils.fc` is compiled into every contract that includes it.
@@ -1081,10 +1085,12 @@ Wallet, parent, collection, bill, loan and librarian hashes are unchanged; the n
 
 ### Sending
 
-1. Leave `const migratorName: string | null = null` in `scripts/upgradeCode.ts`.
-2. `npx blueprint run upgradeCode`. The dry run should show the code-hash change and an empty state
-   diff.
-3. Verify the code hash on chain is the one above.
+1. Set `const migratorName: string | null = 'upgrade-code-test/AddAuctionFloors'` in
+   `scripts/upgradeCode.ts`, and have every signer read the migrator source and check its hash
+   against the one above.
+2. `npx blueprint run upgradeCode`. The dry run should show the code-hash change and a state diff of
+   exactly `min_efficiency`, `min_request_stake` and `stake_cap_floor`, from `absent` to `0`.
+3. Verify the code hash on chain is the one above, and set `migratorName` back to `null`.
 4. **In the same gap**, `npx blueprint run setAuctionFloors` with the values the spec chose, re-checked
    against the election: `min_efficiency` 640, `min_request_stake` 800000, `stake_cap_floor` 2760000
    (0.9 × the elector's per-validator limit, ~3,067,000 when written).

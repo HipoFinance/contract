@@ -1,0 +1,121 @@
+#include "../../contracts/imports/stdlib.fc";
+
+;; One-off migrator for the auction-floors release: the extension gains three fields after
+;; `reward_share` -- min_efficiency:uint24, min_request_stake:uint32 and stake_cap_floor:uint32, the
+;; last two in whole GRAM. See docs/specs/2026-09-28-auction-floors-and-forced-accrual.md.
+;;
+;; They are required fields in this version's layout, not optional ones read when present: the
+;; governor chose a fixed storage structure over a tolerant parse. So every existing treasury needs its
+;; extension rewritten during the upgrade, and this is what rewrites it.
+;;
+;; All three are seeded at 0, which turns each floor off. That makes the upgrade economically
+;; neutral for requests: the first request after it is checked exactly as the last one before it was.
+;; The governor then sets the floors with set_auction_floors, in the same gap, as a separate and
+;; separately reviewed step -- the values are a policy that has to be re-checked against the election
+;; of the day, and do not belong in a migrator.
+;;
+;; Root is not changed. It is parsed field by field anyway and written back unchanged, so that the
+;; end_parse below guards it as well, and `participations` moves as an opaque ref: standing requests
+;; keep their own stored max_stake, and no request or participation needs rewriting.
+;;
+;; This is never deployed. It rides inside the upgrade message as `migrate_code`, and the treasury
+;; blesses the cell and enters it at 0x6d67 for the duration of one transaction. See `run_migrator`
+;; in contracts/treasury.fc and the procedure in scripts/upgrade_treasury.md.
+;;
+;; Three rules, all enforced by tests/TreasuryMigration.spec.ts:
+;;   - no COMMIT, or a failed migration becomes permanent instead of reverting
+;;   - no SETCODE, or this could redirect the treasury behind the upgrade message's back
+;;   - everything inlined, so the compiled cell holds exactly method ids 0 and 0x6d67. EXECUTE
+;;     leaves c3 pointing at the treasury, so a non-inlined function here would CALLDICT into the
+;;     treasury's own dictionary.
+;;
+;; It parses the old layout by hand rather than through a helper. By the time this runs, upgrade_code
+;; has already called set_c3, so the treasury's own load_data() and unpack_extension() are the NEW
+;; parsers, which expect the three fields the old cell does not carry.
+;;
+;; The trailing end_parse() calls are the re-run guard. Against storage that already carries the new
+;; layout, the old parse reaches reward_share correctly and then reads the first of the 88 new bits
+;; as old_parents' dict flag, so end_parse throws on the 87 left over. A second run reverts the
+;; upgrade whole.
+
+() migrate() impure method_id(0x6d67) {
+    slice old = get_data().begin_parse();
+    int total_coins = old~load_coins();
+    int total_tokens = old~load_coins();
+    int total_staking = old~load_coins();
+    int total_unstaking = old~load_coins();
+    int total_borrowers_stake = old~load_coins();
+    int total_request_fees = old~load_coins();
+    int deficit = old~load_coins();
+    slice parent = old~load_msg_addr();
+    cell participations = old~load_dict();
+    int rounds_imbalance = old~load_uint(8);
+    int stopped? = old~load_int(1);
+    int instant_mint? = old~load_int(1);
+    cell loan_codes = old~load_ref();
+    cell extension = old~load_ref();
+    old.end_parse();
+
+    slice ext = extension.begin_parse();
+    int previous_rate = ext~load_coins();
+    int current_rate = ext~load_coins();
+    int window_duration = ext~load_uint(32);
+    int last_settled_round = ext~load_uint(32);
+    int mid_rate = ext~load_coins();
+    int mid_round = ext~load_uint(32);
+    slice halter = ext~load_msg_addr();
+    slice governor = ext~load_msg_addr();
+    cell proposed_governor = ext~load_maybe_ref();
+    int governance_fee = ext~load_uint(16);
+    int borrower_fee = ext~load_uint(16);
+    int reward_share = ext~load_uint(16);
+    cell collection_codes = ext~load_ref();
+    cell bill_codes = ext~load_ref();
+    cell old_parents = ext~load_dict();
+    ext.end_parse();
+
+    cell new_extension = begin_cell()
+        .store_coins(previous_rate)
+        .store_coins(current_rate)
+        .store_uint(window_duration, 32)
+        .store_uint(last_settled_round, 32)
+        .store_coins(mid_rate)
+        .store_uint(mid_round, 32)
+        .store_slice(halter)
+        .store_slice(governor)
+        .store_maybe_ref(proposed_governor)
+        .store_uint(governance_fee, 16)
+        .store_uint(borrower_fee, 16)
+        .store_uint(reward_share, 16)
+        .store_uint(0, 24) ;; min_efficiency: off
+        .store_uint(0, 32) ;; min_request_stake: off
+        .store_uint(0, 32) ;; stake_cap_floor: off
+        .store_ref(collection_codes)
+        .store_ref(bill_codes)
+        .store_dict(old_parents)
+        .end_cell();
+
+    begin_cell()
+        .store_coins(total_coins)
+        .store_coins(total_tokens)
+        .store_coins(total_staking)
+        .store_coins(total_unstaking)
+        .store_coins(total_borrowers_stake)
+        .store_coins(total_request_fees)
+        .store_coins(deficit)
+        .store_slice(parent)
+        .store_dict(participations)
+        .store_uint(rounds_imbalance, 8)
+        .store_int(stopped?, 1)
+        .store_int(instant_mint?, 1)
+        .store_ref(loan_codes)
+        .store_ref(new_extension)
+        .end_cell()
+        .set_data();
+}
+
+;; A migrator is never deployed and never receives a message. This exists only because a compiled
+;; contract needs an entry point, and it is the other half of the two-method-id rule above.
+() recv_internal(cell in_msg_full, slice in_msg_body) impure {
+    throw(0xffff);
+}

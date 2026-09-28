@@ -18,7 +18,7 @@ This file starts at **2026-07-16**. Earlier history is in the git log.
 
 ## Unreleased — Auction floors and forced accrual
 
-**Treasury code** `eec65a3f9201482867e1a9031625dbdf1e185f432f902675fb34b3e11ad965a0` (built, not deployed)
+**Treasury code** `795136319be1e8d62893037503a1da2590728d33dfe294dc4920a2ddff1f2bd8` (built, not deployed)
 · Spec [`2026-09-28-auction-floors-and-forced-accrual.md`](docs/specs/2026-09-28-auction-floors-and-forced-accrual.md)
 
 Closes two ways to keep capital from being lent to an elected validator. The `request_loan` message
@@ -33,7 +33,8 @@ does not change; what a bid gets does:
 
 `get_treasury_state` gains three values, appended. `get_participation`'s `accepted` dict, non-empty
 only while a round is being decided, is keyed by 416 bits instead of 256. The extension grows by 88
-bits and reads as every floor off before the first `set_auction_floors`, so there is no migrator.
+bits of required fields, written by a migrator with every floor off; the governor sets them with
+`set_auction_floors` afterwards.
 
 ---
 
