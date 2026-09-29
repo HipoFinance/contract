@@ -301,7 +301,6 @@ export async function run(provider: NetworkProvider) {
         )
         console.info('               %s %s', c.grey('requests:'), participation.requests?.size ?? '')
         console.info('               %s %s', c.grey('rejected:'), participation.rejected?.size ?? '')
-        console.info('                %s %s', c.grey('accrued:'), participation.accrued?.size ?? '')
         console.info('                 %s %s', c.grey('staked:'), participation.staked?.size ?? '')
         console.info('             %s %s', c.grey('recovering:'), participation.recovering?.size ?? '')
         console.info('           %s %s GRAM', c.grey('total_staked:'), formatNano(participation.totalStaked ?? 0n))
@@ -329,13 +328,6 @@ export async function run(provider: NetworkProvider) {
             console.info('    %s', c.bold('Rejected'))
             console.info('    %s', c.grey('--------'))
             showRequests(participation.rejected, testOnly, c)
-            console.info()
-        }
-
-        if (participation.accrued != null && participation.accrued.size > 0) {
-            console.info('    %s', c.bold('Accrued'))
-            console.info('    %s', c.grey('--------'))
-            showRequests(participation.accrued, testOnly, c)
             console.info()
         }
 

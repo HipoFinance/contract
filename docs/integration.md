@@ -252,9 +252,9 @@ To read data related to a specific participation, use get method `get_participat
 
 1. `rejected`: A dictionary of all rejected loans.
 
-1. `accepted`: **Internal to the treasury's loan decision. Do not parse it.** It holds anything only between the messages of one decide chain, and its layout is the decide loop's working state, which changes with the contract (since the auction-floors release it is keyed by room per GRAM and address, not by address). A request that is accepted is also found, with its final terms, in `accrued` and then `staked`; read those instead. To find one borrower's request in whichever stage it is, use `get_loan_request`.
+1. `accepted`: **Internal to the treasury's loan decision. Do not parse it.** It holds anything only between the messages of one decide chain, and its layout is the decide loop's working state, which changes with the contract (since the auction-floors release it is keyed by room per GRAM and address, not by address). A request that is accepted is found, with its final terms, in `staked` once its stake is sent; read that instead. To find one borrower's request in whichever stage it is, use `get_loan_request`.
 
-1. `accrued`: A dictionary of all accepted loans that are given the accrued amount.
+1. `accrued`: **Internal to the treasury's loan decision, like `accepted`. Do not parse it.** It holds the decided loans, with their accrued amounts, only until `process_loan_requests` sends their stakes, a chain of messages that follows the decision within seconds. Read `staked` instead, or `get_loan_request` for one borrower.
 
 1. `staked`: A dictionary of all given loans.
 

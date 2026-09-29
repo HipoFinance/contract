@@ -32,7 +32,9 @@ does not change; what a bid gets does:
   no cap binds, the shares are exactly proportional, as before.
 
 `get_treasury_state` gains three values, appended. `get_participation`'s `accepted` dict, non-empty
-only while a round is being decided, is keyed by 416 bits instead of 256. The extension grows by 88
+only while a round is being decided, is keyed by 416 bits instead of 256. `accepted` and `accrued`
+are internal to the loan decision and not an interface: do not parse them. Read `staked`, or
+`get_loan_request` for one borrower. The extension grows by 88
 bits of required fields, written by the upgrade's migrator with the starting values (efficiency 620,
 loan + collateral 680,000, cap floor 2,500,000), so the floors apply from the first request after it.
 

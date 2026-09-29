@@ -89,7 +89,13 @@ export interface Participation {
      * without breaking any reader. Round-tripped untouched; do not read it.
      */
     accepted?: Cell | null
-    accrued?: Dictionary<bigint, Request>
+    /**
+     * Internal to the loan decision, like `accepted`: the decided loans waiting for
+     * `process_loan_requests` to send their stakes, held only between the messages of that chain. Kept
+     * as the raw dictionary cell and deliberately NOT parsed; do not read it. A decided loan is in
+     * `staked` once its stake is sent, and `getLoanRequest` finds a borrower's request in any stage.
+     */
+    accrued?: Cell | null
     staked?: Dictionary<bigint, Request>
     recovering?: Dictionary<bigint, Request>
     totalStaked?: bigint
@@ -266,7 +272,7 @@ export const participationDictionaryValue: DictionaryValue<Participation> = {
             .storeDict(src.requests)
             .storeDict(src.rejected)
             .storeMaybeRef(src.accepted ?? null)
-            .storeDict(src.accrued)
+            .storeMaybeRef(src.accrued ?? null)
             .storeDict(src.staked)
             .storeDict(src.recovering)
             .storeCoins(src.totalStaked ?? 0)
@@ -283,7 +289,7 @@ export const participationDictionaryValue: DictionaryValue<Participation> = {
             requests: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
             rejected: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
             accepted: src.loadMaybeRef(),
-            accrued: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
+            accrued: src.loadMaybeRef(),
             staked: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
             recovering: src.loadDict(Dictionary.Keys.BigUint(256), requestDictionaryValue),
             totalStaked: src.loadCoins(),
@@ -1260,9 +1266,9 @@ export class Treasury implements Contract {
             sorted: Dictionary.loadDirect(Dictionary.Keys.BigUint(120), sortedDictionaryValue, stack.readCellOpt()),
             requests: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
             rejected: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
-            // internal to the decide loop; returned as the raw cell and never parsed, see Participation
+            // internal to the loan decision; returned as the raw cells and never parsed, see Participation
             accepted: stack.readCellOpt(),
-            accrued: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
+            accrued: stack.readCellOpt(),
             staked: Dictionary.loadDirect(Dictionary.Keys.BigUint(256), requestDictionaryValue, stack.readCellOpt()),
             recovering: Dictionary.loadDirect(
                 Dictionary.Keys.BigUint(256),

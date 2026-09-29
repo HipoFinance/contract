@@ -183,8 +183,10 @@ Rejected alternatives:
   empty. *(Revised 2026-09-28, the governor's decision: `accepted` is the decide loop's internal
   working state, not an interface. Readers stop parsing it rather than learning the new key: the
   contract's wrapper and `showState` keep it as an opaque cell, and `sdk`, `mcp` and `gauge` drop it.
-  That leaves its layout free to change again.)* `borrower` and `sealed-borrower` load it without
-  parsing it.
+  That leaves its layout free to change again.)* *(Revised 2026-09-29, the governor's decision:
+  `accrued`, the decided loans until their stakes are sent, is internal in the same way. Every reader
+  keeps it opaque too, gauge's `total_accrued_*` series go, and `borrower` and `sealed-borrower` hold
+  both as raw cells; `sealed-borrower`, which did read them, reads `staked` and `recovering` only.)*
 - **Gas:** `request_loan` gains two comparisons (the extension is already unpacked there). The accrual
   loop now handles a wider dict key and a ratio per loan. `MaxGas`/`MinGas` decide what the constants
   become, and `request_loan_fee` follows them live.

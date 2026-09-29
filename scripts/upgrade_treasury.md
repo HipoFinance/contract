@@ -1067,14 +1067,19 @@ Wallet, parent, collection, bill, loan and librarian hashes are unchanged; the n
 
 ### Before sending
 
-1. **`accepted` is internal and no reader parses it any more.** It is keyed by 416 bits now (room per
-   GRAM, then address), and a 256-bit parse of it throws. The governor decided it is the decide loop's
-   working state rather than an interface, so every reader stopped parsing it ahead of this release:
-   the contract's wrapper and `showState` keep it as an opaque cell, and `sdk`, `mcp` and `gauge`
-   dropped it. Confirm the released `sdk` and the deployed `gauge` are those builds; `borrower` and
-   `sealed-borrower` only ever loaded the cell without parsing it. (It is stored non-empty only when a
-   decide chain continues mid-accrual, which today's 2-5 requests never do, so an old reader would
-   rarely meet one, but "rarely" is not what an interface should promise.)
+1. **`accepted` and `accrued` are internal, and no reader parses either any more.** `accepted` is
+   keyed by 416 bits now (room per GRAM, then address), and a 256-bit parse of it throws. The governor
+   decided both are the loan decision's working state rather than an interface (`accrued` holds the
+   decided loans only until `process_loan_requests` sends their stakes), so every reader stopped
+   parsing them ahead of this release: the contract's wrapper keeps both as opaque cells, `showState`
+   and `setBorrowerFee` no longer list them, `sdk` and `gauge` keep them opaque (gauge's
+   `total_accepted_*` and `total_accrued_*` series are gone), `mcp` dropped `acceptedLoans`, and
+   `borrower` and `sealed-borrower` load them as raw cells. `sealed-borrower` did read `accepted`
+   (outcome, rivals, missed-bid check) and now reads only `staked` and `recovering`, waiting out a
+   round still `distributing`. Confirm the released `sdk`, the deployed `gauge` and both hosts'
+   `sealed-borrower` are those builds. (`accepted` is stored non-empty only when a decide chain
+   continues mid-accrual, which today's 2-5 requests never do, so an old reader would rarely meet one,
+   but "rarely" is not what an interface should promise.)
 2. **`get_treasury_state` grows from 28 values to 31, appended.** Run the census above. As of this
    writing `poker` guards `len < 26`, `gauge` `fields < 24`, and `club-server` reads longer tuples with
    its newest layout, so none breaks; the contract's wrapper reads the three only when present.

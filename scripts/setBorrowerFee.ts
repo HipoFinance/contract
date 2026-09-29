@@ -125,7 +125,9 @@ function showImpact(
         // A burning round has already settled every loan it held, so its rate is spent.
         if (participation.state === ParticipationState.Burning) continue
 
-        for (const dict of [participation.requests, participation.accrued, participation.staked]) {
+        // accepted and accrued are internal to the loan decision and are not read; a decided loan is in
+        // staked moments later, once its stake is sent.
+        for (const dict of [participation.requests, participation.staked]) {
             if (dict == null) continue
             for (const borrower of dict.keys()) {
                 const request = dict.get(borrower)

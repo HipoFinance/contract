@@ -778,7 +778,9 @@ participation#_
     // Today keyed by room per GRAM of loan (uint160) then the borrower's address (uint256), the order
     // the leftover is water-filled in; non-empty only between the messages of one decide chain.
     accepted:(HashmapE 416 Request)
-    accrued:(HashmapE 256 Request) // no refs overflow since there are always some empty dicts
+    // INTERNAL like accepted, readers must not parse it: the decided loans until process_loan_requests
+    // sends their stakes. No refs overflow since there are always some empty dicts.
+    accrued:(HashmapE 256 Request)
     staked:(HashmapE 256 Request)
     recovering:(HashmapE 256 Request)
     total_staked:Coins
