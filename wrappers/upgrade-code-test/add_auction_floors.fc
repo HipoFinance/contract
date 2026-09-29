@@ -1,12 +1,19 @@
 #include "../../contracts/imports/stdlib.fc";
 
-;; One-off migrator for the auction-floors release: the extension gains three fields after
-;; `reward_share` -- min_efficiency:uint24, min_request_stake:uint32 and stake_cap_floor:uint32, the
-;; last two in whole GRAM. See docs/specs/2026-09-28-auction-floors-and-forced-accrual.md.
+;; One-off migrator for the auction-floors release. It does two things, in one rewrite:
 ;;
-;; They are required fields in this version's layout, not optional ones read when present: the
+;;   1. Builds the loan config, the cell the root now holds in loan_codes' old ref slot: the loan-side
+;;      settings governance_fee, borrower_fee and reward_share (out of the extension), rounds_imbalance
+;;      (out of the root), the three auction floors, and loan_codes as its ref. The extension loses
+;;      those three fields and the root loses rounds_imbalance; nothing else moves.
+;;      See docs/specs/2026-09-29-loan-config-cell.md.
+;;   2. Seeds the auction floors -- min_efficiency:uint24, min_request_stake:uint32 and
+;;      stake_cap_floor:uint32, the last two in whole GRAM. See
+;;      docs/specs/2026-09-28-auction-floors-and-forced-accrual.md.
+;;
+;; The floors are required fields in this version's layout, not optional ones read when present: the
 ;; governor chose a fixed storage structure over a tolerant parse. So every existing treasury needs its
-;; extension rewritten during the upgrade, and this is what rewrites it.
+;; storage rewritten during the upgrade, and this is what rewrites it.
 ;;
 ;; They are seeded with the starting values the governor chose, so the floors are in force the moment
 ;; the upgrade lands, with no second transaction and no window in which the new code runs without them.
@@ -21,9 +28,9 @@
 ;; Afterwards they are the governor's to keep current with set_auction_floors. Standing requests keep
 ;; what they were stored with: the floors apply from the first request_loan after the upgrade.
 ;;
-;; Root is not changed. It is parsed field by field anyway and written back unchanged, so that the
-;; end_parse below guards it as well, and `participations` moves as an opaque ref: standing requests
-;; keep their own stored max_stake, and no request or participation needs rewriting.
+;; `participations`, `loan_codes` and the extension's code dicts move as opaque refs: standing requests
+;; keep their own stored max_stake, no request or participation needs rewriting, and every round's
+;; loan address resolves as before.
 ;;
 ;; This is never deployed. It rides inside the upgrade message as `migrate_code`, and the treasury
 ;; blesses the cell and enters it at 0x6d67 for the duration of one transaction. See `run_migrator`
@@ -38,12 +45,12 @@
 ;;
 ;; It parses the old layout by hand rather than through a helper. By the time this runs, upgrade_code
 ;; has already called set_c3, so the treasury's own load_data() and unpack_extension() are the NEW
-;; parsers, which expect the three fields the old cell does not carry.
+;; parsers, which expect the new layout the old cells do not have.
 ;;
 ;; The trailing end_parse() calls are the re-run guard. Against storage that already carries the new
-;; layout, the old parse reaches reward_share correctly and then reads the first of the 88 new bits
-;; as old_parents' dict flag, so end_parse throws on the 87 left over. A second run reverts the
-;; upgrade whole.
+;; layout, the old root parse reaches the participations flag correctly and then asks for the 8 bits of
+;; rounds_imbalance where only the two flags are left, so it throws. A second run reverts the upgrade
+;; whole.
 
 () migrate() impure method_id(0x6d67) {
     slice old = get_data().begin_parse();
@@ -91,15 +98,20 @@
         .store_slice(halter)
         .store_slice(governor)
         .store_maybe_ref(proposed_governor)
-        .store_uint(governance_fee, 16)
-        .store_uint(borrower_fee, 16)
-        .store_uint(reward_share, 16)
-        .store_uint(620, 24) ;; min_efficiency
-        .store_uint(680000, 32) ;; min_request_stake, whole GRAM
-        .store_uint(2500000, 32) ;; stake_cap_floor, whole GRAM
         .store_ref(collection_codes)
         .store_ref(bill_codes)
         .store_dict(old_parents)
+        .end_cell();
+
+    cell loan_config = begin_cell()
+        .store_uint(governance_fee, 16)
+        .store_uint(borrower_fee, 16)
+        .store_uint(reward_share, 16)
+        .store_uint(rounds_imbalance, 8)
+        .store_uint(620, 24) ;; min_efficiency
+        .store_uint(680000, 32) ;; min_request_stake, whole GRAM
+        .store_uint(2500000, 32) ;; stake_cap_floor, whole GRAM
+        .store_ref(loan_codes)
         .end_cell();
 
     begin_cell()
@@ -112,10 +124,9 @@
         .store_coins(deficit)
         .store_slice(parent)
         .store_dict(participations)
-        .store_uint(rounds_imbalance, 8)
         .store_int(stopped?, 1)
         .store_int(instant_mint?, 1)
-        .store_ref(loan_codes)
+        .store_ref(loan_config)
         .store_ref(new_extension)
         .end_cell()
         .set_data();

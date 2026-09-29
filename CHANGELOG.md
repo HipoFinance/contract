@@ -18,8 +18,9 @@ This file starts at **2026-07-16**. Earlier history is in the git log.
 
 ## Unreleased — Auction floors and forced accrual
 
-**Treasury code** `795136319be1e8d62893037503a1da2590728d33dfe294dc4920a2ddff1f2bd8` (built, not deployed)
-· Spec [`2026-09-28-auction-floors-and-forced-accrual.md`](docs/specs/2026-09-28-auction-floors-and-forced-accrual.md)
+**Treasury code** `36179377e9cbc69dd7259a76ce67a7a2021ea577a850c8719ef940b6b8f0a9cf` (built, not deployed)
+· Specs [`2026-09-28-auction-floors-and-forced-accrual.md`](docs/specs/2026-09-28-auction-floors-and-forced-accrual.md),
+[`2026-09-29-loan-config-cell.md`](docs/specs/2026-09-29-loan-config-cell.md)
 
 Closes two ways to keep capital from being lent to an elected validator. The `request_loan` message
 does not change; what a bid gets does:
@@ -34,9 +35,14 @@ does not change; what a bid gets does:
 `get_treasury_state` gains three values, appended. `get_participation`'s `accepted` dict, non-empty
 only while a round is being decided, is keyed by 416 bits instead of 256. `accepted` and `accrued`
 are internal to the loan decision and not an interface: do not parse them. Read `staked`, or
-`get_loan_request` for one borrower. The extension grows by 88
-bits of required fields, written by the upgrade's migrator with the starting values (efficiency 620,
-loan + collateral 680,000, cap floor 2,500,000), so the floors apply from the first request after it.
+`get_loan_request` for one borrower.
+
+Storage is reorganised by the upgrade's migrator. The loan-side settings (`governance_fee`,
+`borrower_fee`, `reward_share`, `rounds_imbalance`, the three floors) and `loan_codes` move into one
+loan config cell, in the root's ref slot `loan_codes` had. So only lending handlers open them, and
+operations that do not lend burn a little less gas. The floors are required fields, written with the
+starting values (efficiency 620, loan + collateral 680,000, cap floor 2,500,000), so they apply from
+the first request after the upgrade. No getter or message changes.
 
 ---
 

@@ -1046,12 +1046,21 @@ Spec: `docs/specs/2026-09-28-auction-floors-and-forced-accrual.md`. Recorded in 
 gets: bids below the floors bounce, tight caps are raised, and a capped loan's excess now goes to the
 other accepted loans with room instead of staying in the treasury.
 
-The extension grows by 88 bits (`min_efficiency:uint24`, `min_request_stake:uint32`,
-`stake_cap_floor:uint32` after `reward_share`), as **required fields**: the layout of this version is
-fixed and `unpack_extension` reads them unconditionally. So the upgrade carries a **migrator**,
-`wrappers/upgrade-code-test/add_auction_floors.fc`, which rewrites the extension with the starting
-values below, so the floors are in force from the first request after the upgrade, and moves
-everything else through untouched, the participations dict included as an opaque ref. `tests/TreasuryMigration.spec.ts` runs it against the mainnet account captured on
+Storage changes in two ways, both in one rewrite:
+
+- **A loan config cell** (spec `docs/specs/2026-09-29-loan-config-cell.md`) takes the root's ref slot
+  `loan_codes` had. It holds `governance_fee`, `borrower_fee` and `reward_share` (out of the
+  extension), `rounds_imbalance` (out of the root), the three floors, and `loan_codes` as its ref.
+- **The floors** (`min_efficiency:uint24`, `min_request_stake:uint32`, `stake_cap_floor:uint32`) are
+  **required fields**: the layout of this version is fixed and `unpack_loan_config` reads them
+  unconditionally.
+
+So the upgrade carries a **migrator**, `wrappers/upgrade-code-test/add_auction_floors.fc`. It builds
+the loan config with the floors' starting values below, so they are in force from the first request
+after the upgrade. It rewrites the root and the extension without the moved fields, and moves
+everything else through untouched: `participations`, `loan_codes` and the extension's code dicts go as
+opaque refs, so every round's loan address resolves as before. The getter tuple does not change shape
+beyond the three appended floors. `tests/TreasuryMigration.spec.ts` runs it against the mainnet account captured on
 2026-09-28 at masterchain seqno 95592649. It replaces the reward-share migrator, whose release is on
 chain. The dry run's state diff is exactly the three floors, `absent` before and the starting values
 after.
@@ -1059,11 +1068,13 @@ after.
 | build | hash |
 |---|---|
 | deployed (stake-cap release) | `54d84afcf4201d5db915cf4cbc16a74f7d50df1ea71aa7e259e2b0fb9e134e59` |
-| this release | `795136319be1e8d62893037503a1da2590728d33dfe294dc4920a2ddff1f2bd8` |
-| migrator `AddAuctionFloors` | `8fa7a6012c45f6837e79c4d0702c1148b055c148d478c79a7b73bb32b56ec081` |
+| this release | `36179377e9cbc69dd7259a76ce67a7a2021ea577a850c8719ef940b6b8f0a9cf` |
+| migrator `AddAuctionFloors` | `aa2554e6bed374ab9ec8fe9b95220f87e61fbc3bd0e98d8535dec14b2be5eb11` |
 
-Wallet, parent, collection, bill, loan and librarian hashes are unchanged; the new helpers live in
-`treasury.fc` because anything added to `utils.fc` is compiled into every contract that includes it.
+Wallet, parent, collection, bill, loan and librarian hashes are unchanged. The new helpers live in
+`treasury.fc`, not `utils.fc`, because the assembler numbers every function and global declared there
+in order, used or not, and a used one is called by its number. So a declaration added to `utils.fc` can
+renumber another contract's code and move its hash.
 
 ### Before sending
 
@@ -1087,7 +1098,12 @@ Wallet, parent, collection, bill, loan and librarian hashes are unchanged; the n
    `open` or `distributing`. A decide chain split across the two codes would walk an `accepted` dict
    keyed one way with code that expects the other.
 4. `request_loan_fee` moves with `gas::request_loan` (48000 → 50000) and `gas::decide_loan_requests`
-   (22000 → 24000). Both borrower daemons read it live.
+   (22000 → 24000). Both borrower daemons read it live. The other lending handlers each pay one more
+   cell load to open the loan config, and are still covered by their constants. Operations that do
+   not lend got cheaper: `gas::burn_tokens` and `gas::send_unstake_all` cover their ops again, so
+   their `_cost` twins are gone. The frozen values themselves are untouched, and so is the Wallet.
+5. **A future migrator that adds a loan code** writes it into the loan config's `loan_codes` ref,
+   not into the root.
 
 ### Sending
 

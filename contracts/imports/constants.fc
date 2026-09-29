@@ -156,12 +156,15 @@ const int op::remove_library = 0x6bd0ce52;
 
 
 ;; Every gas::* below is what its op costs, and fee functions add them up to decide what a caller must
-;; attach. Four of them cannot be kept current, and carry a `_cost` twin that is:
+;; attach. Four of them cannot be changed, because the Wallet compiles them in; two of those are short
+;; of what their op burns today and carry a `_cost` twin that is:
 ;;
-;;   gas::reserve_tokens, gas::burn_tokens  -- summed by unstake_tokens_fee()
-;;   gas::migrate_wallet                    -- summed by upgrade_wallet_fee()
-;;   gas::send_unstake_all                  -- summed by unstake_all_fee() (103 gas short since the
-;;                                             auction-floors release)
+;;   gas::reserve_tokens  -- summed by unstake_tokens_fee()
+;;   gas::migrate_wallet  -- summed by upgrade_wallet_fee()
+;;
+;; The other two, gas::burn_tokens (unstake_tokens_fee()) and gas::send_unstake_all (unstake_all_fee()),
+;; are frozen too but cover their ops again since the loan config release took four fields out of the
+;; extension every such op parses, so their twins were dropped.
 ;;
 ;; All three of those fee functions are compiled into wallet.fc. Raising a constant they read changes the
 ;; Wallet code cell, and then this repo no longer compiles to the wallet deployed on mainnet, which is
@@ -193,11 +196,9 @@ const int gas::proxy_reserve_tokens = 6538;
 const int gas::reserve_tokens = 15798; ;; frozen, see above
 const int gas::reserve_tokens_cost = 16508;
 const int gas::burn_tokens = 17738; ;; frozen, see above
-const int gas::burn_tokens_cost = 18228;
 const int gas::proxy_tokens_burned = 7307;
 const int gas::tokens_burned = 7179;
 const int gas::send_unstake_all = 14031; ;; frozen, see above
-const int gas::send_unstake_all_cost = 14134;
 const int gas::proxy_unstake_all = 6553;
 const int gas::unstake_all = 7423;
 const int gas::upgrade_wallet = 7618;

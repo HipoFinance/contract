@@ -31,10 +31,9 @@ global int total_request_fees;
 global int deficit;
 global slice parent;
 global cell participations;
-global int rounds_imbalance;
 global int stopped?;
 global int instant_mint?;
-global cell loan_codes;
+global cell loan_config;
 global cell extension;
 
 global int previous_rate;
@@ -50,25 +49,12 @@ global int mid_round;
 global slice halter;
 global slice governor;
 global cell proposed_governor;
-global int governance_fee;
-global int borrower_fee;
-;; The borrower's contractual share of a loan's reward, out of 65535. Set by the protocol and
-;; snapshotted into every request -- borrowers do not bid it. See
-;; docs/specs/2026-09-19-protocol-set-reward-share.md.
-global int reward_share;
-;; The auction floors, all governor-set and 0 for off, packed as they are stored:
-;; min_efficiency:uint24 min_request_stake:uint32 stake_cap_floor:uint32. request_loan refuses a bid
-;; below min_efficiency (request_efficiency units) or with loan + collateral below min_request_stake,
-;; and raises a non-zero max_stake below stake_cap_floor to it. The two stakes are in whole GRAM,
-;; which is what keeps the extension inside one cell. One global rather than three because FunC
-;; addresses at most 31, and this contract was at the limit.
-;; See docs/specs/2026-09-28-auction-floors-and-forced-accrual.md.
-global int auction_floors;
 
 ;; A request's efficiency: the top 24 bits of its request_sort_key, so the floor and the sort can never
 ;; disagree about a bid's rate. The share passed in does not reach those bits. It lives here and not in
-;; utils.fc because every contract that includes utils.fc compiles all of it, and a change there moves
-;; the Wallet code hash away from the bytecode deployed on mainnet.
+;; utils.fc because the assembler numbers every function and global in declaration order, used or not,
+;; and the used ones are called by that number: a declaration added to utils.fc can renumber another
+;; contract's code and move its hash away from the bytecode deployed on mainnet, the Wallet's included.
 int request_efficiency(int min_payment, int loan_amount) inline {
     return request_sort_key(min_payment, 0, loan_amount) >> (16 + 80);
 }
@@ -94,23 +80,82 @@ int accrual_key_borrower(slice key) inline {
     return key.preload_uint(256);
 }
 
-int min_efficiency() inline { return auction_floors >> 64; }
-int min_request_stake() inline { return (auction_floors >> 32) & 0xffffffff; }
-int stake_cap_floor() inline { return auction_floors & 0xffffffff; }
 global cell collection_codes;
 global cell bill_codes;
 global cell old_parents;
 
+;; The loan config: the settings only the loan side of the protocol reads, in a cell of their own so
+;; that nothing else parses them. It sits in the root, in the ref slot loan_codes had, so the root
+;; keeps its shape and an operation that does not lend loads and stores exactly what it did before;
+;; a lending handler pays one cell load to open it. Being a root field, it is written back by
+;; recv_internal's trailing save_data(), so a setter only has to assign it.
+;;
+;;   governance_fee:uint16    out of 65535 of the pool's part of a loan's reward, taken at recovery
+;;   borrower_fee:uint16      out of 65535 of the borrower's part, burnt; snapshotted into each request
+;;   reward_share:uint16      the borrower's contractual share, out of 65535; snapshotted into each
+;;                            request -- borrowers do not bid it. See
+;;                            docs/specs/2026-09-19-protocol-set-reward-share.md.
+;;   rounds_imbalance:uint8   how far one round chain may lend past the other, read by distribute
+;;   auction_floors:uint88    min_efficiency:uint24 min_request_stake:uint32 stake_cap_floor:uint32,
+;;                            all governor-set and 0 for off. request_loan refuses a bid below
+;;                            min_efficiency (request_efficiency units) or with loan + collateral
+;;                            below min_request_stake, and raises a non-zero max_stake below
+;;                            stake_cap_floor to it. The two stakes are in whole GRAM. See
+;;                            docs/specs/2026-09-28-auction-floors-and-forced-accrual.md.
+;;   ^loan_codes              the loan code per round_since, so an old round keeps its address
+;;
+;; 144 bits and one ref, which leaves the cell room to grow. See
+;; docs/specs/2026-09-29-loan-config-cell.md.
+(int, int, int, int, int, cell) unpack_loan_config() inline {
+    slice s = loan_config.begin_parse();
+    int governance_fee = s~load_uint(16);
+    int borrower_fee = s~load_uint(16);
+    int reward_share = s~load_uint(16);
+    int rounds_imbalance = s~load_uint(8);
+    int auction_floors = s~load_uint(24 + 32 + 32);
+    cell loan_codes = s~load_ref();
+    s.end_parse();
+    return (governance_fee, borrower_fee, reward_share, rounds_imbalance, auction_floors, loan_codes);
+}
+
+cell pack_loan_config
+    ( int governance_fee
+    , int borrower_fee
+    , int reward_share
+    , int rounds_imbalance
+    , int auction_floors
+    , cell loan_codes
+    ) inline {
+    return begin_cell()
+        .store_uint(governance_fee, 16)
+        .store_uint(borrower_fee, 16)
+        .store_uint(reward_share, 16)
+        .store_uint(rounds_imbalance, 8)
+        .store_uint(auction_floors, 24 + 32 + 32)
+        .store_ref(loan_codes)
+        .end_cell();
+}
+
+;; For the handlers that need only the codes: the ref, without parsing the bits in front of it.
+cell loan_codes() inline {
+    return loan_config.begin_parse().preload_ref();
+}
+
+int min_efficiency(int auction_floors) inline { return auction_floors >> 64; }
+int min_request_stake(int auction_floors) inline { return (auction_floors >> 32) & 0xffffffff; }
+int stake_cap_floor(int auction_floors) inline { return auction_floors & 0xffffffff; }
+
 ;; The root cell's bit budget, against the 1023-bit cell ceiling. Seven varuint16 counters, a
-;; parent address, the participations maybe-flag and three small fields; the three refs are counted
-;; separately.
+;; parent address, the participations maybe-flag and two flags; the three refs (participations when
+;; not empty, loan_config, extension) are counted separately.
 ;;
-;;   - every counter at a value the coin supply allows (< 2^63 nano, so 8 bytes): 7 x 68 + 278 = 754
-;;   - varuint16's own maximum (>= 2^112):                                       7 x 124 + 278 = 1146
+;;   - every counter at a value the coin supply allows (< 2^63 nano, so 8 bytes): 7 x 68 + 270 = 746
+;;   - varuint16's own maximum (>= 2^112):                                       7 x 124 + 270 = 1138
 ;;
-;; Only the second overflows, and it is unreachable for the same reason the extension's rate budget
-;; is: no counter here can exceed the coin supply, which caps them at about 5.1e18 nano. Adding an
-;; eighth counter costs another 68 bits of the 269 that are left.
+;; Only the second overflows, and it is unreachable: no counter here can exceed the coin supply, which
+;; caps them at about 5.1e18 nano. Adding an eighth counter costs another 68 bits of the 277 that are
+;; left. Loan-side settings do not belong here: every transaction loads and stores this cell, and
+;; they go in loan_config, which only the lending handlers open.
 () save_data() impure inline_ref {
     begin_cell()
         .store_coins(total_coins)
@@ -122,10 +167,9 @@ global cell old_parents;
         .store_coins(deficit)
         .store_slice(parent)
         .store_dict(participations)
-        .store_uint(rounds_imbalance, 8)
         .store_int(stopped?, 1)
         .store_int(instant_mint?, 1)
-        .store_ref(loan_codes)
+        .store_ref(loan_config)
         .store_ref(extension)
         .end_cell()
         .set_data();
@@ -142,10 +186,9 @@ global cell old_parents;
     deficit = ds~load_coins();
     parent = ds~load_msg_addr();
     participations = ds~load_dict();
-    rounds_imbalance = ds~load_uint(8);
     stopped? = ds~load_int(1);
     instant_mint? = ds~load_int(1);
-    loan_codes = ds~load_ref();
+    loan_config = ds~load_ref();
     extension = ds~load_ref();
     ds.end_parse();
 }
@@ -153,21 +196,21 @@ global cell old_parents;
 ;; The three rates stay store_coins. A fixed uint64 was tried and reverted: it is not smaller in any
 ;; state this contract can reach, and it can throw where varuint16 cannot.
 ;;
-;; The bit budget, against the 1023-bit cell ceiling, with 768 bits of non-rate fields here (680
-;; before the 88 bits of auction floors):
-;;   - realistic (rate ~1.16e9, 4 bytes each):            768 + 3 x 36 = 876
-;;   - every coin in existence pooled (rate ~5.9e17):     768 + 3 x 68 = 972
-;;   - varuint16's own maximum (rate >= 2^112):           768 + 3 x 124 = 1140
+;; The bit budget, against the 1023-bit cell ceiling, with 632 bits of non-rate fields here (768
+;; until the four loan-side settings moved to loan_config):
+;;   - realistic (rate ~1.16e9, 4 bytes each):            632 + 3 x 36 = 740
+;;   - every coin in existence pooled (rate ~5.9e17):     632 + 3 x 68 = 836
+;;   - varuint16's own maximum (rate >= 2^112):           632 + 3 x 124 = 1004
+;;
+;; Even the third fits, so no rate can overflow this cell. The bound still holds as well: dead shares
+;; pin total_tokens at ~8.6e9 nano and the coin supply caps total_coins at ~5.1e18 nano, so
+;; muldiv(total_coins, 1e9, total_tokens) cannot exceed ~5.9e17. A fixed uint64 would cost the same
+;; bits at that bound and turn an over-large rate from a cell that widens into a store_uint that throws
+;; exit 5 inside pack_extension, wedging every op that touches the extension.
 ;;
 ;; The cell's four refs are all taken (proposed_governor when set, the two code dicts, old_parents),
-;; so a new field cannot move to a ref of its own: it has to fit in these bits. That is why the
-;; floors' stakes are uint32 whole GRAM rather than coins -- a coins field would be up to 124 bits.
-;; Only the third overflows, and it is unreachable: dead shares pin total_tokens at ~8.6e9 nano and
-;; the coin supply caps total_coins at ~5.1e18 nano, so muldiv(total_coins, 1e9, total_tokens) cannot
-;; exceed ~5.9e17. That bound is the binding one, not the encoding, which is what makes uint64 pure
-;; downside -- it costs the same 868 bits at the same bound and turns an over-large rate from a cell
-;; that widens into a store_uint that throws exit 5 inside pack_extension, wedging every op that
-;; touches the extension.
+;; so a new field here has to fit in the 187 bits the worst case leaves. A loan-side field goes in
+;; loan_config instead.
 () pack_extension() impure inline_ref {
     extension = begin_cell()
         .store_coins(previous_rate)
@@ -179,10 +222,6 @@ global cell old_parents;
         .store_slice(halter)
         .store_slice(governor)
         .store_maybe_ref(proposed_governor)
-        .store_uint(governance_fee, 16)
-        .store_uint(borrower_fee, 16)
-        .store_uint(reward_share, 16)
-        .store_uint(auction_floors, 24 + 32 + 32)
         .store_ref(collection_codes)
         .store_ref(bill_codes)
         .store_dict(old_parents)
@@ -200,10 +239,6 @@ global cell old_parents;
     halter = s~load_msg_addr();
     governor = s~load_msg_addr();
     proposed_governor = s~load_maybe_ref();
-    governance_fee = s~load_uint(16);
-    borrower_fee = s~load_uint(16);
-    reward_share = s~load_uint(16);
-    auction_floors = s~load_uint(24 + 32 + 32);
     collection_codes = s~load_ref();
     bill_codes = s~load_ref();
     old_parents = s~load_dict();
@@ -292,7 +327,7 @@ int holds_bills?(int state) inline {
 
 ;; borrower_reward_share is 16 bits out of 65535, not 8 out of 255: one step of the old scale moved
 ;; a borrower's own take by 1/share, which at the shares actually bid (8/255) was 12.5% and at 1/255
-;; left no move but zero. request_fee is the rate snapshotted from the extension when the request was
+;; left no move but zero. request_fee is the rate snapshotted from loan_config when the request was
 ;; made, so a set_borrower_fee cannot reprice a loan already committed -- there is no quiet window to
 ;; change it in, because with interleaved round chains some participation is always mid-flight.
 ;; max_stake is the borrower's cap on loan + accrue + collateral, 0 for none. It is the last field and
@@ -753,18 +788,18 @@ cell find_code(cell dict, int round_since) inline {
 }
 
 () request_loan(slice src, slice s) impure inline {
-    ;; borrower_fee lives in the extension and is snapshotted into the request below, so this
-    ;; handler has to unpack it -- it reads only root fields otherwise. That cost is in
-    ;; gas::request_loan and therefore in request_loan_fee, which borrowers read before attaching
-    ;; gas rather than hard-coding.
-    unpack_extension();
+    ;; borrower_fee and reward_share are snapshotted into the request below and the auction floors are
+    ;; checked, all from loan_config -- the one cell load this handler adds to the root. It reads
+    ;; nothing from the extension. That cost is in gas::request_loan and therefore in request_loan_fee,
+    ;; which borrowers read before attaching gas rather than hard-coding.
+    ( _, int borrower_fee, int reward_share, _, int auction_floors, _ ) = unpack_loan_config();
 
     int query_id = s~load_uint(64);
     int round_since = s~load_uint(32);
     int loan_amount = s~load_coins();
     int min_payment = s~load_coins();
     ;; The reward share is NOT read from the message any more -- it is the protocol's, snapshotted
-    ;; below from the extension. A bid could set it to 65535 and pay stakers nothing, and the auction
+    ;; below from loan_config. A bid could set it to 65535 and pay stakers nothing, and the auction
     ;; could not rank against it: the pool is paid max(min_payment, reward * treasury_share), two
     ;; quantities the bidder chooses between, and they cannot be ordered against another bid's pair
     ;; without knowing the round's reward. Fixing the share leaves one dimension, which the existing
@@ -866,10 +901,10 @@ cell find_code(cell dict, int round_since) inline {
     ;; elector's limit, which the floor stays under, but it can no longer be set so low that the
     ;; leftover is left unlent. The raised value is what the request stores. All three are 0 for off.
     ;; See docs/specs/2026-09-28-auction-floors-and-forced-accrual.md.
-    throw_if(err::invalid_parameters, request_efficiency(min_payment, loan_amount) < min_efficiency());
-    throw_unless(err::insufficient_funds, loan_amount + stake_amount >= min_request_stake() * one_gram);
+    throw_if(err::invalid_parameters, request_efficiency(min_payment, loan_amount) < min_efficiency(auction_floors));
+    throw_unless(err::insufficient_funds, loan_amount + stake_amount >= min_request_stake(auction_floors) * one_gram);
     if max_stake {
-        max_stake = max(max_stake, stake_cap_floor() * one_gram);
+        max_stake = max(max_stake, stake_cap_floor(auction_floors) * one_gram);
     }
     ;; A cap below what the borrower already stakes without any accrual could never be honoured.
     throw_if(err::invalid_parameters, max_stake & (max_stake < loan_amount + stake_amount));
@@ -977,6 +1012,7 @@ cell find_code(cell dict, int round_since) inline {
     if f? {
         ( _, _, _, _, _, _, _, _, _, last_total_staked, _, _, _, _ ) = unpack_participation(ps);
     }
+    ( _, _, _, int rounds_imbalance, _, _ ) = unpack_loan_config();
     int available_max = muldiv(available_now + last_total_staked, rounds_imbalance + 1 + 256, 512);
     int available = min(available_now, available_max);
     int amount = max(size * total_fee, available);
@@ -1341,7 +1377,7 @@ cell find_code(cell dict, int round_since) inline {
 
     ( int total_fee, int proxy_new_stake_fee, _ ) = request_loan_fee();
 
-    cell loan_code = loan_codes.find_code(round_since);
+    cell loan_code = loan_codes().find_code(round_since);
 
     int incoming_ton = get_incoming_value().pair_first();
 
@@ -1554,7 +1590,7 @@ cell find_code(cell dict, int round_since) inline {
 
     throw_unless(err::access_denied, equal_slice_bits(src, my_address()));
 
-    cell loan_code = loan_codes.find_code(round_since);
+    cell loan_code = loan_codes().find_code(round_since);
 
     int incoming_ton = get_incoming_value().pair_first();
 
@@ -1626,6 +1662,8 @@ cell find_code(cell dict, int round_since) inline {
     int round_since = s~load_uint(32);
     s.end_parse();
 
+    ;; governance_fee is taken below, out of the pool's part of the reward
+    ( int governance_fee, _, _, _, _, cell loan_codes ) = unpack_loan_config();
     cell loan_code = loan_codes.find_code(round_since);
 
     ( _, _, int loan_addr ) = create_loan_address(my_address(), borrower.to_builder(), round_since, loan_code);
@@ -1989,6 +2027,8 @@ cell find_code(cell dict, int round_since) inline {
 ;; Zero disables the mechanism completely, floor included.
 () set_borrower_fee(slice src, slice s) impure inline {
     unpack_extension();
+    ( int governance_fee, int borrower_fee, int reward_share, int rounds_imbalance, int auction_floors, cell loan_codes )
+        = unpack_loan_config();
 
     int query_id = s~load_uint(64);
     borrower_fee = s~load_uint(16);
@@ -2001,7 +2041,9 @@ cell find_code(cell dict, int round_since) inline {
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
-    pack_extension();
+    loan_config = pack_loan_config(
+        governance_fee, borrower_fee, reward_share, rounds_imbalance, auction_floors, loan_codes
+    );
 }
 
 ;; The reward share every loan is written with. Borrowers do not bid it -- see request_loan -- so this
@@ -2015,6 +2057,8 @@ cell find_code(cell dict, int round_since) inline {
 ;; to cover a validator's costs is a pool that goes unlent.
 () set_reward_share(slice src, slice s) impure inline {
     unpack_extension();
+    ( int governance_fee, int borrower_fee, int reward_share, int rounds_imbalance, int auction_floors, cell loan_codes )
+        = unpack_loan_config();
 
     int query_id = s~load_uint(64);
     reward_share = s~load_uint(16);
@@ -2028,11 +2072,15 @@ cell find_code(cell dict, int round_since) inline {
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
-    pack_extension();
+    loan_config = pack_loan_config(
+        governance_fee, borrower_fee, reward_share, rounds_imbalance, auction_floors, loan_codes
+    );
 }
 
 () set_auction_floors(slice src, slice s) impure inline {
     unpack_extension();
+    ( int governance_fee, int borrower_fee, int reward_share, int rounds_imbalance, int auction_floors, cell loan_codes )
+        = unpack_loan_config();
 
     int query_id = s~load_uint(64);
     int new_min_efficiency = s~load_uint(24);
@@ -2052,11 +2100,15 @@ cell find_code(cell dict, int round_since) inline {
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
-    pack_extension();
+    loan_config = pack_loan_config(
+        governance_fee, borrower_fee, reward_share, rounds_imbalance, auction_floors, loan_codes
+    );
 }
 
 () set_governance_fee(slice src, slice s) impure inline {
     unpack_extension();
+    ( int governance_fee, int borrower_fee, int reward_share, int rounds_imbalance, int auction_floors, cell loan_codes )
+        = unpack_loan_config();
 
     int query_id = s~load_uint(64);
     governance_fee = s~load_uint(16);
@@ -2069,7 +2121,9 @@ cell find_code(cell dict, int round_since) inline {
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
-    pack_extension();
+    loan_config = pack_loan_config(
+        governance_fee, borrower_fee, reward_share, rounds_imbalance, auction_floors, loan_codes
+    );
 }
 
 ;; Sets the deficit counter to an absolute value. This is how the governor clears it: recover_stake_result
@@ -2097,6 +2151,8 @@ cell find_code(cell dict, int round_since) inline {
 
 () set_rounds_imbalance(slice src, slice s) impure inline {
     unpack_extension();
+    ( int governance_fee, int borrower_fee, int reward_share, int rounds_imbalance, int auction_floors, cell loan_codes )
+        = unpack_loan_config();
 
     int query_id = s~load_uint(64);
     rounds_imbalance = s~load_uint(8);
@@ -2109,7 +2165,9 @@ cell find_code(cell dict, int round_since) inline {
         .store_uint(query_id, 64);
     send_msg(false, src.to_builder(), null(), excess, 0, send::remaining_value + send::ignore_errors);
 
-    pack_extension();
+    loan_config = pack_loan_config(
+        governance_fee, borrower_fee, reward_share, rounds_imbalance, auction_floors, loan_codes
+    );
 }
 
 () send_message_to_loan(slice src, slice s) impure inline {
@@ -2121,7 +2179,7 @@ cell find_code(cell dict, int round_since) inline {
     cell message = s~load_ref();
     s.end_parse();
 
-    cell loan_code = loan_codes.find_code(round_since);
+    cell loan_code = loan_codes().find_code(round_since);
 
     ( builder loan, _, _ ) = create_loan_address(my_address(), borrower.to_builder(), round_since, loan_code);
     int vset_hash = -1;
@@ -2882,6 +2940,8 @@ int calculate_min_coins() inline_ref {
 var get_treasury_state() method_id {
     load_data();
     unpack_extension();
+    ( int governance_fee, int borrower_fee, int reward_share, int rounds_imbalance, int auction_floors, cell loan_codes )
+        = unpack_loan_config();
 
     ;; Two rules govern this tuple, and only the first is about ordering:
     ;;
@@ -2936,9 +2996,9 @@ var get_treasury_state() method_id {
         , mid_round
         , reward_share
         , total_request_fees
-        , min_efficiency()
-        , min_request_stake()
-        , stake_cap_floor()
+        , min_efficiency(auction_floors)
+        , min_request_stake(auction_floors)
+        , stake_cap_floor(auction_floors)
         );
 }
 
@@ -3058,7 +3118,7 @@ slice get_loan_address(slice borrower, int round_since) method_id {
 
     throw_unless(err::only_basechain_allowed, borrower_wc == chain::base);
 
-    cell loan_code = loan_codes.find_code(round_since);
+    cell loan_code = loan_codes().find_code(round_since);
 
     ( builder loan, _, _ ) = create_loan_address(my_address(), borrower.to_builder(), round_since, loan_code);
 

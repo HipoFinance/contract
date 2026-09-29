@@ -753,7 +753,7 @@ proposed_governor#_
     new_governor:MsgAddress
         = ProposedGovernor;
 
-// borrower_fee and borrower_reward_share are both snapshotted from the extension when the request is
+// borrower_fee and borrower_reward_share are both snapshotted from the loan config when the request is
 // made, so a later set_borrower_fee or set_reward_share cannot reprice a loan already committed.
 // max_stake is absent on requests packed before the stake-cap release, which read as uncapped (0).
 // It is stored as raised to stake_cap_floor, not necessarily as sent.
@@ -800,18 +800,23 @@ extension#_
     halter:MsgAddress
     governor:MsgAddress
     proposed_governor:(Maybe ^ProposedGovernor)
+    collection_codes:^(Hashmap 32 ^Cell)
+    bill_codes:^(Hashmap 32 ^Cell)
+    old_parents:(HashmapE 256 True)
+        = Extension;
+
+// The settings only the loan side reads, in a cell of their own so nothing else parses them.
+loan_config#_
     governance_fee:uint16
     borrower_fee:uint16
     reward_share:uint16
-    // the auction floors, absent on an extension packed before them (read as all 0); the two stakes
-    // are whole GRAM
+    rounds_imbalance:uint8
+    // the auction floors, all 0 for off; the two stakes are whole GRAM
     min_efficiency:uint24
     min_request_stake:uint32
     stake_cap_floor:uint32
-    collection_codes:(Hashmap 32 ^Cell)
-    bill_codes:(Hashmap 32 ^Cell)
-    old_parents:(HashmapE 256 True)
-        = Extension;
+    loan_codes:^(Hashmap 32 ^Cell)
+        = LoanConfig;
 
 treasury_storage#_
     total_coins:Coins
@@ -819,13 +824,13 @@ treasury_storage#_
     total_staking:Coins
     total_unstaking:Coins
     total_borrowers_stake:Coins
+    total_request_fees:Coins
     deficit:Coins
     parent:MsgAddress
     participations:(HashmapE 32 Participation)
-    rounds_imbalance:uint8
     stopped:Bool
     instant_mint:Bool
-    loan_codes:(Hashmap 32 ^Cell)
+    loan_config:^LoanConfig
     extension:^Extension
         = TreasuryStorage;
 

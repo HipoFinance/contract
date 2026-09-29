@@ -103,7 +103,7 @@ borrower's own stake first — stakers are only exposed after the borrower's sta
 exhausted.
 
 **The reward share is the protocol's, not the bid's.** `request_loan` does not read it from the
-message; it snapshots `reward_share` from the extension, which the governor sets with
+message; it snapshots `reward_share` from the loan config, which the governor sets with
 `set_reward_share`. The pool therefore receives at least
 `reward × (65535 − reward_share) / 65535` from every loan, whatever anybody bids, and the bid is
 one number: `min_payment`.
@@ -185,7 +185,7 @@ Three properties are worth knowing before changing anything near it:
   collateral. `fee::min_burn` (1 GRAM) is the floor that keeps a zero-share bid paying
   something.
 - **The rate is snapshotted into each request.** `borrower_fee` is read at recovery, but from
-  the request, not the extension — so `set_borrower_fee` cannot reprice a committed loan. There
+  the request, not the loan config — so `set_borrower_fee` cannot reprice a committed loan. There
   is no window in which no participation is mid-flight, so this had to be structural rather
   than a matter of timing the governance call.
 
@@ -366,10 +366,23 @@ released must be either absent from `participations` or already past `recovering
 reaches `burning` once its own reward is settled, so a re-minted bill cannot capture an older
 round's reward and this rule does not apply to it.
 
-The treasury's persistent state is split into frequently-loaded fields (`save_data` /
-`load_data`) and a rarely-needed `extension` cell (`pack_extension` / `unpack_extension`) to
-keep gas low on hot paths. **Any upgrade must keep the stored data layout compatible or
-migrate it explicitly.**
+The treasury's persistent state is split three ways to keep gas low on hot paths:
+
+- **The root** (`save_data` / `load_data`): the accounting counters, `parent`, `participations` and the
+  two flags. Every transaction loads and stores it.
+- **The loan config** (`unpack_loan_config` / `pack_loan_config`), a ref in the root: the settings
+  only the loan side reads — `governance_fee`, `borrower_fee`, `reward_share`, `rounds_imbalance`, the
+  three auction floors — and `loan_codes`. Only the lending handlers open it (`request_loan`, the
+  decide chain, `process_loan_requests`, stake recovery, `send_message_to_loan`), for one cell load
+  each. Being a root field, it is written back by `recv_internal`'s trailing `save_data()`, so a setter
+  cannot forget to persist it. A new loan-side field belongs here; the cell has about 880 bits and
+  three refs free.
+- **The extension** (`pack_extension` / `unpack_extension`): the rate window, the two roles, and the
+  collection and bill code dicts. Its refs are all taken, and its bits fit even at varuint16's maximum
+  rate.
+
+See `docs/specs/2026-09-29-loan-config-cell.md`. **Any upgrade must keep the stored data layout
+compatible or migrate it explicitly.**
 
 ### The rate window
 

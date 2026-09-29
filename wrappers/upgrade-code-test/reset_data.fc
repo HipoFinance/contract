@@ -13,10 +13,9 @@ global int total_request_fees;
 global int deficit;
 global slice parent;
 global cell participations;
-global int rounds_imbalance;
 global int stopped?;
 global int instant_mint?;
-global cell loan_codes;
+global cell loan_config;
 global cell extension;
 
 global int previous_rate;
@@ -28,10 +27,6 @@ global int last_settled_round;
 global slice halter;
 global slice governor;
 global cell proposed_governor;
-global int governance_fee;
-global int borrower_fee;
-global int reward_share;
-global int auction_floors;
 global cell collection_codes;
 global cell bill_codes;
 global cell old_parents;
@@ -47,10 +42,9 @@ global cell old_parents;
     deficit = ds~load_coins();
     parent = ds~load_msg_addr();
     participations = ds~load_dict();
-    rounds_imbalance = ds~load_uint(8);
     stopped? = ds~load_int(1);
     instant_mint? = ds~load_int(1);
-    loan_codes = ds~load_ref();
+    loan_config = ds~load_ref();
     extension = ds~load_ref();
     ds.end_parse();
 }
@@ -66,12 +60,8 @@ global cell old_parents;
     halter = s~load_msg_addr();
     governor = s~load_msg_addr();
     proposed_governor = s~load_maybe_ref();
-    governance_fee = s~load_uint(16);
     ;; Tracks the extension layout for the same reason load_data tracks the root one: the parse below
     ;; ends with end_parse(), so a field added to contracts/treasury.fc makes this fixture throw.
-    borrower_fee = s~load_uint(16);
-    reward_share = s~load_uint(16);
-    auction_floors = s~load_uint(24 + 32 + 32);
     collection_codes = s~load_ref();
     bill_codes = s~load_ref();
     old_parents = s~load_dict();

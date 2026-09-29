@@ -527,6 +527,76 @@ describe('Governance', () => {
         accumulateFees(result.transactions)
     })
 
+    // The five loan-side settings share one cell, the loan config, and each setter rebuilds it. So each
+    // must change exactly its own field, leave the other four, loan_codes and the extension alone, and
+    // still hold after later transactions. See docs/specs/2026-09-29-loan-config-cell.md.
+    it('should change only its own loan setting, and keep it', async () => {
+        const read = async () => {
+            const state = await treasury.getTreasuryState()
+            return {
+                settings: {
+                    governanceFee: state.governanceFee,
+                    borrowerFee: state.borrowerFee,
+                    rewardShare: state.rewardShare,
+                    roundsImbalance: state.roundsImbalance,
+                    floors: [state.minEfficiency, state.minRequestStake, state.stakeCapFloor],
+                },
+                loanCodes: beginCell().storeDictDirect(state.loanCodes).endCell().hash().toString('hex'),
+                extension: [state.governor.toString(), state.halter.toString(), state.currentRate, state.midRound],
+            }
+        }
+        const start = await read()
+        const expected = { ...start.settings }
+        const steps: [string, () => Promise<unknown>, () => void][] = [
+            [
+                'governance_fee',
+                () => treasury.sendSetGovernanceFee(governor.getSender(), { value: '0.1', newGovernanceFee: 1234n }),
+                () => (expected.governanceFee = 1234n),
+            ],
+            [
+                'borrower_fee',
+                () => treasury.sendSetBorrowerFee(governor.getSender(), { value: '0.1', newBorrowerFee: 32767n }),
+                () => (expected.borrowerFee = 32767n),
+            ],
+            [
+                'reward_share',
+                () => treasury.sendSetRewardShare(governor.getSender(), { value: '0.1', newRewardShare: 2000n }),
+                () => (expected.rewardShare = 2000n),
+            ],
+            [
+                'rounds_imbalance',
+                () => treasury.sendSetRoundsImbalance(halter.getSender(), { value: '0.1', newRoundsImbalance: 7n }),
+                () => (expected.roundsImbalance = 7n),
+            ],
+            [
+                'auction_floors',
+                () =>
+                    treasury.sendSetAuctionFloors(governor.getSender(), {
+                        value: '0.1',
+                        minEfficiency: 16777215n,
+                        minRequestStake: 1n,
+                        stakeCapFloor: 4294967295n,
+                    }),
+                () => (expected.floors = [16777215n, 1n, 4294967295n]),
+            ],
+        ]
+        for (const [name, send, apply] of steps) {
+            await send()
+            apply()
+            const now = await read()
+            expect({ name, ...now.settings }).toEqual({ name, ...expected })
+            expect(now.loanCodes).toEqual(start.loanCodes)
+            expect(now.extension).toEqual(start.extension)
+        }
+
+        // Later transactions that do not touch the loan config carry it through untouched.
+        await treasury.sendSetDeficit(governor.getSender(), { value: '0.1', newDeficit: 5n })
+        await treasury.sendSetInstantMint(governor.getSender(), { value: '0.1', newInstantMint: true })
+        const end = await read()
+        expect(end.settings).toEqual(expected)
+        expect(end.loanCodes).toEqual(start.loanCodes)
+    })
+
     it('should send message to loan', async () => {
         const borrower = await blockchain.treasury('borrower')
         const loanAddress = await treasury.getLoanAddress(borrower.address, 0n)

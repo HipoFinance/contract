@@ -45,9 +45,9 @@ describe('Treasury Migration', () => {
         mainnetData = Cell.fromBoc(readFileSync(__dirname + '/fixtures/treasury-mainnet-state.boc'))[0]
     })
 
-    // The root layout, read by hand on both sides of the upgrade. This release does not change it,
-    // and reading it byte for byte on both sides is what proves that.
-    function parseRoot(data: Cell) {
+    // The deployed layout, read by hand: the root with rounds_imbalance and loan_codes in it, and the
+    // extension with the three loan-side settings and no floors.
+    function parseOldRoot(data: Cell) {
         const s = data.beginParse()
         const parsed = {
             totalCoins: s.loadCoins(),
@@ -69,10 +69,7 @@ describe('Treasury Migration', () => {
         return parsed
     }
 
-    // The extension, read by hand up to reward_share, where the deployed layout ends its bits. With
-    // `withFloors`, the three fields this release appends are read and the parse must then end
-    // exactly at the refs, which pins where they sit and not just their values.
-    function parseExtension(data: Cell, withFloors = false) {
+    function parseOldExtension(data: Cell) {
         const ext = data.refs[data.refs.length - 1].beginParse()
         const parsed = {
             previousRate: ext.loadCoins(),
@@ -87,12 +84,70 @@ describe('Treasury Migration', () => {
             governanceFee: ext.loadUint(16),
             borrowerFee: ext.loadUint(16),
             rewardShare: ext.loadUint(16),
-            floors: withFloors ? [ext.loadUint(24), ext.loadUint(32), ext.loadUint(32)] : undefined,
             collectionCodes: ext.loadRef(),
             billCodes: ext.loadRef(),
             oldParents: ext.loadMaybeRef(),
         }
         ext.endParse()
+        return parsed
+    }
+
+    // The released layout, read by hand so that each field's position is pinned and not just its value:
+    // the root keeps its shape with the loan config in loan_codes' old ref slot, the extension loses the
+    // three loan-side settings, and the loan config holds them with rounds_imbalance, the floors and
+    // loan_codes. Every parse must end exactly where the layout does.
+    function parseNewRoot(data: Cell) {
+        const s = data.beginParse()
+        const parsed = {
+            totalCoins: s.loadCoins(),
+            totalTokens: s.loadCoins(),
+            totalStaking: s.loadCoins(),
+            totalUnstaking: s.loadCoins(),
+            totalBorrowersStake: s.loadCoins(),
+            totalRequestFees: s.loadCoins(),
+            deficit: s.loadCoins(),
+            parent: s.loadAddress(),
+            participations: s.loadMaybeRef(),
+            stopped: s.loadBit(),
+            instantMint: s.loadBit(),
+            loanConfig: s.loadRef(),
+            extension: s.loadRef(),
+        }
+        s.endParse()
+        return parsed
+    }
+
+    function parseNewExtension(data: Cell) {
+        const ext = data.refs[data.refs.length - 1].beginParse()
+        const parsed = {
+            previousRate: ext.loadCoins(),
+            currentRate: ext.loadCoins(),
+            windowDuration: ext.loadUint(32),
+            lastSettledRound: ext.loadUint(32),
+            midRate: ext.loadCoins(),
+            midRound: ext.loadUint(32),
+            halter: ext.loadAddress(),
+            governor: ext.loadAddress(),
+            proposedGovernor: ext.loadMaybeRef(),
+            collectionCodes: ext.loadRef(),
+            billCodes: ext.loadRef(),
+            oldParents: ext.loadMaybeRef(),
+        }
+        ext.endParse()
+        return parsed
+    }
+
+    function parseLoanConfig(cell: Cell) {
+        const s = cell.beginParse()
+        const parsed = {
+            governanceFee: s.loadUint(16),
+            borrowerFee: s.loadUint(16),
+            rewardShare: s.loadUint(16),
+            roundsImbalance: s.loadUint(8),
+            floors: [s.loadUint(24), s.loadUint(32), s.loadUint(32)],
+            loanCodes: s.loadRef(),
+        }
+        s.endParse()
         return parsed
     }
 
@@ -129,7 +184,7 @@ describe('Treasury Migration', () => {
         // hardcoding it; the upgrade is access-checked against exactly this address. Read it straight
         // out of the cell rather than through get_treasury_state: this is a pre-upgrade account, and
         // the wrapper tracks the getter shape of the code being released, not of the code deployed.
-        const governor = parseExtension(mainnetData).governor
+        const governor = parseOldExtension(mainnetData).governor
         return { blockchain, treasury, governor }
     }
 
@@ -246,8 +301,8 @@ describe('Treasury Migration', () => {
     // ---------------------------------------------------------------------------------------------
 
     it('should migrate to the released layout and land on the plain released code hash', async () => {
-        const before = parseRoot(mainnetData)
-        const stateBefore = parseExtension(mainnetData)
+        const before = parseOldRoot(mainnetData)
+        const stateBefore = parseOldExtension(mainnetData)
         const { blockchain, treasury, governor } = await stand()
 
         const result = await upgradeToReleased(blockchain, treasury, governor)
@@ -299,11 +354,28 @@ describe('Treasury Migration', () => {
         // Read from the cells too, so the fields' position is pinned and not just their value, and so
         // that everything the migrator moves as an opaque ref is proven untouched byte for byte.
         const dataAfter = await readStorage(blockchain, treasuryAddress)
-        const rootAfter = parseRoot(dataAfter)
-        const extAfter = parseExtension(dataAfter, true)
-        expect(extAfter.floors).toEqual([620, 680000, 2500000])
+        const rootAfter = parseNewRoot(dataAfter)
+        const extAfter = parseNewExtension(dataAfter)
+        const loanConfig = parseLoanConfig(rootAfter.loanConfig)
+        expect(loanConfig).toMatchObject({
+            governanceFee: stateBefore.governanceFee,
+            borrowerFee: stateBefore.borrowerFee,
+            rewardShare: stateBefore.rewardShare,
+            roundsImbalance: before.roundsImbalance,
+            floors: [620, 680000, 2500000],
+        })
+        expect(loanConfig.loanCodes.hash().toString('hex')).toEqual(before.loanCodes.hash().toString('hex'))
         expect(rootAfter.participations?.hash().toString('hex')).toEqual(before.participations?.hash().toString('hex'))
-        expect(rootAfter.loanCodes.hash().toString('hex')).toEqual(before.loanCodes.hash().toString('hex'))
+        expect([rootAfter.totalCoins, rootAfter.totalRequestFees, rootAfter.deficit]).toEqual([
+            before.totalCoins,
+            before.totalRequestFees,
+            before.deficit,
+        ])
+        expect([extAfter.previousRate, extAfter.midRound, extAfter.governor.toString()]).toEqual([
+            stateBefore.previousRate,
+            stateBefore.midRound,
+            stateBefore.governor.toString(),
+        ])
         expect(extAfter.collectionCodes.hash().toString('hex')).toEqual(
             stateBefore.collectionCodes.hash().toString('hex'),
         )
@@ -366,8 +438,8 @@ describe('Treasury Migration', () => {
 
         // Storage still has to parse as the OLD layout, which it would not if the migrator had run.
         expect((await readStorage(blockchain, treasuryAddress)).equals(mainnetData)).toBe(true)
-        expect(parseExtension(await readStorage(blockchain, treasuryAddress)).rewardShare).toEqual(
-            parseExtension(mainnetData).rewardShare,
+        expect(parseOldExtension(await readStorage(blockchain, treasuryAddress)).rewardShare).toEqual(
+            parseOldExtension(mainnetData).rewardShare,
         )
     })
 

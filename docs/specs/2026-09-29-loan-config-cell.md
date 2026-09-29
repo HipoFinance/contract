@@ -1,6 +1,6 @@
 # Loan settings in a cell of their own
 
-Status: draft, 2026-09-29. Folds into the auction-floors release
+Status: approved and implemented 2026-09-29, not deployed. Folds into the auction-floors release
 ([2026-09-28-auction-floors-and-forced-accrual.md](2026-09-28-auction-floors-and-forced-accrual.md)),
 which is not deployed yet: one upgrade, one migrator.
 
@@ -12,7 +12,7 @@ The treasury's storage is at three edges at once:
 |---|---|---|
 | extension bits | 876 realistic, 972 at the coin-supply bound, 1140 at varuint16's own maximum | 1023 |
 | extension refs | 4 (`proposed_governor`, `collection_codes`, `bill_codes`, `old_parents`) | 4 |
-| FunC globals | 31 | 31 |
+| FunC globals | 30, where the auction floors could not be three more | about 31 |
 
 The auction floors already had to bend to fit: whole-GRAM `uint32` stakes instead of coins, and one
 packed global instead of three. The next loan-side field has nowhere to go.
@@ -67,7 +67,7 @@ loan_config#_
 at the coin-supply bound, and 1004 even at varuint16's own maximum, under 1023. The unreachable-bound
 argument above `pack_extension` stops carrying the weight.
 
-**Globals: 31 → 26.** Six go (`governance_fee`, `borrower_fee`, `reward_share`, `auction_floors`,
+**Globals: 30 → 25.** Six go (`governance_fee`, `borrower_fee`, `reward_share`, `auction_floors`,
 `rounds_imbalance`, `loan_codes`), one comes (`loan_config`).
 
 ## Changes
@@ -155,3 +155,16 @@ argument above `pack_extension` stops carrying the weight.
 - `collection_codes`, `bill_codes` and every other extension or root field.
 - Any getter or message change.
 - Wallet, parent, collection, bill and loan contracts.
+
+## Implementation notes (2026-09-29)
+
+- Treasury build `36179377e9cbc69dd7259a76ce67a7a2021ea577a850c8719ef940b6b8f0a9cf`, migrator
+  `aa2554e6bed374ab9ec8fe9b95220f87e61fbc3bd0e98d8535dec14b2be5eb11`. Wallet, parent, loan, bill,
+  collection and librarian hashes are unchanged.
+- `request_loan` no longer unpacks the extension at all: it read nothing else from it. The handlers
+  that need only the codes read the ref with `loan_codes()`, without parsing the bits.
+- Gas moved as predicted. The measured cost of the user operations fell enough that `gas::burn_tokens`
+  and `gas::send_unstake_all` cover their ops again, so their `_cost` twins were dropped. The frozen
+  values themselves are unchanged. The lending constants still cover their ops and were left as they
+  were.
+- The spec's first draft counted 31 globals; there were 30.
