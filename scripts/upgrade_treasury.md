@@ -1094,9 +1094,20 @@ renumber another contract's code and move its hash.
 2. **`get_treasury_state` grows from 28 values to 31, appended.** Run the census above. As of this
    writing `poker` guards `len < 26`, `gauge` `fields < 24`, and `club-server` reads longer tuples with
    its newest layout, so none breaks; the contract's wrapper reads the three only when present.
-3. **Send it in the gap after a round is decided**: `showState.ts` must show no participation in
-   `open` or `distributing`. A decide chain split across the two codes would walk an `accepted` dict
-   keyed one way with code that expects the other.
+3. **Send it while no participation is `distributing`.** That state lasts only the seconds of a decide
+   chain after `participate_since`; a chain split across the two codes would walk an `accepted` dict
+   keyed one way with code that expects the other. Unlike earlier releases, an `open` round is fine
+   and needs no gap:
+   - A standing request keeps everything it was stored with. The floors are checked only in
+     `request_loan`, so a request already in the book is never refused, and its `max_stake` is not
+     raised.
+   - The new code only changes where the leftover goes. What a capped loan cannot take goes to
+     accepted loans with room, at each loan's own rate. That changes how much a loan gets, never the
+     price it bid, and standing requests with room get more capital, not less.
+   - A request sent after the upgrade meets the floors.
+
+   Avoid the minutes around a round's recovery too. A recovery chain straddling the upgrade is safe,
+   because participations do not change layout, but there is no reason to test that.
 4. `request_loan_fee` moves with `gas::request_loan` (48000 → 50000) and `gas::decide_loan_requests`
    (22000 → 24000). Both borrower daemons read it live. The other lending handlers each pay one more
    cell load to open the loan config, and are still covered by their constants. Operations that do

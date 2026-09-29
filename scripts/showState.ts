@@ -143,22 +143,20 @@ export async function run(provider: NetworkProvider) {
         Number(treasuryState.governanceFee),
         governanceFeePercent,
     )
-    // Of each borrower's contractual share of a round's reward, charged on top of the pool's take.
-    // Zero disables it, floor included, so it is worth reading as on/off before reading as a rate.
-    console.info(
-        '             %s %s (%s of borrower reward)%s',
-        c.grey('borrower_fee:'),
-        treasuryState.borrowerFee === 0n
-            ? Number(treasuryState.borrowerFee)
-            : c.yellow(String(treasuryState.borrowerFee)),
-        borrowerFeePercent,
-        treasuryState.borrowerFee === 0n ? c.grey('  disabled') : '',
-    )
+    console.info()
+
+    // The auction: everything a borrower needs to price a bid, and the floors a bid must clear. All
+    // of it is the protocol's; borrowers bid only min_payment, loan and max_stake.
+    const fees = await treasury.getTreasuryFees(0n)
+    // -1 when the treasury predates the floors, which no eff is below.
+    const minEfficiency = treasuryState.minEfficiency ?? -1n
+    console.info('    %s', c.bold('Auction'))
+    console.info('    %s', c.grey('-------'))
     // The borrower's contractual share of every loan's reward, and therefore the pool's floor.
     // Borrowers cannot bid it, so this is the number they have to read to price a bid at all --
     // setRewardShare.ts tells the operator to verify it here after changing it.
     console.info(
-        '            %s %s %s',
+        '             %s %s %s',
         c.grey('reward_share:'),
         treasuryState.rewardShare < 0n
             ? c.grey('absent (treasury predates the field)')
@@ -173,17 +171,44 @@ export async function run(provider: NetworkProvider) {
                       ')',
               ),
     )
-    // The auction floors (set_auction_floors); the two stakes are stored in whole GRAM.
+    // Of each borrower's contractual share of a round's reward, charged on top of the pool's take.
+    // Zero disables it, floor included, so it is worth reading as on/off before reading as a rate.
+    console.info(
+        '             %s %s (%s of borrower reward)%s',
+        c.grey('borrower_fee:'),
+        treasuryState.borrowerFee === 0n
+            ? Number(treasuryState.borrowerFee)
+            : c.yellow(String(treasuryState.borrowerFee)),
+        borrowerFeePercent,
+        treasuryState.borrowerFee === 0n ? c.grey('  disabled') : '',
+    )
+    // The auction floors (set_auction_floors); the two stakes are stored in whole GRAM. Each row of
+    // the requests below shows its eff, the number min_efficiency is compared with.
     const floor = (v: bigint | undefined, text: string) =>
         v == null || v < 0n ? c.grey('absent (treasury predates the floors)') : v > 0n ? c.yellow(text) : c.grey('off')
     console.info(
-        '         %s %s   %s %s   %s %s',
+        '           %s %s   %s',
         c.grey('min_efficiency:'),
         floor(treasuryState.minEfficiency, String(treasuryState.minEfficiency)),
+        c.grey('(a bid whose eff is below this is refused)'),
+    )
+    console.info(
+        '        %s %s   %s',
         c.grey('min_request_stake:'),
         floor(treasuryState.minRequestStake, (treasuryState.minRequestStake ?? 0n).toLocaleString() + ' GRAM'),
+        c.grey('(loan + collateral below this is refused)'),
+    )
+    console.info(
+        '          %s %s   %s',
         c.grey('stake_cap_floor:'),
         floor(treasuryState.stakeCapFloor, (treasuryState.stakeCapFloor ?? 0n).toLocaleString() + ' GRAM'),
+        c.grey('(a non-zero max_stake below this is raised to it)'),
+    )
+    console.info(
+        '         %s %s GRAM   %s',
+        c.grey('request_loan_fee:'),
+        formatNano(fees.requestLoanFee),
+        c.grey('(on top of the collateral, per request sent)'),
     )
     console.info()
 
@@ -320,28 +345,28 @@ export async function run(provider: NetworkProvider) {
         if (participation.requests != null && participation.requests.size > 0) {
             console.info('    %s', c.bold('Requests'))
             console.info('    %s', c.grey('--------'))
-            showRequests(participation.requests, testOnly, c, rankOrder(participation.sorted))
+            showRequests(participation.requests, testOnly, c, minEfficiency, rankOrder(participation.sorted))
             console.info()
         }
 
         if (participation.rejected != null && participation.rejected.size > 0) {
             console.info('    %s', c.bold('Rejected'))
             console.info('    %s', c.grey('--------'))
-            showRequests(participation.rejected, testOnly, c)
+            showRequests(participation.rejected, testOnly, c, minEfficiency)
             console.info()
         }
 
         if (participation.staked != null && participation.staked.size > 0) {
             console.info('    %s', c.bold('Staked'))
             console.info('    %s', c.grey('--------'))
-            showRequests(participation.staked, testOnly, c)
+            showRequests(participation.staked, testOnly, c, minEfficiency)
             console.info()
         }
 
         if (participation.recovering != null && participation.recovering.size > 0) {
             console.info('    %s', c.bold('Recovering'))
             console.info('    %s', c.grey('--------'))
-            showRequests(participation.recovering, testOnly, c)
+            showRequests(participation.recovering, testOnly, c, minEfficiency)
             console.info()
         }
     }
@@ -359,7 +384,13 @@ function rankOrder(sorted: Dictionary<bigint, Dictionary<bigint, unknown>> | und
 }
 
 // order lists the keys to show first, in that order; any key it misses follows in the dict's own order.
-function showRequests(dict: Dictionary<bigint, Request>, testOnly: boolean, c: Palette, order: bigint[] = []) {
+function showRequests(
+    dict: Dictionary<bigint, Request>,
+    testOnly: boolean,
+    c: Palette,
+    minEfficiency: bigint,
+    order: bigint[] = [],
+) {
     if (dict.size > 0) {
         const first = order.filter((k) => dict.has(k))
         const rest = dict.keys().filter((k) => !first.includes(k))
@@ -370,8 +401,14 @@ function showRequests(dict: Dictionary<bigint, Request>, testOnly: boolean, c: P
             // Whole GRAM, right-aligned, so the columns line up down the list: the fractions are noise at
             // these sizes. A max of 0 is no cap, and a request stored before the stake-cap release has none.
             const maxStake = request?.maxStake ?? 0n
+            // eff is what the auction ranked the bid on and what min_efficiency is checked against. Red
+            // when below a floor that is on: a request stored before the floor, or one the floor now
+            // refuses if it is sent again.
+            const eff = request == null ? 0n : bidEfficiency(request)
+            const effText = String(eff).padStart(4)
             console.info(
-                '        min: %s   loan: %s   max: %s   stake: %s   borrower: %s',
+                '        eff: %s   min: %s   loan: %s   max: %s   stake: %s   borrower: %s',
+                minEfficiency > 0n && eff < minEfficiency ? c.red(effText) : effText,
                 formatWhole(request?.minPayment ?? 0n).padStart(6),
                 formatWhole(request?.loanAmount ?? 0n).padStart(9),
                 (maxStake > 0n ? formatWhole(maxStake) : 'none').padStart(9),
@@ -380,6 +417,26 @@ function showRequests(dict: Dictionary<bigint, Request>, testOnly: boolean, c: P
             )
         }
     }
+}
+
+// The efficiency the auction ranks a bid on: request_sort_key's top 24 bits, computed exactly as
+// utils.fc does, min_payment and loan rounded down to units of 2^30 and 2^40 nanoGRAM. A decided loan
+// that was given accrual carries min_payment scaled by (loan + accrue) / loan, so that is undone first:
+// the row shows the rate that was bid, not one it never ranked on. Rounding up recovers the bid exactly,
+// since the scaling rounded down.
+function bidEfficiency(request: Request): bigint {
+    let minPayment = request.minPayment
+    const accrue = request.accrueAmount
+    if (accrue > 0n && request.loanAmount > 0n) {
+        const total = request.loanAmount + accrue
+        minPayment = (minPayment * request.loanAmount + total - 1n) / total
+    }
+    const minPaymentRound = minPayment >> 30n
+    let loanRound = request.loanAmount >> 40n
+    if (loanRound < 1n) loanRound = 1n
+    const eff = (minPaymentRound * 1000n) / loanRound
+    const max = (1n << 24n) - 1n
+    return eff > max ? max : eff
 }
 
 function formatWhole(value: bigint): string {
