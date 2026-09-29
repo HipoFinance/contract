@@ -86,21 +86,19 @@ export async function run(provider: NetworkProvider) {
     console.info('          %s %s hGRAM', c.grey('total_unstaking:'), formatNano(treasuryState.totalUnstaking))
     console.info('    %s %s GRAM', c.grey('total_borrowers_stake:'), formatNano(treasuryState.totalBorrowersStake))
     console.info(
-        '      %s %s',
+        '       %s %s',
         c.grey('total_request_fees:'),
         treasuryState.totalRequestFees < 0n
             ? c.grey('absent (treasury predates the field)')
             : formatNano(treasuryState.totalRequestFees) + ' GRAM',
     )
     console.info('                  %s %s', c.grey('deficit:'), formatDeficit(treasuryState.deficit, c))
-    console.info(
-        '         %s %s (%s)',
-        c.grey('rounds_imbalance:'),
-        Number(treasuryState.roundsImbalance),
-        roundsImbalancePercent,
-    )
     console.info('                  %s %s', c.grey('stopped:'), formatBoolean(treasuryState.stopped, c, false))
     console.info('             %s %s', c.grey('instant_mint:'), formatBoolean(treasuryState.instantMint, c, true))
+    console.info()
+
+    console.info('    %s', c.bold('APY'))
+    console.info('    %s', c.grey('---'))
     console.info(
         '            %s %s GRAM',
         c.grey('previous_rate:'),
@@ -129,19 +127,6 @@ export async function run(provider: NetworkProvider) {
         formatExchangeRate(Number(treasuryState.midRate) / 1_000_000_000),
         c.grey('mid_round:'),
         treasuryState.midRound > 0n ? formatDate(treasuryState.midRound) : c.grey('never'),
-    )
-    console.info('                   %s %s', c.grey('halter:'), c.cyan(treasuryState.halter.toString({ testOnly })))
-    console.info('                 %s %s', c.grey('governor:'), c.cyan(treasuryState.governor.toString({ testOnly })))
-    console.info(
-        '        %s %s',
-        c.grey('proposed_governor:'),
-        proposedGovernorAddress != null ? c.yellow(proposedGovernorText) : proposedGovernorText,
-    )
-    console.info(
-        '           %s %s (%s)',
-        c.grey('governance_fee:'),
-        Number(treasuryState.governanceFee),
-        governanceFeePercent,
     )
     console.info()
 
@@ -181,6 +166,22 @@ export async function run(provider: NetworkProvider) {
             : c.yellow(String(treasuryState.borrowerFee)),
         borrowerFeePercent,
         treasuryState.borrowerFee === 0n ? c.grey('  disabled') : '',
+    )
+    console.info(
+        '           %s %s (%s)   %s',
+        c.grey('governance_fee:'),
+        Number(treasuryState.governanceFee),
+        governanceFeePercent,
+        c.grey("(of the pool's part of each loan's reward, to the governor)"),
+    )
+    // distribute lends a round at most (rounds_imbalance + 257) / 512 of the lendable GRAM plus what the
+    // previous round staked, so with two round chains alternating, this is how far one may run ahead.
+    console.info(
+        '         %s %s (%s)   %s',
+        c.grey('rounds_imbalance:'),
+        Number(treasuryState.roundsImbalance),
+        roundsImbalancePercent,
+        c.grey('(the most one round may lend, of what both round chains hold)'),
     )
     // The auction floors (set_auction_floors); the two stakes are stored in whole GRAM. Each row of
     // the requests below shows its eff, the number min_efficiency is compared with.
@@ -294,6 +295,17 @@ export async function run(provider: NetworkProvider) {
     for (const key of treasuryState.loanCodes.keys()) {
         console.info('    %s: %s', key.toString().padStart(10), c.grey(String(treasuryState.loanCodes.get(key))))
     }
+    console.info()
+
+    console.info('    %s', c.bold('Governor'))
+    console.info('    %s', c.grey('--------'))
+    console.info('                   %s %s', c.grey('halter:'), c.cyan(treasuryState.halter.toString({ testOnly })))
+    console.info('                 %s %s', c.grey('governor:'), c.cyan(treasuryState.governor.toString({ testOnly })))
+    console.info(
+        '        %s %s',
+        c.grey('proposed_governor:'),
+        proposedGovernorAddress != null ? c.yellow(proposedGovernorText) : proposedGovernorText,
+    )
     console.info()
 
     if (treasuryState.participations.size == 0) {
