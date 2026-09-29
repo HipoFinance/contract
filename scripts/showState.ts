@@ -395,7 +395,23 @@ function rankOrder(sorted: Dictionary<bigint, Dictionary<bigint, unknown>> | und
     return order
 }
 
-// order lists the keys to show first, in that order; any key it misses follows in the dict's own order.
+// The order the auction would rank these requests in, for a list the treasury keeps no sorted dict for
+// (rejected, staked, recovering): the bid's request_sort_key, highest first, and the smaller address first
+// on a tie, exactly as rankOrder reads an open round. Built from the bid, so a decided loan's scaled
+// min_payment does not lift it above where it ranked.
+function bidOrder(dict: Dictionary<bigint, Request>): bigint[] {
+    const keyed = dict.keys().map((address) => {
+        const request = dict.get(address)
+        return { address, key: request == null ? -1n : bidSortKey(request) }
+    })
+    keyed.sort((a, b) =>
+        a.key !== b.key ? (a.key > b.key ? -1 : 1) : a.address < b.address ? -1 : a.address > b.address ? 1 : 0,
+    )
+    return keyed.map((k) => k.address)
+}
+
+// order lists the keys to show first, in that order; any key it misses follows in rank order. With no
+// order given, which is every list but an open round's requests, the whole list is in rank order.
 function showRequests(
     dict: Dictionary<bigint, Request>,
     testOnly: boolean,
@@ -405,7 +421,7 @@ function showRequests(
 ) {
     if (dict.size > 0) {
         const first = order.filter((k) => dict.has(k))
-        const rest = dict.keys().filter((k) => !first.includes(k))
+        const rest = bidOrder(dict).filter((k) => !first.includes(k))
         for (const req of [...first, ...rest]) {
             const request = dict.get(req)
             // No share or fee here: both are the protocol's, snapshotted from reward_share and borrower_fee
@@ -437,18 +453,31 @@ function showRequests(
 // the row shows the rate that was bid, not one it never ranked on. Rounding up recovers the bid exactly,
 // since the scaling rounded down.
 function bidEfficiency(request: Request): bigint {
-    let minPayment = request.minPayment
+    const minPaymentRound = bidMinPayment(request) >> 30n
+    const eff = (minPaymentRound * 1000n) / loanRound(request)
+    const max = (1n << 24n) - 1n
+    return eff > max ? max : eff
+}
+
+// The whole of request_sort_key, as utils.fc builds it: efficiency, then the pool's share, then the loan
+// amount's complement, so the smaller loan ranks first on a tie.
+function bidSortKey(request: Request): bigint {
+    const treasuryShare = 65535n - request.borrowerRewardShare
+    return (bidEfficiency(request) << 96n) + (treasuryShare << 80n) + ((1n << 80n) - loanRound(request))
+}
+
+function bidMinPayment(request: Request): bigint {
     const accrue = request.accrueAmount
     if (accrue > 0n && request.loanAmount > 0n) {
         const total = request.loanAmount + accrue
-        minPayment = (minPayment * request.loanAmount + total - 1n) / total
+        return (request.minPayment * request.loanAmount + total - 1n) / total
     }
-    const minPaymentRound = minPayment >> 30n
-    let loanRound = request.loanAmount >> 40n
-    if (loanRound < 1n) loanRound = 1n
-    const eff = (minPaymentRound * 1000n) / loanRound
-    const max = (1n << 24n) - 1n
-    return eff > max ? max : eff
+    return request.minPayment
+}
+
+function loanRound(request: Request): bigint {
+    const round = request.loanAmount >> 40n
+    return round < 1n ? 1n : round
 }
 
 function formatWhole(value: bigint): string {
