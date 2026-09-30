@@ -13,7 +13,7 @@
 // Set TONCENTER_TESTNET_API_KEY to lift toncenter's anonymous rate limit.
 
 import { compile } from '@ton/blueprint'
-import { Address, beginCell, fromNano, internal, Transaction } from '@ton/core'
+import { Address, beginCell, fromNano, internal, SendMode, Transaction } from '@ton/core'
 import { mnemonicNew, mnemonicToPrivateKey } from '@ton/crypto'
 import { TonClient, WalletContractV4 } from '@ton/ton'
 import { execFileSync } from 'child_process'
@@ -93,10 +93,19 @@ async function verify(name: string, address: string | undefined) {
     if (address !== undefined) {
         flags.push('--address', address)
     }
-    execFileSync('npx', ['-y', '-p', blueprintWithVerify, 'blueprint', 'verify', name, ...flags], { stdio: 'inherit' })
+    // Without a terminal, blueprint exits 1 after a successful run ("readline was closed" as it closes its prompt),
+    // so its exit code says nothing; the verifier's status below is the check.
+    let failure: Error | undefined
+    try {
+        execFileSync('npx', ['-y', '-p', blueprintWithVerify, 'blueprint', 'verify', name, ...flags], {
+            stdio: 'inherit',
+        })
+    } catch (e) {
+        failure = e instanceof Error ? e : new Error(String(e))
+    }
     const after = await get<Status>(`verification/status?code_hash=${codeHash}`)
     if (!after.verified) {
-        throw new Error(`${name}: blueprint verify finished, but the verifier does not list ${codeHash} as verified`)
+        throw failure ?? new Error(`${name}: the verifier does not list ${codeHash} as verified`)
     }
     console.info(`${name}: verified, https://verifier.ton.org/${codeHash}`)
 }
@@ -123,14 +132,14 @@ async function pay(ticket: Extract<Ticket, { status: 'payment_required' }>): Pro
     const wallet = client.open(WalletContractV4.create({ workchain: 0, publicKey: keys.publicKey }))
     const matches = (tx: Transaction) => isPayment(tx, wallet.address, amount, ticket.comment)
 
-    const earlier = (await client.getTransactions(recipient, { limit: 100 })).find(matches)
+    const earlier = (await paced(() => client.getTransactions(recipient, { limit: 100 }))).find(matches)
     if (earlier !== undefined) {
         const hash = earlier.hash().toString('hex')
         console.info(`Reusing the earlier payment ${hash}`)
         return hash
     }
 
-    const balance = await wallet.getBalance()
+    const balance = await paced(() => wallet.getBalance())
     const needed = amount + 50_000_000n
     if (balance < needed) {
         throw new Error(
@@ -142,14 +151,20 @@ async function pay(ticket: Extract<Ticket, { status: 'payment_required' }>): Pro
         `Paying ${fromNano(amount)} testnet GRAM from ${friendly(wallet.address)} (holds ${fromNano(balance)})`,
     )
     const body = beginCell().storeUint(0, 32).storeStringTail(ticket.comment).endCell()
-    await wallet.sendTransfer({
-        seqno: await wallet.getSeqno(),
-        secretKey: keys.secretKey,
-        messages: [internal({ to: recipient, value: amount, bounce: true, body })],
-    })
+    const seqno = await paced(() => wallet.getSeqno())
+    // A resend after a 429 is harmless: once one copy is accepted, the seqno rejects the rest.
+    await paced(() =>
+        wallet.sendTransfer({
+            seqno,
+            secretKey: keys.secretKey,
+            // Fees are paid on top: taken from the amount, the verifier would receive less than it asked for.
+            sendMode: SendMode.PAY_GAS_SEPARATELY | SendMode.IGNORE_ERRORS,
+            messages: [internal({ to: recipient, value: amount, bounce: true, body })],
+        }),
+    )
     for (let attempt = 0; attempt < 60; attempt++) {
         await sleep(3000)
-        const paid = (await client.getTransactions(recipient, { limit: 20 })).find(matches)
+        const paid = (await paced(() => client.getTransactions(recipient, { limit: 20 }))).find(matches)
         if (paid !== undefined) {
             const hash = paid.hash().toString('hex')
             console.info(`Payment landed: ${hash}`)
@@ -222,6 +237,21 @@ async function response<T>(res: Response): Promise<T> {
         throw new Error(`${res.url}: HTTP ${res.status.toString()} ${await res.text()}`)
     }
     return (await res.json()) as T
+}
+
+// Toncenter allows about one request a second without an API key and answers 429 beyond it.
+async function paced<T>(call: () => Promise<T>): Promise<T> {
+    for (let attempt = 1; ; attempt++) {
+        await sleep(1100)
+        try {
+            return await call()
+        } catch (e) {
+            if (attempt === 8 || !String(e).includes('429')) {
+                throw e
+            }
+            await sleep(1000 * attempt)
+        }
+    }
 }
 
 function sleep(ms: number) {
