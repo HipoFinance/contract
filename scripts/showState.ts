@@ -42,8 +42,6 @@ export async function run(provider: NetworkProvider) {
         walletCode = (await parent.getJettonData())[4]
     }
 
-    const exchangeRate = Number(treasuryState.totalCoins) / Number(treasuryState.totalTokens)
-
     // Consumers should call computeApy() from @hipo-finance/sdk rather than copy this. This script
     // deliberately does not: the SDK is derived FROM this repository -- it follows whatever shape
     // get_treasury_state grows into -- so depending on it here would point the dependency backwards
@@ -79,13 +77,7 @@ export async function run(provider: NetworkProvider) {
     console.info(c.bold('Treasury State'))
     console.info(c.grey('=============='))
     console.info('              %s %s GRAM', c.grey('total_coins:'), formatNano(treasuryState.totalCoins))
-    console.info(
-        '             %s %s hGRAM   %s %s',
-        c.grey('total_tokens:'),
-        formatNano(treasuryState.totalTokens),
-        c.grey('Rate:'),
-        c.green(formatExchangeRate(exchangeRate)),
-    )
+    console.info('             %s %s hGRAM', c.grey('total_tokens:'), formatNano(treasuryState.totalTokens))
     console.info('            %s %s GRAM', c.grey('total_staking:'), formatNano(treasuryState.totalStaking))
     console.info('          %s %s hGRAM', c.grey('total_unstaking:'), formatNano(treasuryState.totalUnstaking))
     console.info('    %s %s GRAM', c.grey('total_borrowers_stake:'), formatNano(treasuryState.totalBorrowersStake))
@@ -119,7 +111,7 @@ export async function run(provider: NetworkProvider) {
     console.info(
         '             %s %s GRAM',
         c.grey('current_rate:'),
-        formatExchangeRate(Number(treasuryState.currentRate) / 1_000_000_000),
+        c.green(formatExchangeRate(Number(treasuryState.currentRate) / 1_000_000_000)),
     )
     console.info(
         '      %s %s   %s',
@@ -334,13 +326,12 @@ export async function run(provider: NetworkProvider) {
         if (participation == null) {
             continue
         }
-        const collectionAddress = await treasury.getCollectionAddress(key)
         console.info(c.bold(`Participation ${key.toString()}`))
         console.info(c.grey('========================'))
         console.info('            %s %s', c.grey('round_since:'), formatDate(key))
         console.info('                  %s %s', c.grey('state:'), formatState(participation.state, c))
-        console.info('                   %s %s', c.grey('size:'), participation.size?.toString())
-        // sorted and requests only mean something while the round is open: the decision empties both.
+        // An open round shows its book, sorted and requests, which the decision empties. Every other round
+        // shows its loans instead, which an open round does not have yet.
         const open = participation.state === ParticipationState.Open
         if (open) {
             // sorted is keyed by rank, and each key holds a bucket of every request tied at it, so its own
@@ -358,28 +349,26 @@ export async function run(provider: NetworkProvider) {
                     : `${String(ranked)} in ${String(ranks)} rank${ranks === 1 ? '' : 's'}`,
             )
             console.info('               %s %s', c.grey('requests:'), participation.requests?.size ?? '')
+        } else {
+            const collectionAddress = await treasury.getCollectionAddress(key)
+            console.info('                 %s %s', c.grey('staked:'), participation.staked?.size ?? '')
+            console.info('           %s %s GRAM', c.grey('total_staked:'), formatNano(participation.totalStaked ?? 0n))
+            console.info(
+                '        %s %s GRAM',
+                c.grey('total_recovered:'),
+                formatNano(participation.totalRecovered ?? 0n),
+            )
+            console.info('         %s %s', c.grey('stake_held_for:'), formatTime(participation.stakeHeldFor ?? 0n))
+            console.info('       %s %s', c.grey('stake_held_until:'), formatDate(participation.stakeHeldUntil ?? 0n))
+            console.info('     %s %s', c.grey('collection address:'), c.cyan(String(collectionAddress)))
         }
-        console.info('                 %s %s', c.grey('staked:'), participation.staked?.size ?? '')
-        console.info('           %s %s GRAM', c.grey('total_staked:'), formatNano(participation.totalStaked ?? 0n))
-        console.info('        %s %s GRAM', c.grey('total_recovered:'), formatNano(participation.totalRecovered ?? 0n))
-        console.info('         %s %s', c.grey('stake_held_for:'), formatTime(participation.stakeHeldFor ?? 0n))
-        console.info('       %s %s', c.grey('stake_held_until:'), formatDate(participation.stakeHeldUntil ?? 0n))
-        console.info('     %s %s', c.grey('collection address:'), c.cyan(String(collectionAddress)))
         console.info()
 
-        // An open round's book, best-ranked first, cut to the top few: those are the ones a bid has to
-        // beat. The count above says how many there are in all.
+        // An open round's book, best-ranked first.
         if (open && participation.requests != null && participation.requests.size > 0) {
             console.info('    %s', c.bold('Requests'))
             console.info('    %s', c.grey('--------'))
-            showRequests(
-                participation.requests,
-                testOnly,
-                c,
-                minEfficiency,
-                rankOrder(participation.sorted),
-                openRequestRows,
-            )
+            showRequests(participation.requests, testOnly, c, minEfficiency, rankOrder(participation.sorted))
             console.info()
         }
 
@@ -418,25 +407,19 @@ function bidOrder(dict: Dictionary<bigint, Request>): bigint[] {
     return keyed.map((k) => k.address)
 }
 
-// How many of an open round's requests are listed.
-const openRequestRows = 5
-
 // order lists the keys to show first, in that order; any key it misses follows in rank order. With no
-// order given, which is every list but an open round's requests, the whole list is in rank order. At
-// most limit rows are shown, and a last line says how many were left out.
+// order given, which is every list but an open round's requests, the whole list is in rank order.
 function showRequests(
     dict: Dictionary<bigint, Request>,
     testOnly: boolean,
     c: Palette,
     minEfficiency: bigint,
     order: bigint[] = [],
-    limit = Infinity,
 ) {
     if (dict.size > 0) {
         const first = order.filter((k) => dict.has(k))
         const rest = bidOrder(dict).filter((k) => !first.includes(k))
-        const all = [...first, ...rest]
-        for (const req of all.slice(0, limit)) {
+        for (const req of [...first, ...rest]) {
             const request = dict.get(req)
             // No share or fee here: both are the protocol's, snapshotted from reward_share and borrower_fee
             // above, so every request in a round carries the same two.
@@ -457,9 +440,6 @@ function showRequests(
                 formatWhole(request?.stakeAmount ?? 0n).padStart(6),
                 c.cyan(Address.parseRaw('0:' + req.toString(16).padStart(64, '0')).toString({ testOnly })),
             )
-        }
-        if (all.length > limit) {
-            console.info('        %s', c.grey(`... and ${String(all.length - limit)} more`))
         }
     }
 }
