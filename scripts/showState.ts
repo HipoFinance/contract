@@ -42,6 +42,8 @@ export async function run(provider: NetworkProvider) {
         walletCode = (await parent.getJettonData())[4]
     }
 
+    const exchangeRate = Number(treasuryState.totalCoins) / Number(treasuryState.totalTokens)
+
     // Consumers should call computeApy() from @hipo-finance/sdk rather than copy this. This script
     // deliberately does not: the SDK is derived FROM this repository -- it follows whatever shape
     // get_treasury_state grows into -- so depending on it here would point the dependency backwards
@@ -77,7 +79,13 @@ export async function run(provider: NetworkProvider) {
     console.info(c.bold('Treasury State'))
     console.info(c.grey('=============='))
     console.info('              %s %s GRAM', c.grey('total_coins:'), formatNano(treasuryState.totalCoins))
-    console.info('             %s %s hGRAM', c.grey('total_tokens:'), formatNano(treasuryState.totalTokens))
+    console.info(
+        '             %s %s hGRAM   %s %s',
+        c.grey('total_tokens:'),
+        formatNano(treasuryState.totalTokens),
+        c.grey('Rate:'),
+        c.green(formatExchangeRate(exchangeRate)),
+    )
     console.info('            %s %s GRAM', c.grey('total_staking:'), formatNano(treasuryState.totalStaking))
     console.info('          %s %s hGRAM', c.grey('total_unstaking:'), formatNano(treasuryState.totalUnstaking))
     console.info('    %s %s GRAM', c.grey('total_borrowers_stake:'), formatNano(treasuryState.totalBorrowersStake))
@@ -111,7 +119,7 @@ export async function run(provider: NetworkProvider) {
     console.info(
         '             %s %s GRAM',
         c.grey('current_rate:'),
-        c.green(formatExchangeRate(Number(treasuryState.currentRate) / 1_000_000_000)),
+        formatExchangeRate(Number(treasuryState.currentRate) / 1_000_000_000),
     )
     console.info(
         '      %s %s   %s',
