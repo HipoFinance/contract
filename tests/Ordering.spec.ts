@@ -236,7 +236,8 @@ describe('Ordering', () => {
             requestFee: 0n,
             newStakeMsg: Cell.EMPTY,
         })
-        return { state, size, rejected }
+        // Participation.rejected is the raw dict cell: internal state, which this test writes directly.
+        return { state, size, rejected: beginCell().storeDictDirect(rejected).endCell() }
     }
 
     // Sends process_loan_requests the way the treasury sends it to itself from distribute() /

@@ -773,6 +773,8 @@ participation#_
     size:uint16
     sorted:(HashmapE 120 (Hashmap 256 True))
     requests:(HashmapE 256 Request)
+    // INTERNAL like accepted and accrued, readers must not parse it: the requests the decision turned
+    // down, until process_loan_requests refunds them.
     rejected:(HashmapE 256 Request)
     // INTERNAL working state of decide_loan_requests, not an interface: readers must not parse it.
     // Today keyed by room per GRAM of loan (uint160) then the borrower's address (uint256), the order

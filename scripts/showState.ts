@@ -56,11 +56,16 @@ export async function run(provider: NetworkProvider) {
     // report an unchanged APY for a pool whose true rate of growth had halved -- and would now be
     // out by a factor of two on top of that.
     const duration = Number(treasuryState.windowDuration)
-    const year = 365 * 24 * 60 * 60
-    const compoundingFrequency = year / duration
-    const growth = Number(treasuryState.currentRate) / Number(treasuryState.previousRate)
-    const apy = Math.pow(growth, compoundingFrequency) - 1
-    const apyPercent = treasuryState.previousRate > 0n ? formatPercent(apy) : ''
+    const apyPercent = apyOver(treasuryState.previousRate, treasuryState.currentRate, duration)
+    // The same, over the window's first release only: previous_rate's round is last_settled_round -
+    // window_duration, and mid_rate is the rate at mid_round. Measured from the same base as the
+    // published APY, so the two lines read as the window so far and the window whole.
+    const previousRound = Number(treasuryState.lastSettledRound) - duration
+    const midApyPercent = apyOver(
+        treasuryState.previousRate,
+        treasuryState.midRate,
+        Number(treasuryState.midRound) - previousRound,
+    )
 
     const testOnly = provider.network() !== 'mainnet'
     const proposedGovernorSlice = treasuryState.proposedGovernor?.beginParse()
@@ -99,10 +104,20 @@ export async function run(provider: NetworkProvider) {
 
     console.info('    %s', c.bold('APY'))
     console.info('    %s', c.grey('---'))
+    // The window's three observations, oldest first. mid_rate is the one that makes the published
+    // window two releases wide rather than one; its APY is the first release alone, and current_rate's
+    // is the published figure, the whole window.
     console.info(
         '            %s %s GRAM',
         c.grey('previous_rate:'),
         formatExchangeRate(Number(treasuryState.previousRate) / 1_000_000_000),
+    )
+    console.info(
+        '                 %s %s GRAM   %s %s',
+        c.grey('mid_rate:'),
+        formatExchangeRate(Number(treasuryState.midRate) / 1_000_000_000),
+        c.grey('APY:'),
+        c.green(midApyPercent),
     )
     console.info(
         '             %s %s GRAM   %s %s',
@@ -111,22 +126,16 @@ export async function run(provider: NetworkProvider) {
         c.grey('APY:'),
         c.green(apyPercent),
     )
+    console.info('          %s %s', c.grey('window_duration:'), formatDuration(duration))
     console.info(
-        '          %s %s   %s %s',
-        c.grey('window_duration:'),
-        formatDuration(duration),
-        c.grey('last settled:'),
-        treasuryState.lastSettledRound > 0n ? formatDate(treasuryState.lastSettledRound) : c.grey('never'),
-    )
-    // The window's middle observation: the rate at the release before last, and the round it happened
-    // on. Not interesting day to day, but it is the pair that makes the published window two releases
-    // wide rather than one, so it is worth being able to see.
-    console.info(
-        '                 %s %s GRAM   %s %s',
-        c.grey('mid_rate:'),
-        formatExchangeRate(Number(treasuryState.midRate) / 1_000_000_000),
+        '                %s %s',
         c.grey('mid_round:'),
         treasuryState.midRound > 0n ? formatDate(treasuryState.midRound) : c.grey('never'),
+    )
+    console.info(
+        '             %s %s',
+        c.grey('last settled:'),
+        treasuryState.lastSettledRound > 0n ? formatDate(treasuryState.lastSettledRound) : c.grey('never'),
     )
     console.info()
 
@@ -337,18 +346,10 @@ export async function run(provider: NetworkProvider) {
             participation.sorted == null ? '' : `${String(ranked)} in ${String(ranks)} rank${ranks === 1 ? '' : 's'}`,
         )
         console.info('               %s %s', c.grey('requests:'), participation.requests?.size ?? '')
-        console.info('               %s %s', c.grey('rejected:'), participation.rejected?.size ?? '')
         console.info('                 %s %s', c.grey('staked:'), participation.staked?.size ?? '')
         console.info('             %s %s', c.grey('recovering:'), participation.recovering?.size ?? '')
         console.info('           %s %s GRAM', c.grey('total_staked:'), formatNano(participation.totalStaked ?? 0n))
         console.info('        %s %s GRAM', c.grey('total_recovered:'), formatNano(participation.totalRecovered ?? 0n))
-        console.info(
-            '      %s %s',
-            c.grey('current_vset_hash:'),
-            participation.currentVsetHash != null
-                ? c.grey(participation.currentVsetHash.toString(16))
-                : participation.currentVsetHash,
-        )
         console.info('         %s %s', c.grey('stake_held_for:'), formatTime(participation.stakeHeldFor ?? 0n))
         console.info('       %s %s', c.grey('stake_held_until:'), formatDate(participation.stakeHeldUntil ?? 0n))
         console.info('     %s %s', c.grey('collection address:'), c.cyan(String(collectionAddress)))
@@ -358,13 +359,6 @@ export async function run(provider: NetworkProvider) {
             console.info('    %s', c.bold('Requests'))
             console.info('    %s', c.grey('--------'))
             showRequests(participation.requests, testOnly, c, minEfficiency, rankOrder(participation.sorted))
-            console.info()
-        }
-
-        if (participation.rejected != null && participation.rejected.size > 0) {
-            console.info('    %s', c.bold('Rejected'))
-            console.info('    %s', c.grey('--------'))
-            showRequests(participation.rejected, testOnly, c, minEfficiency)
             console.info()
         }
 
@@ -396,7 +390,7 @@ function rankOrder(sorted: Dictionary<bigint, Dictionary<bigint, unknown>> | und
 }
 
 // The order the auction would rank these requests in, for a list the treasury keeps no sorted dict for
-// (rejected, staked, recovering): the bid's request_sort_key, highest first, and the smaller address first
+// (staked, recovering): the bid's request_sort_key, highest first, and the smaller address first
 // on a tie, exactly as rankOrder reads an open round. Built from the bid, so a decided loan's scaled
 // min_payment does not lift it above where it ranked.
 function bidOrder(dict: Dictionary<bigint, Request>): bigint[] {
@@ -478,6 +472,14 @@ function bidMinPayment(request: Request): bigint {
 function loanRound(request: Request): bigint {
     const round = request.loanAmount >> 40n
     return round < 1n ? 1n : round
+}
+
+// Annualised growth from one rate to another over seconds, '' when either is missing or the span is not
+// positive (a treasury that has not settled two releases yet).
+function apyOver(from: bigint, to: bigint, seconds: number): string {
+    if (from <= 0n || to <= 0n || seconds <= 0) return ''
+    const year = 365 * 24 * 60 * 60
+    return formatPercent(Math.pow(Number(to) / Number(from), year / seconds) - 1)
 }
 
 function formatWhole(value: bigint): string {
