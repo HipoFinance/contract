@@ -361,12 +361,6 @@ export async function run(provider: NetworkProvider) {
             const collectionAddress = await treasury.getCollectionAddress(key)
             console.info('                 %s %s', c.grey('staked:'), participation.staked?.size ?? '')
             console.info('           %s %s GRAM', c.grey('total_staked:'), formatNano(participation.totalStaked ?? 0n))
-            console.info(
-                '        %s %s GRAM',
-                c.grey('total_recovered:'),
-                formatNano(participation.totalRecovered ?? 0n),
-            )
-            console.info('         %s %s', c.grey('stake_held_for:'), formatTime(participation.stakeHeldFor ?? 0n))
             console.info('       %s %s', c.grey('stake_held_until:'), formatDate(participation.stakeHeldUntil ?? 0n))
             console.info('     %s %s', c.grey('collection address:'), c.cyan(String(collectionAddress)))
         }
@@ -525,10 +519,6 @@ function formatDate(seconds: bigint): string {
         dateStyle: 'full',
         timeStyle: 'full',
     })
-}
-
-function formatTime(seconds: bigint): string {
-    return new Date(Number(seconds) * 1000).toISOString().substring(11, 16)
 }
 
 // A deficit is a loan loss the borrower's collateral could not cover, so any non-zero value is an
