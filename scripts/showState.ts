@@ -57,14 +57,13 @@ export async function run(provider: NetworkProvider) {
     // out by a factor of two on top of that.
     const duration = Number(treasuryState.windowDuration)
     const apyPercent = apyOver(treasuryState.previousRate, treasuryState.currentRate, duration)
-    // The same, over the window's first release only: previous_rate's round is last_settled_round -
-    // window_duration, and mid_rate is the rate at mid_round. Measured from the same base as the
-    // published APY, so the two lines read as the window so far and the window whole.
-    const previousRound = Number(treasuryState.lastSettledRound) - duration
-    const midApyPercent = apyOver(
-        treasuryState.previousRate,
+    // The last release alone: mid_rate at mid_round to current_rate at last_settled_round. Noisier than
+    // the window, since one round chain can lend more than the other, which is why the published figure
+    // is the window's.
+    const lastRoundApyPercent = apyOver(
         treasuryState.midRate,
-        Number(treasuryState.midRound) - previousRound,
+        treasuryState.currentRate,
+        Number(treasuryState.lastSettledRound - treasuryState.midRound),
     )
 
     const testOnly = provider.network() !== 'mainnet'
@@ -105,26 +104,34 @@ export async function run(provider: NetworkProvider) {
     console.info('    %s', c.bold('APY'))
     console.info('    %s', c.grey('---'))
     // The window's three observations, oldest first. mid_rate is the one that makes the published
-    // window two releases wide rather than one; its APY is the first release alone, and current_rate's
-    // is the published figure, the whole window.
+    // window two releases wide rather than one. Then the published APY, over the whole window, and the
+    // last release alone.
     console.info(
         '            %s %s GRAM',
         c.grey('previous_rate:'),
         formatExchangeRate(Number(treasuryState.previousRate) / 1_000_000_000),
     )
     console.info(
-        '                 %s %s GRAM   %s %s',
+        '                 %s %s GRAM',
         c.grey('mid_rate:'),
         formatExchangeRate(Number(treasuryState.midRate) / 1_000_000_000),
-        c.grey('APY:'),
-        c.green(midApyPercent),
     )
     console.info(
-        '             %s %s GRAM   %s %s',
+        '             %s %s GRAM',
         c.grey('current_rate:'),
         formatExchangeRate(Number(treasuryState.currentRate) / 1_000_000_000),
-        c.grey('APY:'),
+    )
+    console.info(
+        '      %s %s   %s',
+        c.grey('APY, 2-round window:'),
         c.green(apyPercent),
+        c.grey('(previous -> current)'),
+    )
+    console.info(
+        '          %s %s   %s',
+        c.grey('APY, last round:'),
+        c.green(lastRoundApyPercent),
+        c.grey('(mid -> current)'),
     )
     console.info('          %s %s', c.grey('window_duration:'), formatDuration(duration))
     console.info(
@@ -333,21 +340,26 @@ export async function run(provider: NetworkProvider) {
         console.info('            %s %s', c.grey('round_since:'), formatDate(key))
         console.info('                  %s %s', c.grey('state:'), formatState(participation.state, c))
         console.info('                   %s %s', c.grey('size:'), participation.size?.toString())
-        // sorted is keyed by rank, and each key holds a bucket of every request tied at it, so its own
-        // size counts ranks. Both are shown, so a tie reads as one rather than as a missing request.
-        const ranks = participation.sorted?.size ?? 0
-        let ranked = 0
-        for (const bucket of participation.sorted?.values() ?? []) {
-            ranked += bucket.size
+        // sorted and requests only mean something while the round is open: the decision empties both.
+        const open = participation.state === ParticipationState.Open
+        if (open) {
+            // sorted is keyed by rank, and each key holds a bucket of every request tied at it, so its own
+            // size counts ranks. Both are shown, so a tie reads as one rather than as a missing request.
+            const ranks = participation.sorted?.size ?? 0
+            let ranked = 0
+            for (const bucket of participation.sorted?.values() ?? []) {
+                ranked += bucket.size
+            }
+            console.info(
+                '                 %s %s',
+                c.grey('sorted:'),
+                participation.sorted == null
+                    ? ''
+                    : `${String(ranked)} in ${String(ranks)} rank${ranks === 1 ? '' : 's'}`,
+            )
+            console.info('               %s %s', c.grey('requests:'), participation.requests?.size ?? '')
         }
-        console.info(
-            '                 %s %s',
-            c.grey('sorted:'),
-            participation.sorted == null ? '' : `${String(ranked)} in ${String(ranks)} rank${ranks === 1 ? '' : 's'}`,
-        )
-        console.info('               %s %s', c.grey('requests:'), participation.requests?.size ?? '')
         console.info('                 %s %s', c.grey('staked:'), participation.staked?.size ?? '')
-        console.info('             %s %s', c.grey('recovering:'), participation.recovering?.size ?? '')
         console.info('           %s %s GRAM', c.grey('total_staked:'), formatNano(participation.totalStaked ?? 0n))
         console.info('        %s %s GRAM', c.grey('total_recovered:'), formatNano(participation.totalRecovered ?? 0n))
         console.info('         %s %s', c.grey('stake_held_for:'), formatTime(participation.stakeHeldFor ?? 0n))
@@ -355,10 +367,19 @@ export async function run(provider: NetworkProvider) {
         console.info('     %s %s', c.grey('collection address:'), c.cyan(String(collectionAddress)))
         console.info()
 
-        if (participation.requests != null && participation.requests.size > 0) {
+        // An open round's book, best-ranked first, cut to the top few: those are the ones a bid has to
+        // beat. The count above says how many there are in all.
+        if (open && participation.requests != null && participation.requests.size > 0) {
             console.info('    %s', c.bold('Requests'))
             console.info('    %s', c.grey('--------'))
-            showRequests(participation.requests, testOnly, c, minEfficiency, rankOrder(participation.sorted))
+            showRequests(
+                participation.requests,
+                testOnly,
+                c,
+                minEfficiency,
+                rankOrder(participation.sorted),
+                openRequestRows,
+            )
             console.info()
         }
 
@@ -366,13 +387,6 @@ export async function run(provider: NetworkProvider) {
             console.info('    %s', c.bold('Staked'))
             console.info('    %s', c.grey('--------'))
             showRequests(participation.staked, testOnly, c, minEfficiency)
-            console.info()
-        }
-
-        if (participation.recovering != null && participation.recovering.size > 0) {
-            console.info('    %s', c.bold('Recovering'))
-            console.info('    %s', c.grey('--------'))
-            showRequests(participation.recovering, testOnly, c, minEfficiency)
             console.info()
         }
     }
@@ -404,19 +418,25 @@ function bidOrder(dict: Dictionary<bigint, Request>): bigint[] {
     return keyed.map((k) => k.address)
 }
 
+// How many of an open round's requests are listed.
+const openRequestRows = 5
+
 // order lists the keys to show first, in that order; any key it misses follows in rank order. With no
-// order given, which is every list but an open round's requests, the whole list is in rank order.
+// order given, which is every list but an open round's requests, the whole list is in rank order. At
+// most limit rows are shown, and a last line says how many were left out.
 function showRequests(
     dict: Dictionary<bigint, Request>,
     testOnly: boolean,
     c: Palette,
     minEfficiency: bigint,
     order: bigint[] = [],
+    limit = Infinity,
 ) {
     if (dict.size > 0) {
         const first = order.filter((k) => dict.has(k))
         const rest = bidOrder(dict).filter((k) => !first.includes(k))
-        for (const req of [...first, ...rest]) {
+        const all = [...first, ...rest]
+        for (const req of all.slice(0, limit)) {
             const request = dict.get(req)
             // No share or fee here: both are the protocol's, snapshotted from reward_share and borrower_fee
             // above, so every request in a round carries the same two.
@@ -437,6 +457,9 @@ function showRequests(
                 formatWhole(request?.stakeAmount ?? 0n).padStart(6),
                 c.cyan(Address.parseRaw('0:' + req.toString(16).padStart(64, '0')).toString({ testOnly })),
             )
+        }
+        if (all.length > limit) {
+            console.info('        %s', c.grey(`... and ${String(all.length - limit)} more`))
         }
     }
 }
