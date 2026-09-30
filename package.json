@@ -10,7 +10,8 @@
         "build": "blueprint build",
         "pretest": "npm run typecheck",
         "test": "jest --verbose",
-        "check": "npm run typecheck && npm run lint && jest"
+        "check": "npm run typecheck && npm run lint && jest",
+        "verify": "ts-node tools/verify.ts"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",

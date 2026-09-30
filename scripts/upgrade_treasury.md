@@ -123,6 +123,14 @@ rather than through a helper: by the time it runs, `set_c3` has already happened
 treasury's `load_data()` is the **new** parser and would misread the old cell. End that parse with
 `end_parse()` — that is what makes a second run throw and revert instead of corrupting.
 
+## After every upgrade: publish the source
+
+Once the new code is on chain, run `npm run verify` from the commit that was deployed. It checks
+that the treasury and the parent run this build, and publishes the source of any code hash that
+verifier.ton.org does not list yet, paying its testnet fee from a wallet of its own. The header of
+`tools/verify.ts` covers setup: the wallet, and the FunC version the verifier compiles with.
+Verification is per code hash, so every upgrade needs it again; code already listed costs nothing.
+
 ## Changing the shape of a getter
 
 `get_treasury_state` returns a flat tuple that every consumer reads **positionally**. A field inserted
