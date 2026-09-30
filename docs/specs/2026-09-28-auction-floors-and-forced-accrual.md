@@ -173,7 +173,9 @@ Rejected alternatives:
   - a tight cap is raised;
   - an uncapped loan may absorb more than its proportional share: capped loans' excess now flows to it.
   - The changelog says so. The public `HipoFinance/borrower` should read the floors and warn before
-    sending.
+    sending. *(Done 2026-09-30 in borrower v2.3.0. It refuses to send a bid below either refusing floor
+    and names the fix. It sends a cap below the cap floor as the floor, so the stored request matches
+    and is not re-sent for a request fee on every check.)*
 - **Getter:** `get_treasury_state` grows by three values, appended (ABI rule). Before the release,
   check every consumer in the census in `scripts/upgrade_treasury.md`, poker included.
 - **`get_participation`'s `accepted` dict** is keyed by 416 bits instead of 256, and a 256-bit parse
