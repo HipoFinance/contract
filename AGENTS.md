@@ -44,3 +44,18 @@ matches; keep orchestration and final review in the main session. For larger mul
 the user opts into, the saved `orchestrate` workflow (`.claude/workflows/orchestrate.js`)
 plans with deep-reasoner, routes each step to the right agent, and verifies the result — run
 it with `Workflow({name: "orchestrate", args: "<task>"})`.
+
+## Risk and money paths
+
+Risk: `all-tier-3`. Every change to code here gets the deepest review: the two money audits and the code review, without being asked.
+The list is `.claude/money-map.txt`, read by the team's review (`team:risk-review`); how it works is
+in `specs/review-depth.md` of the `claude-team` repo. Add a line there when you add a new way to pay or a new
+balance.
+
+## Review focus
+
+The angles a code review takes here. First version from the team's design, for Behrang to correct.
+
+- Invariants: what must stay true of balances, rounds and loans after every message.
+- Storage and upgrade compatibility: the stored layout, and an upgrade from the live version.
+- Gas and bounce: enough gas on every path, and what a bounced message leaves behind.

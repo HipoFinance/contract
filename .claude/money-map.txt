@@ -1,0 +1,6 @@
+# The money map of contract: what counts as money code in a review.
+# Read by scripts/tier.py and changed through scripts/money-map.py of the claude-team repo
+# (specs/review-depth.md there). You may add a line by hand. No program removes or edits a line
+# by itself: a doubt is a warning, and the entry stays until a person answers it.
+# Columns are separated by two or more spaces.
+risk: all-tier-3
