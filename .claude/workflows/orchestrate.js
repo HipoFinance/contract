@@ -48,7 +48,7 @@ Decompose the following task into the minimal ordered sequence of steps. Steps r
 
 Task:
 ${task}`,
-  { agentType: 'deep-reasoner', label: 'plan', schema: PLAN_SCHEMA },
+  { agentType: 'team:deep-reasoner', label: 'plan', schema: PLAN_SCHEMA },
 )
 if (!plan) throw new Error('Planning step was skipped or failed')
 log(`Plan: ${plan.steps.length} step(s) — ${plan.steps.map((s) => s.title).join(' → ')}`)
@@ -57,7 +57,7 @@ phase('Execute')
 const results = []
 for (let i = 0; i < plan.steps.length; i++) {
   const step = plan.steps[i]
-  const agentType = step.kind === 'mechanical' ? 'fast-worker' : 'deep-reasoner'
+  const agentType = step.kind === 'mechanical' ? 'team:fast-worker' : 'team:deep-reasoner'
   const context = results.length
     ? `\n\nReports from the steps already completed:\n${results
         .map((r, j) => `${j + 1}. ${plan.steps[j].title}: ${r.report}`)
@@ -85,7 +85,7 @@ Step reports:
 ${results.map((r, i) => `${i + 1}. ${r.step} (${r.kind}): ${r.report}`).join('\n\n')}
 
 Check the working tree for what actually changed, run the cheapest relevant verification (lint, a targeted test file — not the full slow suite), and report: whether the task is complete, any gaps or defects found, and concrete follow-ups if needed.`,
-  { agentType: 'deep-reasoner', label: 'verify' },
+  { agentType: 'team:deep-reasoner', label: 'verify' },
 )
 
 return { analysis: plan.analysis, steps: results, review }

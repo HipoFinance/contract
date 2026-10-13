@@ -39,11 +39,12 @@ requester, records a short spec in `docs/specs/`, and only then moves to impleme
 
 ## Agents and orchestration
 
-Delegate to the `deep-reasoner` and `fast-worker` subagents via the Agent tool when a task
-matches; keep orchestration and final review in the main session. For larger multi-step tasks
-the user opts into, the saved `orchestrate` workflow (`.claude/workflows/orchestrate.js`)
-plans with deep-reasoner, routes each step to the right agent, and verifies the result — run
-it with `Workflow({name: "orchestrate", args: "<task>"})`.
+Hard reasoning goes to `team:deep-reasoner` and fully specified edits to `team:fast-worker`, the
+shared agents of the `claude-team` plugin; this repo has no agents of its own. Keep orchestration
+and final review in the main session. For larger multi-step tasks the user opts into, the saved
+`orchestrate` workflow (`.claude/workflows/orchestrate.js`) plans with `team:deep-reasoner`, routes
+each step to the right agent, and verifies the result; run it with
+`Workflow({name: "orchestrate", args: "<task>"})`.
 
 ## Risk and money paths
 
