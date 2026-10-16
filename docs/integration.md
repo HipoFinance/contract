@@ -450,6 +450,49 @@ Four rules that a classifier gets wrong easily, each learned from a real defect:
   >
   > See `docs/specs/2026-09-28-auction-floors-and-forced-accrual.md`.
 
+- **Round lifecycle**: three ops reach the treasury only as **external** messages, each carrying
+  `round_since`, the start of the round it concerns:
+  - `participate_in_election#574a297b` closes bidding. It is followed by `decide_loan_requests` and
+    `process_loan_requests`, which the treasury sends to itself as many times as the round's loans
+    need. Each loan then goes out as `proxy_new_stake#089cd4d0` → loan → `new_stake` → elector, and
+    each losing request is refunded with `request_rejected#cd0f2116`.
+  - `vset_changed#2f0b5b3b` arrives **twice** per validator-set change: once for the round that has
+    just begun, and once for the round before it, whose validators have just stopped and whose
+    stakes are now held. The message is the same; only `round_since` differs. The new round started
+    moments before the message, the old one a whole round earlier.
+  - `finish_participation#23274435` starts recovery: `recover_stakes` (again sent to itself as often
+    as needed) → `proxy_recover_stake#407cb243` → each loan → elector. Each loan's
+    `recover_stake_result` is settled as in *Borrower flows* above. Once every loan is back, the
+    treasury burns the round's bills: `burn_all#639d400a` → collection → one `burn_bill` (which
+    tongo decodes as the TEP-85 `sbt_revoke`) → bill → `bill_burned` per bill, then
+    `last_bill_burned#c6d8b51f` → treasury. The bills'
+    settlements hang off those messages as described in *Stake (deferred)* and *Unstake (deferred)*.
+
+- **Logs**: the amounts of the loan and round flows are not in their messages: `loan_result`,
+  `take_borrower_fee` and `take_profit` carry only a query id. They are in external-out messages
+  the treasury writes with `emit_log` (`contracts/imports/utils.fc`). The **topic is the 256-bit
+  external destination address**, and the body starts at `round_since` with no op-code, so a
+  decoder that keys external-out messages on a body op-code reads `round_since` as one. Read the
+  topic from the destination and the body by the topic:
+
+  | Topic | Written | Body after `round_since:uint32` |
+  |---|---|---|
+  | 1 `loan` | in `process_loan_requests`, right after each loan's `proxy_new_stake` | `min_payment:Coins borrower_reward_share:uint16 loan_amount:Coins accrue_amount:Coins stake_amount:Coins borrower_fee:uint16 borrower:MsgAddress` |
+  | 2 `repayment` | in each `recover_stake_result` that settles a loan | `repayment_amount:Coins loan_amount:Coins accrue_amount:Coins stakers_share:Coins governor_share:Coins borrower_share:Coins burn_share:Coins borrower:MsgAddress` |
+  | 3 `finish` | in `last_bill_burned` | `total_staked:Coins total_recovered:Coins total_coins:Coins total_tokens:Coins` |
+  | 4 `failed_burning_tokens` | in `burn_tokens`, when an unstake bill can be neither paid nor postponed and is rolled back | `total_coins:Coins total_tokens:Coins coins:Coins tokens:Coins owner:MsgAddress` |
+  | 5 `deficit` | beside a `repayment` whose collateral did not cover the loss | `loan_amount:Coins accrue_amount:Coins incoming_ton:Coins shortfall:Coins deficit:Coins borrower:MsgAddress` |
+
+  Two rules for reading them. **A log is the treasury's only if the treasury's own transaction
+  wrote it**: a topic is just an address, and any contract can write an external-out message to
+  it. And **a `loan` log belongs to the `proxy_new_stake` sent just before it**, one logical time
+  earlier in the same transaction; that is the only way to pair a loan contract with its borrower,
+  since the message names neither the borrower nor the amounts. Before the 2026-09-05 release,
+  `loan` had an 8-bit share out of 255 and no `borrower_fee`, and `repayment` had no `burn_share`.
+  Tell the eras apart by when the log was written, against the upgrade transaction at 2026-09-05
+  17:29:33 UTC (unix 1788629373), not by which layout reads the body exactly: some old bodies fit
+  the new layout exactly too (8 of 542 real logs) and read as nonsense.
+
 ## Calculating Remaining Time Until Withdrawal
 
 You have to first find the `current_round_since` by calling the `get_times` method. Then you have to send it to the `get_participation` method. It will return `stake_held_until` which is the time after which the validation round will be finalized. Here is the [full implementation in Hipo's webapp](https://github.com/HipoFinance/webapp/blob/a11a575fe231def9015ff480e1b7959c893121e2/src/Model.ts#L420).

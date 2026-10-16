@@ -209,3 +209,37 @@ The schema change is the risk. Mitigations, in the order they should be tried:
   for the port (see the `explorer-actions-prs` notes).
 - Teaching tongo to dispatch external-out messages on their destination topic. Worth asking
   for on its own merits, and `bath` does not need it, so it must not gate this work.
+
+## Amendment, 2026-10-16: as built
+
+tongo#504 was replaced by the maintainer's own tongo#506 (same schema), released in tongo v1.24.0
+and pinned by opentonapi master since 2026-10-14, so the straws below match by ABI name. Built on
+the opentonapi branch `hipo-round-logs`; what changed from the plan above:
+
+- **Four action types, not three.** `LoanIssue` (borrower, pool, loan contract, round, loan,
+  accrued, collateral, scaled `min_payment`) was added, because the election trace makes one loan
+  per borrower and a borrower needs an action naming them. Its figures come from `log::loan`,
+  paired with its `proxy_new_stake` by logical time (the log is written one logical time after
+  the message). The loan contract's `ContractDeploy` folds into it; the elector leg stays an
+  `ElectionsDepositStake`.
+- **`LoanRepayment` replaces `LoanSettled`**, named like the other actions. It folds in
+  `loan_result`, `take_borrower_fee` and `take_profit`, and carries `shortfall` from `log::deficit`
+  when there is one. The burner's own work below `take_borrower_fee` (stake, swap, HPO burn) stays
+  the `DepositStake`, `JettonMint`, `JettonSwap` and `JettonBurn` actions it already was.
+- **Transitions are `election`, `began`, `validated`, `ended`, `settled`.** `vset_changed` arrives
+  twice per change, once for the round that began and once for the round before it, whose stakes
+  are now held; the two are told apart by the round's start against the transaction time.
+  `settled` folds the bill burning (`burn_all`, `burn_bill`, `bill_burned`, `last_bill_burned`, and
+  the treasury's `mint_tokens` → `proxy_tokens_minted` legs of deposit bills) and carries the
+  round's `total_staked` and `total_recovered` from `log::finish`. The bills' own settlements stay
+  `JettonMint` and `WithdrawStake`, as the invariant requires.
+- **Also shown:** an unstake-all request (`send_unstake_all` or the comment `w`) is now a
+  `WithdrawStakeRequest` with no amount, folding `proxy_unstake_all` and `unstake_all`.
+- **Left as they were:** `request_rejected` refunds stay `TonTransfer`s to the borrower;
+  governance and maintenance ops stay `SmartContractExec`.
+- **The logs are decoded in opentonapi, not tongo.** tongo's external-out decoder gets no source
+  address, and the treasury has no tongo interface to hang one on, so `pkg/core/hipo_logs.go`
+  decodes them in `ConvertMessage` when the treasury wrote them. The trace view then shows
+  `hipo_finance_log_*` and its fields instead of an op-code read from `round_since`.
+- **The log era is chosen by time, not by fit.** 8 of 542 real logs fit both the old and the new
+  layout; the cutoff is the 2026-09-05 upgrade transaction (unix 1788629373).
