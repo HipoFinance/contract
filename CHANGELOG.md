@@ -288,3 +288,7 @@ contract, but they are why the releases above could be made.
 - ESLint moved to flat config for ESLint 10, and vulnerable transitive dev dependencies were cleared
   (twice — 2026-07-24 and 2026-09-09).
 - Project subagents and an orchestrate workflow under `.claude/`.
+- **`npm run state` shows the treasury state faster** (2026-10-26): it loads `showState` without
+  type-checking (about 3 s saved; scripts that send still type-check, and `npm run check` covers it),
+  and with a toncenter API key in `blueprint.config.ts` its reads go three at a time. Without a key
+  they stay one at a time, because toncenter then allows one call a second.

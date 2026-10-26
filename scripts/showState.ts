@@ -1,5 +1,6 @@
 import { Address, Dictionary } from '@ton/core'
 import { NetworkProvider } from '@ton/blueprint'
+import { TonClient } from '@ton/ton'
 import { ParticipationState, Request, Treasury } from '../wrappers/Treasury'
 import { Parent } from '../wrappers/Parent'
 import { makePalette, Palette } from '../wrappers/colors'
@@ -18,9 +19,34 @@ export async function run(provider: NetworkProvider) {
     const treasury = provider.open(Treasury.createFromAddress(treasuryAddress))
 
     const treasuryState = await treasury.getTreasuryState()
-    const balance = await treasury.getBalance()
-    const maxBurnableTokens = await treasury.getMaxBurnableTokens()
-    const surplus = await treasury.getSurplus()
+
+    // The reads after get_treasury_state are independent of each other. With a toncenter API key
+    // (blueprint.config.ts) they go out three at a time: blueprint does not retry a throttled call on a
+    // keyed client, so the burst stays well under the key's ten calls a second. Without a key toncenter
+    // answers one call a second and blueprint retries a throttled call only three times, so they go one
+    // at a time as they always did.
+    const read = limiter(hasApiKey(provider) ? 3 : 1)
+    const collectionKeys: bigint[] = []
+    for (const key of treasuryState.participations.keys()) {
+        const participation = treasuryState.participations.get(key)
+        if (participation != null && participation.state !== ParticipationState.Open) {
+            collectionKeys.push(key)
+        }
+    }
+    const parentAddress = treasuryState.parent
+    const [balance, maxBurnableTokens, surplus, fees, jettonData, collectionAddressList] = await Promise.all([
+        read(() => treasury.getBalance()),
+        read(() => treasury.getMaxBurnableTokens()),
+        read(() => treasury.getSurplus()),
+        read(() => treasury.getTreasuryFees(0n)),
+        parentAddress != null
+            ? read(() => provider.open(Parent.createFromAddress(parentAddress)).getJettonData())
+            : Promise.resolve(null),
+        Promise.all(collectionKeys.map((key) => read(() => treasury.getCollectionAddress(key)))),
+    ])
+    const collectionAddresses = new Map<bigint, Address>(
+        collectionKeys.map((key, i) => [key, collectionAddressList[i]]),
+    )
 
     // What reserve_tokens and burn_tokens actually spend from, mirrored here so the number on screen is
     // the one the contract uses. It deliberately does not subtract total_staking: that would hide
@@ -36,11 +62,7 @@ export async function run(provider: NetworkProvider) {
     const liquidityRatio =
         treasuryState.totalTokens > 0n ? Number(maxBurnableTokens) / Number(treasuryState.totalTokens) : 0
 
-    let walletCode = null
-    if (treasuryState.parent != null) {
-        const parent = provider.open(Parent.createFromAddress(treasuryState.parent))
-        walletCode = (await parent.getJettonData())[4]
-    }
+    const walletCode = jettonData != null ? jettonData[4] : null
 
     const exchangeRate = Number(treasuryState.totalCoins) / Number(treasuryState.totalTokens)
 
@@ -148,7 +170,6 @@ export async function run(provider: NetworkProvider) {
 
     // The auction: everything a borrower needs to price a bid, and the floors a bid must clear. All
     // of it is the protocol's; borrowers bid only min_payment, loan and max_stake.
-    const fees = await treasury.getTreasuryFees(0n)
     // -1 when the treasury predates the floors, which no eff is below.
     const minEfficiency = treasuryState.minEfficiency ?? -1n
     console.info('    %s', c.bold('Auction'))
@@ -358,7 +379,7 @@ export async function run(provider: NetworkProvider) {
             )
             console.info('               %s %s', c.grey('requests:'), participation.requests?.size ?? '')
         } else {
-            const collectionAddress = await treasury.getCollectionAddress(key)
+            const collectionAddress = collectionAddresses.get(key)
             console.info('                 %s %s', c.grey('staked:'), participation.staked?.size ?? '')
             console.info('           %s %s GRAM', c.grey('total_staked:'), formatNano(participation.totalStaked ?? 0n))
             console.info('       %s %s', c.grey('stake_held_until:'), formatDate(participation.stakeHeldUntil ?? 0n))
@@ -562,4 +583,41 @@ function formatState(state: ParticipationState | undefined, c: Palette): string 
             return c.grey('burning')
     }
     return c.red('unknown')
+}
+
+// hasApiKey says whether the provider talks to toncenter with an API key, which blueprint takes from the
+// network entry of blueprint.config.ts; `--mainnet` or `--testnet` on the command line bypasses that entry.
+// TonClient keeps the key on its internal HTTP client, not on its public parameters, so this reads it there.
+// If a later @ton/ton moves it, this says false and the reads go one at a time, the safe way.
+function hasApiKey(provider: NetworkProvider): boolean {
+    const api: unknown = provider.api()
+    if (!(api instanceof TonClient)) {
+        return false
+    }
+    const http = (api as unknown as { api?: { parameters?: { apiKey?: string } } }).api
+    return (http?.parameters?.apiKey ?? '') !== ''
+}
+
+// limiter runs the calls it is given with at most `most` of them in flight; a finished call hands its slot
+// straight to the next one waiting, so the limit holds however the calls interleave.
+function limiter(most: number) {
+    let active = 0
+    const waiting: (() => void)[] = []
+    return async <T>(call: () => Promise<T>): Promise<T> => {
+        if (active < most) {
+            active++
+        } else {
+            await new Promise<void>((resolve) => waiting.push(resolve))
+        }
+        try {
+            return await call()
+        } finally {
+            const next = waiting.shift()
+            if (next) {
+                next()
+            } else {
+                active--
+            }
+        }
+    }
 }
