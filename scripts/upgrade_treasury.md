@@ -156,6 +156,7 @@ sending, because the list is a floor. Where a field lands matters even then: an 
 | `poker`              | `poke/state.go`, indices for `participations` and `stopped?`                        | guards `len < 26`, the right way round, so an append is safe |
 | `club-server`        | `game/tonclient/hipo.go`, layout per known length, newest layout for longer tuples   | since the 2026-09 fix a longer tuple reads with the newest layout, so an append is safe; a SHORTER unknown length is still refused |
 | `sealed-borrower`    | `borrower/process.go`, same indices as `borrower`                                   | private; safe on appends, but sends `request_loan` and must roll with the treasury |
+| `jackpot`            | `scripts/lib/common.ts` `readTreasuryRoles`, skips 16 fields for `halter` and `governor`; the contract uses `provide_current_quote`, the mint notification and Hipo's wallet address derivation | deploy script only for the tuple, so an append is safe; check the contract on every treasury, parent or wallet release |
 | `website`            | through the sdk wrapper                                                             |                                                          |
 | `mcp`                | through the sdk wrapper                                                             |                                                          |
 | `sdk`, `sdk-example` | `Treasury.ts`, sequential `stack.read*`                                             | the wrapper everything else inherits                     |
