@@ -222,6 +222,48 @@ Calling the get method `get_times` of **treasury** with no parameters, returns a
 
 1. `stake_held_for`: The duration that the staked amount will be held to process complaints.
 
+## Reading the Auction Close
+
+Loan requests have a soft close. Call `get_auction_close` of **treasury** with the round start time
+(`next_round_since`). It returns four values:
+
+1. `status`:
+    - 0: nobody has bid in this round yet. Anyone may bid until `participate_since`. A first bid
+      in the last 15 minutes before `base_close`, or after it, sets the close to 15 minutes after
+      that bid.
+    - 1: the round is open:
+        - new bids are taken while `now < min(close, participate_since)`;
+        - from `close` until `participate_since`, a borrower may only shrink its own standing
+          request (below).
+    - 2: any other round, or a round past `open`. Nobody may bid, and the next three values are 0.
+1. `close`: when new bids stop. A bid accepted in the last 15 minutes before it moves it to 15
+   minutes after that bid, never past `participate_since`.
+1. `base_close`: four hours before `participate_since`.
+1. `participate_since`: as in `get_times`. Use `min(close, participate_since)`: a change of the
+   election config can move `participate_since` below `close`.
+
+**After the close**, a request from a borrower with a standing request is accepted only as a
+shrink. It is refused with exit code 201 and bounced unless all of these hold:
+- `loan_amount` is not larger;
+- the exact price per GRAM is not lower: `min_payment × old_loan_amount ≥ old_min_payment ×
+  loan_amount`;
+- `max_stake` is not raised (0 is uncapped);
+- it passes no other request. Its sort key may rise only if no other request's key lies between
+  the old and the new key (new included), and no request with the same old key and a lower
+  address remains.
+
+A shrink keeps the reward share and fee rate of the request it replaces. A new borrower is
+refused after the close with exit code 201. Send every `request_loan` with bounce = true: a
+refused request's value comes back only by bounce. Every existing check runs again on a shrink, so
+these changes after the close can make one fail:
+- a raised `stake_cap_floor` raises a non-zero `max_stake`;
+- a raised `min_efficiency` or `min_request_stake`;
+- a raised election `min_stake` (config 17), or a higher punishment for the same stake
+  (config 40).
+A lowered max_validators does not: a shrink never evicts.
+
+See `docs/specs/2026-11-17-soft-close-four-hours.md`.
+
 ## Reading Participation Data
 
 To read data related to a specific participation, use get method `get_participation` of **treasury** which takes the round start time (in UNIX seconds) as a parameter, and returns these fields:
@@ -268,7 +310,7 @@ To read data related to a specific participation, use get method `get_participat
 
 1. `stake_held_for`: The duration to hold stake for this participation.
 
-1. `stake_held_until`: The time to keep stake before trying to recover funds.
+1. `stake_held_until`: The time to keep stake before trying to recover funds. **While the round is `open`, this slot holds the auction's stored close instead** (0 for not extended). Read the close with `get_auction_close`.
 
 ## Calculating Exchange Rate of hGRAM in GRAM
 

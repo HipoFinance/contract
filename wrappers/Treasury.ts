@@ -25,6 +25,21 @@ export interface Times {
     stakeHeldFor: bigint
 }
 
+/**
+ * The soft close of a round's loan auction (docs/specs/2026-11-17-soft-close-four-hours.md).
+ * status 0: the next round, nobody has bid yet; anyone may bid until participateSince, and a first
+ *           bid at or after baseClose - 15 minutes sets the close to 15 minutes after it.
+ * status 1: the next round, open; new bids while now < min(close, participateSince), shrink revisions
+ *           of a standing request from close until participateSince.
+ * status 2: anything else; nobody may bid, and the times are 0.
+ */
+export interface AuctionClose {
+    status: bigint
+    close: bigint
+    baseClose: bigint
+    participateSince: bigint
+}
+
 export interface TreasuryFees {
     requestLoanFee: bigint
     depositCoinsFee: bigint
@@ -1263,6 +1278,18 @@ export class Treasury implements Contract {
             stakeAmount: stack.readBigNumber(),
             requestFee: stack.readBigNumber(),
             maxStake: stack.readBigNumber(),
+        }
+    }
+
+    async getAuctionClose(provider: ContractProvider, roundSince: bigint): Promise<AuctionClose> {
+        const tb = new TupleBuilder()
+        tb.writeNumber(roundSince)
+        const { stack } = await provider.get('get_auction_close', tb.build())
+        return {
+            status: stack.readBigNumber(),
+            close: stack.readBigNumber(),
+            baseClose: stack.readBigNumber(),
+            participateSince: stack.readBigNumber(),
         }
     }
 

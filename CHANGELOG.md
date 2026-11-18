@@ -16,11 +16,41 @@ This file starts at **2026-07-16**. Earlier history is in the git log.
 
 ---
 
-## Unreleased — Auction floors and forced accrual
+## Unreleased — Soft close of the loan auction
 
-**Treasury code** `36179377e9cbc69dd7259a76ce67a7a2021ea577a850c8719ef940b6b8f0a9cf` (built, not deployed)
+**Treasury code** `5f22ab654edd76d8e96cbf1740d981fe1e78c9493f008b613d839d219f520b8a` (built, not deployed)
+· Spec [`2026-11-17-soft-close-four-hours.md`](docs/specs/2026-11-17-soft-close-four-hours.md)
+
+The last bidder before `participate_since` could copy the best bid with a smaller loan, win the tie
+and leave no time to answer. Now new bids stop four hours earlier. A bid in the last 15 minutes
+before the close moves the close 15 minutes past it, never past `participate_since`, so an outbid
+borrower can always answer. After the close a borrower may only shrink its own request. A shrink
+can't enlarge the loan, lower the exact price per GRAM, raise `max_stake` or pass another request.
+It keeps the share and fee rate it had. New getter `get_auction_close`. No layout change: an open
+round keeps the close in its `stake_held_until` slot.
+
+Declined:
+- a close at 15 minutes after the first bid, because the first bidder would choose when the clock
+  starts;
+- a price cut after the close, found by the money audit;
+- a rise out of an equal-key bucket, found by its re-check.
+
+Accepted, recorded in the spec:
+- a shrink may let a higher-ranked request push out a lower one;
+- a size bluff.
+
+---
+
+## 2026-09-29 — Auction floors and forced accrual
+
+**Treasury code** `36179377e9cbc69dd7259a76ce67a7a2021ea577a850c8719ef940b6b8f0a9cf`
 · Specs [`2026-09-28-auction-floors-and-forced-accrual.md`](docs/specs/2026-09-28-auction-floors-and-forced-accrual.md),
 [`2026-09-29-loan-config-cell.md`](docs/specs/2026-09-29-loan-config-cell.md)
+
+Deployed 2026-09-29 at 13:02:29 UTC by the governor, with the `AddAuctionFloors` migrator (treasury
+transaction `ad986fb6d78a059aa0b62c4834c5f9d891ecb8644825af7fa5967d83a42da6d1`). On 2026-10-26 the
+governor lowered `min_efficiency` from 620 to 600 with `set_auction_floors`; the other two floors
+are still at their starting values.
 
 Closes two ways to keep capital from being lent to an elected validator. The `request_loan` message
 does not change; what a bid gets does:

@@ -69,7 +69,9 @@ Each participation moves through these states (`participation::*` in
 `imports/constants.fc`):
 
 1. **open (0)** — created by the first `request_loan` for the upcoming round; borrowers'
-   requests are collected and sorted.
+   requests are collected and sorted. While a round is open, its `stake_held_until` slot holds the
+   auction's stored close S instead (see *The auction has a soft close* below); `distribute`
+   overwrites it with the real value.
 2. **distributing (1)** — entered by `participate_in_election` once the election window
    opens. `distribute` snapshots the available balance *in the same transaction* and decides
    which loan requests to accept (`decide_loan_requests` / `process_loan_requests`).
@@ -160,6 +162,32 @@ every accepted loan is full does anything stay on the balance for the next round
 
 The contract cannot see the next election's floor or limit when a request arrives, so the values are
 the governor's to keep current. See `docs/specs/2026-09-28-auction-floors-and-forced-accrual.md`.
+
+**The auction has a soft close.** New bids stop at the close E = max(B, S), where B is four hours
+before `participate_since` (`auction::base_close_before`). An accepted bid in the last 15 minutes
+before E (`auction::extension`) sets S := max(S, min(now + 15 min, participate_since)). So an outbid
+borrower always has 15 minutes to answer, and the last move before `participate_since` costs a sniper
+about sixteen paid requests. In a round nobody has bid in yet, the first bid after B opens such a
+window. S lives in the open participation's `stake_held_until` slot. `get_auction_close` returns it
+without the reader knowing that.
+
+From E until `participate_since`, a borrower may only shrink its own standing request, and nobody
+new may enter. A shrink may not:
+- enlarge the loan;
+- lower the exact price per GRAM (`min_payment × old_loan ≥ old_min_payment × loan`);
+- raise `max_stake`;
+- pass another request in the order `decide_loan_requests` walks. Its key may rise only if no
+  other key lies in (old, new], and no lower-address peer is left in its old bucket.
+
+A shrink also:
+- keeps the reward share and fee rate of the request it replaces;
+- never moves E;
+- never runs the max_validators eviction.
+
+The point of shrinks is to let a loan made too large by withdrawals still fit. A shrink can still
+let a request that was skipped for want of room fit ahead of a lower-ranked one; that request
+outranked the other at the close, and this was accepted. See
+`docs/specs/2026-11-17-soft-close-four-hours.md`.
 
 ### The borrower fee
 

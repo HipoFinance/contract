@@ -1047,11 +1047,15 @@ with the field, since every body carries it from this release.
 
 ## Auction Floors and Forced Accrual
 
-> **Not yet performed.** Build hash below is the one this section was written against; rebuild and
-> compare before sending.
+> **Already performed on mainnet, 2026-09-29 13:02:29 UTC.** Code hash
+> `36179377e9cbc69dd7259a76ce67a7a2021ea577a850c8719ef940b6b8f0a9cf`, read back from the account
+> (2026-11-17), in treasury transaction
+> `ad986fb6d78a059aa0b62c4834c5f9d891ecb8644825af7fa5967d83a42da6d1`, sent by the governor with the
+> `AddAuctionFloors` migrator. `min_efficiency` was lowered from 620 to 600 on 2026-10-26; the other
+> two floors keep their starting values. Kept as the record of what was run.
 
 Spec: `docs/specs/2026-09-28-auction-floors-and-forced-accrual.md`. Recorded in `CHANGELOG.md`
-(Unreleased) and `docs/integration.md`. Not breaking for the message format, but it changes what a bid
+(2026-09-29) and `docs/integration.md`. Not breaking for the message format, but it changes what a bid
 gets: bids below the floors bounce, tight caps are raised, and a capped loan's excess now goes to the
 other accepted loans with room instead of staying in the treasury.
 
@@ -1255,3 +1259,58 @@ Worth doing on any constant-only release. It is cheap, and it is the only check 
    The general shape: a **tracker** keyed on the treasury survives this, a tracker keyed on the
    burner does not, and a **payer** is the case that actually loses money — the retired burner still
    works, so a stale payer silently splits the burn across two addresses instead of failing.
+
+## Soft Close of the Loan Auction
+
+New bids stop four hours before `participate_since`. A bid in the last 15 minutes before the close
+moves the close 15 minutes past it, never past `participate_since`. After the close a borrower may
+only shrink its own standing request. Spec: `docs/specs/2026-11-17-soft-close-four-hours.md`.
+
+**No layout change and no migrator.** The stored close lives in the open participation's
+`stake_held_until` slot. The live code always packs that slot as 0 for an open round, and 0 means
+"not extended".
+
+The live treasury runs the Auction Floors code, `36179377…`. That was checked against the
+account's code on chain on 2026-11-17, and it is what `85e7777` builds. So this upgrade starts
+from the floors layout and needs no migrator.
+
+If the live hash is not `36179377…` when you send, stop: the starting point is different.
+
+### Before sending
+
+1. **Time it outside a round's close window.** The upgrade must not land between B
+   (`participate_since − 4 h`) and `participate_since` of the next round. If it did, that round
+   would become shrink-only at once, and a borrower that hasn't bid yet would be shut out. The
+   safe window is from `participate_since` until four hours before the next one.
+2. **Roll the senders first, or together:**
+   - `sealed-borrower` and `borrower` must send their bid before the close (`get_auction_close`),
+     not before `participate_since`;
+   - to compete they must watch the book until the close and answer;
+   - after the close they shrink when withdrawals make their loan too large. Re-read the book
+     right before a shrink: its key may not pass another request.
+   - An old daemon that sends late is refused (201) and bounced, so it loses its round, not its
+     collateral.
+3. **Readers of `get_participation`.** The shape is unchanged. Only an open round's last value
+   changes meaning: it is now the stored close, where it used to be 0. Grep
+   `~/code/HipoFinance/` for `stake_held_until` / `StakeHeldUntil` / `stakeHeldUntil` and confirm
+   that each reader looks at it only for rounds past `open`:
+   - `poker` reads it only in state `held` (`poke/due.go`), so it is fine.
+   - `borrower` and `sealed-borrower` `process.go` read it only in `held`.
+   - `gauge` exports the raw value; its `TreasuryRoundStuck` alert looks only at states 3–5.
+   - `mcp` will show the stored close as `stakeHeldUntil` for an open round.
+   - **`website`** `src/components/app/Model.ts` `unstakeBestRemain` reads `stakeHeldUntil` of the
+     lowest participation without checking its state. When the open round is the only one, the
+     page would show "receive GRAM in 15m" from S. Display only, and rare: fix it to skip rounds
+     in state `open`.
+4. Add `get_auction_close` to the sdk wrapper (it is in `wrappers/Treasury.ts` here).
+
+### Sending
+
+Leave `migratorName` null. The dry run should show only a code-hash change.
+
+### After it lands
+
+1. Call `get_auction_close` for the next round: status 0 or 1, `base_close` four hours before
+   `participate_since`.
+2. Watch the first round's bids: each extension shows as a later `close`. Afterwards, check that
+   `stake_held_until` of the staked round holds the real hold time.

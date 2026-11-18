@@ -239,6 +239,13 @@ const int fee::min_burn = 1000000000; ;; 1 GRAM
 ;; The auction floors' stakes are stored in whole GRAM; this turns them into nanoGRAM.
 const int one_gram = 1000000000;
 
+;; The soft close of the loan auction, in seconds. New bids stop at participate_since minus
+;; base_close_before; an accepted bid in the last `extension` seconds before the close moves it to
+;; now + extension, never past participate_since. After the close only shrink revisions are taken.
+;; See docs/specs/2026-11-17-soft-close-four-hours.md.
+const int auction::base_close_before = 14400; ;; 4 hours
+const int auction::extension = 900; ;; 15 minutes
+
 
 ;; Recipient of the borrower fee: EQDcjZDWvotoVE0X4HSdt2pR3b2sBZ4XikzSVSdPiqdQMLRK, the deployed
 ;; burner contract, which buys HPO with the GRAM it receives and burns it. Its source is the sibling

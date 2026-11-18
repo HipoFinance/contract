@@ -1,5 +1,5 @@
 digraph {
-    label="borrowers request loans (refused below min_efficiency or min_request_stake; a cap below stake_cap_floor is raised to it)"
+    label="borrowers request loans (refused below min_efficiency or min_request_stake; a cap below stake_cap_floor is raised to it; new bids stop at the soft close, 4 h before participate_since and moved 15 min past any bid in its last 15 min; after it only shrinks of a standing request)"
     node [ colorscheme=pastel19 style=filled ]
 
     /* Entities */

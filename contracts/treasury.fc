@@ -830,27 +830,46 @@ cell find_code(cell dict, int round_since) inline {
     cell requests = new_dict();
     int old_stake_amount = 0;
     int new_request? = true;
+    ;; The soft close's stored close, S. An open round never uses its stake_held_until slot -- this
+    ;; handler packed it as 0 before the soft close, and distribute overwrites it with the real value
+    ;; in both of its branches before the round leaves distributing -- so while the round is open the
+    ;; slot holds S, 0 meaning "not extended". See docs/specs/2026-11-17-soft-close-four-hours.md.
+    int auction_close = 0;
+    int old_min_payment = 0;
+    int old_borrower_reward_share = 0;
+    int old_loan_amount = 0;
+    int old_request_fee = 0;
+    int old_max_stake = 0;
+    int old_sort_key = 0;
+    int lower_peer? = false;
     ( slice ps, int f? ) = participations.udict_get?(32, next_round_since);
     if f? {
-        ( state, size, sorted, requests, _, _, _, _, _, _, _, _, _, _ ) = unpack_participation(ps);
+        ( state, size, sorted, requests, _, _, _, _, _, _, _, _, _, auction_close ) = unpack_participation(ps);
         ( slice old_request, int e? ) = requests~udict_delete_get?(256, borrower_addr);
         if e? {
             size -= 1;
             new_request? = false;
             ;; clean up old request
-            ( int old_min_payment
-            , int old_borrower_reward_share
-            , int old_loan_amount
+            ( old_min_payment
+            , old_borrower_reward_share
+            , old_loan_amount
             , _
             , old_stake_amount
-            , _
-            , _
+            , old_request_fee
+            , old_max_stake
             , _
             ) = unpack_request(old_request);
 
-            int old_sort_key = request_sort_key(old_min_payment, old_borrower_reward_share, old_loan_amount);
+            old_sort_key = request_sort_key(old_min_payment, old_borrower_reward_share, old_loan_amount);
             ( cell old_bucket, _ ) = sorted.udict_get_ref?(120, old_sort_key);
             old_bucket~udict_delete?(256, borrower_addr);
+            ;; decide_loan_requests takes a bucket lowest address first, so a peer left in this bucket
+            ;; with a lower address was decided before this request. A shrink after the close must not
+            ;; rise out of the bucket past it -- that would be the tie snipe the soft close removes.
+            ( int min_peer_addr, _, int peer? ) = old_bucket.udict_get_min?(256);
+            if peer? {
+                lower_peer? = min_peer_addr < borrower_addr;
+            }
             if old_bucket.null?() {
                 sorted~udict_delete?(120, old_sort_key);
             } else {
@@ -868,6 +887,19 @@ cell find_code(cell dict, int round_since) inline {
             }
         } until ~ more?;
         throw_unless(err::not_accepting_loan_requests, participations_count <= 7);
+    }
+    ;; The soft close. New bids stop at E = max(B, S), B being four hours before participate_since. In
+    ;; a round with no participation yet the first bid is always a normal one, and opens a window
+    ;; below. From E until participate_since a borrower may only shrink its own standing request:
+    ;; never a larger loan, never a lower price per GRAM, never past another request in the order
+    ;; decide_loan_requests walks, and with the share and fee of the request it replaces, so a
+    ;; governor change after the close cannot reach a loan through a no-op revision.
+    int close = max(participate_since - auction::base_close_before, auction_close);
+    int shrink? = f? & (now() >= close);
+    if shrink? {
+        throw_if(err::not_accepting_loan_requests, new_request?);
+        borrower_reward_share = old_borrower_reward_share;
+        borrower_fee = old_request_fee;
     }
     ( int total_fee, _, _ ) = request_loan_fee();
     int incoming_ton = get_incoming_value().pair_first();
@@ -909,6 +941,15 @@ cell find_code(cell dict, int round_since) inline {
     ;; A cap below what the borrower already stakes without any accrual could never be honoured.
     throw_if(err::invalid_parameters, max_stake & (max_stake < loan_amount + stake_amount));
     throw_if(err::stopped, stopped?);
+    if shrink? {
+        throw_unless(err::not_accepting_loan_requests, loan_amount <= old_loan_amount);
+        ;; The exact price per GRAM, not the rounded efficiency of the sort key: a lower key is always
+        ;; "not higher", so checking only the key would let a bidder cut its price once nobody can
+        ;; answer. Both products are below 2^240.
+        throw_unless(err::not_accepting_loan_requests, min_payment * old_loan_amount >= old_min_payment * loan_amount);
+        ;; max_stake is compared after the raise to stake_cap_floor above; 0 is uncapped.
+        throw_unless(err::not_accepting_loan_requests, (old_max_stake == 0) | ((max_stake > 0) & (max_stake <= old_max_stake)));
+    }
 
     builder request = pack_request(
         min_payment, borrower_reward_share, loan_amount, 0, stake_amount, borrower_fee, max_stake,
@@ -918,13 +959,33 @@ cell find_code(cell dict, int round_since) inline {
     size += 1;
 
     int sort_key = request_sort_key(min_payment, borrower_reward_share, loan_amount);
+    ;; A shrink's key can rise through rounding and the smaller-loan tie-break while its exact price
+    ;; holds. That is allowed only when it passes nobody: no other key in (old, new] -- sorted no longer
+    ;; holds this request -- and no lower-address peer left behind in the old bucket.
+    if shrink? & (sort_key > old_sort_key) {
+        ( int next_key, _, int next? ) = sorted.udict_get_next?(120, old_sort_key);
+        if next? {
+            throw_if(err::not_accepting_loan_requests, next_key <= sort_key);
+        }
+        throw_if(err::not_accepting_loan_requests, lower_peer?);
+    }
     ( cell bucket, _ ) = sorted.udict_get_ref?(120, sort_key);
     bucket~udict_set_builder(256, borrower_addr, begin_cell());
     sorted~udict_set_ref(120, sort_key, bucket);
 
+    ;; A normal bid in the last `extension` seconds before the close moves the close; S only grows,
+    ;; and is never written past participate_since. A shrink never moves it.
+    ifnot shrink? {
+        if now() >= close - auction::extension {
+            auction_close = max(auction_close, min(now() + auction::extension, participate_since));
+        }
+    }
+
     ( int max_validators, _, _ ) = get_validators_config();
     max_validators = min(max_validators, 100); ;; before increasing 100, check gas usage using MaxGas
-    if size > max_validators {
+    ;; A shrink never grows size, so it can only exceed max_validators after config 16 lowered it; the
+    ;; eviction would then remove a bottom borrower who cannot come back after the close.
+    if (size > max_validators) & (~ shrink?) {
         ( int last_sort_key, slice v, _ ) = sorted~udict_delete_get_min?(120);
         cell last_bucket = v~load_ref();
         ( int last_borrower_addr, _, _ ) = last_bucket~udict_delete_get_max?(256);
@@ -946,7 +1007,7 @@ cell find_code(cell dict, int round_since) inline {
 
     builder pb = pack_participation(
         state, size, sorted, requests, new_dict(), new_dict(), new_dict(), new_dict(), new_dict(),
-        0, 0, 0, 0, 0
+        0, 0, 0, 0, auction_close
     );
     participations~udict_set_builder(32, next_round_since, pb);
 }
@@ -3084,6 +3145,34 @@ var get_participation(int round_since) method_id {
 
     ( slice ps, _ ) = participations.udict_get?(32, round_since);
     return unpack_participation(ps);
+}
+
+;; The soft close of a round's loan auction, without knowing that an open round keeps S in its
+;; stake_held_until slot. Returns (status, close, base_close, participate_since):
+;;   0  round_since is the next round and nobody has bid yet: anyone may bid until participate_since,
+;;      and a first bid at or after base_close - auction::extension sets the close to
+;;      auction::extension seconds after it;
+;;   1  the next round, open: new bids while now < min(close, participate_since), shrink revisions of
+;;      a standing request from close until participate_since;
+;;   2  anything else (another round, or a round past open): nobody may bid; the times are 0.
+;; Readers use min(close, participate_since): a config change can move participate_since below S.
+(int, int, int, int) get_auction_close(int round_since) method_id {
+    load_data();
+
+    ( _, int participate_since, _, int next_round_since, _, _ ) = get_times();
+    if round_since != next_round_since {
+        return ( 2, 0, 0, 0 );
+    }
+    int base_close = participate_since - auction::base_close_before;
+    ( slice ps, int f? ) = participations.udict_get?(32, round_since);
+    ifnot f? {
+        return ( 0, base_close, base_close, participate_since );
+    }
+    ( int state, _, _, _, _, _, _, _, _, _, _, _, _, int auction_close ) = unpack_participation(ps);
+    if state != participation::open {
+        return ( 2, 0, 0, 0 );
+    }
+    return ( 1, max(base_close, auction_close), base_close, participate_since );
 }
 
 slice get_collection_address(int round_since) method_id {
