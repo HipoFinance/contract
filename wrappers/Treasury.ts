@@ -308,6 +308,7 @@ export const participationDictionaryValue: DictionaryValue<Participation> = {
     },
     parse: function (src: Slice): Participation {
         return {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-assignment -- the chain stores the state as a uint
             state: src.loadUint(4),
             size: src.loadUintBig(16),
             sorted: src.loadDict(Dictionary.Keys.BigUint(120), sortedDictionaryValue),
@@ -1270,6 +1271,7 @@ export class Treasury implements Contract {
         const found = stack.readBoolean()
         return {
             found,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-assignment -- the chain stores the state as a uint
             stage: Number(stack.readBigNumber()),
             minPayment: stack.readBigNumber(),
             borrowerRewardShare: stack.readBigNumber(),
@@ -1298,6 +1300,7 @@ export class Treasury implements Contract {
         tb.writeNumber(roundSince)
         const { stack } = await provider.get('get_participation', tb.build())
         return {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-assignment -- the chain stores the state as a uint
             state: stack.readNumber(),
             size: stack.readBigNumber(),
             sorted: Dictionary.loadDirect(Dictionary.Keys.BigUint(120), sortedDictionaryValue, stack.readCellOpt()),
